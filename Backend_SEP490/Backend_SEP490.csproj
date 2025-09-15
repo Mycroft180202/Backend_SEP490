@@ -19,6 +19,13 @@
     <Folder Include="DTOs\" />
     <Folder Include="Mapper\" />
     <Folder Include="Config\" />
+    <Folder Include="Config\" />
+    <Folder Include="Data\" />
+    <Folder Include="DTOs\" />
+    <Folder Include="Mapper\" />
+    <Folder Include="Models\" />
+    <Folder Include="Services\" />
+    <Folder Include="Repositories\" />
     <Folder Include="Repositories\" />
     <Folder Include="Services\" />
   </ItemGroup>
