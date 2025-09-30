@@ -22,4 +22,27 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
             return product;
         }
     }
+
+    public async Task<Product> GetProductById(int id)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null)
+        {
+            return null;
+        }
+        else
+        {
+            return product;
+        }
+    }
+
+    
+    public async Task<Product> AddProduct(Product product)
+    {
+        product.ProductID =await _context.Products.CountAsync();
+            await _context.Products.AddAsync(product);
+            await _context.SaveChangesAsync();
+            return product;
+        
+    }
 }

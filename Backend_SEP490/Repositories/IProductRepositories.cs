@@ -5,4 +5,6 @@ namespace Backend_SEP490.Repositories;
 public interface IProductRepositories
 {
     public Task<List<Product>> GetProductsList();
+    public Task<Product> GetProductById(int id);
+    public Task<Product> AddProduct(Product product);
 }
