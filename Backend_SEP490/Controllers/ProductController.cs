@@ -18,8 +18,10 @@ public class ProductController:ControllerBase
     [HttpGet("products/available")]
     public async Task<IActionResult> GetAvailableProducts()
     {
-        var product = await _productServices.GetAvailableProductsAsync();
-        return Ok(product);
+        var products = await _productServices.GetAvailableProductsAsync();
+        if (products == null || !products.Any())
+            return NotFound();
+        return Ok(products);
     }
 
     [HttpGet("products/{id}")]
@@ -28,15 +30,22 @@ public class ProductController:ControllerBase
         var product = await _productServices.GetProductByIdAsync(id);
         return Ok(product);
     }
-
-    [HttpPost("products")]
-    public async Task<IActionResult> AddProduct([FromBody] RequestDTOProduct product)
+    [HttpGet("products/unavailable")]
+    public async Task<IActionResult> GetUnavailableProducts()
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var result = await _productServices.AddProductAsync(product);
-
-        return Ok(result);
+        var products = await _productServices.GetUnavailableProductsAsync();
+        if (products == null || !products.Any())
+            return NotFound();
+        return Ok(products);
     }
+    [HttpGet("products")]
+    public async Task<IActionResult> GetAllProducts()
+    {
+        var products = await _productServices.GetAllProductsAsync();
+        if (products == null || !products.Any())
+            return NotFound();
+        return Ok(products);
+    }
+
+
 }

@@ -36,6 +36,24 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
+    public async Task<IEnumerable<RequestDTOProduct>> GetUnavailableProductsAsync()
+    {
+        var products = await _context.Products.GetAvailableProductsAsync();
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        foreach (var pro in resultproducts)
+        {
+            pro.DisplayName = _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId).Result.DisplayName;
+            pro.ShopName = _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId).Result.ShopName;
+            var rateting=_context.Feedback.GetFeedbacksByProductIdAsync(pro.Id).Result;
+            var ratetingProduct = rateting.Sum(o => o.Rating);
+            pro.Rating = (double)(ratetingProduct/rateting.Count());
+            var productImages=_context.ProductImages.GetImagesByProductIdAsync(pro.Id).Result;
+            var imageUrl = productImages.FirstOrDefault(o => o.Position == 1);
+            pro.ImageUrl = imageUrl.URL;
+        }
+        return resultproducts;
+    }
+
     public async Task<Boolean> AddProductAsync(RequestDTOProduct product)
     {
         var newProduct = _mapper.Map<Product>(product);
@@ -56,5 +74,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         var listURL = ListImages.Select(o=>o.URL).ToList();
         resultProduct.Images = listURL;
         return resultProduct;
+    }
+
+    public async Task<IEnumerable<RequestDTOProduct>> GetAllProductsAsync()
+    {
+        var products = await _context.Products.GetAllProductsAsync();
+        return _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
     }
 }
