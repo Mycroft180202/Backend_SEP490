@@ -39,7 +39,7 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
     
     public async Task<Product> AddProduct(Product product)
     {
-        product.ProductID =await _context.Products.CountAsync();
+       
             await _context.Products.AddAsync(product);
             await _context.SaveChangesAsync();
             return product;

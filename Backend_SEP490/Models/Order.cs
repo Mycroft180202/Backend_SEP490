@@ -1,0 +1,19 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend_SEP490.Models;
+public class Order
+{
+    [Key]
+    public string Id { get; set; }
+    public string OrderNumber { get; set; }
+    public string CustomerId { get; set; }
+    public string Status { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string ShipingAddressId { get; set; }
+    public DateTime CreateAt { get; set; }
+
+    public User Customer { get; set; }
+    public ICollection<OrderItem>? OrderItems { get; set; }
+    public ICollection<Payment>? Payments { get; set; }
+    public ICollection<Shipment>? Shipments { get; set; }
+}
