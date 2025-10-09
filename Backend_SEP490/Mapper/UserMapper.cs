@@ -4,10 +4,10 @@ using Backend_SEP490.Models;
 
 namespace Backend_SEP490.Mapper;
 
-public class ProductMapper: Profile
+public class UserMapper : Profile
 {
-    public ProductMapper()
+    public UserMapper()
     {
-        CreateMap<Product, RequestDTOProduct>().ReverseMap();
+        CreateMap<User, RequestDTOUser>().ReverseMap();
     }
 }

@@ -15,10 +15,10 @@ public class ProductController:ControllerBase
         _productServices = productServices;
     }
 
-    [HttpGet("products")]
-    public async Task<IActionResult> GetProductList()
+    [HttpGet("products/available")]
+    public async Task<IActionResult> GetAvailableProducts()
     {
-        var product = await _productServices.GetProductListAsync();
+        var product = await _productServices.GetAvailableProductsAsync();
         return Ok(product);
     }
 

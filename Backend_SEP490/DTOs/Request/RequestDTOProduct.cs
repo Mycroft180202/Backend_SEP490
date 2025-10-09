@@ -1,12 +1,19 @@
-﻿namespace Backend_SEP490.DTOs.Request;
+﻿using Backend_SEP490.Models;
+
+namespace Backend_SEP490.DTOs.Request;
 
 public class RequestDTOProduct
 {
-    public int ProductID { get; set; }
-    public string ProductName { get; set; }
-    public string ProductDescription { get; set; }
-    public decimal ProductPrice { get; set; }
-    public string ProductImage { get; set; }
-    public int ProductStock { get; set; }
-    public int ProductCategoryID { get; set; }
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string? ShortDescription { get; set; }
+    public decimal Price { get; set; }
+    public string Category { get; set; }
+    public bool IsActive { get; set; }
+    public string ArtisanId { get; set; }
+    public string DisplayName { get; set; }
+    public int Stock { get; set; }
+    public string ShopName { get; set; }
+    public double Rating { get; set; }
+    public string ImageUrl { get; set; }
 }

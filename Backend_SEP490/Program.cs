@@ -26,8 +26,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<IProductRepositories, ProductRepositoriesImpl>();
+builder.Services.AddScoped<IUserRepositories, UserRepositoriesImpl>();
+builder.Services.AddScoped<IFeedbackRepositories, FeedbackRepositoriesImpl>();
 //sercive
 builder.Services.AddScoped<IProductServices, ProductServicesImpl>();
+builder.Services.AddScoped<IUserServices, UserServicesImpl>();
 
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

@@ -3,5 +3,8 @@
 public interface IUnitOfWork: IDisposable
 {
     Task<int> CommitAsync();
-    IProductRepositories Products { get; }    
+    IProductRepositories Products { get; }
+    IUserRepositories Users { get; }
+    IFeedbackRepositories Feedback { get; }
+    IProductImagesRepositories ProductImages { get; }
 }

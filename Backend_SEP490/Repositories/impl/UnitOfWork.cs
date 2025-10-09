@@ -21,4 +21,7 @@ public class UnitOfWork: IUnitOfWork
     }
 
     public IProductRepositories Products { get;private set;  }
+    public IUserRepositories Users { get;private set;  }
+    public IFeedbackRepositories Feedback { get;private set;  }
+    public IProductImagesRepositories ProductImages { get;private set;  }
 }

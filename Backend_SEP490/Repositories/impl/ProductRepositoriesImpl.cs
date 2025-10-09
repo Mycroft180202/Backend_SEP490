@@ -10,17 +10,12 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
     {
         
     }
-    public async Task<List<Product>> GetProductsList()
+
+
+    public async Task<IEnumerable<Product>> GetAvailableProductsAsync()
     {
-        var product = await _context.Products.ToListAsync();
-        if (product == null)
-        {
-            return null;
-        }
-        else
-        {
-            return product;
-        }
+        var prodcutsAvailable= await _context.Products.Where(s=>s.IsActive==true).ToListAsync();
+        return prodcutsAvailable;
     }
 
     public async Task<Product> GetProductById(int id)
