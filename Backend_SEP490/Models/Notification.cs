@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Backend_SEP490.Models;
 
@@ -11,6 +12,6 @@ public class Notification
     public string Type { get; set; }
     public bool IsRead { get; set; }
     public DateTime? CreateAt { get; set; }
-
+    [JsonIgnore]
     public User User { get; set; }
 }

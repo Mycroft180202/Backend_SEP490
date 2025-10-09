@@ -5,10 +5,13 @@ namespace Backend_SEP490.Repositories.impl;
 public class UnitOfWork: IUnitOfWork
 {
     private readonly AppDbContext _context;
-    public UnitOfWork(AppDbContext context,IProductRepositories product)
+    public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,IFeedbackRepositories feedback)
     {
         _context = context;
         Products = product;
+        ProductImages = productImages;
+        Users = user;
+        Feedback = feedback;
     }
     public void Dispose()
     {

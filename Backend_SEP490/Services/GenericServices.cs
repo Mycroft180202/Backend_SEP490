@@ -8,9 +8,9 @@ public class GenericServices
     protected readonly IMapper _mapper;
     protected readonly IUnitOfWork _context;
 
-    public GenericServices(IMapper mapper, IUnitOfWork context)
+    public GenericServices(IMapper mapper, IUnitOfWork unitOfWork)
     {
-        _mapper = mapper;
-        _context = context;
+        _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+        _context = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
     }
 }

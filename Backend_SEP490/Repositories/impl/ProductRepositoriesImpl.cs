@@ -22,16 +22,7 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
         var prodcutsAvailable= await _context.Products.Where(s=>s.IsActive==false).ToListAsync();
         return prodcutsAvailable;
     }
-
     
-    public async Task<Product> AddProduct(Product product)
-    {
-       
-            await _context.Products.AddAsync(product);
-            await _context.SaveChangesAsync();
-            return product;
-        
-    }
 
     public async Task<Product?> GetProductByIdAsync(string productId)
     {
@@ -43,4 +34,10 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
     {
         return await _context.Products.ToListAsync();
     }
+    public async Task AddProductAsync(Product product)
+    {
+        await _context.Products.AddAsync(product);
+        await _context.SaveChangesAsync();
+    }
+
 }

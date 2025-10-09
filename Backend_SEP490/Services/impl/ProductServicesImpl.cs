@@ -1,7 +1,10 @@
 ﻿using AutoMapper;
 using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -10,11 +13,13 @@ public class ProductServicesImpl: GenericServices, IProductServices
     private readonly IUserServices _userServices;
     private readonly IFeedbackServices _feedbackServices;
     private readonly IProductImagesServices _productImagesServices;
-    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices) : base(mapper, unitOfWork)
+    private readonly Cloudinary _cloudinary;
+    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary) : base(mapper, unitOfWork)
     {
         _userServices= userServices;
         _feedbackServices = feedbackServices;
         _productImagesServices = productImagesServices;
+        _cloudinary = cloudinary;
     }
 
 
@@ -53,13 +58,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         }
         return resultproducts;
     }
-
-    public async Task<Boolean> AddProductAsync(RequestDTOProduct product)
-    {
-        var newProduct = _mapper.Map<Product>(product);
-        var result= await _context.Products.AddProduct(newProduct);
-        return true;
-    }
+    
 
     public async Task<RequestDTOProductDetail> GetProductByIdAsync(string id)
     {
@@ -80,5 +79,51 @@ public class ProductServicesImpl: GenericServices, IProductServices
     {
         var products = await _context.Products.GetAllProductsAsync();
         return _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+    }
+
+    public async Task<bool> CreateProductAsync(ResponseDTOProduct productDto)
+    {
+        var newProduct = _mapper.Map<Product>(productDto);
+        newProduct.Id = GenerateID("PROD");
+        newProduct.IsActive = true;
+        newProduct.CreateAt = DateTime.UtcNow;
+        newProduct.UpdateAt = DateTime.UtcNow;
+        await _context.Products.AddProductAsync(newProduct);
+        
+        
+        if (productDto.images != null)
+        {
+            int position = 0;
+            foreach (var file in productDto.images)
+            {
+                using var stream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream)
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+                var productImage = new ProductImage
+                {
+                    Id = GenerateID("PIMG"),
+                    ProductId = newProduct.Id,
+                    URL = uploadResult.SecureUrl.ToString(),
+                    Position = position++
+                };
+                await _context.ProductImages.AddProductImageAsync(productImage);
+            }
+        }
+
+
+        return true;
+    }
+
+    public static string GenerateID(string prefix)
+    {   
+        
+        string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+
+        return $"{prefix}-{timestamp}";
     }
 }

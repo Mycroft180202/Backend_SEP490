@@ -6,6 +6,7 @@ using Backend_SEP490.Services.impl;
 using Backend_SEP490.Mapper;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
+using CloudinaryDotNet;
 using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,14 @@ var builder = WebApplication.CreateBuilder(args);
 // ----------------------
 Env.Load();
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+var cloudName = Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME");
+var apiKey = Environment.GetEnvironmentVariable("CLOUDINARY_API_KEY");
+var apiSecret = Environment.GetEnvironmentVariable("CLOUDINARY_API_SECRET");
+var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret))
+{
+    Api = { Secure = true }
+};
+builder.Services.AddSingleton(cloudinary);
 if (string.IsNullOrEmpty(dbPassword))
 {
     throw new Exception("DB_PASSWORD is not set in .env file!");

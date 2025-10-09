@@ -14,4 +14,10 @@ public class ProductImagesRepositoriesImpl: GenericRepositoryImpl<ProductImage>,
         var productImages = await _context.ProductImages.Where(o=>o.ProductId==productId).ToListAsync();
         return productImages;
     }
+
+    public async Task AddProductImageAsync(ProductImage productImage)
+    {
+        await _context.ProductImages.AddAsync(productImage);
+        await _context.SaveChangesAsync();
+    }
 }

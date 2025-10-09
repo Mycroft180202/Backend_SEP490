@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Backend_SEP490.Models;
 
@@ -19,6 +20,7 @@ public class Product
     public DateTime? UpdateAt { get; set; }
     public int Stock { get; set; }
 
+    [JsonIgnore]
     public Category CategoryNav { get; set; }
     public User Artisan { get; set; }
 

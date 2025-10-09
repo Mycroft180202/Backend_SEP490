@@ -1,4 +1,5 @@
 ﻿using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -45,6 +46,15 @@ public class ProductController:ControllerBase
         if (products == null || !products.Any())
             return NotFound();
         return Ok(products);
+    }
+    [HttpPost("products")]
+    public async Task<IActionResult> CreateProduct([FromForm] ResponseDTOProduct productDto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var product = await _productServices.CreateProductAsync(productDto);
+        return Ok(product);
     }
 
 

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Backend_SEP490.Models;
 
@@ -12,6 +13,6 @@ public class Report
     public string? Reason { get; set; }
     public string ReportStatus { get; set; }
     public DateTime CreatedAt { get; set; }
-
+    [JsonIgnore]
     public User Reporter { get; set; }
 }

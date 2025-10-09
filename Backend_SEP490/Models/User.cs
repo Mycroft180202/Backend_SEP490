@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Backend_SEP490.Models;
 
@@ -19,7 +20,7 @@ public class User
     public string? Bio { get; set; }
     public int? Rating { get; set; }
     public int? AdminLevel { get; set; }
-
+    [JsonIgnore]
     // Navigation
     public ICollection<Address>? Addresses { get; set; }
     public ICollection<BlogPost>? BlogPosts { get; set; }

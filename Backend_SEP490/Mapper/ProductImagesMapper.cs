@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 
 namespace Backend_SEP490.Mapper;
@@ -7,6 +9,7 @@ public class ProductImagesMapper :Profile
 {
     public ProductImagesMapper()
     {
-        CreateMap<ProductImagesMapper,ProductImage>().ReverseMap();
+        CreateMap<RequestDTOProductImages,ProductImage>().ReverseMap();
+        CreateMap<ResponseDTOProductImage,ProductImage>().ReverseMap();
     }
 }

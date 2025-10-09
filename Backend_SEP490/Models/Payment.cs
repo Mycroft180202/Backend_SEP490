@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Backend_SEP490.Models;
 
@@ -12,6 +13,6 @@ public class Payment
     public string? ProviderXlnd { get; set; }
     public string PaymentStatus { get; set; }
     public DateTime ProccessedAt { get; set; }
-
+    [JsonIgnore]
     public Order Order { get; set; }
 }

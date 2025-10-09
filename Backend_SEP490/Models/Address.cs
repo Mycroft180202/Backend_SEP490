@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Backend_SEP490.Models;
 
@@ -13,6 +14,6 @@ public class Address
     public string? PosttalCode { get; set; }
     public string Country { get; set; }
     public bool IsDefault { get; set; }
-
+    [JsonIgnore]
     public User User { get; set; }
 }
