@@ -4,9 +4,9 @@ using Backend_SEP490.Repositories;
 
 namespace Backend_SEP490.Services.impl;
 
-public class ProductImageImpl: GenericServices,IProductImagesServices
+public class ProductImagesServicesImpl: GenericServices,IProductImagesServices
 {
-    public ProductImageImpl(IMapper mapper, IUnitOfWork context) : base(mapper, context)
+    public ProductImagesServicesImpl(IMapper mapper, IUnitOfWork context) : base(mapper, context)
     {
     }
 

@@ -36,17 +36,25 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
-    public async Task<RequestDTOProduct> GetProductByIdAsync(int id)
-    {
-        var product = await _context.Products.GetProductById(id);
-        var result = _mapper.Map<RequestDTOProduct>(product);
-        return result;
-    }
-
     public async Task<Boolean> AddProductAsync(RequestDTOProduct product)
     {
         var newProduct = _mapper.Map<Product>(product);
         var result= await _context.Products.AddProduct(newProduct);
         return true;
+    }
+
+    public async Task<RequestDTOProductDetail> GetProductByIdAsync(string id)
+    {
+        var product = await _context.Products.GetProductByIdAsync(id);
+        var resultProduct = _mapper.Map<RequestDTOProductDetail>(product);
+        resultProduct.DisplayName=_context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId).Result.DisplayName;
+        resultProduct.ShopName = _context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId).Result.ShopName;
+        var rateting=_context.Feedback.GetFeedbacksByProductIdAsync(resultProduct.Id).Result;
+        var ratetingProduct = rateting.Sum(o => o.Rating);
+        resultProduct.Rating = (double)(ratetingProduct/rateting.Count());
+        var ListImages=_context.ProductImages.GetImagesByProductIdAsync(resultProduct.Id).Result;
+        var listURL = ListImages.Select(o=>o.URL).ToList();
+        resultProduct.Images = listURL;
+        return resultProduct;
     }
 }

@@ -17,19 +17,7 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
         var prodcutsAvailable= await _context.Products.Where(s=>s.IsActive==true).ToListAsync();
         return prodcutsAvailable;
     }
-
-    public async Task<Product> GetProductById(int id)
-    {
-        var product = await _context.Products.FindAsync(id);
-        if (product == null)
-        {
-            return null;
-        }
-        else
-        {
-            return product;
-        }
-    }
+    
 
     
     public async Task<Product> AddProduct(Product product)
@@ -39,5 +27,11 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
             await _context.SaveChangesAsync();
             return product;
         
+    }
+
+    public async Task<Product?> GetProductByIdAsync(string productId)
+    {
+        var product = await _context.Products.FindAsync(productId);
+        return product;
     }
 }

@@ -4,6 +4,6 @@ namespace Backend_SEP490.Services;
 public interface IProductServices
 {
     public Task<IEnumerable<RequestDTOProduct>> GetAvailableProductsAsync();
-    public Task<RequestDTOProduct> GetProductByIdAsync(int id);
     public Task<Boolean> AddProductAsync(RequestDTOProduct product);
+    public Task<RequestDTOProductDetail> GetProductByIdAsync(string id);
 }

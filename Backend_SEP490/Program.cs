@@ -28,10 +28,12 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IProductRepositories, ProductRepositoriesImpl>();
 builder.Services.AddScoped<IUserRepositories, UserRepositoriesImpl>();
 builder.Services.AddScoped<IFeedbackRepositories, FeedbackRepositoriesImpl>();
+builder.Services.AddScoped<IProductImagesRepositories, ProductImagesRepositoriesImpl>();
 //sercive
 builder.Services.AddScoped<IProductServices, ProductServicesImpl>();
 builder.Services.AddScoped<IUserServices, UserServicesImpl>();
-
+builder.Services.AddScoped<IFeedbackServices, FeedbackServicesImpl>();
+builder.Services.AddScoped<IProductImagesServices,ProductImagesServicesImpl>();
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 

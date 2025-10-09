@@ -23,7 +23,7 @@ public class ProductController:ControllerBase
     }
 
     [HttpGet("products/{id}")]
-    public async Task<IActionResult> GetProductById(int id)
+    public async Task<IActionResult> GetProductById(string id)
     {
         var product = await _productServices.GetProductByIdAsync(id);
         return Ok(product);
