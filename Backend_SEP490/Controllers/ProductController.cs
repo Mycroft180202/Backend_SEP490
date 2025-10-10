@@ -56,6 +56,41 @@ public class ProductController:ControllerBase
         var product = await _productServices.CreateProductAsync(productDto);
         return Ok(product);
     }
+    [HttpGet("products/artisan/{artisanId}")]
+    public async Task<IActionResult> GetProductsByArtisanId([FromRoute] string artisanId)
+    {
+        var products = await _productServices.GetProductsByArtisanIdAsync(artisanId);
+        if (products == null || !products.Any())
+            return NotFound();
+        return Ok(products);
+    }  
+    [HttpGet("products/category/{categoryId}")]
+    public async Task<IActionResult> GetProductsByCategory([FromRoute] string categoryId)
+    {
+        var products = await _productServices.GetProductsByCategoryAsync(categoryId);
+        if (products == null || !products.Any())
+            return NotFound();
+        return Ok(products);
+    }
+    [HttpGet("/products?productName={name}")]
+    public async Task<IActionResult> GetProductsByName([FromQuery] string productName)
+    {
+        var products = await _productServices.GetProductsByNameAsync(productName);
+        return Ok(products);
+    }
+    [HttpPut("products/{id}")]
+    public async Task<IActionResult> UpdateProduct(string id, [FromForm] ResponseDTOProduct productDto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var updatedProduct = await _productService.UpdateProductAsync(id, productDto);
+
+        if (updatedProduct == null)
+            return NotFound();
+
+        return Ok(updatedProduct);
+    }
 
 
 }

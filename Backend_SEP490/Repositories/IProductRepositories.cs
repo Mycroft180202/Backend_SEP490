@@ -9,4 +9,8 @@ public interface IProductRepositories
     public Task<Product?> GetProductByIdAsync(string productId);
     public Task<IEnumerable<Product>> GetAllProductsAsync();
     public Task AddProductAsync(Product product);
+    public Task<IEnumerable<Product>> GetProductsByArtisanIdAsync(string artisanId);
+    public Task<IEnumerable<Product>> GetProductsByCategoryAsync(string categoryId);
+    public Task<IEnumerable<Product>> GetProductsByNameAsync(string productName);
+    public Task UpdateAsync(Product product);
 }

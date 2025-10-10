@@ -40,4 +40,27 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
         await _context.SaveChangesAsync();
     }
 
+    public async Task<IEnumerable<Product>> GetProductsByArtisanIdAsync(string artisanId)
+    {
+        var product= await _context.Products.Where(s=>s.ArtisanId==artisanId).ToListAsync();
+        return product;
+    }
+
+    public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string categoryId)
+    {
+        var product= await _context.Products.Where(o=>o.Category==categoryId).ToListAsync();
+        return product;
+    }
+
+    public async Task<IEnumerable<Product>> GetProductsByNameAsync(string productName)
+    {
+        var product = await _context.Products.Where(o=>o.Name==productName).ToListAsync();
+        return product;
+    }
+
+    public async Task UpdateAsync(Product product)
+    {
+        _context.Products.Update(product);
+        await _context.SaveChangesAsync();
+    }
 }

@@ -181,6 +181,122 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return true;
     }
 
+    public async Task<IEnumerable<RequestDTOProduct>> GetProductsByArtisanIdAsync(string artisanId)
+    {
+        var products = await _context.Products.GetProductsByArtisanIdAsync(artisanId);
+
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+
+        foreach (var pro in resultproducts)
+        {
+            // Artisan info
+            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
+            if (user != null)
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            // Ratings
+            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
+            if (ratings != null && ratings.Any())
+            {
+                var ratingSum = ratings.Sum(o => o.Rating);
+                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
+
+            // Product Images
+            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
+            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
+            pro.ImageUrl = imageUrl?.URL; // tránh null
+        }
+
+        return resultproducts;
+    }
+
+    public async Task<IEnumerable<RequestDTOProduct>> GetProductsByCategoryAsync(string categoryId)
+    {
+        var products = await _context.Products.GetProductsByCategoryAsync(categoryId);
+
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+
+        foreach (var pro in resultproducts)
+        {
+            // Artisan info
+            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
+            if (user != null)
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            // Ratings
+            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
+            if (ratings != null && ratings.Any())
+            {
+                var ratingSum = ratings.Sum(o => o.Rating);
+                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
+
+            // Product Images
+            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
+            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
+            pro.ImageUrl = imageUrl?.URL; // tránh null
+        }
+
+        return resultproducts;
+    }
+
+    public async Task<IEnumerable<RequestDTOProduct>> GetProductsByNameAsync(string productName)
+    {
+        var products = await _context.Products.GetProductsByNameAsync(productName);
+
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+
+        foreach (var pro in resultproducts)
+        {
+            // Artisan info
+            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
+            if (user != null)
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            // Ratings
+            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
+            if (ratings != null && ratings.Any())
+            {
+                var ratingSum = ratings.Sum(o => o.Rating);
+                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
+
+            // Product Images
+            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
+            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
+            pro.ImageUrl = imageUrl?.URL; // tránh null
+        }
+
+        return resultproducts;
+    }
+
+    public Task<bool> UpdateProductAsync(string id, ResponseDTOProduct productDto)
+    {
+        
+    }
+
     public static string GenerateID(string prefix)
     {   
         
