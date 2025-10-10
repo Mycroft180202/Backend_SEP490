@@ -294,7 +294,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
     public Task<bool> UpdateProductAsync(string id, ResponseDTOProduct productDto)
     {
-        
+        return null;
     }
 
     public static string GenerateID(string prefix)

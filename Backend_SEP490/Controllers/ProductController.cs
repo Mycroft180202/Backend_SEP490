@@ -72,7 +72,7 @@ public class ProductController:ControllerBase
             return NotFound();
         return Ok(products);
     }
-    [HttpGet("/products?productName={name}")]
+    [HttpGet("/product")]
     public async Task<IActionResult> GetProductsByName([FromQuery] string productName)
     {
         var products = await _productServices.GetProductsByNameAsync(productName);
@@ -84,7 +84,7 @@ public class ProductController:ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var updatedProduct = await _productService.UpdateProductAsync(id, productDto);
+        var updatedProduct = await _productServices.UpdateProductAsync(id, productDto);
 
         if (updatedProduct == null)
             return NotFound();

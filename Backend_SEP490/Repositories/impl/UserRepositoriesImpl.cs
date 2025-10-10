@@ -15,6 +15,12 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return user;
     }
 
+    public async Task<IEnumerable<User>> GetAllUsersWithRoleAsync()
+    {
+        var user = await _context.Users.Include( u => u.UserRoles).ToListAsync();
+        return user;
+    }
+
     public async Task<User?> GetUserByArtisanIDAsync(string artisanID)
     {
         var user = await _context.Users.Where(s => s.UserID == artisanID).FirstOrDefaultAsync();
