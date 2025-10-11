@@ -15,6 +15,9 @@ namespace Backend_SEP490.DTOs.Response
         public string? Bio { get; set; }
         public int? Rating { get; set; }
         public int? AdminLevel { get; set; }
-        public List<Address>? Addresses { get; set; }
+        public List<ResponseDTOAddress>? Addresses { get; set; }
+        public List<ResponseDTORole>? Roles { get; set; }
+
+        
     }
 }

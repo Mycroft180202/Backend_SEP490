@@ -5,6 +5,7 @@ namespace Backend_SEP490.Services;
 
 public interface IUserServices
 {
-    public Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync(string? search, bool? status);
+    public Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync(RequestFilter requestFilter);
+    public Task<ResponseDTOUser?> GetUserByIDAsync(string userID);
     public Task<RequestDTOUser?> GetUserByArtisanIDAsync(string artisanID);
 }

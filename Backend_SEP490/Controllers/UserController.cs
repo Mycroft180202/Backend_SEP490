@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.Services;
+﻿using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +18,10 @@ namespace Backend_SEP490.Controllers
         }
 
 
-        [HttpGet("users")]
-        public async Task<IActionResult> GetAllUsers(string? search, bool? status)
+        [HttpPost("users")]
+        public async Task<IActionResult> GetAllUsers([FromForm] RequestFilter? requestFilter)
         {
-            var users = await _userServices.GetAllUsersAsync(search, status);
+            var users = await _userServices.GetAllUsersAsync(requestFilter);
             if (users == null || !users.Any())
             {
                 return NotFound();
@@ -28,6 +29,15 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
-        
+        [HttpGet("users/{id}")]
+        public async Task<IActionResult> GetUsersById([FromRoute] string id)
+        {
+            var users = await _userServices.GetUserByIDAsync(id);
+            if (users == null)
+            {
+                return NotFound();
+            }
+            return Ok(users);
+        }
     }
 }
