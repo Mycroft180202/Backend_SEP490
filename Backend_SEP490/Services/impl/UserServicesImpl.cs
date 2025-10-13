@@ -35,6 +35,21 @@ public class UserServicesImpl: GenericServices, IUserServices
         var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
         return _mapper.Map<ResponseDTOUser>(user);
     }
+
+    public async Task<bool?> UpdateUserAsync(string userID , RequestUpdateUser request)
+    {
+        var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
+
+        if (user == null) 
+        {
+            return false;
+        }
+
+        var status = await _context.Users.UpdateUserAsync(user, request);
+
+        
+        return status;
+    }
     public async Task<RequestDTOUser?> GetUserByArtisanIDAsync(string artisanID)
     {
         var user = await _context.Users.GetUserByArtisanIDAsync(artisanID);

@@ -39,5 +39,16 @@ namespace Backend_SEP490.Controllers
             }
             return Ok(users);
         }
+
+        [HttpPut("users/{id}")]
+        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromForm] RequestUpdateUser request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var users = await _userServices.UpdateUserAsync(id,request);
+            
+            return Ok(users);
+        }
     }
 }
