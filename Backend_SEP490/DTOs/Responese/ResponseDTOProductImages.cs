@@ -1,8 +1,10 @@
-﻿namespace Backend_SEP490.DTOs.Response;
+﻿namespace Backend_SEP490.DTOs.Request;
 
-public class ResponseDTOProductImage
+public class ResponseDTOProductImages
 {
+    public string Id { get; set; }
     public string ProductId { get; set; }
     public string? URL { get; set; }
     public int? Position { get; set; }
+
 }

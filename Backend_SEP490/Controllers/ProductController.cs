@@ -3,6 +3,7 @@ using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Mvc;
+using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 
 namespace Backend_SEP490.Controllers;
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
@@ -48,7 +49,7 @@ public class ProductController:ControllerBase
         return Ok(products);
     }
     [HttpPost("products")]
-    public async Task<IActionResult> CreateProduct([FromForm] ResponseDTOProduct productDto)
+    public async Task<IActionResult> CreateProduct([FromForm] RequestDTOProduct productDto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -79,12 +80,12 @@ public class ProductController:ControllerBase
         return Ok(products);
     }
     [HttpPut("products/{id}")]
-    public async Task<IActionResult> UpdateProduct(string id, [FromForm] ResponseDTOProduct productDto)
+    public async Task<IActionResult> UpdateProduct(string id, [FromForm] RequestDTOProduct productDto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var updatedProduct = await _productService.UpdateProductAsync(id, productDto);
+        var updatedProduct = await _productServices.UpdateProductAsync(id, productDto);
 
         if (updatedProduct == null)
             return NotFound();

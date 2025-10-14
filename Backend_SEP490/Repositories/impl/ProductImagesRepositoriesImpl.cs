@@ -20,4 +20,10 @@ public class ProductImagesRepositoriesImpl: GenericRepositoryImpl<ProductImage>,
         await _context.ProductImages.AddAsync(productImage);
         await _context.SaveChangesAsync();
     }
+
+    public async Task RemoveProductImageAsync(IEnumerable<ProductImage> images)
+    {
+        _context.ProductImages.RemoveRange(images);
+        await _context.SaveChangesAsync();
+    }
 }

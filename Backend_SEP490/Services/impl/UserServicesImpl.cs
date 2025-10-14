@@ -10,15 +10,15 @@ public class UserServicesImpl: GenericServices, IUserServices
     {
     }
 
-    public async Task<IEnumerable<RequestDTOUser>> GetAllUsersAsync()
+    public async Task<IEnumerable<ResponeseDTOUser>> GetAllUsersAsync()
     {
         var users = await _context.Users.GetAllUsersAsync();
-        return _mapper.Map<IEnumerable<RequestDTOUser>>(users);
+        return _mapper.Map<IEnumerable<ResponeseDTOUser>>(users);
     }
 
-    public async Task<RequestDTOUser?> GetUserByArtisanIDAsync(string artisanID)
+    public async Task<ResponeseDTOUser?> GetUserByArtisanIDAsync(string artisanID)
     {
         var user = await _context.Users.GetUserByArtisanIDAsync(artisanID);
-        return _mapper.Map<RequestDTOUser>(user);
+        return _mapper.Map<ResponeseDTOUser>(user);
     }
 }

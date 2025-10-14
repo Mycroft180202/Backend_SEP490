@@ -1,6 +1,6 @@
 ﻿namespace Backend_SEP490.DTOs.Request;
 
-public class RequestDTOUser
+public class ResponeseDTOUser
 {
     public string UserID { get; set; }
     public string Username { get; set; }

@@ -63,4 +63,11 @@ public class ProductRepositoriesImpl: GenericRepositoryImpl<Product>,IProductRep
         _context.Products.Update(product);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<Product> GetProductWithImagesByIdAsync(string productId)
+    {
+        return await _context.Products
+            .Include(p => p.ProductImages)   // Eager load images
+            .FirstOrDefaultAsync(p => p.Id == productId);
+    }
 }
