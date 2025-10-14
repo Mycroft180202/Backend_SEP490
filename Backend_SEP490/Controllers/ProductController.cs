@@ -73,7 +73,7 @@ public class ProductController:ControllerBase
             return NotFound();
         return Ok(products);
     }
-    [HttpGet("/products?productName={name}")]
+    [HttpGet("products?productName={name}")]
     public async Task<IActionResult> GetProductsByName([FromQuery] string productName)
     {
         var products = await _productServices.GetProductsByNameAsync(productName);
@@ -91,6 +91,16 @@ public class ProductController:ControllerBase
             return NotFound();
 
         return Ok(updatedProduct);
+    }
+    [HttpGet("products?productName={name?}&categoryId={id?}&pageIndex={i}&pageSize={j}")]
+    public async Task<IActionResult> GetProducts(
+        [FromQuery] string? productName,
+        [FromQuery] string? categoryId,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var result = await _productServices.GetProductsAsync(productName, categoryId, pageIndex, pageSize);
+        return Ok(result);
     }
 
 

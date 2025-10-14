@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
@@ -341,6 +342,26 @@ public class ProductServicesImpl: GenericServices, IProductServices
         await _context.Products.UpdateAsync(existingProduct);
         return true;
     }
+
+    public async Task<PagedResult<ResponeseDTOProduct>> GetProductsAsync(
+        string? productName, string? categoryId, int pageIndex, int pageSize)
+    {
+        // Lấy data từ Repository (PagedResult<Product>)
+        var products = await _context.Products.GetProductsAsync(productName, categoryId, pageIndex, pageSize);
+
+        // Map danh sách Product -> ResponseDTOProduct
+        var mappedItems = _mapper.Map<IEnumerable<ResponeseDTOProduct>>(products.Items);
+
+        // Trả về PagedResult với DTO
+        return new PagedResult<ResponeseDTOProduct>
+        {
+            Items = mappedItems,
+            TotalCount = products.TotalCount,
+            PageIndex = products.PageIndex,
+            PageSize = products.PageSize
+        };
+    }
+
 
 
     public static string GenerateID(string prefix)
