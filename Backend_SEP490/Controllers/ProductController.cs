@@ -103,7 +103,7 @@ public class ProductController:ControllerBase
         return Ok(result);
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("products/{id}")]
     public async Task<IActionResult> DeleteProduct(string id)
     {
         var result = await _productServices.DeleteProductAsync(id);
