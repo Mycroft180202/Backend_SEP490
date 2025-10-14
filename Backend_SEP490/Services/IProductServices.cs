@@ -19,4 +19,5 @@ public interface IProductServices
 
     public Task<PagedResult<ResponeseDTOProduct>> GetProductsAsync(
         string? productName, string? categoryId, int pageIndex, int pageSize);
+    public Task<bool> DeleteProductAsync(string productId);
 }

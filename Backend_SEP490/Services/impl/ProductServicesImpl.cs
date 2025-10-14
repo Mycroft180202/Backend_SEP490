@@ -362,6 +362,13 @@ public class ProductServicesImpl: GenericServices, IProductServices
         };
     }
 
+    public async Task<bool> DeleteProductAsync(string productId)
+    {
+        var product = await _context.Products.GetProductByIdAsync(productId);
+        product.IsActive = false;
+        await _context.Products.UpdateAsync(product);
+        return true;
+    }
 
 
     public static string GenerateID(string prefix)
