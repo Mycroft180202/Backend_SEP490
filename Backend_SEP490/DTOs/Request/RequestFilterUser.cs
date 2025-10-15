@@ -1,6 +1,6 @@
 ﻿namespace Backend_SEP490.DTOs.Request
 {
-    public class RequestFilter
+    public class RequestFilterUser
     {
         public string? search { get; set; }
         public bool? status { get; set; }

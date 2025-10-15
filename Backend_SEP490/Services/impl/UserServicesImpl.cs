@@ -11,7 +11,7 @@ public class UserServicesImpl: GenericServices, IUserServices
     {
     }
 
-    public async Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync(RequestFilter requestFilter)
+    public async Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter)
     {
         var users = await _context.Users.GetAllUsersWithRolesAsync();
         

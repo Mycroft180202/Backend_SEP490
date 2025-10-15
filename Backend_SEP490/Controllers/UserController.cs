@@ -19,7 +19,7 @@ namespace Backend_SEP490.Controllers
 
 
         [HttpPost("users")]
-        public async Task<IActionResult> GetAllUsers([FromForm] RequestFilter? requestFilter)
+        public async Task<IActionResult> GetAllUsers([FromForm] RequestFilterUser? requestFilter)
         {
             var users = await _userServices.GetAllUsersAsync(requestFilter);
             if (users == null || !users.Any())
@@ -50,5 +50,7 @@ namespace Backend_SEP490.Controllers
             
             return Ok(users);
         }
+
+
     }
 }

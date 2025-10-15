@@ -7,4 +7,6 @@ public interface IUnitOfWork: IDisposable
     IUserRepositories Users { get; }
     IFeedbackRepositories Feedback { get; }
     IProductImagesRepositories ProductImages { get; }
+    IOrderRepositories Order { get; }
+    IBlogRepositories Blog { get; }
 }

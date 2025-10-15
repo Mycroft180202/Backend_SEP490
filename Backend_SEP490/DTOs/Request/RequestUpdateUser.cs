@@ -9,6 +9,8 @@ namespace Backend_SEP490.DTOs.Request
         public string? DisplayName { get; set; }
         public DateTime? Dob { get; set; }
         public string? ShopName { get; set; }
-        
+
+        public string? RolesId { get; set; }
+
     }
 }

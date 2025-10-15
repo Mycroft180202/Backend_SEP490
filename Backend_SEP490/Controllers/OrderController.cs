@@ -1,0 +1,44 @@
+﻿using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Backend_SEP490.Controllers
+{
+    [Microsoft.AspNetCore.Components.Route("api/[controller]")]
+    [ApiController]
+    public class OrderController : ControllerBase
+    {
+        private readonly IOrderService _orderServices;
+
+        public OrderController(IOrderService orderServices)
+        {
+            _orderServices = orderServices;
+        }
+
+        [HttpPost("my-orders")]
+        public async Task<IActionResult> GetAllOrderByUserId(string userId, [FromForm] RequestFilterOrder? requestFilter)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var orders = await _orderServices.GetAllOrderByUserIdAsync(userId, requestFilter);
+            if (orders == null) NotFound();
+            return Ok(orders);
+        }
+        [HttpGet("orders/{id}")]
+        public async Task<IActionResult> GetAllOrderById([FromRoute]string orderId)
+        {
+            var order = _orderServices.GetAllOrderByIdAsync(orderId);
+            if (order == null) NotFound();
+            return Ok(order);
+        }
+
+        [HttpPost("orders")]
+        public async Task<IActionResult> CreateOrder()
+        {
+
+            return Ok();
+        }
+    }
+}
