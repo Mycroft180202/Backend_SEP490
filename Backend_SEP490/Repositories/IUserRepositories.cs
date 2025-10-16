@@ -12,4 +12,6 @@ public interface IUserRepositories
     public Task<User?> GetUserByArtisanIDAsync(string artisanID);
     public Task<User?> GetUserByUsernameAsync(string username);
     public  Task<User?> GetByIdAsync(string userId);
+    Task AddUserAsync(User user);
+    Task<User?> GetUserByEmailAsync(string email);
 }

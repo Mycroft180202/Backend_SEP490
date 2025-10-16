@@ -12,4 +12,6 @@ public interface IUnitOfWork: IDisposable
     IBlogRepositories Blog { get; }
     IRefreshTokenRepository RefreshTokens { get; }
     ICategoryRepositories Categories { get; }
+    IRoleRepository Roles { get; }
+    IUserRoleRepository UserRoles { get; }
 }

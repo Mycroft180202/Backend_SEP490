@@ -102,4 +102,14 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
             .FirstOrDefaultAsync(u => u.UserID == userId);
     }
 
+    public async Task AddUserAsync(User user)
+    {
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<User?> GetUserByEmailAsync(string email)
+    {
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+    }
 }

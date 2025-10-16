@@ -13,4 +13,5 @@ public interface IUserServices
     Task<ResponseDTOAuth?> LoginAsync(string username, string password);
     Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken);
     Task<bool> LogoutAsync(string refreshToken);
+    Task<bool> RegisterAsync(RequestDTORegister dto);
 }
