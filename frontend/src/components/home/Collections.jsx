@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { ProductService } from '../../services/modules/products/productService';
 
 const CollectionCard = ({ image, title }) => {
   return (
@@ -48,20 +49,26 @@ const Pagination = () => {
 };
 
 const Collections = () => {
-  const collections = [
-    {
-      image: 'https://api.builder.io/api/v1/image/assets/TEMP/e4779e71a99103a59f04d674b2f4d3cff8ad0f36?width=736',
-      title: 'Chuồn chuồn tre Thạch Xá'
-    },
-    {
-      image: 'https://api.builder.io/api/v1/image/assets/TEMP/788e8c9cf7cf8f9208ce3eca37f2e5941207dc2b?width=736',
-      title: 'Chuồn chuồn tre Thạch Xá'
-    },
-    {
-      image: 'https://api.builder.io/api/v1/image/assets/TEMP/48e8b5cf7100672160719db6a4676f1d6f71657b?width=736',
-      title: 'Chuồn chuồn tre Thạch Xá'
-    }
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await ProductService.getAllProducts();
+        setProducts(data);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <section className="w-full py-12 md:py-20 lg:py-[106px] px-4 md:px-10 lg:px-36 bg-background">
@@ -69,14 +76,13 @@ const Collections = () => {
         <h2 className="font-alata text-2xl md:text-3xl lg:text-4xl text-primary leading-tight lg:leading-[56px] mb-6 md:mb-10">
           Bộ sưu tập sản phẩm
         </h2>
-
         <div className="flex flex-col items-center gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-            {collections.map((collection, index) => (
-              <CollectionCard 
-                key={index}
-                image={collection.image}
-                title={collection.title}
+            {products.map((product) => (
+              <CollectionCard
+                key={product.id}
+                image={product.imageUrl || '/default-product-image.jpg'}
+                title={product.name}
               />
             ))}
           </div>
