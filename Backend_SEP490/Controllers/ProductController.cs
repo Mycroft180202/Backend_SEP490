@@ -40,14 +40,6 @@ public class ProductController:ControllerBase
             return NotFound();
         return Ok(products);
     }
-    [HttpGet("products")]
-    public async Task<IActionResult> GetAllProducts()
-    {
-        var products = await _productServices.GetAllProductsAsync();
-        if (products == null || !products.Any())
-            return NotFound();
-        return Ok(products);
-    }
     [HttpPost("products")]
     public async Task<IActionResult> CreateProduct([FromForm] RequestDTOProduct productDto)
     {
@@ -73,12 +65,7 @@ public class ProductController:ControllerBase
             return NotFound();
         return Ok(products);
     }
-    [HttpGet("products?productName={name}")]
-    public async Task<IActionResult> GetProductsByName([FromQuery] string productName)
-    {
-        var products = await _productServices.GetProductsByNameAsync(productName);
-        return Ok(products);
-    }
+    
     [HttpPut("products/{id}")]
     public async Task<IActionResult> UpdateProduct(string id, [FromForm] RequestDTOProduct productDto)
     {
@@ -92,7 +79,7 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
-    [HttpGet("products?productName={name?}&categoryId={id?}&pageIndex={i}&pageSize={j}")]
+    [HttpGet("products")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? productName,
         [FromQuery] string? categoryId,
