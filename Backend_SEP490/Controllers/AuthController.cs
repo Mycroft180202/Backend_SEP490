@@ -37,6 +37,15 @@ public class AuthController: ControllerBase
         if (!success) return BadRequest("Invalid refresh token");
         return Ok("Logged out successfully");
     }
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromForm] RequestDTORegister dto)
+    {
+        var result = await _userServices.RegisterAsync(dto);
+        if (!result) return BadRequest("Username or email already exists");
+
+        return Ok(new { message = "Register successful, role Customer assigned" });
+    }
+
 }
 
 public class LoginRequest

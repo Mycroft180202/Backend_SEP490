@@ -62,6 +62,8 @@ builder.Services.AddScoped<IFeedbackRepositories, FeedbackRepositoriesImpl>();
 builder.Services.AddScoped<IProductImagesRepositories, ProductImagesRepositoriesImpl>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryImpl>();
 builder.Services.AddScoped<ICategoryRepositories, CategoryRepositoriesImpl>();
+builder.Services.AddScoped<IRoleRepository, RoleRepositoryImpl>();
+builder.Services.AddScoped<IUserRoleRepository, UserRoleRepositoryImpl>();
 // ----------------------
 // Đăng ký Service
 // ----------------------

@@ -10,4 +10,6 @@ public interface IUnitOfWork: IDisposable
     IProductImagesRepositories ProductImages { get; }
     IRefreshTokenRepository RefreshTokens { get; }
     ICategoryRepositories Categories { get; }
+    IRoleRepository Roles { get; }
+    IUserRoleRepository UserRoles { get; }
 }

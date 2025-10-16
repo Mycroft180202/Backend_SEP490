@@ -6,7 +6,8 @@ public class UnitOfWork: IUnitOfWork
 {
     private readonly AppDbContext _context;
     public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,
-        IFeedbackRepositories feedback,IRefreshTokenRepository refreshToken,ICategoryRepositories category)
+        IFeedbackRepositories feedback,IRefreshTokenRepository refreshToken,ICategoryRepositories category,IRoleRepository role,
+        IUserRoleRepository userRole)
     {
         _context = context;
         Products = product;
@@ -15,6 +16,8 @@ public class UnitOfWork: IUnitOfWork
         Feedback = feedback;
         RefreshTokens = refreshToken;
         Categories = category;
+        Roles = role;
+        UserRoles = userRole;
     }
     public void Dispose()
     {
@@ -35,4 +38,6 @@ public class UnitOfWork: IUnitOfWork
     public IProductImagesRepositories ProductImages { get;private set;  }
     public IRefreshTokenRepository RefreshTokens { get; }
     public ICategoryRepositories Categories { get; }
+    public IRoleRepository Roles { get; }
+    public IUserRoleRepository UserRoles { get; }
 }
