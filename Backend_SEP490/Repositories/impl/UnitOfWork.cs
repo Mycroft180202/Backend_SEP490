@@ -5,7 +5,8 @@ namespace Backend_SEP490.Repositories.impl;
 public class UnitOfWork: IUnitOfWork
 {
     private readonly AppDbContext _context;
-    public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,IFeedbackRepositories feedback,IRefreshTokenRepository refreshToken)
+    public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,
+        IFeedbackRepositories feedback,IRefreshTokenRepository refreshToken,ICategoryRepositories category)
     {
         _context = context;
         Products = product;
@@ -13,6 +14,7 @@ public class UnitOfWork: IUnitOfWork
         Users = user;
         Feedback = feedback;
         RefreshTokens = refreshToken;
+        Categories = category;
     }
     public void Dispose()
     {
@@ -32,4 +34,5 @@ public class UnitOfWork: IUnitOfWork
     public IFeedbackRepositories Feedback { get;private set;  }
     public IProductImagesRepositories ProductImages { get;private set;  }
     public IRefreshTokenRepository RefreshTokens { get; }
+    public ICategoryRepositories Categories { get; }
 }

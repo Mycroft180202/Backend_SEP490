@@ -9,4 +9,5 @@ public interface IUnitOfWork: IDisposable
     IFeedbackRepositories Feedback { get; }
     IProductImagesRepositories ProductImages { get; }
     IRefreshTokenRepository RefreshTokens { get; }
+    ICategoryRepositories Categories { get; }
 }
