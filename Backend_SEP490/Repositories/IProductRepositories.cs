@@ -1,5 +1,5 @@
 ﻿using Backend_SEP490.Models;
-
+using Backend_SEP490.Data;
 namespace Backend_SEP490.Repositories;
 
 public interface IProductRepositories
@@ -13,4 +13,11 @@ public interface IProductRepositories
     public Task<IEnumerable<Product>> GetProductsByCategoryAsync(string categoryId);
     public Task<IEnumerable<Product>> GetProductsByNameAsync(string productName);
     public Task UpdateAsync(Product product);
+    public Task<Product> GetProductWithImagesByIdAsync(string productId);
+    public Task<PagedResult<Product>> GetProductsAsync(
+        string? productName, 
+        string? categoryId, 
+        bool? isAvailable,
+        int pageIndex, 
+        int pageSize);
 }

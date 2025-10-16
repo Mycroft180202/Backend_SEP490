@@ -22,6 +22,7 @@ public class User
     public int? AdminLevel { get; set; }
     [JsonIgnore]
     // Navigation
+    public ICollection<RefreshToken> RefreshTokens { get; set; }
     public ICollection<Address>? Addresses { get; set; }
     public ICollection<BlogPost>? BlogPosts { get; set; }
     public ICollection<Cart>? Carts { get; set; }

@@ -17,10 +17,10 @@ public class ProductImagesServicesImpl: GenericServices,IProductImagesServices
         _cloudinary = cloudinary;
     }
 
-    public async Task<IEnumerable<RequestDTOProductImages>> GetImagesByProductIdAsync(string productId)
+    public async Task<IEnumerable<ResponseDTOProductImages>> GetImagesByProductIdAsync(string productId)
     {
         var images= await _context.ProductImages.GetImagesByProductIdAsync(productId);
-        return _mapper.Map<IEnumerable<RequestDTOProductImages>>(images);
+        return _mapper.Map<IEnumerable<ResponseDTOProductImages>>(images);
     }
     
     public static string GenerateID(string prefix)

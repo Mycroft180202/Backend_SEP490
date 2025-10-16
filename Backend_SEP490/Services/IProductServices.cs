@@ -1,18 +1,23 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
-
+using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
+using Backend_SEP490.Data;
 namespace Backend_SEP490.Services;
 
 public interface IProductServices
 {
-    public Task<IEnumerable<RequestDTOProduct>> GetAvailableProductsAsync();
-    public Task<IEnumerable<RequestDTOProduct>> GetUnavailableProductsAsync();
-    public Task<RequestDTOProductDetail> GetProductByIdAsync(string id);
-    public Task<IEnumerable<RequestDTOProduct>> GetAllProductsAsync();
-    public Task<bool> CreateProductAsync(ResponseDTOProduct productDto);
-    public Task<IEnumerable<RequestDTOProduct>> GetProductsByArtisanIdAsync(string artisanId);
-    public Task<IEnumerable<RequestDTOProduct>> GetProductsByCategoryAsync(string categoryId);
-    public Task<IEnumerable<RequestDTOProduct>> GetProductsByNameAsync(string productName);
-    public Task<bool> UpdateProductAsync(string id, ResponseDTOProduct productDto);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAvailableProductsAsync();
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetUnavailableProductsAsync();
+    public Task<ResponseDTOProductDetail> GetProductByIdAsync(string id);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAllProductsAsync();
+    public Task<bool> CreateProductAsync(RequestDTOProduct productDto);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByCategoryAsync(string categoryId);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByNameAsync(string productName);
+    public Task<bool> UpdateProductAsync(string id, RequestDTOProduct productDto);
+
+    public Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
+        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize);
+    public Task<bool> DeleteProductAsync(string productId);
 }

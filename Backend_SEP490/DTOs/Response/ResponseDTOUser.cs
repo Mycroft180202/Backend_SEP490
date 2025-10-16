@@ -1,23 +1,19 @@
-﻿using Backend_SEP490.Models;
+﻿namespace Backend_SEP490.DTOs.Request;
 
-namespace Backend_SEP490.DTOs.Response
+public class ResponseDTOUser
 {
-    public class ResponseDTOUser
-    {
-        public string Username { get; set; }
-        public string Email { get; set; }
-        public DateTime? UpdateAt { get; set; }
-        public DateTime? CreateAt { get; set; }
-        public string? PhoneNumber { get; set; }
-        public string? DisplayName { get; set; }
-        public DateTime? Dob { get; set; }
-        public string? ShopName { get; set; }
-        public string? Bio { get; set; }
-        public int? Rating { get; set; }
-        public int? AdminLevel { get; set; }
-        public List<ResponseDTOAddress>? Addresses { get; set; }
-        public List<ResponseDTORole>? Roles { get; set; }
-
-        
-    }
+    public string UserID { get; set; }
+    public string Username { get; set; }
+    public string PasswordHash { get; set; }
+    public string Email { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime? UpdateAt { get; set; }
+    public DateTime? CreateAt { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? DisplayName { get; set; }
+    public DateTime? Dob { get; set; }
+    public string? ShopName { get; set; }
+    public string? Bio { get; set; }
+    public int? Rating { get; set; }
+    public int? AdminLevel { get; set; }
 }

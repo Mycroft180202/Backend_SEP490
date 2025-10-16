@@ -10,4 +10,6 @@ public interface IUserRepositories
     public Task<User?> GetUserByIDWithDetailAsync(string userID);
     public Task<bool?> UpdateUserAsync(User user, RequestUpdateUser request);
     public Task<User?> GetUserByArtisanIDAsync(string artisanID);
+    public Task<User?> GetUserByUsernameAsync(string username);
+    public  Task<User?> GetByIdAsync(string userId);
 }

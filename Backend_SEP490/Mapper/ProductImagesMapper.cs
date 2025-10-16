@@ -9,7 +9,7 @@ public class ProductImagesMapper :Profile
 {
     public ProductImagesMapper()
     {
-        CreateMap<RequestDTOProductImages,ProductImage>().ReverseMap();
-        CreateMap<ResponseDTOProductImage,ProductImage>().ReverseMap();
+        CreateMap<ResponseDTOProductImages,ProductImage>().ReverseMap();
+        CreateMap<RequestDTOProductImage,ProductImage>().ReverseMap();
     }
 }

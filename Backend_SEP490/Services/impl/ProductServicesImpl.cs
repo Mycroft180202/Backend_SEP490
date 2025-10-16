@@ -1,10 +1,12 @@
 ﻿using AutoMapper;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -23,11 +25,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
 
-    public async Task<IEnumerable<RequestDTOProduct>> GetAvailableProductsAsync()
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAvailableProductsAsync()
     {
         var products = await _context.Products.GetAvailableProductsAsync();
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -61,12 +63,12 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
 
-    public async Task<IEnumerable<RequestDTOProduct>> GetUnavailableProductsAsync()
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetUnavailableProductsAsync()
     {
         
         var products = await _context.Products.GetUnavailableProductsAsync();
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -101,13 +103,13 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
     
 
-    public async Task<RequestDTOProductDetail> GetProductByIdAsync(string id)
+    public async Task<ResponseDTOProductDetail> GetProductByIdAsync(string id)
     {
         var product = await _context.Products.GetProductByIdAsync(id);
         if (product == null)
             return null;
 
-        var resultProduct = _mapper.Map<RequestDTOProductDetail>(product);
+        var resultProduct = _mapper.Map<ResponseDTOProductDetail>(product);
 
         // Artisan Info
         var user = await _context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId);
@@ -137,13 +139,13 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
 
-    public async Task<IEnumerable<RequestDTOProduct>> GetAllProductsAsync()
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAllProductsAsync()
     {
         var products = await _context.Products.GetAllProductsAsync();
-        return _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        return _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
     }
 
-    public async Task<bool> CreateProductAsync(ResponseDTOProduct productDto)
+    public async Task<bool> CreateProductAsync(RequestDTOProduct productDto)
     {
         var newProduct = _mapper.Map<Product>(productDto);
         newProduct.Id = GenerateID("PROD");
@@ -181,11 +183,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return true;
     }
 
-    public async Task<IEnumerable<RequestDTOProduct>> GetProductsByArtisanIdAsync(string artisanId)
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId)
     {
         var products = await _context.Products.GetProductsByArtisanIdAsync(artisanId);
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -218,11 +220,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
-    public async Task<IEnumerable<RequestDTOProduct>> GetProductsByCategoryAsync(string categoryId)
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByCategoryAsync(string categoryId)
     {
         var products = await _context.Products.GetProductsByCategoryAsync(categoryId);
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -255,11 +257,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
-    public async Task<IEnumerable<RequestDTOProduct>> GetProductsByNameAsync(string productName)
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByNameAsync(string productName)
     {
         var products = await _context.Products.GetProductsByNameAsync(productName);
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<RequestDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -292,10 +294,82 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
-    public Task<bool> UpdateProductAsync(string id, ResponseDTOProduct productDto)
+    public async Task<bool> UpdateProductAsync(string productId, RequestDTOProduct productDto)
     {
-        return null;
+        var existingProduct = await _context.Products.GetProductWithImagesByIdAsync(productId);
+
+        if (existingProduct == null)
+            throw new Exception("Product not found");
+
+        // Cập nhật thông tin cơ bản
+        existingProduct.Name = productDto.Name;
+        existingProduct.ShortDescription = productDto.ShortDescription;
+        existingProduct.LongDescription = productDto.LongDescription;
+        existingProduct.Price = productDto.Price;
+        existingProduct.Category = productDto.Category;
+        existingProduct.Stock = productDto.Stock;
+        existingProduct.UpdateAt = DateTime.UtcNow;
+
+        // Cập nhật images (xóa cũ -> thêm mới)
+        if (productDto.images != null && productDto.images.Any())
+        {
+            // Xóa ảnh cũ
+            await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
+
+            int position = 0;
+            foreach (var file in productDto.images)
+            {
+                using var stream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream)
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+                var productImage = new ProductImage
+                {
+                    Id = GenerateID("PIMG"),
+                    ProductId = existingProduct.Id,
+                    URL = uploadResult.SecureUrl.ToString(),
+                    Position = position++
+                };
+
+                await _context.ProductImages.AddProductImageAsync(productImage);
+            }
+        }
+
+        await _context.Products.UpdateAsync(existingProduct);
+        return true;
     }
+
+    public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
+        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize)
+    {
+        // Lấy data từ Repository (PagedResult<Product>)
+        var products = await _context.Products.GetProductsAsync(productName, categoryId,isactive, pageIndex, pageSize);
+
+        // Map danh sách Product -> ResponseDTOProduct
+        var mappedItems = _mapper.Map<IEnumerable<ResponseDTOProduct>>(products.Items);
+
+        // Trả về PagedResult với DTO
+        return new PagedResult<ResponseDTOProduct>
+        {
+            Items = mappedItems,
+            TotalCount = products.TotalCount,
+            PageIndex = products.PageIndex,
+            PageSize = products.PageSize
+        };
+    }
+
+    public async Task<bool> DeleteProductAsync(string productId)
+    {
+        var product = await _context.Products.GetProductByIdAsync(productId);
+        product.IsActive = false;
+        await _context.Products.UpdateAsync(product);
+        return true;
+    }
+
 
     public static string GenerateID(string prefix)
     {   

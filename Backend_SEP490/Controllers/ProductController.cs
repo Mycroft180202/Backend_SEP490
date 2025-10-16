@@ -2,7 +2,9 @@
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 
 namespace Backend_SEP490.Controllers;
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
@@ -16,39 +18,15 @@ public class ProductController:ControllerBase
         _productServices = productServices;
     }
 
-    [HttpGet("products/available")]
-    public async Task<IActionResult> GetAvailableProducts()
-    {
-        var products = await _productServices.GetAvailableProductsAsync();
-        if (products == null || !products.Any())
-            return NotFound();
-        return Ok(products);
-    }
-
     [HttpGet("products/{id}")]
     public async Task<IActionResult> GetProductById(string id)
     {
         var product = await _productServices.GetProductByIdAsync(id);
         return Ok(product);
     }
-    [HttpGet("products/unavailable")]
-    public async Task<IActionResult> GetUnavailableProducts()
-    {
-        var products = await _productServices.GetUnavailableProductsAsync();
-        if (products == null || !products.Any())
-            return NotFound();
-        return Ok(products);
-    }
-    [HttpGet("products")]
-    public async Task<IActionResult> GetAllProducts()
-    {
-        var products = await _productServices.GetAllProductsAsync();
-        if (products == null || !products.Any())
-            return NotFound();
-        return Ok(products);
-    }
+    [Authorize(Roles = "Artisan")]
     [HttpPost("products")]
-    public async Task<IActionResult> CreateProduct([FromForm] ResponseDTOProduct productDto)
+    public async Task<IActionResult> CreateProduct([FromForm] RequestDTOProduct productDto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -64,22 +42,9 @@ public class ProductController:ControllerBase
             return NotFound();
         return Ok(products);
     }  
-    [HttpGet("products/category/{categoryId}")]
-    public async Task<IActionResult> GetProductsByCategory([FromRoute] string categoryId)
-    {
-        var products = await _productServices.GetProductsByCategoryAsync(categoryId);
-        if (products == null || !products.Any())
-            return NotFound();
-        return Ok(products);
-    }
-    [HttpGet("/product")]
-    public async Task<IActionResult> GetProductsByName([FromQuery] string productName)
-    {
-        var products = await _productServices.GetProductsByNameAsync(productName);
-        return Ok(products);
-    }
+    [Authorize(Roles = "Artisan")]
     [HttpPut("products/{id}")]
-    public async Task<IActionResult> UpdateProduct(string id, [FromForm] ResponseDTOProduct productDto)
+    public async Task<IActionResult> UpdateProduct(string id, [FromForm] RequestDTOProduct productDto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -91,6 +56,26 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
+    [HttpGet("products")]
+    public async Task<IActionResult> GetProducts(
+        [FromQuery] string? productName,
+        [FromQuery] string? categoryId,
+        [FromQuery] bool? isactive,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var result = await _productServices.GetProductsAsync(productName, categoryId,isactive, pageIndex, pageSize);
+        return Ok(result);
+    }
+    [Authorize(Roles = "Artisan,Admin")]
+    [HttpDelete("products/{id}")]
+    public async Task<IActionResult> DeleteProduct(string id)
+    {
+        var result = await _productServices.DeleteProductAsync(id);
+        if (!result)
+            return NotFound(new { message = $"Product with id {id} not found" });
 
+        return NoContent(); // 204
+    }
 
 }

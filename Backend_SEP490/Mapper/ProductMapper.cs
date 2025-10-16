@@ -2,6 +2,7 @@
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
+using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 
 namespace Backend_SEP490.Mapper;
 
@@ -9,8 +10,8 @@ public class ProductMapper: Profile
 {
     public ProductMapper()
     {
-        CreateMap<Product, RequestDTOProduct>().ReverseMap();
-        CreateMap<Product,RequestDTOProductDetail>().ReverseMap();
-        CreateMap<Product,ResponseDTOProduct>().ReverseMap();
+        CreateMap<Product, DTOs.Request.ResponseDTOProduct>().ReverseMap();
+        CreateMap<Product,ResponseDTOProductDetail>().ReverseMap();
+        CreateMap<Product,RequestDTOProduct>().ReverseMap();
     }
 }

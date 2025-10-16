@@ -1,6 +1,6 @@
 ﻿namespace Backend_SEP490.DTOs.Request;
 
-public class RequestDTOFeedback
+public class ResponseDTOFeedback
 {
     public string Id { get; set; }
     public string ProductId { get; set; }

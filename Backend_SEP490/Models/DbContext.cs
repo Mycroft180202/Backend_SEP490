@@ -27,6 +27,7 @@ namespace Backend_SEP490.Models
         public DbSet<Feedback> Feedbacks { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<WishListItem> WishListItems { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +42,11 @@ namespace Backend_SEP490.Models
                 .WithOne(a => a.User)
                 .HasForeignKey(a => a.UserID)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.RefreshTokens)
+                .WithOne(rt => rt.User)
+                .HasForeignKey(rt => rt.UserId);
 
             modelBuilder.Entity<User>()
                 .HasMany(u => u.BlogPosts)
@@ -161,6 +167,7 @@ namespace Backend_SEP490.Models
                 .HasMany(pc => pc.PromotionProducts)
                 .WithOne(pp => pp.Campain)
                 .HasForeignKey(pp => pp.CampainId);
+            
         }
     }
     

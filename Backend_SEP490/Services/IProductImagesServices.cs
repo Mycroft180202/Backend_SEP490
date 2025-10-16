@@ -6,5 +6,6 @@ namespace Backend_SEP490.Services;
 
 public interface IProductImagesServices
 {
-    public Task<IEnumerable<RequestDTOProductImages>> GetImagesByProductIdAsync(string productId);
+    public Task<IEnumerable<ResponseDTOProductImages>> GetImagesByProductIdAsync(string productId);
+    
 }

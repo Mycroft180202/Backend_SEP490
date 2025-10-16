@@ -435,6 +435,38 @@ namespace Backend_SEP490.Migrations
                     b.ToTable("PromotionProducts");
                 });
 
+            modelBuilder.Entity("Backend_SEP490.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Expires")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Revoked")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("Backend_SEP490.Models.Report", b =>
                 {
                     b.Property<string>("Id")
@@ -799,6 +831,17 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("Backend_SEP490.Models.RefreshToken", b =>
+                {
+                    b.HasOne("Backend_SEP490.Models.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Backend_SEP490.Models.Report", b =>
                 {
                     b.HasOne("Backend_SEP490.Models.User", "Reporter")
@@ -920,6 +963,8 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("Products");
 
                     b.Navigation("PromotionCampaigns");
+
+                    b.Navigation("RefreshTokens");
 
                     b.Navigation("Reports");
 

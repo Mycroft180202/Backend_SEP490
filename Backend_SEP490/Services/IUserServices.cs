@@ -10,4 +10,7 @@ public interface IUserServices
     public Task<bool?> UpdateUserAsync(string userID, RequestUpdateUser request);
     public Task<RequestDTOUser?> GetUserByArtisanIDAsync(string artisanID);
     
+    Task<ResponseDTOAuth?> LoginAsync(string username, string password);
+    Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken);
+    Task<bool> LogoutAsync(string refreshToken);
 }
