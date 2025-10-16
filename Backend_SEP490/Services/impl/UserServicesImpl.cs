@@ -34,25 +34,29 @@ public class UserServicesImpl : GenericServices, IUserServices
     }
 
     public async Task<ResponseDTOAuth?> LoginAsync(string username, string password)
+{
+    var user = await _context.Users.GetUserByUsernameAsync(username);
+    if (user == null) return null;
+
+    // Hash mật khẩu nhập vào
+    string hashedPassword = HashPassword(password);
+
+    if (user.PasswordHash != hashedPassword) return null;
+
+    var tokens = GenerateJwtTokens(user);
+
+    // Lưu RefreshToken vào DB
+    var refresh = new RefreshToken
     {
-        var user = await _context.Users.GetUserByUsernameAsync(username);
-        if (user == null || user.PasswordHash != password) return null;
+        Token = tokens.RefreshToken,
+        Expires = DateTime.UtcNow.AddDays(7),
+        UserId = user.UserID
+    };
+    await _context.RefreshTokens.AddAsync(refresh);
+    await _context.SaveChangesAsync();
 
-        var tokens = GenerateJwtTokens(user);
-
-        // Lưu RefreshToken vào DB
-        var refresh = new RefreshToken
-        {
-            Token = tokens.RefreshToken,
-            Expires = DateTime.UtcNow.AddDays(7),
-            UserId = user.UserID
-        };
-        await _context.RefreshTokens.AddAsync(refresh);
-        await _context.SaveChangesAsync();
-
-        return tokens;
-    }
-
+    return tokens;
+}
     public async Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken)
     {
         var tokenEntity = await _context.RefreshTokens
