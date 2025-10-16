@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using CloudinaryDotNet;
 using DotNetEnv;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +74,37 @@ builder.Services.AddScoped<IProductImagesServices, ProductImagesServicesImpl>();
 // ----------------------
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
+// ----------------------
+// Cấu hình JWT
+// ----------------------
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") 
+             ?? builder.Configuration["Jwt:Key"];
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") 
+                ?? builder.Configuration["Jwt:Issuer"];
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") 
+                  ?? builder.Configuration["Jwt:Audience"];
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 // ----------------------
@@ -83,7 +117,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// ⚡ Quan trọng: thêm UseAuthentication trước UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

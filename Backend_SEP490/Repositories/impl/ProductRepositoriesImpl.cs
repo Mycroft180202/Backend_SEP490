@@ -72,10 +72,10 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
             .FirstOrDefaultAsync(p => p.Id == productId);
     }
 
-    public async Task<PagedResult<Product>> GetProductsAsync(string? productName, string? categoryId, int pageIndex,
+    public async Task<PagedResult<Product>> GetProductsAsync(string? productName, string? categoryId,bool? isactive, int pageIndex,
         int pageSize)
     {
-        IQueryable<Product> query = _context.Products;
+        IQueryable<Product> query = _context.Products.Where(p=>p.IsActive==isactive);
 
         if (!string.IsNullOrWhiteSpace(productName))
             query = query.Where(p => p.Name.Contains(productName));

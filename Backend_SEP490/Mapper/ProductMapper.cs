@@ -10,7 +10,7 @@ public class ProductMapper: Profile
 {
     public ProductMapper()
     {
-        CreateMap<Product, DTOs.Request.ResponeseDTOProduct>().ReverseMap();
+        CreateMap<Product, DTOs.Request.ResponseDTOProduct>().ReverseMap();
         CreateMap<Product,ResponseDTOProductDetail>().ReverseMap();
         CreateMap<Product,RequestDTOProduct>().ReverseMap();
     }

@@ -7,17 +7,17 @@ namespace Backend_SEP490.Services;
 
 public interface IProductServices
 {
-    public Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetAvailableProductsAsync();
-    public Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetUnavailableProductsAsync();
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAvailableProductsAsync();
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetUnavailableProductsAsync();
     public Task<ResponseDTOProductDetail> GetProductByIdAsync(string id);
-    public Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetAllProductsAsync();
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAllProductsAsync();
     public Task<bool> CreateProductAsync(RequestDTOProduct productDto);
-    public Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId);
-    public Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetProductsByCategoryAsync(string categoryId);
-    public Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetProductsByNameAsync(string productName);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByCategoryAsync(string categoryId);
+    public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByNameAsync(string productName);
     public Task<bool> UpdateProductAsync(string id, RequestDTOProduct productDto);
 
-    public Task<PagedResult<ResponeseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId, int pageIndex, int pageSize);
+    public Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
+        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize);
     public Task<bool> DeleteProductAsync(string productId);
 }

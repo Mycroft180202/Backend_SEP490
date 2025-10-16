@@ -25,11 +25,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
 
-    public async Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetAvailableProductsAsync()
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAvailableProductsAsync()
     {
         var products = await _context.Products.GetAvailableProductsAsync();
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponeseDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -63,12 +63,12 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
 
-    public async Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetUnavailableProductsAsync()
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetUnavailableProductsAsync()
     {
         
         var products = await _context.Products.GetUnavailableProductsAsync();
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponeseDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -139,10 +139,10 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
 
-    public async Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetAllProductsAsync()
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAllProductsAsync()
     {
         var products = await _context.Products.GetAllProductsAsync();
-        return _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponeseDTOProduct>>(products);
+        return _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
     }
 
     public async Task<bool> CreateProductAsync(RequestDTOProduct productDto)
@@ -183,11 +183,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return true;
     }
 
-    public async Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId)
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId)
     {
         var products = await _context.Products.GetProductsByArtisanIdAsync(artisanId);
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponeseDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -220,11 +220,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
-    public async Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetProductsByCategoryAsync(string categoryId)
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByCategoryAsync(string categoryId)
     {
         var products = await _context.Products.GetProductsByCategoryAsync(categoryId);
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponeseDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -257,11 +257,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return resultproducts;
     }
 
-    public async Task<IEnumerable<DTOs.Request.ResponeseDTOProduct>> GetProductsByNameAsync(string productName)
+    public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByNameAsync(string productName)
     {
         var products = await _context.Products.GetProductsByNameAsync(productName);
 
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponeseDTOProduct>>(products);
+        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
 
         foreach (var pro in resultproducts)
         {
@@ -343,17 +343,17 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return true;
     }
 
-    public async Task<PagedResult<ResponeseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId, int pageIndex, int pageSize)
+    public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
+        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize)
     {
         // Lấy data từ Repository (PagedResult<Product>)
-        var products = await _context.Products.GetProductsAsync(productName, categoryId, pageIndex, pageSize);
+        var products = await _context.Products.GetProductsAsync(productName, categoryId,isactive, pageIndex, pageSize);
 
         // Map danh sách Product -> ResponseDTOProduct
-        var mappedItems = _mapper.Map<IEnumerable<ResponeseDTOProduct>>(products.Items);
+        var mappedItems = _mapper.Map<IEnumerable<ResponseDTOProduct>>(products.Items);
 
         // Trả về PagedResult với DTO
-        return new PagedResult<ResponeseDTOProduct>
+        return new PagedResult<ResponseDTOProduct>
         {
             Items = mappedItems,
             TotalCount = products.TotalCount,

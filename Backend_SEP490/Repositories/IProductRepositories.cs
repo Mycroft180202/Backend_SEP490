@@ -17,6 +17,7 @@ public interface IProductRepositories
     public Task<PagedResult<Product>> GetProductsAsync(
         string? productName, 
         string? categoryId, 
+        bool? isAvailable,
         int pageIndex, 
         int pageSize);
 }

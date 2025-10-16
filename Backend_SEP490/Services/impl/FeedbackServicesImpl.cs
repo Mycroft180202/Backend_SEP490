@@ -10,9 +10,9 @@ public class FeedbackServicesImpl: GenericServices, IFeedbackServices
     {
     }
 
-    public async Task<IEnumerable<ResponeseDTOFeedback>> GetFeedbacksByProductIdAsync(string productId)
+    public async Task<IEnumerable<ResponseDTOFeedback>> GetFeedbacksByProductIdAsync(string productId)
     {
         var feedback = await _context.Feedback.GetFeedbacksByProductIdAsync(productId);
-        return _mapper.Map<IEnumerable<ResponeseDTOFeedback>>(feedback);
+        return _mapper.Map<IEnumerable<ResponseDTOFeedback>>(feedback);
     }
 }
