@@ -18,7 +18,14 @@ namespace Backend_SEP490.Repositories
             }
             _dbSet = _context.Set<TEntity>();
         }
-
+        public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
+        }
+        public async Task<TEntity?> GetByIdAsync(object id)
+        {
+            return await _dbSet.FindAsync(id);
+        }
         public async Task AddAsync(TEntity entity)
         {
             await _dbSet.AddAsync(entity);

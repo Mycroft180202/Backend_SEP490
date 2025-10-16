@@ -25,4 +25,13 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
     {
         return await _context.Users.Include(u=>u.UserRoles).ThenInclude(ur=>ur.Role).FirstOrDefaultAsync(u => u.Username == username);
     }
+
+    public async Task<User?> GetByIdAsync(string userId)
+    {
+        return await _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.UserID == userId);
+    }
+
 }

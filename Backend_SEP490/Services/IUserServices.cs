@@ -6,5 +6,7 @@ public interface IUserServices
 {
     public Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync();
     public Task<ResponseDTOUser?> GetUserByArtisanIDAsync(string artisanID);
-    Task<string?> LoginAsync(string username, string password);
+    Task<ResponseDTOAuth?> LoginAsync(string username, string password);
+    Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken);
+    Task<bool> LogoutAsync(string refreshToken);
 }

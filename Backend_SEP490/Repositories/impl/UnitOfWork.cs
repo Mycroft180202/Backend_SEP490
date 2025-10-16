@@ -5,13 +5,14 @@ namespace Backend_SEP490.Repositories.impl;
 public class UnitOfWork: IUnitOfWork
 {
     private readonly AppDbContext _context;
-    public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,IFeedbackRepositories feedback)
+    public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,IFeedbackRepositories feedback,IRefreshTokenRepository refreshToken)
     {
         _context = context;
         Products = product;
         ProductImages = productImages;
         Users = user;
         Feedback = feedback;
+        RefreshTokens = refreshToken;
     }
     public void Dispose()
     {
@@ -22,9 +23,13 @@ public class UnitOfWork: IUnitOfWork
     {
         return await _context.SaveChangesAsync();
     }
-
+    public async Task<int> SaveChangesAsync()
+    {
+        return await _context.SaveChangesAsync();
+    }
     public IProductRepositories Products { get;private set;  }
     public IUserRepositories Users { get;private set;  }
     public IFeedbackRepositories Feedback { get;private set;  }
     public IProductImagesRepositories ProductImages { get;private set;  }
+    public IRefreshTokenRepository RefreshTokens { get; }
 }
