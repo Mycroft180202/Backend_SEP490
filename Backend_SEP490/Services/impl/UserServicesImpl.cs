@@ -58,7 +58,7 @@ public class UserServicesImpl: GenericServices, IUserServices
         
         return status;
     }
-    public async Task<RequestDTOUser?> GetUserByArtisanIDAsync(string artisanID)
+    public async Task<ResponseDTOUser?> GetUserByArtisanIDAsync(string artisanID)
     {
         var user = await _context.Users.GetUserByArtisanIDAsync(artisanID);
         return _mapper.Map<ResponseDTOUser>(user);

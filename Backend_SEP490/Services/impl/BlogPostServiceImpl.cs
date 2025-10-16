@@ -12,9 +12,32 @@ namespace Backend_SEP490.Services.impl
         {
         }
 
-        public Task<bool> CreateBlogPostAsync(BlogPost blog)
+        public async Task<bool> CreateBlogPostAsync(string userid, RequestCreateBlogPost request)
         {
-            throw new NotImplementedException();
+            
+            var blogPosts = await _context.Blog.GetAllBlogPostAsync();
+            var blogId = "B001";
+            if (blogPosts.Any()) 
+            {
+                blogId = blogPosts.OrderByDescending(b => b.Id).FirstOrDefault().Id;
+            }
+            
+            int nextNumber = 1;
+            if (!"B001".Equals(blogId)) 
+            {
+               nextNumber = int.Parse(blogId.Substring(1)) + 1;
+            }
+            var blog = new BlogPost { 
+                Id = $"B{nextNumber:D3}",
+                Title = request.Title ,
+                Content = request.Content ,
+                AuthorId = userid ,
+                PostStatus = "Active",
+                PublishedAt = DateTime.UtcNow
+            };
+
+            var status = await _context.Blog.CreateBlogPostAsync(blog);
+            return status;
         }
 
         public async Task<IEnumerable<ResponseDTOBlogPost>> GetAllBlogPostAsync()

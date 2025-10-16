@@ -12,7 +12,17 @@ namespace Backend_SEP490.Repositories.impl
 
         public async Task<bool> CreateBlogPostAsync(BlogPost blog)
         {
-            throw new NotImplementedException();
+            try
+            {
+                _context.BlogPosts.Add(blog);
+                _context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+                return false;
+            }
+            return true;
         }
 
         public async Task<IEnumerable<BlogPost>> GetAllBlogPostAsync()

@@ -9,7 +9,7 @@ public class UserMapper : Profile
 {
     public UserMapper()
     {
-        CreateMap<User, RequestDTOUser>().ReverseMap();
+       
         CreateMap<User, ResponseDTOUser>()
              .ForMember(dest => dest.Roles, opt => opt.MapFrom(src =>
                  src.UserRoles != null

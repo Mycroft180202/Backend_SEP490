@@ -9,6 +9,6 @@ namespace Backend_SEP490.Services
         public Task<IEnumerable<ResponseDTOBlogPost>> GetAllBlogPostAsync();
         public Task<ResponseDTOBlogPost> GetAllOrderByIdAsync(string blogId);
         public Task<bool> UpdateBlogPostAsync(string blogId, RequestUpdateBlogPost request);
-        public Task<bool> CreateBlogPostAsync(BlogPost blog);
+        public Task<bool> CreateBlogPostAsync(string userid,RequestCreateBlogPost request);
     }
 }

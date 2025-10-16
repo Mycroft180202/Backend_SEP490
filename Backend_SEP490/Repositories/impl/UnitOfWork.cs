@@ -7,7 +7,7 @@ public class UnitOfWork: IUnitOfWork
     private readonly AppDbContext _context;
     
     public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,
-        IFeedbackRepositories feedback,IOrderRepositories order,IRefreshTokenRepository refreshToken,ICategoryRepositories category)
+        IFeedbackRepositories feedback,IOrderRepositories order,IRefreshTokenRepository refreshToken,ICategoryRepositories category, IBlogRepositories blog)
     {
         _context = context;
         Products = product;
@@ -17,6 +17,7 @@ public class UnitOfWork: IUnitOfWork
         Order = order;
         RefreshTokens = refreshToken;
         Categories = category;
+        Blog = blog;
     }
     public void Dispose()
     {

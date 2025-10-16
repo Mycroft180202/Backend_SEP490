@@ -8,7 +8,7 @@ public interface IUserServices
     public Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter);
     public Task<ResponseDTOUser?> GetUserByIDAsync(string userID);
     public Task<bool?> UpdateUserAsync(string userID, RequestUpdateUser request);
-    public Task<RequestDTOUser?> GetUserByArtisanIDAsync(string artisanID);
+    public Task<ResponseDTOUser?> GetUserByArtisanIDAsync(string artisanID);
     
     Task<ResponseDTOAuth?> LoginAsync(string username, string password);
     Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken);
