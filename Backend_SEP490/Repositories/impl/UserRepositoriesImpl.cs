@@ -44,4 +44,10 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
     {
         return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
+
+    public async Task UpdateUserPasswordAsync(User user)
+    {
+     _context.Users.Update(user);
+     await _context.SaveChangesAsync();
+    }
 }

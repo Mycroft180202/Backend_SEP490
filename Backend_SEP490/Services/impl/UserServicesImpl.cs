@@ -223,4 +223,63 @@ public class UserServicesImpl : GenericServices, IUserServices
                 ExpireAt = expireAt
             };
         }
+        public async Task<bool> ForgotPasswordAsync(string email)
+        {
+            // 1. Check user có tồn tại không
+            var user = await _context.Users.GetUserByEmailAsync(email);
+            if (user == null) return false;
+
+            // 2. Sinh OTP ngẫu nhiên
+            var otpCode = new Random().Next(100000, 999999).ToString();
+
+            // 3. Lưu OTP vào DB
+            var otpEntity = new UserOtp
+            {
+                Id = Guid.NewGuid().ToString(),
+                Email = email,
+                OtpCode = otpCode,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(5), // hết hạn sau 5 phút
+                IsUsed = false
+            };
+
+            await _context.UserOtps.AddOtpAsync(otpEntity);
+            await _context.SaveChangesAsync();
+
+            // 4. Gửi email
+            var subject = "Forgot Password - Your OTP Code";
+            var body = $"Xin chào {user.Username},\n\n" +
+                       $"Mã OTP để đặt lại mật khẩu của bạn là: {otpCode}\n" +
+                       $"OTP sẽ hết hạn trong 5 phút.\n\n" +
+                       $"Nếu không phải bạn yêu cầu, vui lòng bỏ qua email này.";
+
+            await _emailService.SendEmailAsync(email, subject, body);
+
+            return true;
+        }
+        public async Task<bool> ResetPasswordAsync(RequestDTOResetPassword dto)
+        {
+            // 1. Check user có tồn tại
+            var user = await _context.Users.GetUserByEmailAsync(dto.Email);
+            if (user == null) return false;
+
+            // 2. Tìm OTP
+            var otpEntity = await _context.UserOtps.GetLatestOtpByEmailAsync(dto.Email);
+            if (otpEntity == null) return false;
+
+            // 3. Validate OTP
+            if (otpEntity.IsUsed) return false;
+            if (otpEntity.ExpiresAt < DateTime.UtcNow) return false;
+            if (otpEntity.OtpCode != dto.OtpCode) return false;
+
+            // 4. Cập nhật mật khẩu mới
+            user.PasswordHash = HashPassword(dto.NewPassword);
+            _context.Users.UpdateUserPasswordAsync(user);
+
+            // 5. Đánh dấu OTP đã sử dụng
+            otpEntity.IsUsed = true;
+            _context.UserOtps.UpdateOtp(otpEntity);
+            _context.UserOtps.DeleteOtpAsync(otpEntity);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }

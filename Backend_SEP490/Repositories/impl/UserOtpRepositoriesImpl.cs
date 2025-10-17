@@ -34,4 +34,17 @@ public class UserOtpRepositoriesImpl: GenericRepositoryImpl<UserOtp>, IUserOtpRe
          _context.UserOtps.Remove(otp);
          await _context.SaveChangesAsync();
     }
+
+    public async Task<UserOtp> GetLatestOtpByEmailAsync(string email)
+    {
+        return await _context.UserOtps
+            .Where(o => o.Email == email)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync();
+    }
+
+    public void UpdateOtp(UserOtp otp)
+    {
+        _context.UserOtps.Update(otp);
+    }
 }
