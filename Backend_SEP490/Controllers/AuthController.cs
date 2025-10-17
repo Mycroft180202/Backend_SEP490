@@ -41,9 +41,15 @@ public class AuthController: ControllerBase
     public async Task<IActionResult> Register([FromForm] RequestDTORegister dto)
     {
         var result = await _userServices.RegisterAsync(dto);
-        if (!result) return BadRequest("Username or email already exists");
-
-        return Ok(new { message = "Register successful, role Customer assigned" });
+        if (!result) return BadRequest("Username or email already exists!");
+        return Ok("OTP sent to email");
+    }
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] RequestDTOVerifyOtp request)
+    {
+        var result = await _userServices.VerifyOtpAsync(request.RegisterDto, request.Otp);
+        if (!result) return BadRequest("Invalid or expired OTP!");
+        return Ok("Registration successful");
     }
 
 }

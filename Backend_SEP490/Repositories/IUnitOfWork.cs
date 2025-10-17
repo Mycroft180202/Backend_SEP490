@@ -12,4 +12,5 @@ public interface IUnitOfWork: IDisposable
     ICategoryRepositories Categories { get; }
     IRoleRepository Roles { get; }
     IUserRoleRepository UserRoles { get; }
+    IUserOtpRepositories UserOtps { get; }
 }

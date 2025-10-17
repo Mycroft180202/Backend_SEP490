@@ -15,10 +15,11 @@ public class UserServicesImpl : GenericServices, IUserServices
 
 {
     private readonly IConfiguration _config;
-
-    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IConfiguration config) : base(mapper, unitOfWork)
+    private readonly IEmailService _emailService;
+    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IConfiguration config,IEmailService emailService) : base(mapper, unitOfWork)
     {
         _config = config;
+        _emailService = emailService;
     }
 
     public async Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync()
@@ -98,6 +99,34 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         var existingEmail = await _context.Users.GetUserByEmailAsync(dto.Email);
         if (existingEmail != null) return false;
+
+        // Sinh OTP
+        string otp = new Random().Next(100000, 999999).ToString();
+
+        var otpEntity = new UserOtp
+        {
+            Id = Guid.NewGuid().ToString(),
+            Email = dto.Email,
+            OtpCode = otp,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5)
+        };
+
+        await _context.UserOtps.AddOtpAsync(otpEntity);
+        await _context.UserOtps.SaveChangesAsync();
+
+        // Gửi email
+        await _emailService.SendEmailAsync(dto.Email, "Your OTP Code", $"Your OTP is: {otp}");
+
+        return true;
+        }
+
+    public async Task<bool> VerifyOtpAsync(RequestDTORegister dto, string otp)
+    {
+        var otpEntity = await _context.UserOtps.GetValidOtpAsync(dto.Email, otp);
+        if (otpEntity == null) return false;
+
+        otpEntity.IsUsed = true;
+        await _context.UserOtps.DeleteOtpAsync(otpEntity);
         string hashedPassword = HashPassword(dto.PasswordHash);
 
         var newUser = new User
@@ -113,8 +142,10 @@ public class UserServicesImpl : GenericServices, IUserServices
             CreateAt = DateTime.UtcNow,
             UpdateAt = DateTime.UtcNow
         };
+
         await _context.Users.AddUserAsync(newUser);
 
+        // Gán role mặc định Customer
         var customerRole = await _context.Roles.GetByNameAsync("Customer");
         if (customerRole != null)
         {
@@ -125,12 +156,14 @@ public class UserServicesImpl : GenericServices, IUserServices
                 RoleID = customerRole.Id
             };
             await _context.UserRoles.AddUserRoleAsync(userRole);
-            
         }
 
+        await _context.UserOtps.SaveChangesAsync();
+        await _context.SaveChangesAsync();
+
         return true;
-        }
-    
+    }
+
 
     public static string GenerateID(string prefix)
         {

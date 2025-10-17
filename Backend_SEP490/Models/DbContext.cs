@@ -28,6 +28,7 @@ namespace Backend_SEP490.Models
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<WishListItem> WishListItems { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<UserOtp> UserOtps { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

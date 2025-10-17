@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Backend_SEP490.Models;
 using Newtonsoft.Json;
-
-namespace Backend_SEP490.Models;
 
 public class User
 {
@@ -20,6 +19,11 @@ public class User
     public string? Bio { get; set; }
     public int? Rating { get; set; }
     public int? AdminLevel { get; set; }
+
+    // 👇 Thêm 2 cột mới
+    public string? UserUrlImage { get; set; }
+    public string? ShopUrlImage { get; set; }
+
     [JsonIgnore]
     // Navigation
     public ICollection<RefreshToken> RefreshTokens { get; set; }
