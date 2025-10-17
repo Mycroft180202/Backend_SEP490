@@ -11,10 +11,12 @@ namespace Backend_SEP490.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserServices _userServices;
+        private readonly IAddressService _addressServices;
 
-        public UserController(IUserServices userServices)
+        public UserController(IUserServices userServices, IAddressService addressServices)
         {
             _userServices = userServices;
+            _addressServices = addressServices;
         }
 
 
@@ -49,6 +51,48 @@ namespace Backend_SEP490.Controllers
             var users = await _userServices.UpdateUserAsync(id,request);
             
             return Ok(users);
+        }
+
+        [HttpGet("users/me")]
+        public async Task<IActionResult> GetUsersProfile()
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            var users = await _userServices.GetUserByIDAsync(userId);
+            if (users == null)
+            {
+                return NotFound();
+            }
+            return Ok(users);
+        }
+        [HttpGet("users/address")]
+        public async Task<IActionResult> GetAllUsersAddress()
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            var address = await _addressServices.GetAllAddressByUserIdAsync(userId);
+            if(address == null) return NotFound();
+            return Ok(address);
+        }
+
+        [HttpPost("users/address")]
+        public async Task<IActionResult> CreateUsersAddress([FromBody] RequestCreateAndUpdateAddress request)
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            var status = _addressServices.CreateUserAddressAsync(userId, request);
+            return Ok(status);
+        }
+
+        [HttpPut("users/address/{id}")]
+        public async Task<IActionResult> UpdateUsersAddress([FromRoute] string addressId)
+        {
+            
+            
+            return Ok();
+        }
+        [HttpDelete("users/address/{id}")]
+        public async Task<IActionResult> DeleteUsersAddress([FromRoute] string addressId)
+        {
+            var status = _addressServices.DeleteUserAddressAsync(addressId);
+            return Ok(status);
         }
 
 

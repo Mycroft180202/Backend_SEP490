@@ -8,7 +8,7 @@ public class UnitOfWork: IUnitOfWork
     
     public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,
         IFeedbackRepositories feedback,IOrderRepositories order,IRefreshTokenRepository refreshToken,ICategoryRepositories category, IBlogRepositories blog,
-        IRoleRepository role, IUserRoleRepository userRole)
+        IRoleRepository role, IUserRoleRepository userRole, IAddressRepositories address)
     {
         _context = context;
         Products = product;
@@ -21,6 +21,7 @@ public class UnitOfWork: IUnitOfWork
         Blog = blog;
         Roles = role;
         UserRoles = userRole;
+        Address = address; 
     }
     public void Dispose()
     {
@@ -45,4 +46,5 @@ public class UnitOfWork: IUnitOfWork
     public ICategoryRepositories Categories { get; }
     public IRoleRepository Roles { get; }
     public IUserRoleRepository UserRoles { get; }
+    public IAddressRepositories Address { get; }
 }
