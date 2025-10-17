@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
@@ -11,18 +12,27 @@ public class FeedbackServicesImpl: GenericServices, IFeedbackServices
     {
     }
 
-    public async Task<IEnumerable<ResponseDTOFeedback>> GetFeedbacksByProductIdAsync(string productId)
+    public async Task<PagedResult<ResponseDTOFeedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize)
     {
-        var feedback = await _context.Feedback.GetFeedbacksByProductIdAsync(productId);
-        var rel= _mapper.Map<IEnumerable<ResponseDTOFeedback>>(feedback);
+        var totalCount = await _context.Feedback.CountFeedbacksByProductIdAsync(productId);
+        var feedbacks = await _context.Feedback.GetFeedbacksByProductIdAsync(productId, pageIndex, pageSize);
+
+        var rel = _mapper.Map<IEnumerable<ResponseDTOFeedback>>(feedbacks);
+
+        // lấy thêm CustomerName cho từng feedback
         foreach (var fed in rel)
         {
-            var name =  await _context.Users.GetUserNameByIdAsync(fed.CustomerId);
-            fed.CustomerName = name;
+            fed.CustomerName = await _context.Users.GetUserNameByIdAsync(fed.CustomerId);
         }
-        return rel;
-    }
 
+        return new PagedResult<ResponseDTOFeedback>
+        {
+            Items = rel,
+            TotalCount = totalCount,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+    }
     public async Task DeleteFeedbacksByIdAsync(string Id)
     {
          await _context.Feedback.DeleteFeedbacksByIdAsync(Id);

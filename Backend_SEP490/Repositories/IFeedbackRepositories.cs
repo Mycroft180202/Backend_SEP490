@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using Backend_SEP490.Data;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Models;
 
 namespace Backend_SEP490.Repositories;
@@ -10,4 +11,7 @@ public interface IFeedbackRepositories
     Task DeleteFeedbacksByIdAsync(string Id);
     Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback,string productID, string userID,string feedbackID);
     Task CreateFeedback(RequestDTOFeedback feedback,string productID, string userID);
+    Task<int> CountFeedbacksByProductIdAsync(string productId);
+    Task<List<Feedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize);
+
 }

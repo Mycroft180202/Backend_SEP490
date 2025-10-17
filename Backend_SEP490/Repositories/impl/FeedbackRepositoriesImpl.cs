@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using Backend_SEP490.Data;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
@@ -53,5 +54,22 @@ public class FeedbackRepositoriesImpl : GenericRepositoryImpl<Feedback>, IFeedba
         };
     _context.Feedbacks.Add(result);
     await _context.SaveChangesAsync();
+    }
+
+    public async Task<int> CountFeedbacksByProductIdAsync(string productId)
+    {
+        return await _context.Feedbacks
+            .Where(f => f.ProductId == productId)
+            .CountAsync();
+    }
+
+    public async Task<List<Feedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize)
+    {
+        return await _context.Feedbacks
+            .Where(f => f.ProductId == productId)
+            .OrderByDescending(f => f.CreateAt)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
     }
 }
