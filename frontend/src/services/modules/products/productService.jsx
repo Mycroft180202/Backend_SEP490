@@ -2,9 +2,9 @@ import axiosClient from '../../api/axiosConfig';
 import { API_ENDPOINTS } from '../../api/endpoints';
 
 export const ProductService = {
-  getAllProducts: async () => {
+  getAllProducts: async (params = {}) => {
     try {
-      const response = await axiosClient.get(API_ENDPOINTS.PRODUCTS.GET_ALL);
+      const response = await axiosClient.get(API_ENDPOINTS.PRODUCTS.GET_ALL, { params });
       return response.data;
     } catch (error) {
       throw error;

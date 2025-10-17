@@ -52,12 +52,18 @@ const Collections = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await ProductService.getAllProducts();
-        setProducts(data);
+        const response = await ProductService.getAllProducts({ pageIndex, pageSize });
+        setProducts(response.items || []);
+        setTotalPages(response.totalPages || 0);
+        setTotalCount(response.totalCount || 0);
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -65,7 +71,7 @@ const Collections = () => {
       }
     };
     fetchProducts();
-  }, []);
+  }, [pageIndex, pageSize]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -78,14 +84,19 @@ const Collections = () => {
         </h2>
         <div className="flex flex-col items-center gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-            {products.map((product) => (
-              <CollectionCard
-                key={product.id}
-                image={product.imageUrl || '/default-product-image.jpg'}
-                title={product.name}
-              />
-            ))}
+            {products.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-500 py-10">Không có sản phẩm nào.</div>
+            ) : (
+              products.map((product) => (
+                <CollectionCard
+                  key={product.id}
+                  image={product.imageUrl || '/default-product-image.jpg'}
+                  title={product.name}
+                />
+              ))
+            )}
           </div>
+          {/* Pagination: you can enhance this to use totalPages and setPageIndex */}
           <Pagination />
         </div>
       </div>
