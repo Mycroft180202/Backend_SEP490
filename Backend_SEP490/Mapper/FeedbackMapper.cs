@@ -9,6 +9,7 @@ namespace Backend_SEP490.Mapper
         public FeedbackMapper()
         {
             CreateMap<Feedback, ResponseDTOFeedback>().ReverseMap();
+            CreateMap<Feedback,RequestDTOFeedback>().ReverseMap();
         }
     }
 }
