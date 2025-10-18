@@ -553,56 +553,31 @@ namespace Backend_SEP490.Migrations
                     b.ToTable("Shipments");
                 });
 
-            modelBuilder.Entity("Backend_SEP490.Models.User", b =>
+            modelBuilder.Entity("Backend_SEP490.Models.UserOtp", b =>
                 {
-                    b.Property<string>("UserID")
+                    b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<int?>("AdminLevel")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Bio")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("CreateAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DisplayName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("Dob")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("Rating")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ShopName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdateAt")
+                    b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Username")
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("OtpCode")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("UserID");
+                    b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("UserOtps");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.UserRole", b =>
@@ -652,9 +627,67 @@ namespace Backend_SEP490.Migrations
                     b.ToTable("WishListItems");
                 });
 
+            modelBuilder.Entity("User", b =>
+                {
+                    b.Property<string>("UserID")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("AdminLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Bio")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CreateAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("Dob")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ShopName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ShopUrlImage")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdateAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserUrlImage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("UserID");
+
+                    b.ToTable("Users");
+                });
+
             modelBuilder.Entity("Backend_SEP490.Models.Address", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Addresses")
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -665,7 +698,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.BlogPost", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "Author")
+                    b.HasOne("User", "Author")
                         .WithMany("BlogPosts")
                         .HasForeignKey("AuthorId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -676,7 +709,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.Cart", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "Customer")
+                    b.HasOne("User", "Customer")
                         .WithMany("Carts")
                         .HasForeignKey("CustomerID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -702,7 +735,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.Feedback", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "Customer")
+                    b.HasOne("User", "Customer")
                         .WithMany("Feedbacks")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -721,7 +754,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.Notification", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Notifications")
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -732,7 +765,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.Order", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "Customer")
+                    b.HasOne("User", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -773,7 +806,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.Product", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "Artisan")
+                    b.HasOne("User", "Artisan")
                         .WithMany("Products")
                         .HasForeignKey("ArtisanId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -803,7 +836,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.PromotionCampaign", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("PromotionCampaigns")
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -833,7 +866,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.RefreshToken", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -844,7 +877,7 @@ namespace Backend_SEP490.Migrations
 
             modelBuilder.Entity("Backend_SEP490.Models.Report", b =>
                 {
-                    b.HasOne("Backend_SEP490.Models.User", "Reporter")
+                    b.HasOne("User", "Reporter")
                         .WithMany("Reports")
                         .HasForeignKey("ReporterId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -872,7 +905,7 @@ namespace Backend_SEP490.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Backend_SEP490.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("UserRoles")
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -891,7 +924,7 @@ namespace Backend_SEP490.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Backend_SEP490.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("WishListItems")
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -946,7 +979,7 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("Backend_SEP490.Models.User", b =>
+            modelBuilder.Entity("User", b =>
                 {
                     b.Navigation("Addresses");
 

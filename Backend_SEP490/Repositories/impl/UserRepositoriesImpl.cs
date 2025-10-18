@@ -112,4 +112,16 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
     {
         return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
+
+    public async Task UpdateUserPasswordAsync(User user)
+    {
+     _context.Users.Update(user);
+     await _context.SaveChangesAsync();
+    }
+
+    public async Task<string> GetUserNameByIdAsync(string userId)
+    {
+        var user= await _context.Users.Where(u => u.UserID == userId).FirstOrDefaultAsync();
+        return user.DisplayName;
+    }
 }

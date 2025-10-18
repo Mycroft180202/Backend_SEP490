@@ -15,4 +15,5 @@ public interface IUnitOfWork: IDisposable
     IRoleRepository Roles { get; }
     IUserRoleRepository UserRoles { get; }
     IAddressRepositories Address { get; }
+    IUserOtpRepositories UserOtps { get; }
 }
