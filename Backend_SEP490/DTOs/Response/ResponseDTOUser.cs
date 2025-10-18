@@ -13,8 +13,6 @@ public class ResponseDTOUser
     public string? PhoneNumber { get; set; }
     public string? DisplayName { get; set; }
     public DateTime? Dob { get; set; }
-    public int? AdminLevel { get; set; }
-
     public string? UserUrlImage { get; set; }
     public List<ResponseDTOAddress>? Addresses { get; set; }
     public List<ResponseDTORole>? Roles { get; set; }

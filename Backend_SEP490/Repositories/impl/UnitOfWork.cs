@@ -8,7 +8,8 @@ public class UnitOfWork: IUnitOfWork
     
     public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,
         IFeedbackRepositories feedback,IOrderRepositories order,IRefreshTokenRepository refreshToken,ICategoryRepositories category, IBlogRepositories blog,
-        IRoleRepository role, IUserRoleRepository userRole, IAddressRepositories address, IUserOtpRepositories userOtp)
+        IRoleRepository role, IUserRoleRepository userRole, IAddressRepositories address, IUserOtpRepositories userOtp, ICartRepositories cart,
+        ICartItemRepositories cartItem)
     {
         _context = context;
         Products = product;
@@ -23,6 +24,8 @@ public class UnitOfWork: IUnitOfWork
         UserRoles = userRole;
         Address = address; 
         UserOtps = userOtp;
+        Cart = cart;
+        CartItem = cartItem;
     }
     public void Dispose()
     {
@@ -49,4 +52,6 @@ public class UnitOfWork: IUnitOfWork
     public IUserRoleRepository UserRoles { get; }
     public IAddressRepositories Address { get; }
     public IUserOtpRepositories UserOtps { get; }
+    public ICartRepositories Cart { get; }
+    public ICartItemRepositories CartItem { get; }
 }
