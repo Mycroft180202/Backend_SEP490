@@ -12,13 +12,13 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
-        var user= await _context.Users.ToListAsync();
+        var user = await _context.Users.ToListAsync();
         return user;
     }
 
     public async Task<IEnumerable<User>> GetAllUsersWithRolesAsync()
     {
-        var user = await _context.Users.Include( u => u.UserRoles).Include(u => u.Addresses).ToListAsync();
+        var user = await _context.Users.Include(u => u.UserRoles).Include(u => u.Addresses).ToListAsync();
         return user;
     }
 
@@ -32,24 +32,26 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
     public async Task<bool?> UpdateUserAsync(User user, RequestUpdateUser request)
     {
         //Chỉnh sửa Role của user
-        try 
-        {   
-            var existRoleId = await _context.UserRoles.Where(ur => ur.UserID.Equals(user.UserID) && ur.RoleID.Equals(request.RolesId)).FirstOrDefaultAsync();
-
-            if (existRoleId == null) 
+        try
+        {
+            if (!string.IsNullOrEmpty(request.RolesId))
             {
-                _context.UserRoles.Add(new UserRole
-                {
-                    Id = user.UserID + "-" + request.RolesId,
-                    UserID = user.UserID,
-                    RoleID = request.RolesId
+                var existRoleId = await _context.UserRoles.Where(ur => ur.UserID.Equals(user.UserID) && ur.RoleID.Equals(request.RolesId)).FirstOrDefaultAsync();
 
-                });
-                _context.SaveChanges();
+                if (existRoleId == null)
+                {
+                    _context.UserRoles.Add(new UserRole
+                    {
+                        Id = user.UserID + "-" + request.RolesId,
+                        UserID = user.UserID,
+                        RoleID = request.RolesId
+
+                    });
+                    _context.SaveChanges();
+                }
             }
-           
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(ex);
             return false;
@@ -59,17 +61,28 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         //Chỉnh sửa thông tin user
         try
         {
+            if (!string.IsNullOrEmpty(request.DisplayName))
+            {
+                user.DisplayName = request.DisplayName;
+            }
+            if (!string.IsNullOrEmpty(request.PhoneNumber))
+            {
+                user.PhoneNumber = request.PhoneNumber;
+            }
+            if (!string.IsNullOrEmpty(request.UserUrlImage))
+            {
+                user.UserUrlImage = request.UserUrlImage;
+            }
+            if (request.Dob != null)
+            {
+                user.Dob = request.Dob;
+            }
             user.IsActive = request.IsActive;
-            user.PhoneNumber = request.PhoneNumber;
-            user.DisplayName = request.DisplayName;
-            user.Dob = request.Dob;
-            user.ShopName = request.ShopName;
-            user.UpdateAt = DateTime.UtcNow;
         }
-        catch (Exception ex) 
+        catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(ex);
-           return false;
+            return false;
         }
         try
         {
@@ -91,7 +104,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
 
     public async Task<User?> GetUserByUsernameAsync(string username)
     {
-        return await _context.Users.Include(u=>u.UserRoles).ThenInclude(ur=>ur.Role).FirstOrDefaultAsync(u => u.Username == username);
+        return await _context.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role).FirstOrDefaultAsync(u => u.Username == username);
     }
 
     public async Task<User?> GetByIdAsync(string userId)
@@ -115,13 +128,13 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
 
     public async Task UpdateUserPasswordAsync(User user)
     {
-     _context.Users.Update(user);
-     await _context.SaveChangesAsync();
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
     }
 
     public async Task<string> GetUserNameByIdAsync(string userId)
     {
-        var user= await _context.Users.Where(u => u.UserID == userId).FirstOrDefaultAsync();
+        var user = await _context.Users.Where(u => u.UserID == userId).FirstOrDefaultAsync();
         return user.DisplayName;
     }
 }

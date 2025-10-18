@@ -64,6 +64,19 @@ namespace Backend_SEP490.Controllers
             }
             return Ok(users);
         }
+
+        [HttpPut("users/me")]
+        public async Task<IActionResult> UpdateUsersProfile([FromForm] RequestUpdateUser request)
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var users = await _userServices.UpdateUserAsync(userId, request);
+
+            return Ok(users);
+        }
+
         [HttpGet("users/address")]
         public async Task<IActionResult> GetAllUsersAddress()
         {
