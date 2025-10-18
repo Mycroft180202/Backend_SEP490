@@ -37,7 +37,7 @@ namespace Backend_SEP490.Controllers
             var status = _cartService.UpdateCartItemAsync(cartItemId);
             return Ok(status);
         }
-        [HttpPost("carts")]
+        [HttpDelete("carts")]
         public async Task<IActionResult> DeleteCartItems([FromRoute] string cartItemId)
         {
             var status = _cartService.DeleteCartItemAsync(cartItemId);

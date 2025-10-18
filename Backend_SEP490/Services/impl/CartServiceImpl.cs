@@ -50,14 +50,14 @@ namespace Backend_SEP490.Services.impl
         public async Task<bool> UpdateCartItemAsync(string cartItemId)
         {
             var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
-
+            if (cartItem == null) return false;
             var status = await _context.CartItem.UpdateCartItemAsync(cartItem);
             return status;
         }
         public async Task<bool> DeleteCartItemAsync(string cartItemId)
         {
             var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
-
+            if(cartItem == null) return false;
             var status = await _context.CartItem.DeleteCartItemAsync(cartItem);
             return status;
         }
