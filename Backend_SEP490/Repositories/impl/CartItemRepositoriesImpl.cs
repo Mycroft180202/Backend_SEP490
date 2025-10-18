@@ -22,9 +22,9 @@ namespace Backend_SEP490.Repositories.impl
             }
             return true;
         }
-        public async Task<bool> UpdateCartItemAsync(CartItem cartItem)
+        public async Task<bool> UpdateCartItemAsync(CartItem cartItem, int quantity)
         {
-            cartItem.Quantity = cartItem.Quantity + 1;
+            cartItem.Quantity = quantity;
             try
             {
                 _context.CartItems.Update(cartItem);

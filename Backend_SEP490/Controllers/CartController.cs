@@ -32,9 +32,9 @@ namespace Backend_SEP490.Controllers
             return Ok(status);
         }
         [HttpPut("carts/{id}")]
-        public async Task<IActionResult> UpdateCartItems([FromRoute] string cartItemId)
+        public async Task<IActionResult> UpdateCartItems([FromRoute] string cartItemId, int quantity)
         {
-            var status = _cartService.UpdateCartItemAsync(cartItemId);
+            var status = _cartService.UpdateCartItemAsync(cartItemId, quantity);
             return Ok(status);
         }
         [HttpDelete("carts/{id}")]

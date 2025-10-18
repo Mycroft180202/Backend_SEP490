@@ -31,7 +31,7 @@ namespace Backend_SEP490.Services.impl
                 {
                     return false;
                 }
-                status = await _context.CartItem.UpdateCartItemAsync(item);
+                status = await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + 1);
             }
 
 
@@ -47,12 +47,21 @@ namespace Backend_SEP490.Services.impl
             return status;
         }
 
-        public async Task<bool> UpdateCartItemAsync(string cartItemId)
+        public async Task<bool> UpdateCartItemAsync(string cartItemId, int quatity)
         {
             var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
+            var product = await _context.Products.GetProductByIdAsync(cartItem.ProductId);
+            if (quatity > product.Stock)
+            {
+                return false;
+            }
+            if(quatity == 0)
+            {
+                return await _context.CartItem.DeleteCartItemAsync(cartItem);
+            } 
+                
             if (cartItem == null) return false;
-            var status = await _context.CartItem.UpdateCartItemAsync(cartItem);
-            return status;
+            return await _context.CartItem.UpdateCartItemAsync(cartItem, quatity);
         }
         public async Task<bool> DeleteCartItemAsync(string cartItemId)
         {
