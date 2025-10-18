@@ -31,13 +31,13 @@ namespace Backend_SEP490.Controllers
             var status = _cartService.AddCartItemAsync(userId, request);
             return Ok(status);
         }
-        [HttpPut("carts")]
+        [HttpPut("carts/{id}")]
         public async Task<IActionResult> UpdateCartItems([FromRoute] string cartItemId)
         {
             var status = _cartService.UpdateCartItemAsync(cartItemId);
             return Ok(status);
         }
-        [HttpDelete("carts")]
+        [HttpDelete("carts/{id}")]
         public async Task<IActionResult> DeleteCartItems([FromRoute] string cartItemId)
         {
             var status = _cartService.DeleteCartItemAsync(cartItemId);
