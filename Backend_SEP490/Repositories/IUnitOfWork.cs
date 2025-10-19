@@ -18,4 +18,6 @@ public interface IUnitOfWork: IDisposable
     IUserOtpRepositories UserOtps { get; }
     ICartRepositories Cart { get; }
     ICartItemRepositories CartItem { get; }
+
+    IWishListItemRepositories WishListItem { get; }
 }

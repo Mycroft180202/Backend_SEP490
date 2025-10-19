@@ -95,11 +95,11 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPut("users/address/{id}")]
-        public async Task<IActionResult> UpdateUsersAddress([FromRoute] string addressId)
+        public async Task<IActionResult> UpdateUsersAddress([FromRoute] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
         {
+            var status = _addressServices.UpdateUserAddressAsync(addressId, request);
             
-            
-            return Ok();
+            return Ok(status);
         }
         [HttpDelete("users/address/{id}")]
         public async Task<IActionResult> DeleteUsersAddress([FromRoute] string addressId)
