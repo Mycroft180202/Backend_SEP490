@@ -34,7 +34,6 @@ public class User
     public ICollection<Notification>? Notifications { get; set; }
     public ICollection<Order>? Orders { get; set; }
     public ICollection<Product>? Products { get; set; }
-    public ICollection<PromotionCampaign>? PromotionCampaigns { get; set; }
     public ICollection<Report>? Reports { get; set; }
     public ICollection<UserRole>? UserRoles { get; set; }
     public ICollection<WishListItem>? WishListItems { get; set; }

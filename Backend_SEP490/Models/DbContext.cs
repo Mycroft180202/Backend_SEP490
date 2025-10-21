@@ -18,8 +18,8 @@ namespace Backend_SEP490.Models
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Payment> Payments { get; set; }
-        public DbSet<PromotionCampaign> PromotionCampaigns { get; set; }
-        public DbSet<PromotionProduct> PromotionProducts { get; set; }
+        public DbSet<ProductCollection> ProductCollections { get; set; }
+        public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<Report> Reports { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
@@ -80,11 +80,6 @@ namespace Backend_SEP490.Models
                 .HasForeignKey(p => p.ArtisanId);
 
             modelBuilder.Entity<User>()
-                .HasMany(u => u.PromotionCampaigns)
-                .WithOne(pc => pc.User)
-                .HasForeignKey(pc => pc.UserID);
-
-            modelBuilder.Entity<User>()
                 .HasMany(u => u.Reports)
                 .WithOne(r => r.Reporter)
                 .HasForeignKey(r => r.ReporterId);
@@ -131,11 +126,7 @@ namespace Backend_SEP490.Models
                 .WithOne(f => f.Product)
                 .HasForeignKey(f => f.ProductId);
 
-            modelBuilder.Entity<Product>()
-                .HasMany(p => p.PromotionProducts)
-                .WithOne(pp => pp.Product)
-                .HasForeignKey(pp => pp.ProductId);
-
+            
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.WishListItems)
                 .WithOne(w => w.Product)
@@ -163,12 +154,40 @@ namespace Backend_SEP490.Models
                 .WithOne(ur => ur.Role)
                 .HasForeignKey(ur => ur.RoleID);
 
-            // ========== PROMOTION ==========
-            modelBuilder.Entity<PromotionCampaign>()
-                .HasMany(pc => pc.PromotionProducts)
-                .WithOne(pp => pp.Campain)
-                .HasForeignKey(pp => pp.CampainId);
-            
+            // ========== PRODUCT COLLECTION ==========
+            modelBuilder.Entity<ProductCollection>(entity =>
+            {
+                entity.Property(pc => pc.CreatedDate)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(pc => pc.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.HasOne(pc => pc.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(pc => pc.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(pc => pc.UpdatedBy)
+                    .WithMany()
+                    .HasForeignKey(pc => pc.UpdatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+// ========== VOUCHER ==========
+            modelBuilder.Entity<Voucher>(entity =>
+            {
+                entity.Property(v => v.CreatedDate)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(v => v.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.HasOne(v => v.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(v => v.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+ 
         }
     }
     
