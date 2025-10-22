@@ -73,7 +73,7 @@ const Collections = () => {
     fetchProducts();
   }, [pageIndex, pageSize]);
 
-  if (loading) return <div>Loading...</div>;
+
   if (error) return <div>Error: {error}</div>;
 
   return (
@@ -84,7 +84,9 @@ const Collections = () => {
         </h2>
         <div className="flex flex-col items-center gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-            {products.length === 0 ? (
+            {loading ? (
+              <div className="col-span-3 text-center text-gray-500 py-10">Đang tải sản phẩm...</div>
+            ) : products.length === 0 ? (
               <div className="col-span-3 text-center text-gray-500 py-10">Không có sản phẩm nào.</div>
             ) : (
               products.map((product) => (

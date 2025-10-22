@@ -9,8 +9,8 @@ const BannerSection = ({ assets }) => (
       <h1 className="font-alata text-[28px] md:text-[32px] text-[#9e211f] font-bold mb-2">Về chúng tôi</h1>
     </div>
     {/* Banner image dưới */}
-    <div className="w-full relative overflow-hidden">
-      <img src="/images/banner.png" alt="banner" className="w-full h-full object-cover object-center" />
+    <div className="w-full relative overflow-hidden width-full h-[300px] md:h-[400px] lg:h-[500px]">
+      <img src="/images/banner.jpg" alt="banner" className="w-full h-full object-cover object-center" />
     </div>
   </div>
 );

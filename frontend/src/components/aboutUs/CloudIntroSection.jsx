@@ -2,7 +2,7 @@ import React from 'react';
 
 const CloudIntroSection = ({ assets }) => (
   <div
-       className="relative w-full -mt-[100px] md:-mt-[1500px] lg:-mt-[100px] z-30"
+       className="relative w-full -mt-[100px] md:-mt-[1500px] lg:-mt-[50px] z-30"
        >
         {/* Container for all wave decorations */}
         <div className="relative w-full" style={{ height: '445px' }}>
