@@ -402,11 +402,16 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         var totalCount = products.Count;
         var paged = products.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
-
+        var result = _mapper.Map<List<ResponseDTOProduct>>(paged);
+        foreach (var pro in result)
+        {
+            var image = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
+            pro.ImageUrl = image.FirstOrDefault(p=>p.Position == 0)?.URL;
+        }
         return new PagedResult<ResponseDTOProduct>
         {
             TotalCount = totalCount,
-            Items = _mapper.Map<List<ResponseDTOProduct>>(paged)
+            Items =result
         };
     }
     private double CalculateCosineSimilarity(double[] a, double[] b)
