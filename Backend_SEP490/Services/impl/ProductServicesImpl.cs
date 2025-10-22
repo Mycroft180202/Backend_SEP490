@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using System.Text.Json;
+using AutoMapper;
 using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
@@ -156,15 +157,27 @@ public class ProductServicesImpl: GenericServices, IProductServices
         newProduct.IsActive = true;
         newProduct.CreateAt = DateTime.UtcNow;
         newProduct.UpdateAt = DateTime.UtcNow;
-        
-        
-        var textToEmbed = $"{newProduct.Name} {newProduct.ShortDescription} {newProduct.LongDescription}";
-        var embedding = await _embeddingService.GenerateEmbeddingAsync(textToEmbed);
-        
-        newProduct.EmbeddingJson = JsonSerializer.Serialize(embedding);
+        var textToEmbed = $"{newProduct.Name} {newProduct.ShortDescription} {newProduct.LongDescription}".Trim();
 
-        await _context.Products.AddProductAsync(newProduct);;
-        if (productDto.images != null)
+// Batch embedding
+        var embeddingsDict = await _embeddingService.GenerateEmbeddingBatchAsync(new[] { textToEmbed });
+
+        if (!embeddingsDict.TryGetValue(textToEmbed, out var embedding))
+        {
+            embedding = _embeddingService.GetCachedEmbedding(textToEmbed);
+            if (embedding == null)
+                throw new Exception("Failed to generate embedding for product text.");
+        }
+
+// Chuyển embedding array thành JsonDocument
+        var embeddingJsonString = JsonSerializer.Serialize(embedding);
+        newProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
+
+        // Thêm sản phẩm
+        await _context.Products.AddProductAsync(newProduct);
+
+        // Upload hình ảnh
+        if (productDto.images != null && productDto.images.Any())
         {
             int position = 0;
             foreach (var file in productDto.images)
@@ -187,7 +200,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 await _context.ProductImages.AddProductImageAsync(productImage);
             }
         }
-        
+
         return true;
     }
 
@@ -350,11 +363,12 @@ public class ProductServicesImpl: GenericServices, IProductServices
    
     var textForEmbedding = $"{existingProduct.Name} {existingProduct.ShortDescription} {existingProduct.LongDescription}";
     var embeddingVector = await _embeddingService.GenerateEmbeddingAsync(textForEmbedding);
+
     if (embeddingVector.Length > 0)
     {
-        existingProduct.EmbeddingJson = Newtonsoft.Json.JsonConvert.SerializeObject(embeddingVector);
+        var embeddingJsonString = JsonSerializer.Serialize(embeddingVector);
+        existingProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
     }
-
     await _context.Products.UpdateAsync(existingProduct);
     return true;
 }
@@ -370,11 +384,14 @@ public class ProductServicesImpl: GenericServices, IProductServices
             var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(productName);
 
             var ranked = products
-                .Where(p => !string.IsNullOrEmpty(p.EmbeddingJson))
+                .Where(p => p.EmbeddingJson != null)
                 .Select(p => new
                 {
                     Product = p,
-                    Score = CalculateCosineSimilarity(queryEmbedding, JsonConvert.DeserializeObject<float[]>(p.EmbeddingJson))
+                    Score = CalculateCosineSimilarity(
+                        queryEmbedding,
+                        JsonConvert.DeserializeObject<double[]>(p.EmbeddingJson!.RootElement.GetRawText())
+                    )
                 })
                 .OrderByDescending(x => x.Score)
                 .Select(x => x.Product)
@@ -392,7 +409,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             Items = _mapper.Map<List<ResponseDTOProduct>>(paged)
         };
     }
-    private double CalculateCosineSimilarity(float[] a, float[] b)
+    private double CalculateCosineSimilarity(double[] a, double[] b)
     {
         if (a == null || b == null || a.Length != b.Length) return 0;
         double dot = 0, magA = 0, magB = 0;

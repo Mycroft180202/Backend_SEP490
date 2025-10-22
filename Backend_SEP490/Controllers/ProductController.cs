@@ -25,13 +25,13 @@ public class ProductController:ControllerBase
         var product = await _productServices.GetProductByIdAsync(id);
         return Ok(product);
     }
-    [Authorize(Roles = "Artisan")]
+    //[Authorize(Roles = "Artisan")]
     [HttpPost("products")]
     public async Task<IActionResult> CreateProduct([FromForm] RequestDTOProduct productDto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-        productDto.ArtisanId= User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
         var product = await _productServices.CreateProductAsync(productDto);
         return Ok(product);
     }

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using Backend_SEP490.Models;
 using Newtonsoft.Json;
 
@@ -17,7 +18,7 @@ public class Product
     public DateTime? UpdateAt { get; set; }
     public int Stock { get; set; }
     
-    public string? EmbeddingJson { get; set; }
+    public JsonDocument EmbeddingJson { get; set; }
     [JsonIgnore]
     public Category CategoryNav { get; set; }
     public User Artisan { get; set; }

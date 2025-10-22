@@ -105,7 +105,9 @@ namespace Backend_SEP490.Models
                 .HasOne(p => p.CategoryNav)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.Category);
-
+            modelBuilder.Entity<Product>()
+                .Property(p => p.EmbeddingJson)
+                .HasColumnType("jsonb");
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.ProductImages)
                 .WithOne(pi => pi.Product)
@@ -204,7 +206,7 @@ namespace Backend_SEP490.Models
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                 );
-
+            
         }
     }
     
