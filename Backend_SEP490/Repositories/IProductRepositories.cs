@@ -20,4 +20,7 @@ public interface IProductRepositories
         bool? isAvailable,
         int pageIndex, 
         int pageSize);
+    Task<List<Product>> GetProductsAsync(string? categoryId, bool? isActive);
+    Task<List<Product>> GetAllAsync();
+    Task SaveChangesAsync();
 }

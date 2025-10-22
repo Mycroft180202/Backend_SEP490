@@ -6,6 +6,7 @@ using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using Newtonsoft.Json;
 using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 
 namespace Backend_SEP490.Services.impl;
@@ -16,12 +17,14 @@ public class ProductServicesImpl: GenericServices, IProductServices
     private readonly IFeedbackServices _feedbackServices;
     private readonly IProductImagesServices _productImagesServices;
     private readonly Cloudinary _cloudinary;
-    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary) : base(mapper, unitOfWork)
+    private readonly IEmbeddingService _embeddingService;
+    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IEmbeddingService embeddingService,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary) : base(mapper, unitOfWork)
     {
         _userServices= userServices;
         _feedbackServices = feedbackServices;
         _productImagesServices = productImagesServices;
         _cloudinary = cloudinary;
+        _embeddingService = embeddingService;
     }
 
 
@@ -344,23 +347,50 @@ public class ProductServicesImpl: GenericServices, IProductServices
     }
 
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize)
+        string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize)
     {
-        // Lấy data từ Repository (PagedResult<Product>)
-        var products = await _context.Products.GetProductsAsync(productName, categoryId,isactive, pageIndex, pageSize);
+        var products = await _context.Products.GetProductsAsync(categoryId, isActive);
 
-        // Map danh sách Product -> ResponseDTOProduct
-        var mappedItems = _mapper.Map<IEnumerable<ResponseDTOProduct>>(products.Items);
+        if (!string.IsNullOrEmpty(productName))
+        {
+            var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(productName);
 
-        // Trả về PagedResult với DTO
+            var ranked = products
+                .Where(p => !string.IsNullOrEmpty(p.EmbeddingJson))
+                .Select(p => new
+                {
+                    Product = p,
+                    Score = CalculateCosineSimilarity(queryEmbedding, JsonConvert.DeserializeObject<float[]>(p.EmbeddingJson))
+                })
+                .OrderByDescending(x => x.Score)
+                .Select(x => x.Product)
+                .ToList();
+
+            products = ranked;
+        }
+
+        var totalCount = products.Count;
+        var paged = products.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+
         return new PagedResult<ResponseDTOProduct>
         {
-            Items = mappedItems,
-            TotalCount = products.TotalCount,
-            PageIndex = products.PageIndex,
-            PageSize = products.PageSize
+            TotalCount = totalCount,
+            Items = _mapper.Map<List<ResponseDTOProduct>>(paged)
         };
     }
+    private double CalculateCosineSimilarity(float[] a, float[] b)
+    {
+        if (a == null || b == null || a.Length != b.Length) return 0;
+        double dot = 0, magA = 0, magB = 0;
+        for (int i = 0; i < a.Length; i++)
+        {
+            dot += a[i] * b[i];
+            magA += a[i] * a[i];
+            magB += b[i] * b[i];
+        }
+        return dot / (Math.Sqrt(magA) * Math.Sqrt(magB));
+    }
+
 
     public async Task<bool> DeleteProductAsync(string productId)
     {

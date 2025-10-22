@@ -76,6 +76,7 @@ builder.Services.AddScoped<IProductImagesServices, ProductImagesServicesImpl>();
 builder.Services.AddScoped<ICategoryServices, CategoryServicesImpl>();
 builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
 builder.Services.AddScoped<IProductCollectionServices, ProductCollectionServicesImpl>();
+builder.Services.AddScoped<IEmbeddingService, EmbeddingServiceImpl>();
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
 // ----------------------

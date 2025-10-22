@@ -76,7 +76,7 @@ public class ProductController:ControllerBase
         if (!result)
             return NotFound(new { message = $"Product with id {id} not found" });
 
-        return NoContent(); // 204
+        return NoContent(); 
     }
 
 }
