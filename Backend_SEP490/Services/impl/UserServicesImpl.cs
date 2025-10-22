@@ -12,14 +12,26 @@ using Microsoft.IdentityModel.Tokens;
 namespace Backend_SEP490.Services.impl;
 
 public class UserServicesImpl : GenericServices, IUserServices
-
 {
-    private readonly IConfiguration _config;
     private readonly IEmailService _emailService;
-    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IConfiguration config,IEmailService emailService) : base(mapper, unitOfWork)
+
+    private readonly string _jwtKey;
+    private readonly string _jwtIssuer;
+    private readonly string _jwtAudience;
+    private readonly double _jwtExpireMinutes;
+    private readonly double _jwtRefreshTokenExpireDays;
+
+    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IEmailService emailService) 
+        : base(mapper, unitOfWork)
     {
-        _config = config;
         _emailService = emailService;
+
+        // Lấy từ environment
+        _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new Exception("JWT_KEY is not set");
+        _jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? throw new Exception("JWT_ISSUER is not set");
+        _jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? throw new Exception("JWT_AUDIENCE is not set");
+        _jwtExpireMinutes = double.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRE_MINUTES") ?? "15");
+        _jwtRefreshTokenExpireDays = double.Parse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS") ?? "7");
     }
 
     public async Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync()
@@ -35,40 +47,34 @@ public class UserServicesImpl : GenericServices, IUserServices
     }
 
     public async Task<ResponseDTOAuth?> LoginAsync(string username, string password)
-{
-    var user = await _context.Users.GetUserByUsernameAsync(username);
-    if (user == null) return null;
-
-    // Hash mật khẩu nhập vào
-    string hashedPassword = HashPassword(password);
-
-    if (user.PasswordHash != hashedPassword) return null;
-
-    var tokens = GenerateJwtTokens(user);
-
-    // Lưu RefreshToken vào DB
-    var refresh = new RefreshToken
     {
-        Token = tokens.RefreshToken,
-        Expires = DateTime.UtcNow.AddDays(7),
-        UserId = user.UserID
-    };
-    await _context.RefreshTokens.AddAsync(refresh);
-    await _context.SaveChangesAsync();
+        var user = await _context.Users.GetUserByUsernameAsync(username);
+        if (user == null) return null;
 
-    return tokens;
-}
+        if (user.PasswordHash != HashPassword(password)) return null;
+
+        var tokens = GenerateJwtTokens(user);
+
+        var refresh = new RefreshToken
+        {
+            Token = tokens.RefreshToken,
+            Expires = DateTime.UtcNow.AddDays(_jwtRefreshTokenExpireDays),
+            UserId = user.UserID
+        };
+        await _context.RefreshTokens.AddAsync(refresh);
+        await _context.SaveChangesAsync();
+
+        return tokens;
+    }
+
     public async Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken)
     {
-        var tokenEntity = await _context.RefreshTokens
-            .GetByTokenAsync(refreshToken);
-
+        var tokenEntity = await _context.RefreshTokens.GetByTokenAsync(refreshToken);
         if (tokenEntity == null || !tokenEntity.IsActive) return null;
 
         var user = await _context.Users.GetByIdAsync(tokenEntity.UserId);
         if (user == null) return null;
 
-        // revoke token cũ
         tokenEntity.Revoked = DateTime.UtcNow;
 
         var tokens = GenerateJwtTokens(user);
@@ -76,7 +82,7 @@ public class UserServicesImpl : GenericServices, IUserServices
         var newRefresh = new RefreshToken
         {
             Token = tokens.RefreshToken,
-            Expires = DateTime.UtcNow.AddDays(7),
+            Expires = DateTime.UtcNow.AddDays(_jwtRefreshTokenExpireDays),
             UserId = user.UserID
         };
         await _context.RefreshTokens.AddAsync(newRefresh);
@@ -87,8 +93,7 @@ public class UserServicesImpl : GenericServices, IUserServices
 
     public async Task<bool> LogoutAsync(string refreshToken)
     {
-        var tokenEntity = await _context.RefreshTokens
-            .GetByTokenAsync(refreshToken);
+        var tokenEntity = await _context.RefreshTokens.GetByTokenAsync(refreshToken);
         if (tokenEntity == null || !tokenEntity.IsActive) return false;
 
         tokenEntity.Revoked = DateTime.UtcNow;
@@ -98,13 +103,9 @@ public class UserServicesImpl : GenericServices, IUserServices
 
     public async Task<bool> RegisterAsync(RequestDTORegister dto)
     {
-        var existingUser = await _context.Users.GetUserByUsernameAsync(dto.Username);
-        if (existingUser != null) return false;
+        if (await _context.Users.GetUserByUsernameAsync(dto.Username) != null) return false;
+        if (await _context.Users.GetUserByEmailAsync(dto.Email) != null) return false;
 
-        var existingEmail = await _context.Users.GetUserByEmailAsync(dto.Email);
-        if (existingEmail != null) return false;
-
-        // Sinh OTP
         string otp = new Random().Next(100000, 999999).ToString();
 
         var otpEntity = new UserOtp
@@ -118,11 +119,10 @@ public class UserServicesImpl : GenericServices, IUserServices
         await _context.UserOtps.AddOtpAsync(otpEntity);
         await _context.UserOtps.SaveChangesAsync();
 
-        // Gửi email
         await _emailService.SendEmailAsync(dto.Email, "Your OTP Code", $"Your OTP is: {otp}");
 
         return true;
-        }
+    }
 
     public async Task<bool> VerifyOtpAsync(RequestDTORegister dto, string otp)
     {
@@ -131,7 +131,8 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         otpEntity.IsUsed = true;
         await _context.UserOtps.DeleteOtpAsync(dto.Email);
-        string hashedPassword = HashPassword(dto.PasswordHash);
+
+        var hashedPassword = HashPassword(dto.PasswordHash);
 
         var newUser = new User
         {
@@ -149,7 +150,6 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         await _context.Users.AddUserAsync(newUser);
 
-        // Gán role mặc định Customer
         var customerRole = await _context.Roles.GetByNameAsync("Customer");
         if (customerRole != null)
         {
@@ -168,119 +168,94 @@ public class UserServicesImpl : GenericServices, IUserServices
         return true;
     }
 
+    public async Task<bool> ForgotPasswordAsync(string email)
+    {
+        var user = await _context.Users.GetUserByEmailAsync(email);
+        if (user == null) return false;
 
-    public static string GenerateID(string prefix)
+        var otpCode = new Random().Next(100000, 999999).ToString();
+
+        var otpEntity = new UserOtp
         {
+            Id = Guid.NewGuid().ToString(),
+            Email = email,
+            OtpCode = otpCode,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            IsUsed = false
+        };
 
-            string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+        await _context.UserOtps.AddOtpAsync(otpEntity);
+        await _context.SaveChangesAsync();
 
-            return $"{prefix}-{timestamp}";
-        }
+        var subject = "Forgot Password - OTP";
+        var body = $"Xin chào {user.Username}, OTP để đặt lại mật khẩu là: {otpCode}, hết hạn sau 5 phút.";
 
-        private string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
-        }
+        await _emailService.SendEmailAsync(email, subject, body);
 
-        private ResponseDTOAuth GenerateJwtTokens(User user)
-        {
-            var jwtSettings = _config.GetSection("Jwt");
-
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Username),
-                new Claim("userId", user.UserID.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            foreach (var role in user.UserRoles.Select(ur => ur.Role.Name))
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var expireMinutes = double.Parse(jwtSettings["ExpireMinutes"] ?? "60");
-            var expireAt = DateTime.UtcNow.AddMinutes(expireMinutes);
-
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: expireAt,
-                signingCredentials: creds
-            );
-
-            var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
-
-            return new ResponseDTOAuth
-            {
-                AccessToken = accessToken,
-                RefreshToken = Guid.NewGuid().ToString("N"), // random string
-                ExpireAt = expireAt
-            };
-        }
-        public async Task<bool> ForgotPasswordAsync(string email)
-        {
-            // 1. Check user có tồn tại không
-            var user = await _context.Users.GetUserByEmailAsync(email);
-            if (user == null) return false;
-
-            // 2. Sinh OTP ngẫu nhiên
-            var otpCode = new Random().Next(100000, 999999).ToString();
-
-            // 3. Lưu OTP vào DB
-            var otpEntity = new UserOtp
-            {
-                Id = Guid.NewGuid().ToString(),
-                Email = email,
-                OtpCode = otpCode,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(5), // hết hạn sau 5 phút
-                IsUsed = false
-            };
-
-            await _context.UserOtps.AddOtpAsync(otpEntity);
-            await _context.SaveChangesAsync();
-
-            // 4. Gửi email
-            var subject = "Forgot Password - Your OTP Code";
-            var body = $"Xin chào {user.Username},\n\n" +
-                       $"Mã OTP để đặt lại mật khẩu của bạn là: {otpCode}\n" +
-                       $"OTP sẽ hết hạn trong 5 phút.\n\n" +
-                       $"Nếu không phải bạn yêu cầu, vui lòng bỏ qua email này.";
-
-            await _emailService.SendEmailAsync(email, subject, body);
-
-            return true;
-        }
-        public async Task<bool> ResetPasswordAsync(RequestDTOResetPassword dto)
-        {
-            // 1. Check user có tồn tại
-            var user = await _context.Users.GetUserByEmailAsync(dto.Email);
-            if (user == null) return false;
-
-            // 2. Tìm OTP
-            var otpEntity = await _context.UserOtps.GetLatestOtpByEmailAsync(dto.Email);
-            if (otpEntity == null) return false;
-
-            // 3. Validate OTP
-            if (otpEntity.IsUsed) return false;
-            if (otpEntity.ExpiresAt < DateTime.UtcNow) return false;
-            if (otpEntity.OtpCode != dto.OtpCode) return false;
-
-            // 4. Cập nhật mật khẩu mới
-            user.PasswordHash = HashPassword(dto.NewPassword);
-            _context.Users.UpdateUserPasswordAsync(user);
-
-            // 5. Đánh dấu OTP đã sử dụng
-            otpEntity.IsUsed = true;
-            _context.UserOtps.UpdateOtp(otpEntity);
-            _context.UserOtps.DeleteOtpAsync(dto.Email);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-        
+        return true;
     }
+
+    public async Task<bool> ResetPasswordAsync(RequestDTOResetPassword dto)
+    {
+        var user = await _context.Users.GetUserByEmailAsync(dto.Email);
+        if (user == null) return false;
+
+        var otpEntity = await _context.UserOtps.GetLatestOtpByEmailAsync(dto.Email);
+        if (otpEntity == null) return false;
+
+        if (otpEntity.IsUsed || otpEntity.ExpiresAt < DateTime.UtcNow || otpEntity.OtpCode != dto.OtpCode)
+            return false;
+
+        user.PasswordHash = HashPassword(dto.NewPassword);
+        await _context.Users.UpdateUserPasswordAsync(user);
+
+        otpEntity.IsUsed = true;
+         _context.UserOtps.UpdateOtp(otpEntity);
+        await _context.UserOtps.DeleteOtpAsync(dto.Email);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(bytes);
+    }
+
+    private string GenerateID(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+
+    private ResponseDTOAuth GenerateJwtTokens(User user)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Username),
+            new Claim("userId", user.UserID),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        foreach (var role in user.UserRoles.Select(ur => ur.Role.Name))
+            claims.Add(new Claim(ClaimTypes.Role, role));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var expireAt = DateTime.UtcNow.AddMinutes(_jwtExpireMinutes);
+
+        var token = new JwtSecurityToken(
+            issuer: _jwtIssuer,
+            audience: _jwtAudience,
+            claims: claims,
+            expires: expireAt,
+            signingCredentials: creds
+        );
+
+        return new ResponseDTOAuth
+        {
+            AccessToken = new JwtSecurityTokenHandler().WriteToken(token),
+            RefreshToken = Guid.NewGuid().ToString("N"),
+            ExpireAt = expireAt
+        };
+    }
+}

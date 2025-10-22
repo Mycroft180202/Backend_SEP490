@@ -5,35 +5,47 @@ using Backend_SEP490.Repositories;
 
 namespace Backend_SEP490.Services.impl;
 
-public class EmailServiceImpl: GenericServices,IEmailService
+public class EmailServiceImpl : GenericServices, IEmailService
 {
-    private readonly IConfiguration _config;
-    public EmailServiceImpl(IMapper mapper, IUnitOfWork unitOfWork, IConfiguration config) : base(mapper, unitOfWork)
+    private readonly string _emailHost;
+    private readonly int _emailPort;
+    private readonly string _emailUsername;
+    private readonly string _emailPassword;
+
+    public EmailServiceImpl(IMapper mapper, IUnitOfWork unitOfWork, IConfiguration config) 
+        : base(mapper, unitOfWork)
     {
-        _config = config;
+        // Load từ environment variables hoặc fallback sang appsettings
+        _emailHost = Environment.GetEnvironmentVariable("EMAIL_HOST") ?? config["Email:Host"];
+        _emailPort = int.Parse(Environment.GetEnvironmentVariable("EMAIL_PORT") ?? config["Email:Port"] ?? "587");
+        _emailUsername = Environment.GetEnvironmentVariable("EMAIL_USERNAME") ?? config["Email:Username"];
+        _emailPassword = Environment.GetEnvironmentVariable("EMAIL_PASSWORD") ?? config["Email:Password"];
+
+        if (string.IsNullOrEmpty(_emailHost) || string.IsNullOrEmpty(_emailUsername) || string.IsNullOrEmpty(_emailPassword))
+            throw new Exception("Email configuration is not properly set.");
     }
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
-        var smtpClient = new SmtpClient("smtp.gmail.com")
+        if (string.IsNullOrEmpty(to))
+            throw new ArgumentException("Recipient email cannot be null or empty", nameof(to));
+
+        using var smtpClient = new SmtpClient(_emailHost)
         {
-            Port = 587,
-            Credentials = new NetworkCredential(
-                _config["Email:Username"],
-                _config["Email:Password"]
-            ),
-            EnableSsl = true,
+            Port = _emailPort,
+            Credentials = new NetworkCredential(_emailUsername, _emailPassword),
+            EnableSsl = true
         };
 
         var mailMessage = new MailMessage
         {
-            From = new MailAddress(_config["Email:Username"]),
+            From = new MailAddress(_emailUsername),
             Subject = subject,
             Body = body,
-            IsBodyHtml = true,
+            IsBodyHtml = true
         };
 
-        mailMessage.To.Add(to);
+        mailMessage.To.Add(new MailAddress(to));
 
         await smtpClient.SendMailAsync(mailMessage);
     }

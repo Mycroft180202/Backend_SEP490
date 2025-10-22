@@ -8,12 +8,14 @@ public class EmbeddingServiceImpl: GenericServices ,IEmbeddingService
 {
     private readonly HttpClient _client;
     private readonly string _apiKey;
-    public EmbeddingServiceImpl(IMapper mapper, IUnitOfWork unitOfWork,IConfiguration config) : base(mapper, unitOfWork)
+    public EmbeddingServiceImpl(IMapper mapper, IUnitOfWork unitOfWork, string apiKey)
+        : base(mapper, unitOfWork)
     {
-        _apiKey = config["OpenAI:ApiKey"];
+        _apiKey = apiKey ?? throw new ArgumentNullException(nameof(apiKey));
         _client = new HttpClient();
         _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
     }
+
 
     public async Task<float[]> GenerateEmbeddingAsync(string text)
     {
