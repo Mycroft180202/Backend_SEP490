@@ -65,6 +65,7 @@ builder.Services.AddScoped<ICategoryRepositories, CategoryRepositoriesImpl>();
 builder.Services.AddScoped<IRoleRepository, RoleRepositoryImpl>();
 builder.Services.AddScoped<IUserRoleRepository, UserRoleRepositoryImpl>();
 builder.Services.AddScoped<IUserOtpRepositories, UserOtpRepositoriesImpl>();
+builder.Services.AddScoped<IProductCollectionRepositories, ProductCollectionRepositoriesImpl>();
 // ----------------------
 // Đăng ký Service
 // ----------------------
@@ -74,6 +75,7 @@ builder.Services.AddScoped<IFeedbackServices, FeedbackServicesImpl>();
 builder.Services.AddScoped<IProductImagesServices, ProductImagesServicesImpl>();
 builder.Services.AddScoped<ICategoryServices, CategoryServicesImpl>();
 builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
+builder.Services.AddScoped<IProductCollectionServices, ProductCollectionServicesImpl>();
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
 // ----------------------

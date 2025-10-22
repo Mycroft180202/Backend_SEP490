@@ -187,7 +187,24 @@ namespace Backend_SEP490.Models
                     .HasForeignKey(v => v.CreatedById)
                     .OnDelete(DeleteBehavior.Restrict);
             });
- 
+            // ========== PRODUCT <-> PRODUCT COLLECTION (N-N) ==========
+            modelBuilder.Entity<Product>()
+                .HasMany(p => p.ProductCollections)
+                .WithMany(pc => pc.ProductCollectionItems)
+                .UsingEntity<Dictionary<string, object>>(
+                    "ProductCollectionProduct",
+                    j => j
+                        .HasOne<ProductCollection>()
+                        .WithMany()
+                        .HasForeignKey("ProductCollectionId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    j => j
+                        .HasOne<Product>()
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                );
+
         }
     }
     

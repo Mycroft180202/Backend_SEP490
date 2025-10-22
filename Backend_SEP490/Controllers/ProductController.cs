@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using System.Security.Claims;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Services;
@@ -30,7 +31,7 @@ public class ProductController:ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-
+        productDto.ArtisanId= User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var product = await _productServices.CreateProductAsync(productDto);
         return Ok(product);
     }

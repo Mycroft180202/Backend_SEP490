@@ -7,7 +7,7 @@ public interface IUserOtpRepositories
     Task AddOtpAsync(UserOtp otp);
     Task<UserOtp?> GetValidOtpAsync(string email, string otpCode);
     Task SaveChangesAsync();
-    Task DeleteOtpAsync(UserOtp otp);
+    Task DeleteOtpAsync(string email);
     Task AddAsync(UserOtp otp);
     Task<UserOtp> GetLatestOtpByEmailAsync(string email);
     void UpdateOtp(UserOtp otp);

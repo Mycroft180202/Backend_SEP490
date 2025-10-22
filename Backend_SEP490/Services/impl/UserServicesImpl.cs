@@ -130,7 +130,7 @@ public class UserServicesImpl : GenericServices, IUserServices
         if (otpEntity == null) return false;
 
         otpEntity.IsUsed = true;
-        await _context.UserOtps.DeleteOtpAsync(otpEntity);
+        await _context.UserOtps.DeleteOtpAsync(dto.Email);
         string hashedPassword = HashPassword(dto.PasswordHash);
 
         var newUser = new User
@@ -278,8 +278,9 @@ public class UserServicesImpl : GenericServices, IUserServices
             // 5. Đánh dấu OTP đã sử dụng
             otpEntity.IsUsed = true;
             _context.UserOtps.UpdateOtp(otpEntity);
-            _context.UserOtps.DeleteOtpAsync(otpEntity);
+            _context.UserOtps.DeleteOtpAsync(dto.Email);
             await _context.SaveChangesAsync();
             return true;
         }
+        
     }
