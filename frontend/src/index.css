@@ -5,6 +5,7 @@
 @tailwind utilities;
 
 body {
+  overflow-x: hidden;
   margin: 0;
   font-family: 'Nunito', sans-serif;
   -webkit-font-smoothing: antialiased;

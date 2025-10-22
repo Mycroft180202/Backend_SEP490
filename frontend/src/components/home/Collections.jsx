@@ -1,48 +1,64 @@
 import React, { useState, useEffect } from 'react';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import { ProductService } from '../../services/modules/products/productService';
 
-const CollectionCard = ({ image, title }) => {
+const CollectionCard = ({ image, title, shortDescription, price, loading }) => {
   return (
-    <div className="flex flex-col gap-6 w-full max-w-[368px]">
-      <img 
-        src={image} 
-        alt={title}
-        className="w-full h-[400px] object-cover rounded-xl" 
-      />
-      <div className="relative w-full h-[68px]">
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 368 68" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <mask id={`path-mask-${title}`} fill="white">
-            <path d="M356 0C356 6.62742 361.373 12 368 12V56C361.373 56 356 61.3726 356 68H12C12 61.3726 6.62742 56 0 56V12C6.62742 12 12 6.62742 12 0H356Z"/>
-          </mask>
-          <path d="M356 0H357V-1H356V0ZM368 12H369V11H368V12ZM368 56V57H369V56H368ZM356 68V69H357V68H356ZM12 68H11V69H12V68ZM0 56H-1V57H0V56ZM0 12V11H-1V12H0ZM12 0V-1H11V0H12ZM356 0H355C355 7.1797 360.82 13 368 13V12V11C361.925 11 357 6.07513 357 0H356ZM368 12H367V56H368H369V12H368ZM368 56V55C360.82 55 355 60.8203 355 68H356H357C357 61.9249 361.925 57 368 57V56ZM356 68V67H12V68V69H356V68ZM12 68H13C13 60.8203 7.1797 55 0 55V56V57C6.07513 57 11 61.9249 11 68H12ZM0 56H1V12H0H-1V56H0ZM0 12V13C7.1797 13 13 7.1797 13 0H12H11C11 6.07513 6.07513 11 0 11V12ZM12 0V1H356V0V-1H12V0Z" fill="#9E211F" mask={`url(#path-mask-${title})`}/>
-        </svg>
-        <button className="absolute left-3 right-3 top-3 bottom-3 bg-primary rounded-xl hover:bg-opacity-90 transition-all">
-          <span className="font-nunito text-lg text-white">{title}</span>
-        </button>
+    <div className="flex flex-col gap-4 w-full max-w-[368px] bg-white rounded-xl shadow-md p-4">
+      {loading ? (
+        <Skeleton height={320} style={{ borderRadius: '0.75rem', marginBottom: '0.5rem' }} />
+      ) : (
+        <img 
+          src={image} 
+          alt={title}
+          className="w-full h-[320px] object-cover rounded-xl mb-2" 
+        />
+      )}
+      <div className="font-alata text-xl text-primary mb-1">
+        {loading ? <Skeleton width={120} /> : title}
+      </div>
+      <div className="font-nunito text-base text-gray-700 mb-2">
+        {loading ? <Skeleton count={2} /> : shortDescription}
+      </div>
+      <div className="font-nunito text-lg font-bold text-[#9e211f] mb-2">
+        {loading ? <Skeleton width={80} /> : `Giá: ${price?.toLocaleString('vi-VN')}₫`}
       </div>
     </div>
   );
 };
 
-const Pagination = () => {
+const Pagination = ({ totalPages, pageIndex, setPageIndex }) => {
+  if (!totalPages || totalPages < 1) return null;
+
+  // Tạo mảng số trang để hiển thị
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
   return (
-    <div className="flex justify-center items-center gap-5">
-      <button className="w-6 h-6">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008" stroke="#A0A0A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+    <div className="flex justify-center items-center gap-2 mt-6">
+      <button
+        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-100"
+        disabled={pageIndex === 1}
+        onClick={() => setPageIndex(pageIndex - 1)}
+      >
+        &lt;
       </button>
-      <div className="flex items-center gap-5">
-        <span className="font-nunito text-lg text-black">1</span>
-        <span className="font-nunito text-lg text-text-light">2</span>
-        <span className="font-nunito text-lg text-text-light">3</span>
-        <span className="font-nunito text-lg text-text-light">...</span>
-        <span className="font-nunito text-lg text-text-light">10</span>
-      </div>
-      <button className="w-6 h-6">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8.91016 19.9201L15.4302 13.4001C16.2002 12.6301 16.2002 11.3701 15.4302 10.6001L8.91016 4.08008" stroke="black" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+      {pages.map((num) => (
+        <button
+          key={num}
+          className={`w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 mx-1
+            ${pageIndex === num ? 'bg-[#9e211f] text-white font-bold' : 'bg-white text-black hover:bg-gray-100'}`}
+          onClick={() => setPageIndex(num)}
+        >
+          {num}
+        </button>
+      ))}
+      <button
+        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-100"
+        disabled={pageIndex === totalPages}
+        onClick={() => setPageIndex(pageIndex + 1)}
+      >
+        &gt;
       </button>
     </div>
   );
@@ -52,17 +68,27 @@ const Collections = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageIndex, setPageIndex] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageIndex, setPageIndexRaw] = useState(1);
+  const [pageSize] = useState(3);
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Khi chuyển trang, set loading true ngay lập tức
+  const setPageIndex = (idx) => {
+    setLoading(true);
+    setPageIndexRaw(idx);
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const response = await ProductService.getAllProducts({ pageIndex, pageSize });
         setProducts(response.items || []);
-        setTotalPages(response.totalPages || 0);
+        setTotalPages(
+          response.totalPages && response.totalPages > 0
+            ? response.totalPages
+            : Math.ceil((response.totalCount || 0) / pageSize)
+        );
         setTotalCount(response.totalCount || 0);
         setLoading(false);
       } catch (err) {
@@ -83,9 +109,11 @@ const Collections = () => {
           Bộ sưu tập sản phẩm
         </h2>
         <div className="flex flex-col items-center gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full relative">
             {loading ? (
-              <div className="col-span-3 text-center text-gray-500 py-10">Đang tải sản phẩm...</div>
+              Array.from({ length: 3 }).map((_, idx) => (
+                <CollectionCard key={idx} loading={true} />
+              ))
             ) : products.length === 0 ? (
               <div className="col-span-3 text-center text-gray-500 py-10">Không có sản phẩm nào.</div>
             ) : (
@@ -94,12 +122,14 @@ const Collections = () => {
                   key={product.id}
                   image={product.imageUrl || '/default-product-image.jpg'}
                   title={product.name}
+                  shortDescription={product.shortDescription}
+                  price={product.price}
+                  loading={false}
                 />
               ))
             )}
           </div>
-          {/* Pagination: you can enhance this to use totalPages and setPageIndex */}
-          <Pagination />
+          <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
         </div>
       </div>
     </section>
