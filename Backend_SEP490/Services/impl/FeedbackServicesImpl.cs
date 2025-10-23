@@ -38,9 +38,9 @@ public class FeedbackServicesImpl: GenericServices, IFeedbackServices
          await _context.Feedback.DeleteFeedbacksByIdAsync(Id);
     }
 
-    public async Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback, string productID, string userID, string feedbackID)
+    public async Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback, string productID, string feedbackID)
     {
-        await _context.Feedback.UpdateFeedbackByIdAsynnc(feedback, productID, userID, feedbackID);
+        await _context.Feedback.UpdateFeedbackByIdAsynnc(feedback, productID,  feedbackID);
         
     }
 

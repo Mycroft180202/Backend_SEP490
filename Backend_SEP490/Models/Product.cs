@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using Backend_SEP490.Models;
 using Newtonsoft.Json;
-
-namespace Backend_SEP490.Models;
 
 public class Product
 {
@@ -19,16 +17,19 @@ public class Product
     public DateTime? CreateAt { get; set; }
     public DateTime? UpdateAt { get; set; }
     public int Stock { get; set; }
-
+    
+    public JsonDocument EmbeddingJson { get; set; }
     [JsonIgnore]
     public Category CategoryNav { get; set; }
     public User Artisan { get; set; }
+
+    
+    [JsonIgnore]
+    public ICollection<ProductCollection> ProductCollections { get; set; } = new List<ProductCollection>();
 
     public ICollection<ProductImage>? ProductImages { get; set; }
     public ICollection<CartItem>? CartItems { get; set; }
     public ICollection<OrderItem>? OrderItems { get; set; }
     public ICollection<Feedback>? Feedbacks { get; set; }
-    public ICollection<PromotionProduct>? PromotionProducts { get; set; }
     public ICollection<WishListItem>? WishListItems { get; set; }
 }
-

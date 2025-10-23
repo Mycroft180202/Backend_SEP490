@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_SEP490.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251017152330_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251022105511_AddImageToProductCollection")]
+    partial class AddImageToProductCollection
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -71,6 +71,10 @@ namespace Backend_SEP490.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Image")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -336,6 +340,9 @@ namespace Backend_SEP490.Migrations
                     b.Property<decimal>("Price")
                         .HasColumnType("numeric");
 
+                    b.Property<int?>("ProductCollectionId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("ShortDescription")
                         .HasColumnType("text");
 
@@ -351,7 +358,61 @@ namespace Backend_SEP490.Migrations
 
                     b.HasIndex("Category");
 
+                    b.HasIndex("ProductCollectionId");
+
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("Backend_SEP490.Models.ProductCollection", b =>
+                {
+                    b.Property<int>("ProductCollectionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProductCollectionId"));
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Headline")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Image")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("UpdatedById")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ProductCollectionId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("ProductCollections");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.ProductImage", b =>
@@ -374,68 +435,6 @@ namespace Backend_SEP490.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("ProductImages");
-                });
-
-            modelBuilder.Entity("Backend_SEP490.Models.PromotionCampaign", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserID")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserID");
-
-                    b.ToTable("PromotionCampaigns");
-                });
-
-            modelBuilder.Entity("Backend_SEP490.Models.PromotionProduct", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CampainId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("HighlightText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ProductId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CampainId");
-
-                    b.HasIndex("ProductId");
-
-                    b.ToTable("PromotionProducts");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.RefreshToken", b =>
@@ -603,6 +602,72 @@ namespace Backend_SEP490.Migrations
                     b.HasIndex("UserID");
 
                     b.ToTable("UserRoles");
+                });
+
+            modelBuilder.Entity("Backend_SEP490.Models.Voucher", b =>
+                {
+                    b.Property<int>("VoucherId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("VoucherId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CreatedById")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<decimal?>("MaxDiscountAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("MinOrderAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UsageLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UsedCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("VoucherId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.ToTable("Vouchers");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.WishListItem", b =>
@@ -821,9 +886,32 @@ namespace Backend_SEP490.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Backend_SEP490.Models.ProductCollection", "ProductCollection")
+                        .WithMany("ProductCollectionItems")
+                        .HasForeignKey("ProductCollectionId");
+
                     b.Navigation("Artisan");
 
                     b.Navigation("CategoryNav");
+
+                    b.Navigation("ProductCollection");
+                });
+
+            modelBuilder.Entity("Backend_SEP490.Models.ProductCollection", b =>
+                {
+                    b.HasOne("User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.ProductImage", b =>
@@ -833,36 +921,6 @@ namespace Backend_SEP490.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("Backend_SEP490.Models.PromotionCampaign", b =>
-                {
-                    b.HasOne("User", "User")
-                        .WithMany("PromotionCampaigns")
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Backend_SEP490.Models.PromotionProduct", b =>
-                {
-                    b.HasOne("Backend_SEP490.Models.PromotionCampaign", "Campain")
-                        .WithMany("PromotionProducts")
-                        .HasForeignKey("CampainId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Backend_SEP490.Models.Product", "Product")
-                        .WithMany("PromotionProducts")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Campain");
 
                     b.Navigation("Product");
                 });
@@ -919,6 +977,16 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Backend_SEP490.Models.Voucher", b =>
+                {
+                    b.HasOne("User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+                });
+
             modelBuilder.Entity("Backend_SEP490.Models.WishListItem", b =>
                 {
                     b.HasOne("Backend_SEP490.Models.Product", "Product")
@@ -967,14 +1035,12 @@ namespace Backend_SEP490.Migrations
 
                     b.Navigation("ProductImages");
 
-                    b.Navigation("PromotionProducts");
-
                     b.Navigation("WishListItems");
                 });
 
-            modelBuilder.Entity("Backend_SEP490.Models.PromotionCampaign", b =>
+            modelBuilder.Entity("Backend_SEP490.Models.ProductCollection", b =>
                 {
-                    b.Navigation("PromotionProducts");
+                    b.Navigation("ProductCollectionItems");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.Role", b =>
@@ -997,8 +1063,6 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("Products");
-
-                    b.Navigation("PromotionCampaigns");
 
                     b.Navigation("RefreshTokens");
 

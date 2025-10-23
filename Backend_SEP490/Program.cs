@@ -11,6 +11,7 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,42 +19,53 @@ var builder = WebApplication.CreateBuilder(args);
 // Load environment variables từ file .env
 // ----------------------
 Env.Load();
-var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
-var cloudName = Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME");
-var apiKey = Environment.GetEnvironmentVariable("CLOUDINARY_API_KEY");
-var apiSecret = Environment.GetEnvironmentVariable("CLOUDINARY_API_SECRET");
-var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret))
+
+string GetEnvOrThrow(string key) =>
+    Environment.GetEnvironmentVariable(key) ?? throw new Exception($"{key} is not set in .env file!");
+
+// Database
+var dbPassword = GetEnvOrThrow("DB_PASSWORD");
+
+// Cloudinary
+var cloudName = GetEnvOrThrow("CLOUDINARY_CLOUD_NAME");
+var cloudApiKey = GetEnvOrThrow("CLOUDINARY_API_KEY");
+var cloudApiSecret = GetEnvOrThrow("CLOUDINARY_API_SECRET");
+var cloudinary = new Cloudinary(new Account(cloudName, cloudApiKey, cloudApiSecret))
 {
     Api = { Secure = true }
 };
 builder.Services.AddSingleton(cloudinary);
-if (string.IsNullOrEmpty(dbPassword))
-{
-    throw new Exception("DB_PASSWORD is not set in .env file!");
-}
+
+// OpenAI
+var openAiApiKey = GetEnvOrThrow("OPENAI_API_KEY");
+
+// JWT
+var jwtKey = GetEnvOrThrow("JWT_KEY");
+var jwtIssuer = GetEnvOrThrow("JWT_ISSUER");
+var jwtAudience = GetEnvOrThrow("JWT_AUDIENCE");
+var jwtExpireMinutes = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRE_MINUTES") ?? "15");
+var jwtRefreshTokenExpireDays = int.Parse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS") ?? "7");
+
+// Email
+var emailHost = GetEnvOrThrow("EMAIL_HOST");
+var emailPort = int.Parse(Environment.GetEnvironmentVariable("EMAIL_PORT") ?? "587");
+var emailUsername = GetEnvOrThrow("EMAIL_USERNAME");
+var emailPassword = GetEnvOrThrow("EMAIL_PASSWORD");
 
 // ----------------------
-// Cấu hình DbContext với PostgreSQL
+// DbContext
 // ----------------------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                      ?.Replace("{DB_PASSWORD}", dbPassword);
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // ----------------------
-// Đăng ký Controllers
+// AutoMapper
 // ----------------------
-builder.Services.AddControllers();
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 // ----------------------
-// Cấu hình Swagger
-// ----------------------
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// ----------------------
-// Đăng ký Repository
+// Repositories
 // ----------------------
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IProductRepositories, ProductRepositoriesImpl>();
@@ -70,8 +82,10 @@ builder.Services.AddScoped<IAddressRepositories, AddressRepositoriesImpl>();
 builder.Services.AddScoped<IUserOtpRepositories, UserOtpRepositoriesImpl>();
 builder.Services.AddScoped<ICartItemRepositories, CartItemRepositoriesImpl>();
 builder.Services.AddScoped<ICartRepositories, CartRepositoriesImpl>();
+builder.Services.AddScoped<IProductCollectionRepositories, ProductCollectionRepositoriesImpl>();
+
 // ----------------------
-// Đăng ký Service
+// Services
 // ----------------------
 builder.Services.AddScoped<IProductServices, ProductServicesImpl>();
 builder.Services.AddScoped<IUserServices, UserServicesImpl>();
@@ -88,17 +102,57 @@ builder.Services.AddScoped<ICartService,CartServiceImpl>();
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
 // ----------------------
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
+builder.Services.AddScoped<IProductCollectionServices, ProductCollectionServicesImpl>();
+
+// IEmbeddingService (inject OpenAI API Key)
+builder.Services.AddScoped<IEmbeddingService>(sp =>
+{
+    var mapper = sp.GetRequiredService<IMapper>();
+    var unitOfWork = sp.GetRequiredService<IUnitOfWork>();
+    return new EmbeddingServiceImpl(mapper, unitOfWork, openAiApiKey);
+});
 
 // ----------------------
-// Cấu hình JWT
+// Controllers
 // ----------------------
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") 
-             ?? builder.Configuration["Jwt:Key"];
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") 
-                ?? builder.Configuration["Jwt:Issuer"];
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") 
-                  ?? builder.Configuration["Jwt:Audience"];
+builder.Services.AddControllers();
 
+// ----------------------
+// Swagger + JWT Auth
+// ----------------------
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Backend_SEP490", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
+});
+
+// ----------------------
+// JWT Authentication
+// ----------------------
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -114,17 +168,18 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
     };
 });
 
 builder.Services.AddAuthorization();
 
+// ----------------------
+// Build & run app
+// ----------------------
 var app = builder.Build();
 
-// ----------------------
-// Configure HTTP request pipeline
-// ----------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -132,11 +187,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// ⚡ Quan trọng: thêm UseAuthentication trước UseAuthorization
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

@@ -190,59 +190,35 @@ namespace Backend_SEP490.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Products",
+                name: "ProductCollections",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    ShortDescription = table.Column<string>(type: "text", nullable: true),
-                    LongDescription = table.Column<string>(type: "text", nullable: true),
-                    Price = table.Column<decimal>(type: "numeric", nullable: false),
-                    Category = table.Column<string>(type: "text", nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    ArtisanId = table.Column<string>(type: "text", nullable: false),
-                    CreateAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    UpdateAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Stock = table.Column<int>(type: "integer", nullable: false)
+                    ProductCollectionId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Title = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    Headline = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    Content = table.Column<string>(type: "text", nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    UpdatedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedById = table.Column<string>(type: "text", nullable: true),
+                    UpdatedById = table.Column<string>(type: "text", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Products", x => x.Id);
+                    table.PrimaryKey("PK_ProductCollections", x => x.ProductCollectionId);
                     table.ForeignKey(
-                        name: "FK_Products_Categories_Category",
-                        column: x => x.Category,
-                        principalTable: "Categories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Products_Users_ArtisanId",
-                        column: x => x.ArtisanId,
+                        name: "FK_ProductCollections_Users_CreatedById",
+                        column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "UserID",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PromotionCampaigns",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    Title = table.Column<string>(type: "text", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: false),
-                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UserID = table.Column<string>(type: "text", nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PromotionCampaigns", x => x.Id);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_PromotionCampaigns_Users_UserID",
-                        column: x => x.UserID,
+                        name: "FK_ProductCollections_Users_UpdatedById",
+                        column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "UserID",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -317,6 +293,38 @@ namespace Backend_SEP490.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Vouchers",
+                columns: table => new
+                {
+                    VoucherId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    DiscountType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    DiscountValue = table.Column<decimal>(type: "numeric", nullable: false),
+                    MinOrderAmount = table.Column<decimal>(type: "numeric", nullable: true),
+                    MaxDiscountAmount = table.Column<decimal>(type: "numeric", nullable: true),
+                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UsageLimit = table.Column<int>(type: "integer", nullable: true),
+                    UsedCount = table.Column<int>(type: "integer", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
+                    CreatedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    CreatedById = table.Column<string>(type: "text", nullable: true),
+                    UpdatedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Vouchers", x => x.VoucherId);
+                    table.ForeignKey(
+                        name: "FK_Vouchers_Users_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "Users",
+                        principalColumn: "UserID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Payments",
                 columns: table => new
                 {
@@ -359,6 +367,45 @@ namespace Backend_SEP490.Migrations
                         column: x => x.OrderID,
                         principalTable: "Orders",
                         principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Products",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "text", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    ShortDescription = table.Column<string>(type: "text", nullable: true),
+                    LongDescription = table.Column<string>(type: "text", nullable: true),
+                    Price = table.Column<decimal>(type: "numeric", nullable: false),
+                    Category = table.Column<string>(type: "text", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    ArtisanId = table.Column<string>(type: "text", nullable: false),
+                    CreateAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    UpdateAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Stock = table.Column<int>(type: "integer", nullable: false),
+                    ProductCollectionId = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Products", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Products_Categories_Category",
+                        column: x => x.Category,
+                        principalTable: "Categories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Products_ProductCollections_ProductCollectionId",
+                        column: x => x.ProductCollectionId,
+                        principalTable: "ProductCollections",
+                        principalColumn: "ProductCollectionId");
+                    table.ForeignKey(
+                        name: "FK_Products_Users_ArtisanId",
+                        column: x => x.ArtisanId,
+                        principalTable: "Users",
+                        principalColumn: "UserID",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -488,33 +535,6 @@ namespace Backend_SEP490.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "PromotionProducts",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    CampainId = table.Column<string>(type: "text", nullable: false),
-                    ProductId = table.Column<string>(type: "text", nullable: false),
-                    HighlightText = table.Column<string>(type: "text", nullable: false),
-                    DisplayOrder = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PromotionProducts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_PromotionProducts_Products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "Products",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_PromotionProducts_PromotionCampaigns_CampainId",
-                        column: x => x.CampainId,
-                        principalTable: "PromotionCampaigns",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Addresses_UserID",
                 table: "Addresses",
@@ -576,6 +596,16 @@ namespace Backend_SEP490.Migrations
                 column: "OrderID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ProductCollections_CreatedById",
+                table: "ProductCollections",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductCollections_UpdatedById",
+                table: "ProductCollections",
+                column: "UpdatedById");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ProductImages_ProductId",
                 table: "ProductImages",
                 column: "ProductId");
@@ -591,19 +621,9 @@ namespace Backend_SEP490.Migrations
                 column: "Category");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PromotionCampaigns_UserID",
-                table: "PromotionCampaigns",
-                column: "UserID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PromotionProducts_CampainId",
-                table: "PromotionProducts",
-                column: "CampainId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PromotionProducts_ProductId",
-                table: "PromotionProducts",
-                column: "ProductId");
+                name: "IX_Products_ProductCollectionId",
+                table: "Products",
+                column: "ProductCollectionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RefreshTokens_UserId",
@@ -629,6 +649,11 @@ namespace Backend_SEP490.Migrations
                 name: "IX_UserRoles_UserID",
                 table: "UserRoles",
                 column: "UserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vouchers_CreatedById",
+                table: "Vouchers",
+                column: "CreatedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WishListItems_ProductID",
@@ -669,9 +694,6 @@ namespace Backend_SEP490.Migrations
                 name: "ProductImages");
 
             migrationBuilder.DropTable(
-                name: "PromotionProducts");
-
-            migrationBuilder.DropTable(
                 name: "RefreshTokens");
 
             migrationBuilder.DropTable(
@@ -687,13 +709,13 @@ namespace Backend_SEP490.Migrations
                 name: "UserRoles");
 
             migrationBuilder.DropTable(
+                name: "Vouchers");
+
+            migrationBuilder.DropTable(
                 name: "WishListItems");
 
             migrationBuilder.DropTable(
                 name: "Carts");
-
-            migrationBuilder.DropTable(
-                name: "PromotionCampaigns");
 
             migrationBuilder.DropTable(
                 name: "Orders");
@@ -706,6 +728,9 @@ namespace Backend_SEP490.Migrations
 
             migrationBuilder.DropTable(
                 name: "Categories");
+
+            migrationBuilder.DropTable(
+                name: "ProductCollections");
 
             migrationBuilder.DropTable(
                 name: "Users");

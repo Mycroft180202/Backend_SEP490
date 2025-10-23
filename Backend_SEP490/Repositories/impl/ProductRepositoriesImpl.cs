@@ -113,4 +113,24 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
             PageSize = pageSize
         };
     }
+
+    public async Task<List<Product>> GetProductsAsync(string? categoryId, bool? isActive)
+    {
+        var query = _context.Products.AsQueryable();
+
+        if (!string.IsNullOrEmpty(categoryId))
+            query = query.Where(p => p.Category == categoryId);
+
+        if (isActive.HasValue)
+            query = query.Where(p => p.IsActive == isActive.Value);
+
+        return await query.ToListAsync();
+    }
+
+    public async Task<List<Product>> GetAllAsync()
+    {
+        return await _context.Products.ToListAsync();
+    }
+
+    public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 }

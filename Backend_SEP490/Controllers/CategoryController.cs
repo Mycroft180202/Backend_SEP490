@@ -2,6 +2,7 @@
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Controllers;
@@ -22,14 +23,14 @@ public class CategoryController: ControllerBase
         var category = await _categoryServices.GetAllCategories();
         return Ok(category);
     }
-
+    [Authorize(Roles = "Admin,Artisan")]
     [HttpPut("categories/{id}")]
     public async Task<IActionResult> UpdateCategory(string id, [FromBody] RequestDTOCategory category)
     {
         await _categoryServices.UpdateCategory(id, category);
         return Ok();
     }
-
+    [Authorize(Roles = "Admin,Artisan")]
     [HttpPost("categories")]
     public async Task<IActionResult> AddCategory([FromBody] RequestDTOCategory category)
     {

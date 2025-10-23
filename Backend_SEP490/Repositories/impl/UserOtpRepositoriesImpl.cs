@@ -29,9 +29,13 @@ public class UserOtpRepositoriesImpl: GenericRepositoryImpl<UserOtp>, IUserOtpRe
         await _context.SaveChangesAsync();
     }
 
-    public async Task DeleteOtpAsync(UserOtp otp)
+    public async Task DeleteOtpAsync(string email)
     {
-         _context.UserOtps.Remove(otp);
+        var userOtp = await _context.UserOtps.Where(o => o.Email == email).ToListAsync();
+        foreach (var Otp in userOtp)
+        {
+            _context.UserOtps.Remove(Otp);
+        }
          await _context.SaveChangesAsync();
     }
 

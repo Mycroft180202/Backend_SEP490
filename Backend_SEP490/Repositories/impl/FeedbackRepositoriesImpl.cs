@@ -31,13 +31,13 @@ public class FeedbackRepositoriesImpl : GenericRepositoryImpl<Feedback>, IFeedba
         await _context.SaveChangesAsync();
     }
 
-    public async Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback,string productID, string userID,string feedbackID)
+    public async Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback,string productID,string feedbackID)
     {
         var feedbacks = await _context.Feedbacks.Where(s=>s.Id == feedbackID).FirstOrDefaultAsync();
         feedbacks.Comment = feedback.Comment;
         feedbacks.Rating = feedback.Rating;
         feedbacks.ProductId = productID;
-        feedbacks.CustomerId = userID;
+        
         _context.Feedbacks.Update(feedbacks);
         await _context.SaveChangesAsync();
     }

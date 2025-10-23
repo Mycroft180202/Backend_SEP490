@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using System.Security.Claims;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Services;
@@ -30,7 +31,7 @@ public class ProductController:ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-
+        
         var product = await _productServices.CreateProductAsync(productDto);
         return Ok(product);
     }
@@ -56,6 +57,7 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
+    
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? productName,
@@ -75,7 +77,7 @@ public class ProductController:ControllerBase
         if (!result)
             return NotFound(new { message = $"Product with id {id} not found" });
 
-        return NoContent(); // 204
+        return NoContent(); 
     }
 
 }
