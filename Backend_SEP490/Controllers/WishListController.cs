@@ -23,10 +23,11 @@ namespace Backend_SEP490.Controllers
             return Ok(wishLit);
         }
 
-        [HttpGet("wish-list")]
-        public async Task<IActionResult> AddAllWishListItemToCart([FromRoute] string wishListItemId)
+        [HttpGet("wish-list/{id}")]
+        public async Task<IActionResult> AddWishListItemToCart([FromRoute] string wishListItemId)
         {
-            var wishLit = await _wishListItemService.AddWishListItemToCartAsync(wishListItemId);
+            var userId = User.FindFirst("userId")?.Value;
+            var wishLit = await _wishListItemService.AddWishListItemToCartAsync(userId,wishListItemId);
             return Ok(wishLit);
         }
 

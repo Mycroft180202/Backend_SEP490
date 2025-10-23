@@ -43,6 +43,7 @@ namespace Backend_SEP490.Repositories.impl
                 blog.Title = request.Title;
                 blog.Content = request.Content;
                 blog.PostStatus = request.PostStatus;
+                blog.Image = request.Image;
             }
             catch(Exception ex)
             {

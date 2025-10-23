@@ -31,6 +31,7 @@ namespace Backend_SEP490.Services.impl
                 Id = $"B{nextNumber:D3}",
                 Title = request.Title ,
                 Content = request.Content ,
+                Image = request.Image ,
                 AuthorId = userid ,
                 PostStatus = "Active",
                 PublishedAt = DateTime.UtcNow
