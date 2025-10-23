@@ -9,7 +9,7 @@ public interface IUserServices
     public Task<ResponseDTOUser?> GetUserByIDAsync(string userID);
     public Task<bool?> UpdateUserAsync(string userID, RequestUpdateUser request);
     public Task<ResponseDTOUser?> GetUserByArtisanIDAsync(string artisanID);
-    
+
     Task<ResponseDTOAuth?> LoginAsync(string username, string password);
     Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken);
     Task<bool> LogoutAsync(string refreshToken);
@@ -17,4 +17,5 @@ public interface IUserServices
     Task<bool> VerifyOtpAsync(RequestDTORegister dto, string otp);
     public Task<bool> ForgotPasswordAsync(string email);
     public Task<bool> ResetPasswordAsync(RequestDTOResetPassword dto);
+    public Task<bool> ChangePasswordAsync(string userId, RequestUpdateUserHashPassword request);
 }

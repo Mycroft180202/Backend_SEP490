@@ -316,4 +316,24 @@ public class UserServicesImpl : GenericServices, IUserServices
             await _context.SaveChangesAsync();
             return true;
         }
+
+    public async Task<bool> ChangePasswordAsync(string userId,RequestUpdateUserHashPassword request)
+    {   
+        //Check xem nguoi dung co ton tai khong
+        var user = await _context.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        // So sanh xem mat khau cu co dung khong
+        string hashedPassword = HashPassword(request.OldPassword);
+        if (!user.PasswordHash.Equals(hashedPassword)) return false;
+
+        //Check xem new password co giong newconfirm password khong
+        if(!request.NewPassword.Equals(request.ConfirmNewPassword)) return false;
+
+        //Sau khi check xong thi cap nhat mat khau nguoi dung
+        user.PasswordHash = HashPassword(request.NewPassword);
+        _context.Users.UpdateUserPasswordAsync(user);
+
+        return true;
     }
+}
