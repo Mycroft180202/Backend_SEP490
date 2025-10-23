@@ -25,7 +25,7 @@ public class ProductController:ControllerBase
         var product = await _productServices.GetProductByIdAsync(id);
         return Ok(product);
     }
-    //[Authorize(Roles = "Artisan")]
+    [Authorize(Roles = "Artisan")]
     [HttpPost("products")]
     public async Task<IActionResult> CreateProduct([FromForm] RequestDTOProduct productDto)
     {
@@ -57,6 +57,7 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
+    
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? productName,

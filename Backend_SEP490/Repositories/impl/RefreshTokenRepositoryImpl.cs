@@ -17,4 +17,10 @@ public class RefreshTokenRepositoryImpl: GenericRepositoryImpl<RefreshToken>, IR
         return await _context.RefreshTokens
             .FirstOrDefaultAsync(r => r.Token == token);
     }
+
+    public async Task<bool> RemoveByTokenAsync(RefreshToken token)
+    {
+         _context.RefreshTokens.Remove(token);
+         return true;
+    }
 }

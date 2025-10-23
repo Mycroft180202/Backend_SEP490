@@ -1,6 +1,7 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Controllers;
@@ -30,7 +31,7 @@ public class AuthController: ControllerBase
         if (result == null) return Unauthorized("Invalid refresh token");
         return Ok(result);
     }
-
+    [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] RequestDTORefresh request)
     {
@@ -52,6 +53,7 @@ public class AuthController: ControllerBase
         if (!result) return BadRequest("Invalid or expired OTP!");
         return Ok("Registration successful");
     }
+    
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] string email)
     {

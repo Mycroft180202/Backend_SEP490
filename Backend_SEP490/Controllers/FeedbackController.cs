@@ -1,7 +1,9 @@
-﻿using Backend_SEP490.Data;
+﻿using System.Security.Claims;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
-
+using Backend_SEP490.Models;
 using Backend_SEP490.Services.impl;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Controllers;
@@ -23,21 +25,31 @@ public class FeedbackController: ControllerBase
         var feedbacks = await _feedbackRepository.GetFeedbacksByProductIdAsync(productId, pageIndex, pageSize);
         return Ok(feedbacks);
     }
-
+    [Authorize]
     [HttpDelete("feedbacks/{ID}")]
-    public async Task<ActionResult> DeleteFeedback(string id)
+    public async Task<ActionResult> DeleteFeedback(Feedback feedback)
     {
-        await _feedbackRepository.DeleteFeedbacksByIdAsync(id);
+        var userid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userid == feedback.CustomerId)
+        {
+            await _feedbackRepository.DeleteFeedbacksByIdAsync(feedback.Id);
+        }
+
         return NoContent();
     }
-
+    [Authorize]
     [HttpPut("feedbacks")]
     public async Task<ActionResult> UpdateFeedback(RequestDTOFeedback feedback, string productid, string userid,string feedbackid)
     {
-        await _feedbackRepository.UpdateFeedbackByIdAsynnc(feedback, productid, userid, feedbackid);
+        
+        var useridc = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (useridc == userid)
+        {
+            await _feedbackRepository.UpdateFeedbackByIdAsynnc(feedback, productid, feedbackid);
+        }
         return NoContent();
     }
-
+    [Authorize]
     [HttpPost("feedbacks")]
     public async Task<ActionResult> AddFeedback(RequestDTOFeedback feedback, string productid, string userid)
     {

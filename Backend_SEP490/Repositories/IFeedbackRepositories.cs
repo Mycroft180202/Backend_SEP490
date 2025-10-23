@@ -9,7 +9,7 @@ public interface IFeedbackRepositories
     public Task<IEnumerable<Feedback>> GetFeedbacksByProductIdAsync(string productId);
     public Task<IEnumerable<Feedback>> GetAllFeedbacksAsync();
     Task DeleteFeedbacksByIdAsync(string Id);
-    Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback,string productID, string userID,string feedbackID);
+    Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback,string productID,string feedbackID);
     Task CreateFeedback(RequestDTOFeedback feedback,string productID, string userID);
     Task<int> CountFeedbacksByProductIdAsync(string productId);
     Task<List<Feedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize);

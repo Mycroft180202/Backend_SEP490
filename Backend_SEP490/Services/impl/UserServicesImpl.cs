@@ -69,14 +69,17 @@ public class UserServicesImpl : GenericServices, IUserServices
 
     public async Task<ResponseDTOAuth?> RefreshTokenAsync(string refreshToken)
     {
+        // Lấy token hiện tại
         var tokenEntity = await _context.RefreshTokens.GetByTokenAsync(refreshToken);
         if (tokenEntity == null || !tokenEntity.IsActive) return null;
 
         var user = await _context.Users.GetByIdAsync(tokenEntity.UserId);
         if (user == null) return null;
 
-        tokenEntity.Revoked = DateTime.UtcNow;
+        // Xóa token cũ khỏi database
+        await _context.RefreshTokens.RemoveByTokenAsync(tokenEntity);
 
+        // Tạo token mới
         var tokens = GenerateJwtTokens(user);
 
         var newRefresh = new RefreshToken
@@ -85,11 +88,13 @@ public class UserServicesImpl : GenericServices, IUserServices
             Expires = DateTime.UtcNow.AddDays(_jwtRefreshTokenExpireDays),
             UserId = user.UserID
         };
+
         await _context.RefreshTokens.AddAsync(newRefresh);
         await _context.SaveChangesAsync();
 
         return tokens;
     }
+
 
     public async Task<bool> LogoutAsync(string refreshToken)
     {
