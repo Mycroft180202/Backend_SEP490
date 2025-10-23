@@ -45,7 +45,7 @@ const Login = () => {
             <button onClick={() => navigate('/')} aria-label="close" className="absolute -right-6 -top-6 w-10 h-10 flex items-center justify-center text-2xl" style={{ background: 'transparent', border: 'none', color: '#000' }}>×</button>
 
             <div className="flex justify-center mb-2">
-              <img src="/images/logo.png" alt="logo" className="h-10" />
+              <img src="/images/OnlyLogo.png" alt="logo" className="w-[100px] h-[100px] rounded-full object-cover" />
             </div>
             <h2 style={{ fontFamily: 'Alata, sans-serif', fontSize: 36, lineHeight: '56px', color: '#9e211f', fontWeight: 400 }} className="text-center mb-1">Đăng nhập</h2>
             <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#7a7a7a' }} className="text-center mb-6">Đăng nhập để tiếp tục sử dụng dịch vụ</p>
@@ -108,13 +108,6 @@ const Login = () => {
               >
                 {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
               </button>
-
-              <div className="flex flex-col gap-3 mt-3">
-                <button type="button" className="w-full py-3 border border-[#e0dfda] rounded-[12px] bg-white flex items-center justify-center gap-3">
-                  <img src="/images/google-icon.svg" alt="google" className="w-6 h-6" />
-                  <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px' }}>Đăng nhập bằng Google</span>
-                </button>
-              </div>
 
               <div className="text-center text-sm text-gray-600 mt-4">
                 <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Chưa có tài khoản? </span>

@@ -3,7 +3,14 @@ import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { ProductService } from '../../services/modules/products/productService';
 
-const CollectionCard = ({ image, title, shortDescription, price, loading }) => {
+
+const Star = ({ filled }) => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10.4421 1.92495L11.9087 4.85828C12.1087 5.26662 12.6421 5.65828 13.0921 5.73328L15.7504 6.17495C17.4504 6.45828 17.8504 7.69162 16.6254 8.90828L14.5587 10.975C14.2087 11.325 14.0171 12 14.1254 12.4833L14.7171 15.0416C15.1837 17.0666 14.1087 17.85 12.3171 16.7916L9.8254 15.3166C9.3754 15.05 8.6337 15.05 8.1754 15.3166L5.6837 16.7916C3.9004 17.85 2.8171 17.0583 3.2837 15.0416L3.8754 12.4833C3.9837 12 3.7921 11.325 3.4421 10.975L1.3754 8.90828C0.1587 7.69162 0.5504 6.45828 2.2504 6.17495L4.9087 5.73328C5.3504 5.65828 5.8837 5.26662 6.0837 4.85828L7.5504 1.92495C8.3504 0.333283 9.6504 0.333283 10.4421 1.92495Z" fill={filled ? "#F0BE1D" : "#E5E7EB"}/>
+  </svg>
+);
+
+const CollectionCard = ({ image, title, shortDescription, price, rating, loading }) => {
   return (
     <div className="flex flex-col gap-4 w-full max-w-[368px] bg-white rounded-xl shadow-md p-4">
       {loading ? (
@@ -18,11 +25,26 @@ const CollectionCard = ({ image, title, shortDescription, price, loading }) => {
       <div className="font-alata text-xl text-primary mb-1">
         {loading ? <Skeleton width={120} /> : title}
       </div>
+  {/* ...existing code... */}
       <div className="font-nunito text-base text-gray-700 mb-2">
         {loading ? <Skeleton count={2} /> : shortDescription}
       </div>
-      <div className="font-nunito text-lg font-bold text-[#9e211f] mb-2">
-        {loading ? <Skeleton width={80} /> : `Giá: ${price?.toLocaleString('vi-VN')}₫`}
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-nunito text-lg font-bold text-[#9e211f]">
+          {loading ? <Skeleton width={80} /> : `Giá: ${price?.toLocaleString('vi-VN')}₫`}
+        </div>
+        <div className="flex items-center gap-1">
+          {loading ? (
+            <Skeleton width={100} />
+          ) : (
+            <>
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <Star key={idx} filled={idx < Math.round(rating || 0)} />
+              ))}
+              <span className="font-nunito text-base text-gray-700 ml-2">{rating?.toFixed(1) || '0.0'}</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -124,6 +146,7 @@ const Collections = () => {
                   title={product.name}
                   shortDescription={product.shortDescription}
                   price={product.price}
+                  rating={product.rating || 0}
                   loading={false}
                 />
               ))

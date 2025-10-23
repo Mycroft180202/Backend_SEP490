@@ -8,11 +8,8 @@ const Header = () => {
       className="relative flex items-center justify-between px-[40px] py-[12px] w-full min-h-[68px]"
       style={{ background: 'rgba(122, 9, 9, 0.85)', backdropFilter: 'blur(30px)' }}
     >
-      {/* Background image blur overlay (optional, can use a local image if available) */}
-      {/* <img src="/images/header-guest.png" alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0" style={{ filter: 'blur(30px)', opacity: 0.5 }} /> */}
-      {/* Logo + title */}
       <div className="flex items-center gap-2 relative z-10">
-        <img src="/images/logo.png" alt="logo" className="w-[44px] h-[44px] rounded-full object-cover" />
+        <img src="/images/OnlyLogo.png" alt="logo" className="w-[44px] h-[44px] rounded-full object-cover" />
         <span style={{ fontFamily: 'Alata, sans-serif', fontSize: 20, lineHeight: '32px', color: '#fff', fontWeight: 400 }}>
           Hoa Lac Handicraft
         </span>

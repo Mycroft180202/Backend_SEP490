@@ -5,7 +5,7 @@ const Footer = () => {
     <footer className="w-full py-10 px-36 bg-[#FCFDDE]">
       <div className="max-w-[1440px] mx-auto flex flex-col justify-center items-center gap-6">
         <div className="flex flex-col items-center gap-1 mb-6">
-          <div className="w-20 h-20 rounded-full bg-text-gray"></div>
+          <img src="/images/OnlyLogo.png" alt="Logo" className="w-24 h-24 rounded-full object-cover bg-white shadow" />
           <h2 className="font-alata text-2xl text-black leading-[48px]">Hoa Lac Handicraft</h2>
         </div>
 
