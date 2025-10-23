@@ -20,6 +20,7 @@ public class UnitOfWork: IUnitOfWork
         UserRoles = userRole;
         UserOtps = userOtp;
         ProductCollections = productCollection;
+        
     }
     public void Dispose()
     {
@@ -44,4 +45,5 @@ public class UnitOfWork: IUnitOfWork
     public IUserRoleRepository UserRoles { get; }
     public IUserOtpRepositories UserOtps { get; }
     public IProductCollectionRepositories ProductCollections { get; }
+    
 }
