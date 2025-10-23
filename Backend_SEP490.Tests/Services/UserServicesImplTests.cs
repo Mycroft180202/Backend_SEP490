@@ -7,7 +7,6 @@ using Backend_SEP490.Repositories;
 using Backend_SEP490.Services;
 using Backend_SEP490.Services.impl;
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace Backend_SEP490.Tests.Services;
@@ -26,7 +25,6 @@ public class UserServicesImplTests
 {
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
-    private readonly Mock<IConfiguration> _configMock;
     private readonly Mock<IEmailService> _emailServiceMock;
     private readonly Mock<IUserRepositories> _userRepositoriesMock;
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock;
@@ -39,7 +37,6 @@ public class UserServicesImplTests
     {
         _mapperMock = new Mock<IMapper>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _configMock = new Mock<IConfiguration>();
         _emailServiceMock = new Mock<IEmailService>();
         _userRepositoriesMock = new Mock<IUserRepositories>();
         _refreshTokenRepositoryMock = new Mock<IRefreshTokenRepository>();
@@ -54,20 +51,16 @@ public class UserServicesImplTests
         _unitOfWorkMock.Setup(u => u.UserRoles).Returns(_userRoleRepositoryMock.Object);
         _unitOfWorkMock.Setup(u => u.UserOtps).Returns(_userOtpRepositoriesMock.Object);
 
-        // Setup JWT configuration
-        var jwtSection = new Mock<IConfigurationSection>();
-        jwtSection.Setup(x => x["Key"]).Returns("tMySuperStrongJwtSecretKey_1234567890!");
-        jwtSection.Setup(x => x["Issuer"]).Returns("https://localhost:44355");
-        jwtSection.Setup(x => x["Audience"]).Returns("https://localhost:44355");
-        jwtSection.Setup(x => x["ExpireMinutes"]).Returns("15");
-        jwtSection.Setup(x => x["RefreshTokenExpireDays"]).Returns("7");
-
-        _configMock.Setup(c => c.GetSection("Jwt")).Returns(jwtSection.Object);
+        // Setup JWT configuration via Environment Variables (UserServicesImpl reads from Environment)
+        Environment.SetEnvironmentVariable("JWT_KEY", "tMySuperStrongJwtSecretKey_1234567890!");
+        Environment.SetEnvironmentVariable("JWT_ISSUER", "https://localhost:44355");
+        Environment.SetEnvironmentVariable("JWT_AUDIENCE", "https://localhost:44355");
+        Environment.SetEnvironmentVariable("JWT_EXPIRE_MINUTES", "15");
+        Environment.SetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7");
 
         _sut = new UserServicesImpl(
             _mapperMock.Object,
             _unitOfWorkMock.Object,
-            _configMock.Object,
             _emailServiceMock.Object
         );
     }
@@ -427,6 +420,10 @@ public class UserServicesImplTests
             .ReturnsAsync(user);
 
         _refreshTokenRepositoryMock
+            .Setup(r => r.RemoveByTokenAsync(oldTokenEntity))
+            .ReturnsAsync(true);
+
+        _refreshTokenRepositoryMock
             .Setup(r => r.AddAsync(It.IsAny<RefreshToken>()))
             .Returns(Task.CompletedTask);
 
@@ -443,9 +440,8 @@ public class UserServicesImplTests
         result.RefreshToken.Should().NotBeNullOrEmpty();
         result.RefreshToken.Should().NotBe(refreshToken, "should generate new refresh token");
 
-        // Verify old token was revoked
-        oldTokenEntity.Revoked.Should().NotBeNull();
-        oldTokenEntity.Revoked.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        // Verify old token was removed
+        _refreshTokenRepositoryMock.Verify(r => r.RemoveByTokenAsync(oldTokenEntity), Times.Once);
 
         // Verify new token was added
         _refreshTokenRepositoryMock.Verify(r => r.AddAsync(It.Is<RefreshToken>(
@@ -579,7 +575,7 @@ public class UserServicesImplTests
     }
 
     [Fact]
-    public async Task RefreshTokenAsync_RevokesOldTokenBeforeCreatingNew()
+    public async Task RefreshTokenAsync_RemovesOldTokenBeforeCreatingNew()
     {
         // Arrange
         var refreshToken = "valid-token";
@@ -605,7 +601,7 @@ public class UserServicesImplTests
             UserId = userId
         };
 
-        DateTime? revokedTime = null;
+        var removeWasCalled = false;
 
         _refreshTokenRepositoryMock
             .Setup(r => r.GetByTokenAsync(refreshToken))
@@ -616,11 +612,16 @@ public class UserServicesImplTests
             .ReturnsAsync(user);
 
         _refreshTokenRepositoryMock
+            .Setup(r => r.RemoveByTokenAsync(oldTokenEntity))
+            .Callback(() => removeWasCalled = true)
+            .ReturnsAsync(true);
+
+        _refreshTokenRepositoryMock
             .Setup(r => r.AddAsync(It.IsAny<RefreshToken>()))
             .Callback<RefreshToken>(rt =>
             {
-                // Capture the revoked time when AddAsync is called
-                revokedTime = oldTokenEntity.Revoked;
+                // Verify RemoveByTokenAsync was called before AddAsync
+                removeWasCalled.Should().BeTrue("old token should be removed before adding new token");
             })
             .Returns(Task.CompletedTask);
 
@@ -634,9 +635,8 @@ public class UserServicesImplTests
         // Assert
         result.Should().NotBeNull();
         
-        // Verify old token was revoked BEFORE adding new token
-        revokedTime.Should().NotBeNull("old token should be revoked before adding new token");
-        oldTokenEntity.Revoked.Should().NotBeNull();
+        // Verify old token was removed
+        _refreshTokenRepositoryMock.Verify(r => r.RemoveByTokenAsync(oldTokenEntity), Times.Once);
     }
 
     [Fact]
@@ -675,6 +675,10 @@ public class UserServicesImplTests
         _userRepositoriesMock
             .Setup(r => r.GetByIdAsync(userId))
             .ReturnsAsync(user);
+
+        _refreshTokenRepositoryMock
+            .Setup(r => r.RemoveByTokenAsync(oldTokenEntity))
+            .ReturnsAsync(true);
 
         _refreshTokenRepositoryMock
             .Setup(r => r.AddAsync(It.IsAny<RefreshToken>()))
