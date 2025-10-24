@@ -16,10 +16,11 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return user;
     }
 
-    public async Task<IEnumerable<User>> GetAllUsersWithRolesAsync(int pageIndex, int pageSize)
+    public async Task<List<User>> GetAllUsersWithRolesAsync(int pageIndex, int pageSize)
     {
-        var user = await _context.Users.Include(u => u.UserRoles).Include(u => u.Addresses)
-            .Skip((pageIndex - 1) * pageSize).Take(pageSize).ToListAsync();
+        var user = await _context.Users.OrderByDescending(u => u.CreateAt)  
+                        .ThenBy(u => u.UserID).Skip((pageIndex -1) * pageSize).Take(pageSize)
+                        .Include(u => u.UserRoles).Include(u => u.Addresses).ToListAsync();
         return user;
     }
 

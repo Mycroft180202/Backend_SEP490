@@ -1,15 +1,17 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using AutoMapper;
+using Backend_SEP490.Data;
+using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.DTOs.Response;
+using Backend_SEP490.DTOs.Response;
+using Backend_SEP490.Models;
+using Backend_SEP490.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using AutoMapper;
-using Backend_SEP490.DTOs.Request;
-using Backend_SEP490.DTOs.Response;
-using Backend_SEP490.Repositories;
-using Backend_SEP490.Models;
-using Backend_SEP490.DTOs.Response;
-using Microsoft.IdentityModel.Tokens;
-using Backend_SEP490.Data;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -23,11 +25,11 @@ public class UserServicesImpl : GenericServices, IUserServices
     private readonly double _jwtExpireMinutes;
     private readonly double _jwtRefreshTokenExpireDays;
 
-    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IEmailService emailService) 
+
+    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IEmailService emailService)
         : base(mapper, unitOfWork)
     {
         _emailService = emailService;
-
         // Lấy từ environment
         _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new Exception("JWT_KEY is not set");
         _jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? throw new Exception("JWT_ISSUER is not set");
@@ -39,30 +41,32 @@ public class UserServicesImpl : GenericServices, IUserServices
     public async Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter, int pageIndex, int pageSize)
     {
         var usersList = await _context.Users.GetAllUsersAsync();
-        var users = await _context.Users.GetAllUsersWithRolesAsync(pageIndex,pageSize);
-        
-        if (!string.IsNullOrEmpty(requestFilter.search)) 
+        var users = await _context.Users.GetAllUsersWithRolesAsync(pageIndex, pageSize);
+
+        if (!string.IsNullOrEmpty(requestFilter.search))
         {
-            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search) || u.PhoneNumber.ToLower().Contains(requestFilter.search) 
-                            ||  u.Username.ToLower().Contains(requestFilter.search) || u.Email.ToLower().Contains(requestFilter.search) ).ToList();
+            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search) || u.PhoneNumber.ToLower().Contains(requestFilter.search)
+                            || u.Username.ToLower().Contains(requestFilter.search) || u.Email.ToLower().Contains(requestFilter.search)).ToList();
         }
-        if(requestFilter.status != null)
+        if (requestFilter.status != null)
         {
             users = users.Where(u => u.IsActive == requestFilter.status).ToList();
         }
         if (!string.IsNullOrEmpty(requestFilter.roleId))
         {
-            users = users.Where( u => u.UserRoles.Any( ur => requestFilter.roleId.Equals(ur.RoleID))).ToList();
+            users = users.Where(u => u.UserRoles.Any(ur => requestFilter.roleId.Equals(ur.RoleID))).ToList();
         }
+       
         var userList = _mapper.Map<IEnumerable<ResponseDTOUser>>(users);
 
         return new PagedResult<ResponseDTOUser>
         {
-            Items = users,
+            Items = userList,
             TotalCount = usersList.Count(),
             PageIndex = pageIndex,
             PageSize = pageSize
         };
+
     }
     public async Task<ResponseDTOUser?> GetUserByIDAsync(string userID)
     {
@@ -70,18 +74,18 @@ public class UserServicesImpl : GenericServices, IUserServices
         return _mapper.Map<ResponseDTOUser>(user);
     }
 
-    public async Task<bool?> UpdateUserAsync(string userID , RequestUpdateUser request)
+    public async Task<bool?> UpdateUserAsync(string userID, RequestUpdateUser request)
     {
         var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
 
-        if (user == null) 
+        if (user == null)
         {
             return false;
         }
 
         var status = await _context.Users.UpdateUserAsync(user, request);
 
-        
+
         return status;
     }
     public async Task<ResponseDTOUser?> GetUserByArtisanIDAsync(string artisanID)
@@ -259,7 +263,7 @@ public class UserServicesImpl : GenericServices, IUserServices
         await _context.Users.UpdateUserPasswordAsync(user);
 
         otpEntity.IsUsed = true;
-         _context.UserOtps.UpdateOtp(otpEntity);
+        _context.UserOtps.UpdateOtp(otpEntity);
         await _context.UserOtps.DeleteOtpAsync(dto.Email);
 
         await _context.SaveChangesAsync();
@@ -307,9 +311,9 @@ public class UserServicesImpl : GenericServices, IUserServices
             ExpireAt = expireAt
         };
     }
-    
-    public async Task<bool> ChangePasswordAsync(string userId,RequestUpdateUserHashPassword request)
-    {   
+
+    public async Task<bool> ChangePasswordAsync(string userId, RequestUpdateUserHashPassword request)
+    {
         //Check xem nguoi dung co ton tai khong
         var user = await _context.Users.GetByIdAsync(userId);
         if (user == null) return false;
@@ -319,7 +323,7 @@ public class UserServicesImpl : GenericServices, IUserServices
         if (!user.PasswordHash.Equals(hashedPassword)) return false;
 
         //Check xem new password co giong newconfirm password khong
-        if(!request.NewPassword.Equals(request.ConfirmNewPassword)) return false;
+        if (!request.NewPassword.Equals(request.ConfirmNewPassword)) return false;
 
         //Sau khi check xong thi cap nhat mat khau nguoi dung
         user.PasswordHash = HashPassword(request.NewPassword);
