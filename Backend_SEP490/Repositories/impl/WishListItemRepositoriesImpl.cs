@@ -70,6 +70,11 @@ namespace Backend_SEP490.Repositories.impl
             
         }
 
+        public async Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId)
+        {
+            return await _context.WishListItems.Where(w => w.UserID.EndsWith(userId)).ToListAsync();
+        }
+
         public async Task<WishListItem> GetWishListItemByIdAsync(string wishListItemId)
         {
             return await _context.WishListItems.Where(w => w.Id.Equals(wishListItemId)).FirstOrDefaultAsync();

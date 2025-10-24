@@ -9,6 +9,7 @@ using Backend_SEP490.Repositories;
 using Backend_SEP490.Models;
 using Backend_SEP490.DTOs.Response;
 using Microsoft.IdentityModel.Tokens;
+using Backend_SEP490.Data;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -35,9 +36,10 @@ public class UserServicesImpl : GenericServices, IUserServices
         _jwtRefreshTokenExpireDays = double.Parse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS") ?? "7");
     }
 
-    public async Task<IEnumerable<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter)
+    public async Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter, int pageIndex, int pageSize)
     {
-        var users = await _context.Users.GetAllUsersWithRolesAsync();
+        var usersList = await _context.Users.GetAllUsersAsync();
+        var users = await _context.Users.GetAllUsersWithRolesAsync(pageIndex,pageSize);
         
         if (!string.IsNullOrEmpty(requestFilter.search)) 
         {
@@ -52,7 +54,15 @@ public class UserServicesImpl : GenericServices, IUserServices
         {
             users = users.Where( u => u.UserRoles.Any( ur => requestFilter.roleId.Equals(ur.RoleID))).ToList();
         }
-        return _mapper.Map<IEnumerable<ResponseDTOUser>>(users);
+        var userList = _mapper.Map<IEnumerable<ResponseDTOUser>>(users);
+
+        return new PagedResult<ResponseDTOUser>
+        {
+            Items = users,
+            TotalCount = usersList.Count(),
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
     }
     public async Task<ResponseDTOUser?> GetUserByIDAsync(string userID)
     {

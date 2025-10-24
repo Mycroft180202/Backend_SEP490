@@ -76,7 +76,9 @@ namespace Backend_SEP490.Services.impl
         public async Task<PagedResult<ResponseDTOWishListItem>> GetAllWishListItemByUserIdAsync(string userId, int pageIndex, int pageSize)
         {
             var wishList = await _context.WishListItem.GetAllWishListItemByUserIdAsync(userId, pageIndex, pageSize);
-            var totalCount = wishList.Count();
+            var wishListTotal = await _context.WishListItem.GetAllWishListItemByUserIdAsync(userId);
+            var totalCount = wishListTotal.Count();
+
             var DTOWishList = _mapper.Map<IEnumerable<ResponseDTOWishListItem>>(wishList);
 
             return new PagedResult<ResponseDTOWishListItem>
