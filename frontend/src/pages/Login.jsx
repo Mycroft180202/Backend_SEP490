@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/modules/auth/authService';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,8 +15,14 @@ const Login = () => {
     setLoading(true);
     setError(null);
     try {
-      await AuthService.login({ email, password });
-      navigate('/');
+  // Đúng format cho backend: Username, Password
+  const res = await AuthService.login({ Username: username, Password: password });
+      // Nếu đăng nhập thành công, chuyển về trang chủ
+      if (res && res.accessToken) {
+        navigate('/');
+      } else {
+        setError('Đăng nhập thất bại');
+      }
     } catch (err) {
       setError(err.message || 'Đăng nhập thất bại');
     } finally {
@@ -54,15 +60,15 @@ const Login = () => {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Email/Tên đăng nhập</label>
+                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Tên đăng nhập</label>
                 <input
-                  type="email"
-                  placeholder="Email/Tên đăng nhập"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                />
+                    type="text"
+                    placeholder="Tên đăng nhập"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
+                  />
               </div>
 
               <div>
