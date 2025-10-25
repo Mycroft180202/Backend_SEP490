@@ -9,17 +9,17 @@ namespace Backend_SEP490.Controllers
     [ApiController]
     public class BlogController : ControllerBase
     {
-        private IBlogPostService _blogPostService; 
+        private IBlogPostService _blogPostService;
 
         public BlogController(IBlogPostService blogPostService)
         {
             _blogPostService = blogPostService;
         }
 
-        [HttpGet("blogs")]
-        public async Task<IActionResult> GetAllBlogPost()
+        [HttpGet("blogs/{pageIndex}/{pageSize}")]
+        public async Task<IActionResult> GetAllBlogPost([FromRoute] int pageIndex, [FromRoute] int pageSize)
         {
-            var blog = _blogPostService.GetAllBlogPostAsync();
+            var blog = await _blogPostService.GetAllBlogPostAsync(pageIndex, pageSize);
             if (blog == null) NotFound();
             return Ok(blog);
         }
@@ -38,7 +38,7 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
         [HttpPost("blogs")]
-        public async Task<IActionResult> CreateBlogPost( [FromForm] RequestCreateBlogPost request)
+        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
         {
             var userId = User.FindFirst("userId")?.Value;
             var status = await _blogPostService.CreateBlogPostAsync(userId, request);

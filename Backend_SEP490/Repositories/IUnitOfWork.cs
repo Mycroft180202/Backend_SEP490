@@ -20,5 +20,6 @@ public interface IUnitOfWork: IDisposable
     ICartItemRepositories CartItem { get; }
     IWishListItemRepositories WishListItem { get; }
     IProductCollectionRepositories ProductCollections { get; }
+    IVoucherRepositories Voucher { get; }
     
 }

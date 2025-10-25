@@ -15,7 +15,7 @@ namespace Backend_SEP490.Controllers
         {
             _wishListItemService = wishListItemService;
         }
-        [HttpGet("wish-list")]
+        [HttpGet("wish-list/{pageIndex}/{pageSize}")]
         public async Task<IActionResult> GetAllWishListItem([FromRoute] int pageIndex, [FromRoute] int pageSize)
         {
             var userId = User.FindFirst("userId")?.Value;

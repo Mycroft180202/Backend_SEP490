@@ -31,6 +31,7 @@ public class AuthController: ControllerBase
         if (result == null) return Unauthorized("Invalid refresh token");
         return Ok(result);
     }
+
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] RequestDTORefresh request)
@@ -39,6 +40,7 @@ public class AuthController: ControllerBase
         if (!success) return BadRequest("Invalid refresh token");
         return Ok("Logged out successfully");
     }
+
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromForm] RequestDTORegister dto)
     {
