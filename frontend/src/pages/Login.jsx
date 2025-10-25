@@ -1,38 +1,58 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/modules/auth/authService';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-  // Đúng format cho backend: Username, Password
-  const res = await AuthService.login({ Username: username, Password: password });
-      // Nếu đăng nhập thành công, chuyển về trang chủ
-      if (res && res.accessToken) {
-        navigate('/');
-      } else {
-        setError('Đăng nhập thất bại');
-      }
-    } catch (err) {
-      setError(err.message || 'Đăng nhập thất bại');
-    } finally {
-      setLoading(false);
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const res = await AuthService.login({ Username: username, Password: password });
+    if (res && res.accessToken) {
+      toast.success('Đăng nhập thành công!', {
+        position: "top-right",
+        autoClose: 1000,
+        onClose: () => navigate('/')
+      });
+    } else {
+      toast.error('Tên đăng nhập hoặc mật khẩu không đúng', {
+        position: "top-right",
+        autoClose: 3000
+      });
     }
-  };
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không đúng', {
+      position: "top-right",
+      autoClose: 3000
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
   <div className="fixed inset-0 flex items-center justify-center p-6" style={{ backgroundColor: '#FBFBEE' }}>
       {/* top-right close icon that returns to homepage */}
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
       <button onClick={() => navigate('/')} aria-label="Close and go home" className="absolute top-6 right-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md hover:opacity-90" style={{ border: 'none' }}>
         <img src="/images/deco-x.svg" alt="close" className="w-6 h-6" />
       </button>
@@ -55,8 +75,6 @@ const Login = () => {
             </div>
             <h2 style={{ fontFamily: 'Alata, sans-serif', fontSize: 36, lineHeight: '56px', color: '#9e211f', fontWeight: 400 }} className="text-center mb-1">Đăng nhập</h2>
             <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#7a7a7a' }} className="text-center mb-6">Đăng nhập để tiếp tục sử dụng dịch vụ</p>
-
-            {error && <div className="text-red-500 mb-4 text-center">{error}</div>}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
