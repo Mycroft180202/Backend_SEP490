@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
 import Register from './pages/Register';
 import AboutUs from './pages/AboutUs';
+import Shop from './pages/Shop';
 import Login from './pages/Login';
 import './App.css';
 
@@ -15,6 +16,7 @@ function App() {
   <Route path="/about" element={<AboutUs />} />
   <Route path="/login" element={<Login />} />
   <Route path="/register" element={<Register />} />
+  <Route path="/shop" element={<Shop />} />
   <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
