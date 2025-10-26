@@ -2,6 +2,7 @@
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 
 namespace Backend_SEP490.Controllers;
@@ -37,7 +38,7 @@ public class VoucherController : ControllerBase
     [HttpPost("voucher")]
     public async Task<IActionResult> CreateVoucher([FromBody] RequestCreateVoucher request)
     {
-        var userId = User.FindFirst("userId")?.Value;
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var status = await _voucherService.CreateVoucherAsync(userId,request);
         return Ok(status);
     }

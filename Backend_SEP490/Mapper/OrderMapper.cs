@@ -8,7 +8,8 @@ namespace Backend_SEP490.Mapper
     {
         public OrderMapper() 
         {
-            CreateMap<Order, ResponseDTOOrder>().ReverseMap();
+            CreateMap<Order, ResponseDTOOrder>()
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.OrderItems)).ReverseMap();
         }
     }
 }

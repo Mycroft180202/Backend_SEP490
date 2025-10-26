@@ -85,6 +85,8 @@ builder.Services.AddScoped<ICartRepositories, CartRepositoriesImpl>();
 builder.Services.AddScoped<IWishListItemRepositories, WishListItemRepositoriesImpl>();
 builder.Services.AddScoped<IProductCollectionRepositories, ProductCollectionRepositoriesImpl>();
 builder.Services.AddScoped<IVoucherRepositories, VoucherRipositoriesImpl>();
+builder.Services.AddScoped<IOrderDetailRepositories, OrderDetailRepositoriesImpl>();
+builder.Services.AddScoped<IShipmentRepositories, ShipmentRepositoriesImpl>();
 
 // ----------------------
 // Services
@@ -102,6 +104,8 @@ builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
 builder.Services.AddScoped<ICartService,CartServiceImpl>();
 builder.Services.AddScoped<IWishListItemService,WishListItemServiceImpl>();
 builder.Services.AddScoped<IVoucherService,VoucherServiceImpl>();
+
+
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
 // ----------------------

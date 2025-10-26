@@ -1,9 +1,13 @@
-﻿namespace Backend_SEP490.Repositories;
+﻿using Microsoft.EntityFrameworkCore.Storage;
+
+namespace Backend_SEP490.Repositories;
 
 public interface IUnitOfWork: IDisposable
 {
     Task<int> CommitAsync();
     public Task<int> SaveChangesAsync();
+
+    Task<IDbContextTransaction> BeginTransactionAsync();
     IProductRepositories Products { get; }
     IUserRepositories Users { get; }
     IFeedbackRepositories Feedback { get; }
@@ -21,5 +25,7 @@ public interface IUnitOfWork: IDisposable
     IWishListItemRepositories WishListItem { get; }
     IProductCollectionRepositories ProductCollections { get; }
     IVoucherRepositories Voucher { get; }
-    
+    IOrderDetailRepositories OrderDetail { get; }
+    IShipmentRepositories Shipment { get; }
+
 }

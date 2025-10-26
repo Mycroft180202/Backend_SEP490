@@ -2,6 +2,7 @@
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend_SEP490.Controllers
 {
@@ -27,18 +28,19 @@ namespace Backend_SEP490.Controllers
             return Ok(orders);
         }
         [HttpGet("orders/{id}")]
-        public async Task<IActionResult> GetAllOrderById([FromRoute]string orderId)
+        public async Task<IActionResult> GetAllOrderById([FromRoute]string orderId, [FromRoute] int pageIndex, [FromRoute] int pageSize)
         {
-            var order = _orderServices.GetAllOrderByIdAsync(orderId);
+            var order = await _orderServices.GetOrderByIdAsync(orderId, pageIndex, pageSize);
             if (order == null) NotFound();
             return Ok(order);
         }
 
         [HttpPost("orders")]
-        public async Task<IActionResult> CreateOrder()
+        public async Task<IActionResult> CreateOrder([FromBody] RequestCreateOrder request)
         {
-
-            return Ok();
+            var useridc = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var status = await _orderServices.CreateOrderAsync(useridc, request);
+            return Ok(status);
         }
     }
 }

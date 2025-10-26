@@ -6,6 +6,6 @@ namespace Backend_SEP490.Repositories
     {
         public Task<IEnumerable<Order>> GetAllOrderByUserIdAsync(string userId);
         public Task<Order> GetAllOrderByIdAsync(string orderId);
-        public Task CreateOrderAsync(Order order);
+        public Task<bool> CreateOrderAsync(Order order);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Backend_SEP490.Models;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Backend_SEP490.Repositories.impl;
 
@@ -9,7 +10,8 @@ public class UnitOfWork: IUnitOfWork
     public UnitOfWork(AppDbContext context,IProductRepositories product,IProductImagesRepositories productImages,IUserRepositories user,
         IFeedbackRepositories feedback,IOrderRepositories order,IRefreshTokenRepository refreshToken,ICategoryRepositories category, IBlogRepositories blog,
         IRoleRepository role, IUserRoleRepository userRole, IAddressRepositories address, IUserOtpRepositories userOtp, ICartRepositories cart,
-        ICartItemRepositories cartItem, IWishListItemRepositories wishListItem,IProductCollectionRepositories productCollection, IVoucherRepositories voucher)
+        ICartItemRepositories cartItem, IWishListItemRepositories wishListItem,IProductCollectionRepositories productCollection, IVoucherRepositories voucher,
+        IOrderDetailRepositories orderDetail, IShipmentRepositories shipment)
     {
         _context = context;
         Products = product;
@@ -29,7 +31,15 @@ public class UnitOfWork: IUnitOfWork
         WishListItem = wishListItem;
         ProductCollections = productCollection;
         Voucher = voucher;
+        OrderDetail = orderDetail;
+        Shipment = shipment;
     }
+
+    public async Task<IDbContextTransaction> BeginTransactionAsync()
+    {
+        return await _context.Database.BeginTransactionAsync();
+    }
+
     public void Dispose()
     {
         _context.DisposeAsync();
@@ -60,5 +70,7 @@ public class UnitOfWork: IUnitOfWork
     public IWishListItemRepositories WishListItem { get; }
     public IProductCollectionRepositories ProductCollections { get; }
     public IVoucherRepositories Voucher { get; }
+    public IOrderDetailRepositories OrderDetail { get; }
+    public IShipmentRepositories Shipment { get; }
     
 }
