@@ -2,7 +2,6 @@ import BannerSection from '../components/aboutUs/BannerSection';
 import CloudIntroSection from '../components/aboutUs/CloudIntroSection';
 import MissionSection from '../components/aboutUs/MissionSection';
 import WhyUsSection from '../components/aboutUs/WhyUsSection';
-import ContactSection from '../components/aboutUs/ContactSection';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -27,7 +26,6 @@ const AboutUs = () => {
       <CloudIntroSection assets={assets} />
       <MissionSection />
       <WhyUsSection assets={assets} />
-      <ContactSection assets={assets} />
       <Footer />
     </div>
   );

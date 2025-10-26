@@ -3,14 +3,19 @@ import ProductCard from '../components/shop/ProductCard';
 import Pagination from '../components/shop/Pagination';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
+import ShopBanner from '../components/shop/ShopBanner';
+import { useState } from 'react';
 
 export default function Shop() {
+  const [selectedCategory, setSelectedCategory] = useState('Chuồn chuồn tre Thạch Xá');
   return (
     <div className="bg-[#fdfeee] min-h-screen">
       <Header />
-      <main className="max-w-screen-xl mx-auto px-8 py-12">
+  <ShopBanner onSelect={label => setSelectedCategory(label)} />
+
+  <main className="max-w-screen-xl mx-auto px-8 py-12">
         <section className="mb-8">
-          <h2 className="font-Alata text-3xl text-[#9e211f]">Chuồn chuồn tre Thạch Xá</h2>
+          <h2 className="font-Alata text-3xl text-[#9e211f]">{selectedCategory}</h2>
           <div className="mt-4 flex items-center justify-between">
             <div className="flex gap-3">
               <div className="bg-[#faf998] p-4 rounded-lg">Chuồn chuồn tre Thạch Xá</div>

@@ -6,6 +6,7 @@ import Collections from '../components/home/Collections';
 import ArtisanCraft from '../components/home/ArtisanCraft';
 import FeaturedProducts from '../components/home/FeaturedProducts';
 import DiscoverHoaLac from '../components/home/DiscoverHoaLac';
+import ContactSection from '../components/home/ContactSection';
 
 const HomePage = () => {
   return (
@@ -17,6 +18,7 @@ const HomePage = () => {
         <ArtisanCraft />
         <FeaturedProducts />
         <DiscoverHoaLac />
+        <ContactSection />
       </main>
       <Footer />
     </div>
