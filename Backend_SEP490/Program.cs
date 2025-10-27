@@ -72,12 +72,21 @@ builder.Services.AddScoped<IProductRepositories, ProductRepositoriesImpl>();
 builder.Services.AddScoped<IUserRepositories, UserRepositoriesImpl>();
 builder.Services.AddScoped<IFeedbackRepositories, FeedbackRepositoriesImpl>();
 builder.Services.AddScoped<IProductImagesRepositories, ProductImagesRepositoriesImpl>();
+builder.Services.AddScoped<IOrderRepositories, OrderRepositoriesImpl>();
+builder.Services.AddScoped<IBlogRepositories, BlogRepositoriesImpl>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryImpl>();
 builder.Services.AddScoped<ICategoryRepositories, CategoryRepositoriesImpl>();
 builder.Services.AddScoped<IRoleRepository, RoleRepositoryImpl>();
 builder.Services.AddScoped<IUserRoleRepository, UserRoleRepositoryImpl>();
+builder.Services.AddScoped<IAddressRepositories, AddressRepositoriesImpl>();
 builder.Services.AddScoped<IUserOtpRepositories, UserOtpRepositoriesImpl>();
+builder.Services.AddScoped<ICartItemRepositories, CartItemRepositoriesImpl>();
+builder.Services.AddScoped<ICartRepositories, CartRepositoriesImpl>();
+builder.Services.AddScoped<IWishListItemRepositories, WishListItemRepositoriesImpl>();
 builder.Services.AddScoped<IProductCollectionRepositories, ProductCollectionRepositoriesImpl>();
+builder.Services.AddScoped<IVoucherRepositories, VoucherRipositoriesImpl>();
+builder.Services.AddScoped<IOrderDetailRepositories, OrderDetailRepositoriesImpl>();
+builder.Services.AddScoped<IShipmentRepositories, ShipmentRepositoriesImpl>();
 
 // ----------------------
 // Services
@@ -86,7 +95,21 @@ builder.Services.AddScoped<IProductServices, ProductServicesImpl>();
 builder.Services.AddScoped<IUserServices, UserServicesImpl>();
 builder.Services.AddScoped<IFeedbackServices, FeedbackServicesImpl>();
 builder.Services.AddScoped<IProductImagesServices, ProductImagesServicesImpl>();
+builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
+builder.Services.AddScoped<IBlogPostService, BlogPostServiceImpl>();
 builder.Services.AddScoped<ICategoryServices, CategoryServicesImpl>();
+builder.Services.AddScoped<ICategoryServices, CategoryServicesImpl>();
+builder.Services.AddScoped<IAddressService, AddressServiceImpl>();
+builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
+builder.Services.AddScoped<ICartService,CartServiceImpl>();
+builder.Services.AddScoped<IWishListItemService,WishListItemServiceImpl>();
+builder.Services.AddScoped<IVoucherService,VoucherServiceImpl>();
+
+
+// ----------------------
+// Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
+// ----------------------
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
 builder.Services.AddScoped<IProductCollectionServices, ProductCollectionServicesImpl>();
 
@@ -158,6 +181,19 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// ----------------------
+// Config Cors
+// ----------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy => policy
+            .WithOrigins("http://192.168.1.183:3000/", "http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
+
 builder.Services.AddAuthorization();
 
 // ----------------------
@@ -172,6 +208,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
