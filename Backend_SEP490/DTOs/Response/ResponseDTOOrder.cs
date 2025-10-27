@@ -8,5 +8,6 @@
         public decimal TotalAmount { get; set; }
         public string ShipingAddressId { get; set; }
         public DateTime CreateAt { get; set; }
+        public List<ResponseDTOOrderItem> Items { get; set; }
     }
 }

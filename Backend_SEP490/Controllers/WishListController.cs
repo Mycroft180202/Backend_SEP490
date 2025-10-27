@@ -2,6 +2,7 @@
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend_SEP490.Controllers
 {
@@ -18,7 +19,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("wish-list/{pageIndex}/{pageSize}")]
         public async Task<IActionResult> GetAllWishListItem([FromRoute] int pageIndex, [FromRoute] int pageSize)
         {
-            var userId = User.FindFirst("userId")?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var wishLit = await _wishListItemService.GetAllWishListItemByUserIdAsync(userId,pageIndex,pageSize);
             return Ok(wishLit);
         }
@@ -26,7 +27,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("wish-list/{id}")]
         public async Task<IActionResult> AddWishListItemToCart([FromRoute] string wishListItemId)
         {
-            var userId = User.FindFirst("userId")?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var wishLit = await _wishListItemService.AddWishListItemToCartAsync(userId,wishListItemId);
             return Ok(wishLit);
         }
@@ -34,7 +35,7 @@ namespace Backend_SEP490.Controllers
         [HttpPost("wish-list")]
         public async Task<IActionResult> CreateWishListItem([FromRoute]string wishListItemId)
         {
-            var userId = User.FindFirst("userId")?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var wishLit = await _wishListItemService.CreateWishListItemAsync(userId,wishListItemId);
             return Ok(wishLit);
         }

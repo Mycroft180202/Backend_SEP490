@@ -2,6 +2,7 @@
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend_SEP490.Controllers
 {
@@ -40,7 +41,7 @@ namespace Backend_SEP490.Controllers
         [HttpPost("blogs")]
         public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
         {
-            var userId = User.FindFirst("userId")?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var status = await _blogPostService.CreateBlogPostAsync(userId, request);
             return Ok(status);
         }
