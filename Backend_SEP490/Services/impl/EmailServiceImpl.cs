@@ -27,7 +27,7 @@ public class EmailServiceImpl : GenericServices, IEmailService
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
-       if (string.IsNullOrEmpty(to))
+        if (string.IsNullOrEmpty(to))
             throw new ArgumentException("Recipient email cannot be null or empty", nameof(to));
 
         using var smtpClient = new SmtpClient(_emailHost, _emailPort)
@@ -37,7 +37,6 @@ public class EmailServiceImpl : GenericServices, IEmailService
             Credentials = new NetworkCredential(_emailUsername, _emailPassword),
             DeliveryMethod = SmtpDeliveryMethod.Network
         };
-
 
         var mailMessage = new MailMessage
         {
