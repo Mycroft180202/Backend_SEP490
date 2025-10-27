@@ -31,7 +31,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return user;
     }
 
-    public async Task<bool?> UpdateUserAsync(User user, RequestUpdateUser request)
+    public async Task<string?> UpdateUserAsync(User user, RequestUpdateUser request)
     {
         //Chỉnh sửa Role của user
         try
@@ -56,7 +56,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(ex);
-            return false;
+            return "Update user role failed!";
         }
 
 
@@ -84,7 +84,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(ex);
-            return false;
+            return "Update user information error!";
         }
         try
         {
@@ -94,9 +94,9 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(ex);
-            return false;
+            return "Update user information failed!";
         }
-        return true;
+        return "Update user information succesfully!";
     }
     public async Task<User?> GetUserByArtisanIDAsync(string artisanID)
     {
