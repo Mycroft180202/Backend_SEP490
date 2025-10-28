@@ -104,7 +104,7 @@ builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
 builder.Services.AddScoped<ICartService,CartServiceImpl>();
 builder.Services.AddScoped<IWishListItemService,WishListItemServiceImpl>();
 builder.Services.AddScoped<IVoucherService,VoucherServiceImpl>();
-
+builder.Services.AddScoped<INoitificationServices,NoitificationServicesImpl>();
 
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
