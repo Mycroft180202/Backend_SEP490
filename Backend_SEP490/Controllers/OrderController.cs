@@ -18,11 +18,11 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPost("my-orders")]
-        public async Task<IActionResult> GetAllOrderByUserId(string userId, [FromForm] RequestFilterOrder? requestFilter)
+        public async Task<IActionResult> GetAllOrderByUserId([FromBody] RequestFilterOrder? requestFilter)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var orders = await _orderServices.GetAllOrderByUserIdAsync(userId, requestFilter);
             if (orders == null) NotFound();
             return Ok(orders);
@@ -38,6 +38,8 @@ namespace Backend_SEP490.Controllers
         [HttpPost("orders")]
         public async Task<IActionResult> CreateOrder([FromBody] RequestCreateOrder request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
             var useridc = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var status = await _orderServices.CreateOrderAsync(useridc, request);
             return Ok(status);

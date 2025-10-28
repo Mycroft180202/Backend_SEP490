@@ -9,7 +9,7 @@ namespace Backend_SEP490.Repositories.impl
         {
         }
 
-        public async Task<bool> AddCartItemAsync(CartItem cartItem)
+        public async Task<string> AddCartItemAsync(CartItem cartItem)
         {
             try
             {
@@ -18,11 +18,11 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Add cart item failed!";
             }
-            return true;
+            return "Add cart item succesfully!";
         }
-        public async Task<bool> UpdateCartItemAsync(CartItem cartItem, int quantity)
+        public async Task<string> UpdateCartItemAsync(CartItem cartItem, int quantity)
         {
             cartItem.Quantity = quantity;
             try
@@ -32,9 +32,9 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Update cart item failed!";
             }
-            return true;
+            return "Update cart item succesfully!";
         }
 
         public async Task<IEnumerable<CartItem>> GetAllCartitemByCartIdAsync(string cartId)
@@ -47,7 +47,7 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.CartItems.Where(ci => ci.Id.Equals(cartItemId)).FirstOrDefaultAsync();
         }
 
-        public async Task<bool> DeleteCartItemAsync(CartItem cartItem)
+        public async Task<string> DeleteCartItemAsync(CartItem cartItem)
         {
             try
             {
@@ -56,9 +56,9 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Delete cart item failed!";
             }
-            return true;
+            return "Delete cart item succesfully!";
         }
     }
 }

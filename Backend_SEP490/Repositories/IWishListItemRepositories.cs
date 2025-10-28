@@ -9,8 +9,8 @@ namespace Backend_SEP490.Repositories
         public Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId);
         public Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId, int pageIndex, int pageSize);
         public Task<WishListItem> GetWishListItemByIdAsync(string wishListItemId);
-        public Task<bool> AddWishListItemToCartAsync(WishListItem wishListItem, CartItem cartItem);
-        public Task<bool> CreateWishListItemAsync(WishListItem wishListItem);
-        public Task<bool> DeleteWishListItemAsync(WishListItem wishListItem);
+        public Task<string> AddWishListItemToCartAsync(WishListItem wishListItem, CartItem cartItem);
+        public Task<string> CreateWishListItemAsync(WishListItem wishListItem);
+        public Task<string> DeleteWishListItemAsync(WishListItem wishListItem);
     }
 }

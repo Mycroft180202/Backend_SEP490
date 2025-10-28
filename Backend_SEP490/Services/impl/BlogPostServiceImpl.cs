@@ -14,7 +14,7 @@ namespace Backend_SEP490.Services.impl
         {
         }
 
-        public async Task<bool> CreateBlogPostAsync(string userid, RequestCreateBlogPost request)
+        public async Task<string> CreateBlogPostAsync(string userid, RequestCreateBlogPost request)
         {
 
             var blogPosts = await _context.Blog.GetAllBlogPostAsync();
@@ -69,10 +69,10 @@ namespace Backend_SEP490.Services.impl
             return _mapper.Map<ResponseDTOBlogPost>(blogPost);
         }
 
-        public async Task<bool> UpdateBlogPostAsync(string blogId, RequestUpdateBlogPost request)
+        public async Task<string> UpdateBlogPostAsync(string blogId, RequestUpdateBlogPost request)
         {
             var blogPost = await _context.Blog.GetAllOrderByIdAsync(blogId);
-            if (blogPost == null) return false;
+            if (blogPost == null) return "Blog not found!";
 
             var updateStatus = await _context.Blog.UpdateBlogPostAsync(blogPost, request);
             return updateStatus;

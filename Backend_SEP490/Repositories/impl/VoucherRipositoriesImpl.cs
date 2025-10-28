@@ -10,7 +10,7 @@ namespace Backend_SEP490.Repositories.impl
         {
         }
 
-        public async Task<bool> CreateVoucherAsync(Voucher voucher)
+        public async Task<string> CreateVoucherAsync(Voucher voucher)
         {
             try
             {
@@ -19,13 +19,13 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Create voucher failed!";
             }
 
-            return true;
+            return "Create voucher successfully!";
         }
 
-        public async Task<bool> DeleteVoucherAsync(Voucher voucher)
+        public async Task<string> DeleteVoucherAsync(Voucher voucher)
         {
             try
             {
@@ -34,10 +34,10 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Delete voucher failed!";
             }
 
-            return true;
+            return "Delete voucher successfully!";
         }
 
         public async Task<List<Voucher>> GetAllVoucherAsync()
@@ -55,7 +55,7 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.Vouchers.Where( v => v.VoucherId.Equals(voucherId) ).FirstOrDefaultAsync();
         }
 
-        public async Task<bool> UpdateVoucherAsync(Voucher voucher, RequestUpdateVoucher request)
+        public async Task<string> UpdateVoucherAsync(Voucher voucher, RequestUpdateVoucher request)
         {
             try
             {
@@ -74,7 +74,7 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex) 
             {
-                return false;
+                return "Update voucher information failed!";
             }
             try
             {
@@ -83,10 +83,10 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Update voucher failed!";
             }
 
-            return true;
+            return "Update voucher successfully!";
         }
     }
 }

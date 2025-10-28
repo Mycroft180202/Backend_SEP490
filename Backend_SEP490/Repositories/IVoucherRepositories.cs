@@ -9,8 +9,8 @@ namespace Backend_SEP490.Repositories
         public Task<List<Voucher>> GetAllVoucherAsync();
         public Task<Voucher> GetVoucherByIdAsync(string voucherId);
         public Task<Voucher> GetVoucherByCodeAsync(string code);
-        public Task<bool> CreateVoucherAsync(Voucher voucher);
-        public Task<bool> UpdateVoucherAsync(Voucher voucher, RequestUpdateVoucher request);
-        public Task<bool> DeleteVoucherAsync(Voucher voucher);
+        public Task<string> CreateVoucherAsync(Voucher voucher);
+        public Task<string> UpdateVoucherAsync(Voucher voucher, RequestUpdateVoucher request);
+        public Task<string> DeleteVoucherAsync(Voucher voucher);
     }
 }

@@ -10,7 +10,7 @@ namespace Backend_SEP490.Repositories.impl
         {
         }
 
-        public async Task<bool> CreateBlogPostAsync(BlogPost blog)
+        public async Task<string> CreateBlogPostAsync(BlogPost blog)
         {
             try
             {
@@ -20,9 +20,9 @@ namespace Backend_SEP490.Repositories.impl
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(ex);
-                return false;
+                return "Create Blog failed!";
             }
-            return true;
+            return "Create Blog successfully!";
         }
 
         public async Task<IEnumerable<BlogPost>> GetAllBlogPostAsync()
@@ -36,7 +36,7 @@ namespace Backend_SEP490.Repositories.impl
             return blogPost;
         }
 
-        public async Task<bool> UpdateBlogPostAsync(BlogPost blog, RequestUpdateBlogPost request)
+        public async Task<string> UpdateBlogPostAsync(BlogPost blog, RequestUpdateBlogPost request)
         {
             try
             {
@@ -48,7 +48,7 @@ namespace Backend_SEP490.Repositories.impl
             catch(Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(ex);
-                return false;
+                return "Update Blog information failed!";
             }
             try 
             {
@@ -58,9 +58,9 @@ namespace Backend_SEP490.Repositories.impl
             catch(Exception ex) 
             {
                 System.Diagnostics.Debug.WriteLine(ex);
-                return false;
+                return "Update Blog failed!";
             }
-            return true;
+            return "Update Blog successfully!";
         }
     }
 }

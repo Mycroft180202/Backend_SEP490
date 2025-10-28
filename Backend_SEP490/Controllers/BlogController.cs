@@ -33,14 +33,18 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
         [HttpPut("blogs/{id}")]
-        public async Task<IActionResult> UpdateBlogPost([FromRoute] string blogId, [FromForm] RequestUpdateBlogPost request)
+        public async Task<IActionResult> UpdateBlogPost([FromRoute] string blogId, [FromBody] RequestUpdateBlogPost request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
             var blog = await _blogPostService.UpdateBlogPostAsync(blogId, request);
             return Ok(blog);
         }
         [HttpPost("blogs")]
-        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
+        public async Task<IActionResult> CreateBlogPost([FromBody] RequestCreateBlogPost request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var status = await _blogPostService.CreateBlogPostAsync(userId, request);
             return Ok(status);

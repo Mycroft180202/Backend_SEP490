@@ -10,7 +10,7 @@ namespace Backend_SEP490.Services
     {
         public Task<PagedResult<ResponseDTOBlogPost>> GetAllBlogPostAsync(int pageIndex, int pageSize);
         public Task<ResponseDTOBlogPost> GetAllOrderByIdAsync(string blogId);
-        public Task<bool> UpdateBlogPostAsync(string blogId, RequestUpdateBlogPost request);
-        public Task<bool> CreateBlogPostAsync(string userid,RequestCreateBlogPost request);
+        public Task<string> UpdateBlogPostAsync(string blogId, RequestUpdateBlogPost request);
+        public Task<string> CreateBlogPostAsync(string userid,RequestCreateBlogPost request);
     }
 }

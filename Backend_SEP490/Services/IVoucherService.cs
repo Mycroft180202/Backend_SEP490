@@ -9,8 +9,8 @@ namespace Backend_SEP490.Services
     {
         public Task<PagedResult<ResponseDTOVoucher>> GetAllVoucherAsync(int pageIndex, int pageSize);
         public Task<ResponseDTOVoucher> GetVoucherByIdAsync(string voucherId);
-        public Task<bool> CreateVoucherAsync(string userId,RequestCreateVoucher request);
-        public Task<bool> UpdateVoucherAsync(string voucherId, RequestUpdateVoucher request);
-        public Task<bool> DeleteVoucherAsync(string voucherId);
+        public Task<string> CreateVoucherAsync(string userId,RequestCreateVoucher request);
+        public Task<string> UpdateVoucherAsync(string voucherId, RequestUpdateVoucher request);
+        public Task<string> DeleteVoucherAsync(string voucherId);
     }
 }
