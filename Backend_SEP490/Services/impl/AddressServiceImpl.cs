@@ -12,7 +12,7 @@ namespace Backend_SEP490.Services.impl
         {
         }
 
-        public async Task<bool> CreateUserAddressAsync(string userId, RequestCreateAndUpdateAddress request)
+        public async Task<string> CreateUserAddressAsync(string userId, RequestCreateAndUpdateAddress request)
         {
             string AddressId = "ADR-" + userId + "-" + DateTime.Now;
 
@@ -32,10 +32,10 @@ namespace Backend_SEP490.Services.impl
             return status;
         }
 
-        public async Task<bool> DeleteUserAddressAsync(string addressId)
+        public async Task<string> DeleteUserAddressAsync(string addressId)
         {
             var address = await _context.Address.GetAddressByIdAsync(addressId);
-            if (address == null) return false;
+            if (address == null) return "Address not found!";
 
             var status = await _context.Address.DeleteAddressAsync(address);
             return status;
@@ -47,10 +47,10 @@ namespace Backend_SEP490.Services.impl
             return _mapper.Map<IEnumerable<ResponseDTOAddress>>(address);
         }
 
-        public async Task<bool> UpdateUserAddressAsync(string addressId, RequestCreateAndUpdateAddress request)
+        public async Task<string> UpdateUserAddressAsync(string addressId, RequestCreateAndUpdateAddress request)
         {
             var address = await _context.Address.GetAddressByIdAsync(addressId);
-            if (address == null) return false;
+            if (address == null) return "Address not found!";
 
             var status = await _context.Address.UpdateAddressAsync(address, request);
             return status;

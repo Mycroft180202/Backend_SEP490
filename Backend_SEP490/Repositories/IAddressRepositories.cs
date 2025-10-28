@@ -7,8 +7,8 @@ namespace Backend_SEP490.Repositories
     {
         public Task<IEnumerable<Address>> GetAllAddressByUserIdAsync(string userId);
         public Task<Address> GetAddressByIdAsync(string addressId);
-        public Task<bool> CreateAddressAsync(Address address);
-        public Task<bool> UpdateAddressAsync(Address address, RequestCreateAndUpdateAddress request);
-        public Task<bool> DeleteAddressAsync(Address address);
+        public Task<string> CreateAddressAsync(Address address);
+        public Task<string> UpdateAddressAsync(Address address, RequestCreateAndUpdateAddress request);
+        public Task<string> DeleteAddressAsync(Address address);
     }
 }
