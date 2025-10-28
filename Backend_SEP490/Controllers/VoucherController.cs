@@ -40,7 +40,7 @@ public class VoucherController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = User.FindFirstValue("userID");
         var status = await _voucherService.CreateVoucherAsync(userId,request);
         return Ok(status);
     }

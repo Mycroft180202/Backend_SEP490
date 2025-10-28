@@ -22,7 +22,7 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var orders = await _orderServices.GetAllOrderByUserIdAsync(userId, requestFilter);
             if (orders == null) NotFound();
             return Ok(orders);
@@ -40,7 +40,7 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var useridc = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var useridc = User.FindFirstValue("userID");
             var status = await _orderServices.CreateOrderAsync(useridc, request);
             return Ok(status);
         }

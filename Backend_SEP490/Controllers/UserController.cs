@@ -1,5 +1,6 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -57,7 +58,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("users/me")]
         public async Task<IActionResult> GetUsersProfile()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var users = await _userServices.GetUserByIDAsync(userId);
             if (users == null)
             {
@@ -66,12 +67,15 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
+        
         [HttpPut("users/me")]
         public async Task<IActionResult> UpdateUsersProfile([FromBody] RequestUpdateUser request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+            var userId = User.FindFirstValue("userID");
+
+
 
             var users = await _userServices.UpdateUserAsync(userId, request);
 
@@ -80,7 +84,7 @@ namespace Backend_SEP490.Controllers
         [HttpPut("users/change-password")]
         public async Task<IActionResult> UpdateUserPassword([FromBody] RequestUpdateUserHashPassword request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -92,7 +96,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("users/address")]
         public async Task<IActionResult> GetAllUsersAddress()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var address = await _addressServices.GetAllAddressByUserIdAsync(userId);
             if(address == null) return NotFound();
             return Ok(address);
@@ -103,7 +107,7 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var status = _addressServices.CreateUserAddressAsync(userId, request);
             return Ok(status);
         }

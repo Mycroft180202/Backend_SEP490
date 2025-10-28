@@ -45,7 +45,7 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var status = await _blogPostService.CreateBlogPostAsync(userId, request);
             return Ok(status);
         }
