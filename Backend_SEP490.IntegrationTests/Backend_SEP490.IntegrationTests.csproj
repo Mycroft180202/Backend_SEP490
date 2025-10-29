@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Backend_SEP490\Backend_SEP490.csproj" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<PreserveCompilationContext>true</PreserveCompilationContext>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<UserSecretsId>1d020e5a-83cf-4823-8f0c-faf25d320d65</UserSecretsId>
+	</PropertyGroup>
+
+	<ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+	<Target Name="CopyDepsFile" AfterTargets="Build">
+		<ItemGroup>
+			<DepsFile Include="..\Backend_SEP490\bin\Debug\net8.0\Backend_SEP490.deps.json" />
+		</ItemGroup>
+		<Copy SourceFiles="@(DepsFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+	</Target>
+
+	<Target Name="CopyAppSettings" AfterTargets="Build">
+		<ItemGroup>
+			<AppSettings Include="..\Backend_SEP490\appsettings*.json" />
+		</ItemGroup>
+		<Copy SourceFiles="@(AppSettings)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+	</Target>
+	<Target Name="CopyEnvFile" AfterTargets="Build">
+		<ItemGroup>
+			<EnvFile Include="..\Backend_SEP490\.env" />
+		</ItemGroup>
+		<Copy SourceFiles="@(EnvFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+	</Target>
+
+</Project>
