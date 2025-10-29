@@ -7,6 +7,7 @@ import AboutUs from './pages/AboutUs';
 import Shop from './pages/Shop';
 import Login from './pages/Login';
 import './App.css';
+import ArtisanShop from './pages/ArtisanShop';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
   <Route path="/login" element={<Login />} />
   <Route path="/register" element={<Register />} />
   <Route path="/shop" element={<Shop />} />
+  <Route path="/artisanShop" element={<ArtisanShop />} />
   <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
