@@ -18,19 +18,19 @@ namespace Backend_SEP490.Services.impl
 
             return _mapper.Map<ResponseDTOCart>(cart);
         }
-        public async Task<bool> AddCartItemAsync(string userId, RequestAddCartItem request)
+        public async Task<string> AddCartItemAsync(string userId, RequestAddCartItem request)
         {
             //Check xem sản phẩm đó có trong giỏ hàng hay chưa
             var cart = await _context.Cart.GetAllCartItemsAsync(userId);
             var product = await _context.Products.GetProductByIdAsync(request.ProductId);
             var item = cart.CartItems.Where(ci => ci.ProductId.Equals(request.ProductId)).FirstOrDefault();
 
-           //Nếu có thì đơn giản là add 1 vào sản phẩm đó
+           //Nếu có thì add 1 vào sản phẩm đó
             if (item != null)
             {
                 if (item.Quantity + 1 > product.Stock)
                 {
-                    return false;
+                    return "Out of stock!";
                 }
                 return await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + 1);
             }
@@ -47,26 +47,26 @@ namespace Backend_SEP490.Services.impl
             return await _context.CartItem.AddCartItemAsync(cartItem);
         }
 
-        public async Task<bool> UpdateCartItemAsync(string cartItemId, int quatity)
+        public async Task<string> UpdateCartItemAsync(string cartItemId, int quatity)
         {
             var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
             var product = await _context.Products.GetProductByIdAsync(cartItem.ProductId);
             if (quatity > product.Stock)
             {
-                return false;
+                return "Out of stock!";
             }
             if(quatity == 0)
             {
                 return await _context.CartItem.DeleteCartItemAsync(cartItem);
             } 
                 
-            if (cartItem == null) return false;
+            if (cartItem == null) return "CartItem not found!";
             return await _context.CartItem.UpdateCartItemAsync(cartItem, quatity);
         }
-        public async Task<bool> DeleteCartItemAsync(string cartItemId)
+        public async Task<string> DeleteCartItemAsync(string cartItemId)
         {
             var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
-            if(cartItem == null) return false;
+            if(cartItem == null) return "CartItem not found!";
             var status = await _context.CartItem.DeleteCartItemAsync(cartItem);
             return status;
         }

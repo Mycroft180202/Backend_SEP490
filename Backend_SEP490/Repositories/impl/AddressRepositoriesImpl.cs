@@ -10,7 +10,7 @@ namespace Backend_SEP490.Repositories.impl
         {
         }
 
-        public async Task<bool> CreateAddressAsync(Address address)
+        public async Task<string> CreateAddressAsync(Address address)
         {
             try
             {
@@ -20,12 +20,12 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Create Address failed!";
             }
-            return true;
+            return "Create Address successfully!";
         }
 
-        public async Task<bool> DeleteAddressAsync(Address address)
+        public async Task<string> DeleteAddressAsync(Address address)
         {
             try
             {
@@ -34,9 +34,9 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Delete Address failed!";
             }
-            return true;
+            return "Delete Address successfully!";
         }
 
         public async Task<Address> GetAddressByIdAsync(string addressId)
@@ -49,7 +49,7 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.Addresses.Where(a => a.UserID == userId).ToListAsync();
         }
 
-        public async Task<bool> UpdateAddressAsync(Address address, RequestCreateAndUpdateAddress request)
+        public async Task<string> UpdateAddressAsync(Address address, RequestCreateAndUpdateAddress request)
         {
             try
             {
@@ -62,7 +62,7 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Update Address information error!";
             }
 
             try
@@ -72,9 +72,9 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Update Address failed!";
             }
-            return true;
+            return "Update Address successfully!";
         }
     }
 }

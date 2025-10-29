@@ -12,7 +12,7 @@ namespace Backend_SEP490.Repositories.impl
         {
         }
 
-        public async Task<bool> AddWishListItemToCartAsync(WishListItem wishListItem, CartItem cartItem)
+        public async Task<string> AddWishListItemToCartAsync(WishListItem wishListItem, CartItem cartItem)
         {
             try
             {
@@ -21,7 +21,7 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Add wishlist item to cart failed!";
             }
             try
             {
@@ -30,12 +30,12 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Remove wish list item failed";
             }
-            return true;
+            return "Add wishlist item to cart successfully!";
         }
 
-        public async Task<bool> CreateWishListItemAsync(WishListItem wishListItem)
+        public async Task<string> CreateWishListItemAsync(WishListItem wishListItem)
         {
             try
             {
@@ -44,12 +44,12 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Create wishlist item failed!";
             }
-            return true;
+            return "Create wishlist item successfully!";
         }
 
-        public async Task<bool> DeleteWishListItemAsync(WishListItem wishListItem)
+        public async Task<string> DeleteWishListItemAsync(WishListItem wishListItem)
         {
             try
             {
@@ -58,9 +58,9 @@ namespace Backend_SEP490.Repositories.impl
             }
             catch (Exception ex)
             {
-                return false;
+                return "Delete wishlist item failed!";
             }
-            return true;
+            return "Delete wishlist item successfully!";
         }
 
         public async Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId, int pageIndex, int pageSize)

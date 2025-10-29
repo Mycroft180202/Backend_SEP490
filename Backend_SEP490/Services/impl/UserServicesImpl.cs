@@ -45,8 +45,8 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         if (!string.IsNullOrEmpty(requestFilter.search))
         {
-            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search) || u.PhoneNumber.ToLower().Contains(requestFilter.search)
-                            || u.Username.ToLower().Contains(requestFilter.search) || u.Email.ToLower().Contains(requestFilter.search)).ToList();
+            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search.ToLower()) || u.PhoneNumber.ToLower().Contains(requestFilter.search.ToLower())
+                            || u.Username.ToLower().Contains(requestFilter.search.ToLower()) || u.Email.ToLower().Contains(requestFilter.search.ToLower())).ToList();
         }
         if (requestFilter.status != null)
         {
@@ -74,13 +74,13 @@ public class UserServicesImpl : GenericServices, IUserServices
         return _mapper.Map<ResponseDTOUser>(user);
     }
 
-    public async Task<bool?> UpdateUserAsync(string userID, RequestUpdateUser request)
+    public async Task<string?> UpdateUserAsync(string userID, RequestUpdateUser request)
     {
         var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
 
         if (user == null)
         {
-            return false;
+            return "User not found!";
         }
 
         var status = await _context.Users.UpdateUserAsync(user, request);
@@ -312,23 +312,23 @@ public class UserServicesImpl : GenericServices, IUserServices
         };
     }
 
-    public async Task<bool> ChangePasswordAsync(string userId, RequestUpdateUserHashPassword request)
+    public async Task<string> ChangePasswordAsync(string userId, RequestUpdateUserHashPassword request)
     {
         //Check xem nguoi dung co ton tai khong
         var user = await _context.Users.GetByIdAsync(userId);
-        if (user == null) return false;
+        if (user == null) return "User not found!";
 
         // So sanh xem mat khau cu co dung khong
         string hashedPassword = HashPassword(request.OldPassword);
-        if (!user.PasswordHash.Equals(hashedPassword)) return false;
+        if (!user.PasswordHash.Equals(hashedPassword)) return "Wrong old password";
 
         //Check xem new password co giong newconfirm password khong
-        if (!request.NewPassword.Equals(request.ConfirmNewPassword)) return false;
+        if (!request.NewPassword.Equals(request.ConfirmNewPassword)) return "New password is different with confirm new password!";
 
         //Sau khi check xong thi cap nhat mat khau nguoi dung
         user.PasswordHash = HashPassword(request.NewPassword);
         _context.Users.UpdateUserPasswordAsync(user);
 
-        return true;
+        return "Change password successfully!";
     }
 }

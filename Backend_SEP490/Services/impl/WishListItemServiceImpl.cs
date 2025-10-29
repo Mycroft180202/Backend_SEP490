@@ -13,7 +13,7 @@ namespace Backend_SEP490.Services.impl
         {
         }
 
-        public async Task<bool> AddWishListItemToCartAsync(string userId, string wishListItemId)
+        public async Task<string> AddWishListItemToCartAsync(string userId, string wishListItemId)
         {
             var wishListItem = await _context.WishListItem.GetWishListItemByIdAsync(wishListItemId);
 
@@ -22,14 +22,14 @@ namespace Backend_SEP490.Services.impl
             var product = await _context.Products.GetProductByIdAsync(wishListItem.ProductID);
             var item = cart.CartItems.Where(ci => ci.ProductId.Equals(wishListItem.ProductID)).FirstOrDefault();
 
-            var status = false;
+
             if (item != null)
             {
                 if (item.Quantity + 1 > product.Stock)
                 {
-                    return false;
+                    return "Out of stock!";
                 }
-                status = await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + 1);
+                return await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + 1);
             }
 
 
@@ -41,7 +41,7 @@ namespace Backend_SEP490.Services.impl
                 Quantity = 1,
                 PriceAtAdd = product.Price
             };
-            status = await _context.CartItem.AddCartItemAsync(cartItem);
+             var status = await _context.CartItem.AddCartItemAsync(cartItem);
 
             //Xóa sản phẩm khỏi WishList
 
@@ -52,7 +52,7 @@ namespace Backend_SEP490.Services.impl
 
         
 
-        public async Task<bool> CreateWishListItemAsync(string userId,string productId)
+        public async Task<string> CreateWishListItemAsync(string userId,string productId)
         {
             var wishListItem = new WishListItem
             {
@@ -66,7 +66,7 @@ namespace Backend_SEP490.Services.impl
             return status;
         }
 
-        public async Task<bool> DeleteWishListItemAsync(string wishListItemId)
+        public async Task<string> DeleteWishListItemAsync(string wishListItemId)
         {
             var wishListItem = await _context.WishListItem.GetWishListItemByIdAsync(wishListItemId);
             var status = await _context.WishListItem.DeleteWishListItemAsync(wishListItem);

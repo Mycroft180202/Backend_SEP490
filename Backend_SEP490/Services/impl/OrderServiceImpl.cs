@@ -14,7 +14,7 @@ namespace Backend_SEP490.Services.impl
         }
 
         private string GenerateID(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
-        public async Task<bool> CreateOrderAsync(string userId, RequestCreateOrder request)
+        public async Task<string> CreateOrderAsync(string userId, RequestCreateOrder request)
         {
             await using var transaction = await _context.BeginTransactionAsync();
 
@@ -41,7 +41,7 @@ namespace Backend_SEP490.Services.impl
             if (!addOrderStatus)
             {
                 await transaction.RollbackAsync();
-                return false;
+                return "Create order failed!";
             }
 
             List<OrderItem> orderItems = new List<OrderItem>();
@@ -60,14 +60,14 @@ namespace Backend_SEP490.Services.impl
             if (!addOrderItemStatus)
             {
                 await transaction.RollbackAsync();
-                return false;
+                return "Create order item failed!";
             }
 
             //Add Shipment (Đợi API bên thứ 3)
 
 
 
-            return true;
+            return "Create order successfully!";
         }
 
         public async Task<ResponseDTOOrder> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize)
@@ -86,7 +86,7 @@ namespace Backend_SEP490.Services.impl
 
             if (string.IsNullOrEmpty(requestFilter.search))
             {
-                orders = orders.Where(o => o.OrderNumber.Contains(requestFilter.search));
+                orders = orders.Where(o => o.OrderNumber.ToLower().Contains(requestFilter.search.ToLower()));
             }
 
             if (string.IsNullOrEmpty(requestFilter.Status))
@@ -98,6 +98,7 @@ namespace Backend_SEP490.Services.impl
             {
                 orders = orders.Where(o => o.CreateAt.Equals(requestFilter.CreateAt));
             }
+
             return _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
         }
 

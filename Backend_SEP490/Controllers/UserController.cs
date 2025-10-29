@@ -1,5 +1,6 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ namespace Backend_SEP490.Controllers
 
 
         [HttpPost("users/{pageIndex}/{pageSize}")]
-        public async Task<IActionResult> GetAllUsers([FromForm] RequestFilterUser? requestFilter, [FromRoute] int pageIndex, [FromRoute] int pageSize)
+        public async Task<IActionResult> GetAllUsers([FromBody] RequestFilterUser? requestFilter, [FromRoute] int pageIndex, [FromRoute] int pageSize)
         {
             var users = await _userServices.GetAllUsersAsync(requestFilter, pageIndex, pageSize);
             if (users == null)
@@ -44,7 +45,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPut("users/{id}")]
-        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromForm] RequestUpdateUser request)
+        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromBody] RequestUpdateUser request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -57,7 +58,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("users/me")]
         public async Task<IActionResult> GetUsersProfile()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var users = await _userServices.GetUserByIDAsync(userId);
             if (users == null)
             {
@@ -66,21 +67,24 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
+        
         [HttpPut("users/me")]
-        public async Task<IActionResult> UpdateUsersProfile([FromForm] RequestUpdateUser request)
+        public async Task<IActionResult> UpdateUsersProfile([FromBody] RequestUpdateUser request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+            var userId = User.FindFirstValue("userID");
+
+
 
             var users = await _userServices.UpdateUserAsync(userId, request);
 
             return Ok(users);
         }
         [HttpPut("users/change-password")]
-        public async Task<IActionResult> UpdateUserHashPassword([FromForm] RequestUpdateUserHashPassword request)
+        public async Task<IActionResult> UpdateUserPassword([FromBody] RequestUpdateUserHashPassword request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -92,7 +96,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("users/address")]
         public async Task<IActionResult> GetAllUsersAddress()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var address = await _addressServices.GetAllAddressByUserIdAsync(userId);
             if(address == null) return NotFound();
             return Ok(address);
@@ -101,7 +105,9 @@ namespace Backend_SEP490.Controllers
         [HttpPost("users/address")]
         public async Task<IActionResult> CreateUsersAddress([FromBody] RequestCreateAndUpdateAddress request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var userId = User.FindFirstValue("userID");
             var status = _addressServices.CreateUserAddressAsync(userId, request);
             return Ok(status);
         }
@@ -109,6 +115,8 @@ namespace Backend_SEP490.Controllers
         [HttpPut("users/address/{id}")]
         public async Task<IActionResult> UpdateUsersAddress([FromRoute] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
             var status = _addressServices.UpdateUserAddressAsync(addressId, request);
             
             return Ok(status);
