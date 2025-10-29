@@ -1,4 +1,6 @@
 import React from 'react';
+import CustomBreadcrumbs from '../shared/CustomBreadcrumbs';
+
 
 // Background image (nếu nằm trong public/images)
 const imgC = "/images/Rectangle 38.png";
@@ -21,8 +23,19 @@ const Banner = () => {
         />
       </div>
 
+ {/* Breadcrumb đè lên banner, giữ vị trí tương tự (responsive padding) */}
+      <div className="absolute left-4 top-4 md:left-8 md:top-8 z-20">
+        <div className="text-white">
+          <CustomBreadcrumbs
+            breadcrumbs={[
+              { label: 'Trang chủ', href: '/' },
+              { label: 'Cửa hàng', href: '/about' }
+            ]}
+          />
+        </div>
+      </div>
       {/* Banner Content */}
-      <div className="relative z-10 flex flex-col gap-6">
+      <div className="relative z-10 flex flex-col gap-6 pt-20">
         <div className="flex gap-6 items-start">
           <img src={imgEllipse41} alt="Shop logo" className="w-20 h-20" />
           <div>
@@ -32,7 +45,6 @@ const Banner = () => {
                 src={imgVuesaxLinearStar}
                 alt="star icon"
                 className="w-6 h-6"
-                
               />
               <p className="text-base text-white">4.9</p>
             </div>
