@@ -86,7 +86,7 @@ namespace Backend_SEP490.Services.impl
 
             if (string.IsNullOrEmpty(requestFilter.search))
             {
-                orders = orders.Where(o => o.OrderNumber.Contains(requestFilter.search));
+                orders = orders.Where(o => o.OrderNumber.ToLower().Contains(requestFilter.search.ToLower()));
             }
 
             if (string.IsNullOrEmpty(requestFilter.Status))

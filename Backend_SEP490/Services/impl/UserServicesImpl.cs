@@ -45,8 +45,8 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         if (!string.IsNullOrEmpty(requestFilter.search))
         {
-            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search) || u.PhoneNumber.ToLower().Contains(requestFilter.search)
-                            || u.Username.ToLower().Contains(requestFilter.search) || u.Email.ToLower().Contains(requestFilter.search)).ToList();
+            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search.ToLower()) || u.PhoneNumber.ToLower().Contains(requestFilter.search.ToLower())
+                            || u.Username.ToLower().Contains(requestFilter.search.ToLower()) || u.Email.ToLower().Contains(requestFilter.search.ToLower())).ToList();
         }
         if (requestFilter.status != null)
         {
