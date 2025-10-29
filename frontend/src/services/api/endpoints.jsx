@@ -11,4 +11,9 @@ export const API_ENDPOINTS = {
     REGISTER: '/register',
     VERIFY_OTP: '/verify-otp',
   },
+  USERS: {
+    USERS_PROFILE: '/users/me',
+    UPDATE_PROFILE: '/users/profile/update',
+    DELETE_ACCOUNT: '/users/profile/delete',
+  },
 };

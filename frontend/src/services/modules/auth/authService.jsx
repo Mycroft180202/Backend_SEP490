@@ -69,5 +69,20 @@ export const AuthService = {
             },
         });
         return res;
+    },
+
+        /**
+     * Lấy thông tin người dùng
+     * @returns {Promise<UserInfo>}
+     */
+    async getUserInfo() {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+            throw new Error('Token không tồn tại');
+        }
+
+        const res = await axiosClient.get(API_ENDPOINTS.USERS.USERS_PROFILE);
+        return res.data;
     }
+
 };

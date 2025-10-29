@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { UserContext } from '../context/UserContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/modules/auth/authService';
 import { ToastContainer, toast } from 'react-toastify';
@@ -8,6 +9,7 @@ const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { updateUserInfo } = useContext(UserContext);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
@@ -16,7 +18,10 @@ const Login = () => {
   setLoading(true);
   try {
     const res = await AuthService.login({ Username: username, Password: password });
+    console.log('Response từ AuthService.login:', res);
     if (res && res.accessToken) {
+      localStorage.setItem('accessToken', res.accessToken);
+      await updateUserInfo();
       toast.success('Đăng nhập thành công!', {
         position: "top-right",
         autoClose: 1000,
