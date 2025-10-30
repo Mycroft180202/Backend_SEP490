@@ -32,7 +32,7 @@ namespace Backend_SEP490.IntegrationTests.Auth
             //_db.SaveChanges();
         }
 
-        [Fact]
+        [Fact] // dinh nghia la 1 phuong thuc test
         public async Task POST_Login_ShouldReturnUnauthorized_WhenInvalidCredentials()
         {
             // Arrange
@@ -57,8 +57,9 @@ namespace Backend_SEP490.IntegrationTests.Auth
                 { "Password", "MinhG2k3vn" }
             };
             var loginRequest = new FormUrlEncodedContent(formData);
-            var response = await _client.PostAsJsonAsync("/login", loginRequest);
-
+            // Act
+            var response = await _client.PostAsync("/login", loginRequest);
+            // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
         [Fact]

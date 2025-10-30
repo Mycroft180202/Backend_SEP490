@@ -34,6 +34,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Product\" />
+	</ItemGroup>
+
 	<Target Name="CopyDepsFile" AfterTargets="Build">
 		<ItemGroup>
 			<DepsFile Include="..\Backend_SEP490\bin\Debug\net8.0\Backend_SEP490.deps.json" />
