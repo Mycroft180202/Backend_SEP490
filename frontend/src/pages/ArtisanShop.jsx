@@ -2,8 +2,7 @@ import React from 'react';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
 import Banner from '../components/artisanShop/Banner';
-import Pagination from '../components/shop/Pagination';
-import ProductCard from '../components/shop/ProductCard';
+import { ProductCard, Pagination } from '../components/shop/ShopComponents';
 import FilterSection from '../components/artisanShop/FilterSection';
 
 const ArtisanShop = () => {

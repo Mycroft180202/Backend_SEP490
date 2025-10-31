@@ -6,11 +6,17 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `/products/${id}`,
     DELETE: (id) => `/products/${id}`,
   },
+
+  Categories: {
+    GET_ALL: '/categories',
+  },
+
   AUTH: {
     LOGIN: '/login',
     REGISTER: '/register',
     VERIFY_OTP: '/verify-otp',
   },
+  
   USERS: {
     USERS_PROFILE: '/users/me',
     UPDATE_PROFILE: '/users/profile/update',

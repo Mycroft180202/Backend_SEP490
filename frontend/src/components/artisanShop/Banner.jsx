@@ -1,7 +1,6 @@
 import React from 'react';
 import CustomBreadcrumbs from '../shared/CustomBreadcrumbs';
 
-
 // Background image (nếu nằm trong public/images)
 const imgC = "/images/Rectangle 38.png";
 const imgFb = "/images/FacebookLogo.png";
@@ -13,7 +12,7 @@ const imgVuesaxLinearExport = "/images/Share-white-icon.png";
 
 const Banner = () => {
   return (
-    <section className="relative container mx-auto px-4 py-12 min-h-[300px]">
+    <section className="relative w-full">
       {/* Background Images */}
       <div className="absolute inset-0 z-0">
         <img
@@ -23,19 +22,20 @@ const Banner = () => {
         />
       </div>
 
- {/* Breadcrumb đè lên banner, giữ vị trí tương tự (responsive padding) */}
-      <div className="absolute left-4 top-4 md:left-8 md:top-8 z-20">
-        <div className="text-white">
+      {/* Breadcrumb đè lên banner */}
+      <div className="absolute top-4 left-4">
+        <div className="bg-white/80 py-2 px-4 rounded-md">
           <CustomBreadcrumbs
             breadcrumbs={[
               { label: 'Trang chủ', href: '/' },
-              { label: 'Cửa hàng', href: '/about' }
+              { label: 'Cửa hàng', href: '/artisanShop' }
             ]}
           />
         </div>
       </div>
+
       {/* Banner Content */}
-      <div className="relative z-10 flex flex-col gap-6 pt-20">
+      <div className="relative z-10 flex flex-col gap-6 pt-20 px-4">
         <div className="flex gap-6 items-start">
           <img src={imgEllipse41} alt="Shop logo" className="w-20 h-20" />
           <div>

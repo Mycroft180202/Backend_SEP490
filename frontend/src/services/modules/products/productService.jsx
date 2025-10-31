@@ -45,5 +45,6 @@ export const ProductService = {
     } catch (error) {
       throw error;
     }
-  }
+  },
+
 };
