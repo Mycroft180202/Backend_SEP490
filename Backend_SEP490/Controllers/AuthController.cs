@@ -81,7 +81,9 @@ public class AuthController: ControllerBase
     }
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] RequestDTOResetPassword dto)
-    {
+    {   
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
         var result = await _userServices.ResetPasswordAsync(dto);
         if (!result) return BadRequest("OTP không hợp lệ hoặc đã hết hạn.");
 
