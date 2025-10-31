@@ -43,6 +43,15 @@ const Login = () => {
   }
 };
 
+const handleRememberMe = (e) => {
+  const isChecked = e.target.checked;
+  if (isChecked) {
+    localStorage.setItem('rememberMe', JSON.stringify({ username, password }));
+  } else {
+    localStorage.removeItem('rememberMe');
+  }
+};
+
   return (
   <div className="fixed inset-0 flex items-center justify-center p-6" style={{ backgroundColor: '#FBFBEE' }}>
       {/* top-right close icon that returns to homepage */}
@@ -123,7 +132,11 @@ const Login = () => {
 
               <div className="flex items-center justify-between text-sm text-gray-600">
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" className="w-4 h-4 border-[#a0a0a0]" />
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 border-[#a0a0a0]"
+                    onChange={handleRememberMe}
+                  />
                   <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Ghi nhớ đăng nhập</span>
                 </label>
                 <Link to="/forgot" className="text-[#9E211F] hover:underline" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Quên mật khẩu?</Link>
