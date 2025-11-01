@@ -9,6 +9,7 @@ import Shop from './pages/Shop';
 import Login from './pages/Login';
 import './App.css';
 import ArtisanShop from './pages/ArtisanShop';
+import Cart from './pages/Cart';
 
 function App() {
   return (
