@@ -1,12 +1,15 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
+using Backend_SEP490.Services;
 using CloudinaryDotNet;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Transactions;
+using static System.Net.WebRequestMethods;
 
 namespace Backend_SEP490.IntegrationTests.Auth
 {
@@ -65,14 +68,14 @@ namespace Backend_SEP490.IntegrationTests.Auth
         [Fact]
         public async Task Register_Then_VerifyOtp_Success()
         {
-            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
-            {
+            var emailTest = "trandinhkhanh180502@gmail.com";
+            try { 
                 // Arrange
                 var formData = new Dictionary<string, string>
                     {
                         { "Username", "testuser_integration" },
                         { "PasswordHash", "Test@123" },
-                        { "Email", "trandinhkhanh180502@gmail.com" },
+                        { "Email", $"{emailTest}" },
                         { "PhoneNumber", "0123456789" },
                         { "DisplayName", "Integration Tester" },
                         { "Dob", "" } 
@@ -82,23 +85,41 @@ namespace Backend_SEP490.IntegrationTests.Auth
                 var registerResponse = await _client.PostAsync("/register", content);
                 // Assert
                 registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-
                 var registerMessage = await registerResponse.Content.ReadAsStringAsync();
                 registerMessage.Should().Contain("OTP sent to email");
 
-                string otpCode = "123456";
-                var registerRequest = new RequestDTORegister { Username = "testuser_integration", PasswordHash = "Test@123", Email = "trandinhkhanh180502@gmail.com", PhoneNumber = "0123456789", DisplayName = "Integration Tester", Dob = null, };
-                var verifyRequest = new RequestDTOVerifyOtp
+                // Get OTP Code
+                var otpSent = await _db.UserOtps
+                      .Where(x => x.Email == "trandinhkhanh180502@gmail.com" && !x.IsUsed)
+                      .OrderByDescending(x => x.CreatedAt)
+                      .FirstOrDefaultAsync();
+                if (otpSent != null)
                 {
-                    RegisterDto = registerRequest,
-                    Otp = otpCode
-                };
+                    var registerRequest = new RequestDTORegister { Username = "testuser_integration", PasswordHash = "Test@123", Email = emailTest, PhoneNumber = "0123456789", DisplayName = "Integration Tester", Dob = null, };
+                    var verifyRequest = new RequestDTOVerifyOtp
+                    {
+                        RegisterDto = registerRequest,
+                        Otp = otpSent.OtpCode,
+                    };
 
-                var verifyResponse = await _client.PostAsJsonAsync("/verify-otp", verifyRequest);
-                verifyResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                //var verifyMessage = await verifyResponse.Content.ReadAsStringAsync();
-                //verifyMessage.Should().Contain("Registration successful");
+                    var verifyResponse = await _client.PostAsJsonAsync("/verify-otp", verifyRequest);
+                    verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+                    var verifyMessage = await verifyResponse.Content.ReadAsStringAsync();
+                    verifyMessage.Should().Contain("Registration successful");
+                }
+            }
+            finally
+            {
+                // Rollback
+                var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailTest);
+                if (user != null)
+                {
+                    _db.Users.Remove(user);
+                    await _db.SaveChangesAsync();
+                }
+                var otps = _db.UserOtps.Where(o => o.Email == emailTest);
+                _db.UserOtps.RemoveRange(otps);
+                await _db.SaveChangesAsync();
             }
         }
         // forgot password
