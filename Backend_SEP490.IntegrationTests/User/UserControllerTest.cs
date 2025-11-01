@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.Models;
+﻿using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Models;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -106,11 +107,14 @@ namespace Backend_SEP490.IntegrationTests.User
         public async Task UserFlow_Address_CRUD_ShouldWork()
         {
             // Step 1: CREATE ADDRESS
-            var createPayload = new
+            var createPayload = new RequestCreateAndUpdateAddress
             {
-                Street = "123 Flow Street",
+                Line1 = "123 Flow Street",
+                Line2 = "Apt 4B",
                 City = "Hanoi",
-                District = "Ba Dinh"
+                PosttalCode = "111000",
+                Country = "Vietnam",
+                IsDefault = true
             };
             var createContent = new StringContent(JsonConvert.SerializeObject(createPayload), Encoding.UTF8, "application/json");
             var createResponse = await _client.PostAsync("/users/address", createContent);
@@ -123,21 +127,28 @@ namespace Backend_SEP490.IntegrationTests.User
             getAllBody.Should().Contain("123 Flow Street");
 
             // Step 3: Lấy addressId thực tế từ DB
-            var addr = _db.Addresses.FirstOrDefault();
+            var addr = _db.Addresses.FirstOrDefault(x => x.PosttalCode == createPayload.PosttalCode);
             addr.Should().NotBeNull();
 
-            // Step 4: UPDATE
-            var updatePayload = new
+            // Data raw : ADR-USER-20251022-095607-11/1/2025 8:56:49 AM
+            var encodedId = Uri.EscapeDataString(addr.Id);
+            //// Step 4: UPDATE
+            var updatePayload = new RequestCreateAndUpdateAddress
             {
-                Street = "456 Updated Flow Street",
-                City = "HCM"
+                Line1 = "Dong Da",
+                Line2 = "Apt 4B",
+                City = "Hanoi",
+                PosttalCode = "111000",
+                Country = "Vietnam",
+                IsDefault = true
             };
+
             var updateContent = new StringContent(JsonConvert.SerializeObject(updatePayload), Encoding.UTF8, "application/json");
-            var updateResponse = await _client.PutAsync($"/users/address/{addr!.Id}", updateContent);
+            var updateResponse = await _client.PutAsync($"/users/address/{encodedId}", updateContent);
             updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
             // Step 5: DELETE
-            var deleteResponse = await _client.DeleteAsync($"/users/address/{addr.Id}");
+            var deleteResponse = await _client.DeleteAsync($"users/address/{encodedId}");
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         }
     }
