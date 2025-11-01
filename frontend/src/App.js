@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import AboutUs from './pages/AboutUs';
 import Shop from './pages/Shop';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import './App.css';
 import ArtisanShop from './pages/ArtisanShop';
 import Cart from './pages/Cart';
@@ -19,8 +20,10 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/cart" element={<Cart />} />
         <Route path="/artisanShop" element={<ArtisanShop />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

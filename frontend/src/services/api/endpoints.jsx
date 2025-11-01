@@ -22,4 +22,9 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: '/users/profile/update',
     DELETE_ACCOUNT: '/users/profile/delete',
   },
+
+  PASSWORD: {
+    FORGOT_PASSWORD: '/forgot-password',
+    RESET_PASSWORD: '/reset-password',
+  },
 };

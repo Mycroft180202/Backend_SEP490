@@ -83,6 +83,41 @@ export const AuthService = {
 
         const res = await axiosClient.get(API_ENDPOINTS.USERS.USERS_PROFILE);
         return res.data;
-    }
+    },
 
-};
+    /**
+     * Gửi OTP đến email
+     * @param {string} email
+     * @returns {Promise<{ message: string }>}
+     */
+    async sendOtp(email) {
+    const res = await axiosClient.post(API_ENDPOINTS.PASSWORD.FORGOT_PASSWORD, JSON.stringify(email), {
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': '*/*'
+        }
+    });
+    return res.data;
+},
+
+    /**
+     * Đặt lại mật khẩu
+     * @param {ResetPasswordRequest} data
+     * @returns {Promise<{ message: string }>} 
+     */
+    async resetPassword(data) {
+        const payload = {
+            email: data.email,
+            otpCode: data.otpCode,
+            newPassword: data.newPassword
+        };
+
+        const res = await axiosClient.post(API_ENDPOINTS.PASSWORD.RESET_PASSWORD, payload, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': '*/*'
+            }
+        });
+        return res.data;
+    },
+}

@@ -139,7 +139,7 @@ const handleRememberMe = (e) => {
                   />
                   <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Ghi nhớ đăng nhập</span>
                 </label>
-                <Link to="/forgot" className="text-[#9E211F] hover:underline" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Quên mật khẩu?</Link>
+                <Link to="/forgot-password" className="text-[#9E211F] hover:underline" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Quên mật khẩu?</Link>
               </div>
 
               <button
