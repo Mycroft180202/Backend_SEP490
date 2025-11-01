@@ -44,7 +44,7 @@ namespace Backend_SEP490.IntegrationTests.Auth
             var formData = new Dictionary<string, string>
             {
                 { "Username", "MinhBDHE170083" },
-                { "Password", "MinhG2k3vn" }
+                { "Password", "NewPassword123!" }
             };
             var loginRequest = new FormUrlEncodedContent(formData);
             // Act
