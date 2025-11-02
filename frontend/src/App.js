@@ -11,6 +11,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import './App.css';
 import ArtisanShop from './pages/ArtisanShop';
 import Cart from './pages/Cart';
+import ProductDetail from './pages/ProductDetail';
 
 function App() {
   return (
@@ -23,8 +24,9 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/product-detail" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
-        <Route path="/artisanShop" element={<ArtisanShop />} />
+        <Route path="/artisan-shop" element={<ArtisanShop />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
