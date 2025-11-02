@@ -108,7 +108,7 @@ namespace Backend_SEP490.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
             var userId = User.FindFirstValue("userID");
-            var status = _addressServices.CreateUserAddressAsync(userId, request);
+            var status = await _addressServices.CreateUserAddressAsync(userId, request);
             return Ok(status);
         }
 
@@ -117,14 +117,14 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var status = _addressServices.UpdateUserAddressAsync(addressId, request);
+            var status = await _addressServices.UpdateUserAddressAsync(addressId, request);
             
             return Ok(status);
         }
         [HttpDelete("users/address/{id}")]
         public async Task<IActionResult> DeleteUsersAddress([FromRoute] string addressId)
         {
-            var status = _addressServices.DeleteUserAddressAsync(addressId);
+            var status = await _addressServices.DeleteUserAddressAsync(addressId);
             return Ok(status);
         }
 
