@@ -37,7 +37,27 @@ export default function ShortDescription() {
       <div className="flex flex-col md:flex-row gap-10 items-start max-w-[1200px] w-full px-6">
 
         {/* Ô vuông bên trái, 50% */}
-        <div className="w-full md:w-1/2 rounded-[24px] bg-[#d9d9d9] h-[458px]"></div>
+        <div className="w-full md:w-1/2 rounded-[24px] bg-[#d9d9d9] h-[458px] relative flex items-center justify-center">
+          {/* Nút mũi tên trái */}
+          <button
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white rounded-full shadow p-2 hover:bg-gray-200 transition"
+            aria-label="Ảnh trước"
+            style={{ zIndex: 2 }}
+          >
+            {/* Dùng emoji hoặc SVG, có thể thay bằng icon khác nếu muốn */}
+            <span style={{ fontSize: 24 }}>&#8592;</span>
+          </button>
+          {/* Ảnh chính (có thể thay bằng <img src=... /> nếu muốn) */}
+          {/* <img src={img} alt="Ảnh sản phẩm" className="max-h-[90%] max-w-[80%] object-contain" /> */}
+          {/* Nút mũi tên phải */}
+          <button
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-full shadow p-2 hover:bg-gray-200 transition"
+            aria-label="Ảnh sau"
+            style={{ zIndex: 2 }}
+          >
+            <span style={{ fontSize: 24 }}>&#8594;</span>
+          </button>
+        </div>
 
         {/* Nội dung bên phải, 50% */}
         <div className="flex flex-col gap-4 w-full md:w-1/2">

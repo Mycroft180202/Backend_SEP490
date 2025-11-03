@@ -3,6 +3,7 @@ import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
 import ShortDescription from '../components/productDetail/ShortDescription';
 import Detail from '../components/productDetail/Detail';
+import RelationProduct from '../components/productDetail/RelationProduct';
 
 
 
@@ -13,6 +14,7 @@ const ProductDetail = () => {
       <main className="flex-grow">
         <ShortDescription /> 
         <Detail />
+        <RelationProduct />
       </main>
       <Footer />
     </div>
