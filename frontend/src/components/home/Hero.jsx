@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import { Link } from "react-router-dom";
 import heroBg from '../../assets/images/hero-bg.jpg';
 import dragonfly1 from '../../assets/images/dragonfly1.png';
 import dragonfly2 from '../../assets/images/dragonfly2.png';
@@ -54,7 +55,7 @@ const Hero = () => {
 
         {/* Initial Content Container - will be hidden after animation */}
         {/* Text behind fans */}
-        <div className="absolute inset-0 flex items-center justify-center text-intro">
+        <div className="absolute inset-0 flex items-center justify-center text-intro z-40">
           <div className="max-w-[1000px] flex flex-col items-center gap-10 px-4">
             <div className="flex flex-col items-center gap-5 text-center">
               <h2 className="font-malko text-[40px] leading-[1.1em] text-white drop-shadow-lg">
@@ -65,10 +66,11 @@ const Hero = () => {
                 Bạn có thể khám phá các sản phẩm thủ công truyền thống đặc sắc chỉ có tại Hòa Lạc
               </p>
             </div>
-
-            <button className="px-6 py-2.5 bg-[#FBC04C] rounded-xl font-nunito font-semibold text-lg text-black hover:bg-opacity-90 transition-colors">
-              Khám phá
-            </button>
+             <Link to="/shop">
+               <button className="px-6 py-2.5 bg-[#FBC04C] rounded-xl font-nunito font-semibold text-lg text-black hover:bg-opacity-90 transition-colors">
+                 Khám phá
+               </button>
+             </Link>
           </div>
         </div>
 

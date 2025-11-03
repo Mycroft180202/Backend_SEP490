@@ -47,4 +47,13 @@ export const ProductService = {
     }
   },
 
+  getProductsByCategory: async (categoryId, params = {}) => {
+    try {
+      const response = await axiosClient.get(`${API_ENDPOINTS.PRODUCTS.GET_ALL}?categoryId=${categoryId}`, { params });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
 };

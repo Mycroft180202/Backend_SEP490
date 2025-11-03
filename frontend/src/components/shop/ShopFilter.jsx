@@ -26,7 +26,7 @@ export default function ShopFilter({ selectedCategory, onCategoryChange }) {
             <div
               key={category.id}
               className="bg-[#faf998] p-4 rounded-lg cursor-pointer"
-              onClick={() => onCategoryChange(category.name)}
+              onClick={() => onCategoryChange(category.id)}
             >
               {category.name || 'Unnamed Category'}
             </div>
