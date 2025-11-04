@@ -27,9 +27,15 @@ namespace Backend_SEP490.Controllers
         [HttpPost("carts")]
         public async Task<IActionResult> AddCartItems([FromBody] RequestAddCartItem request)
         {
-            var userId = User.FindFirst("userId")?.Value;
-            var status = _cartService.AddCartItemAsync(userId, request);
-            return Ok(status);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            else
+            {
+                var userId = User.FindFirst("userId")?.Value;
+                var status = _cartService.AddCartItemAsync(userId, request);
+                return Ok(status);    
+            }
+            
         }
         [HttpPut("carts/{id}")]
         public async Task<IActionResult> UpdateCartItems([FromRoute] string cartItemId, int quantity)

@@ -36,6 +36,8 @@ public class ProductCollectionController: ControllerBase
     [HttpPost("productcollection")]
     public async Task<IActionResult> Create([FromForm] RequestDTOCreateProductCollection dto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
         var userid= User.FindFirstValue("UserID");
         dto.CreatedById = userid;
         var result= _productCollectionServices.CreateAsync(dto);
