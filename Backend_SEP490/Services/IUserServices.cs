@@ -9,6 +9,7 @@ public interface IUserServices
     public Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter, int pageIndex, int pageSize);
     public Task<ResponseDTOUser?> GetUserByIDAsync(string userID);
     public Task<string?> UpdateUserAsync(string userID, RequestUpdateUser request);
+    public Task<string?> UpdateUserAsync(string userID, RequestAdminUpdateUser request);
     public Task<ResponseDTOUser?> GetUserByArtisanIDAsync(string artisanID);
 
     Task<ResponseDTOAuth?> LoginAsync(string username, string password);

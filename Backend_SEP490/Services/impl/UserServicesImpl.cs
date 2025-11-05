@@ -331,4 +331,19 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         return "Change password successfully!";
     }
+
+    public async Task<string?> UpdateUserAsync(string userID, RequestAdminUpdateUser request)
+    {
+        var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
+
+        if (user == null)
+        {
+            return "User not found!";
+        }
+
+        var status = await _context.Users.UpdateUserAsync(user, request);
+
+
+        return status;
+    }
 }

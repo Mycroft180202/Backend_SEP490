@@ -45,7 +45,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPut("users/{id}")]
-        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromBody] RequestUpdateUser request)
+        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromBody] RequestAdminUpdateUser request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
