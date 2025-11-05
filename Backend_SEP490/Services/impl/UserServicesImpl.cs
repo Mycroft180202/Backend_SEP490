@@ -5,8 +5,11 @@ using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
@@ -24,12 +27,13 @@ public class UserServicesImpl : GenericServices, IUserServices
     private readonly string _jwtAudience;
     private readonly double _jwtExpireMinutes;
     private readonly double _jwtRefreshTokenExpireDays;
+    private readonly Cloudinary _cloudinary;
 
-
-    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IEmailService emailService)
+    public UserServicesImpl(IMapper mapper, IUnitOfWork unitOfWork, IEmailService emailService, Cloudinary cloudinary)
         : base(mapper, unitOfWork)
     {
         _emailService = emailService;
+        _cloudinary = cloudinary;
         // Lấy từ environment
         _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new Exception("JWT_KEY is not set");
         _jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? throw new Exception("JWT_ISSUER is not set");
@@ -82,8 +86,14 @@ public class UserServicesImpl : GenericServices, IUserServices
         {
             return "User not found!";
         }
+        using var stream = request.UserUrlImage.OpenReadStream();
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(request.UserUrlImage.FileName, stream)
+        };
 
-        var status = await _context.Users.UpdateUserAsync(user, request);
+        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+        var status = await _context.Users.UpdateUserAsync(user, request, uploadResult.SecureUrl.ToString());
 
 
         return status;

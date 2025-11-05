@@ -1,5 +1,7 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Models;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend_SEP490.Repositories.impl;
@@ -31,27 +33,15 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return user;
     }
 
-    public async Task<string?> UpdateUserAsync(User user, RequestUpdateUser request)
+    public async Task<string?> UpdateUserAsync(User user, RequestUpdateUser request, string imageURL)
     {
         //Chỉnh sửa thông tin user
         try
         {
-            if (!string.IsNullOrEmpty(request.DisplayName))
-            {
                 user.DisplayName = request.DisplayName;
-            }
-            if (!string.IsNullOrEmpty(request.PhoneNumber))
-            {
                 user.PhoneNumber = request.PhoneNumber;
-            }
-            if (!string.IsNullOrEmpty(request.UserUrlImage))
-            {
-                user.UserUrlImage = request.UserUrlImage;
-            }
-            if (request.Dob != null)
-            {
-                user.Dob = request.Dob;
-            }
+                user.UserUrlImage = imageURL;
+                user.Dob = DateTime.SpecifyKind(request.Dob.Value, DateTimeKind.Utc);
         }
         catch (Exception ex)
         {

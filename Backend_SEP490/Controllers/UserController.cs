@@ -69,12 +69,11 @@ namespace Backend_SEP490.Controllers
 
         
         [HttpPut("users/me")]
-        public async Task<IActionResult> UpdateUsersProfile([FromBody] RequestUpdateUser request)
+        public async Task<IActionResult> UpdateUsersProfile([FromForm] RequestUpdateUser request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
             var userId = User.FindFirstValue("userID");
-
 
 
             var users = await _userServices.UpdateUserAsync(userId, request);

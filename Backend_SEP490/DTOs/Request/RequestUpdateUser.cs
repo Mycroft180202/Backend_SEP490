@@ -19,9 +19,7 @@ namespace Backend_SEP490.DTOs.Request
         public DateTime? Dob { get; set; }
 
         
-
-        [Url(ErrorMessage = "Đường dẫn hình ảnh không hợp lệ")]
-        public string? UserUrlImage { get; set; }
+        public IFormFile? UserUrlImage { get; set; } 
 
         public static ValidationResult? ValidateDob(DateTime? dob, ValidationContext context)
         {
