@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import AboutUs from './pages/AboutUs';
 import Shop from './pages/Shop';
 import Login from './pages/Login';
+import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
 import './App.css';
 import ArtisanShop from './pages/ArtisanShop';
@@ -21,6 +22,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/shop" element={<Shop />} />

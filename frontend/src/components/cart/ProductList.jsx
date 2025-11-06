@@ -1,6 +1,5 @@
 import React from 'react';
-import { Pagination } from '../shop/ShopComponents';
-
+import Pagination from '../shared/Pagination';
 
 const imgLine9 = "/images/Line9.png";
 const imgLine12 = "/images/Line12.png";
