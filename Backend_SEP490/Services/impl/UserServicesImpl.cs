@@ -89,7 +89,7 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         string url = user.UserUrlImage;
 
-        if (request.UserUrlImage != null)
+        if (request.UserUrlImage != null && !request.UserUrlImage.Equals(url))
         {
             using var stream = request.UserUrlImage.OpenReadStream();
             var uploadParams = new ImageUploadParams
