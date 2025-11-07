@@ -17,7 +17,8 @@ const ForgotPassword = () => {
   const showToastSuccessThenRedirect = (message) => {
     toast.success(message, { autoClose: 3500 });
     setTimeout(() => {
-      navigate('/');
+      localStorage.removeItem('accessToken');
+      navigate('/login');
     }, 3600);
   };
 
