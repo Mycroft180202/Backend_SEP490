@@ -89,14 +89,14 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         string url = user.UserUrlImage;
 
-        if (request.UserUrlImage != null && !request.UserUrlImage.Equals(url))
+        if (request.UserUrlImage != null)
         {
             using var stream = request.UserUrlImage.OpenReadStream();
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(request.UserUrlImage.FileName, stream)
             };
-
+            
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
             url = uploadResult.SecureUrl.ToString();
         }
