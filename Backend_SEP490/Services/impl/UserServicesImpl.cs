@@ -86,14 +86,20 @@ public class UserServicesImpl : GenericServices, IUserServices
         {
             return "User not found!";
         }
-        using var stream = request.UserUrlImage.OpenReadStream();
-        var uploadParams = new ImageUploadParams
-        {
-            File = new FileDescription(request.UserUrlImage.FileName, stream)
-        };
 
-        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-        var status = await _context.Users.UpdateUserAsync(user, request, uploadResult.SecureUrl.ToString());
+        string url = null;
+        if (request.UserUrlImage != null)
+        {
+            using var stream = request.UserUrlImage.OpenReadStream();
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(request.UserUrlImage.FileName, stream)
+            };
+
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            url = uploadResult.SecureUrl.ToString();
+        }
+        var status = await _context.Users.UpdateUserAsync(user, request, url);
 
 
         return status;
