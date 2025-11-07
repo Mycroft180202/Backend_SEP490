@@ -19,7 +19,7 @@ export const API_ENDPOINTS = {
   
   USERS: {
     USERS_PROFILE: '/users/me',
-    UPDATE_PROFILE: '/users/profile/update',
+    UPDATE_PROFILE: '/users/me',
     DELETE_ACCOUNT: '/users/profile/delete',
   },
 

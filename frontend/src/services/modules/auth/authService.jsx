@@ -120,4 +120,35 @@ export const AuthService = {
         });
         return res.data;
     },
+
+    /**
+     * Cập nhật thông tin người dùng
+     * @param {UpdateProfileRequest} data
+     * @returns {Promise<UpdateProfileResponse>}
+     */
+    async updateProfile(data) {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+            throw new Error('Token không tồn tại');
+        }
+
+        const formData = new FormData();
+        // Luôn gửi tất cả các trường, không để undefined/null
+        formData.append('PhoneNumber', data.PhoneNumber || '');
+        formData.append('DisplayName', data.DisplayName || '');
+        formData.append('Dob', data.Dob || '');
+        
+        // Chỉ append UserUrlImage nếu có file mới
+        if (data.UserUrlImage && data.UserUrlImage instanceof File) {
+            formData.append('UserUrlImage', data.UserUrlImage);
+        }
+
+        const res = await axiosClient.put(API_ENDPOINTS.USERS.UPDATE_PROFILE, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        return res.data;
+    },
 }

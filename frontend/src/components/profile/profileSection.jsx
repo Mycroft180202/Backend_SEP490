@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthService } from '../../services/modules/auth/authService';
-import { FaUserCircle, FaPhoneAlt, FaHeart, FaHistory, FaLock, FaSignOutAlt, FaUserTie, FaEnvelope, FaKey, FaPaperPlane } from 'react-icons/fa';
+import { FaUserCircle, FaPhoneAlt, FaHeart, FaHistory, FaLock, FaSignOutAlt, FaUserTie, FaEnvelope, FaKey, FaPaperPlane, FaCamera, FaEdit, FaEye } from 'react-icons/fa';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -131,13 +131,18 @@ function ProfileSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('info');
+  const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedProfile, setEditedProfile] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         setLoading(true);
         const data = await AuthService.getUserInfo();
-        setProfile({
+        const profileData = {
           name: data.displayName || data.fullName || '',
           phone: data.phoneNumber || '',
           email: data.email || '',
@@ -145,7 +150,9 @@ function ProfileSection() {
           dob: data.dob || '',
           userUrlImage: data.userUrlImage || null,
           addresses: Array.isArray(data.addresses) ? data.addresses : [],
-        });
+        };
+        setProfile(profileData);
+        setEditedProfile(profileData);
         setLoading(false);
       } catch (err) {
         setError('Không thể lấy thông tin người dùng');
@@ -155,19 +162,157 @@ function ProfileSection() {
     fetchUser();
   }, []);
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Kích thước ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file ảnh');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Gửi tất cả thông tin hiện tại + file ảnh mới
+      const updateData = {
+        PhoneNumber: profile.phone || '',
+        DisplayName: profile.name || '',
+        Dob: profile.dob || '',
+        UserUrlImage: file,
+      };
+
+      await AuthService.updateProfile(updateData);
+      
+      const updatedData = await AuthService.getUserInfo();
+      const newProfile = {
+        name: updatedData.displayName || updatedData.fullName || '',
+        phone: updatedData.phoneNumber || '',
+        email: updatedData.email || '',
+        username: updatedData.username || '',
+        dob: updatedData.dob || '',
+        userUrlImage: updatedData.userUrlImage || null,
+        addresses: Array.isArray(updatedData.addresses) ? updatedData.addresses : [],
+      };
+      setProfile(newProfile);
+      setEditedProfile(newProfile);
+      toast.success('Cập nhật ảnh đại diện thành công!');
+    } catch (err) {
+      console.error('Update avatar error:', err);
+      toast.error(err?.response?.data?.message || 'Không thể cập nhật ảnh đại diện');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewImage = () => {
+    setShowImageModal(true);
+  };
+
+  const handleEditToggle = () => {
+    setIsEditMode(!isEditMode);
+    if (isEditMode) {
+      setEditedProfile(profile);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditedProfile({ ...editedProfile, [field]: value });
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setLoading(true);
+      const updateData = {
+        PhoneNumber: editedProfile.phone,
+        DisplayName: editedProfile.name,
+        Dob: editedProfile.dob,
+        // Không gửi UserUrlImage khi chỉ update thông tin text
+      };
+
+      await AuthService.updateProfile(updateData);
+      
+      const updatedData = await AuthService.getUserInfo();
+      const newProfile = {
+        name: updatedData.displayName || updatedData.fullName || '',
+        phone: updatedData.phoneNumber || '',
+        email: updatedData.email || '',
+        username: updatedData.username || '',
+        dob: updatedData.dob || '',                                                               
+        userUrlImage: updatedData.userUrlImage || null,
+        addresses: Array.isArray(updatedData.addresses) ? updatedData.addresses : [],
+      };
+      setProfile(newProfile);
+      setEditedProfile(newProfile);
+      setIsEditMode(false);
+      toast.success('Cập nhật thông tin thành công!');
+    } catch (err) {
+      console.error('Lỗi khi cập nhật thông tin:', err);
+      toast.error(err.message || 'Không thể cập nhật thông tin');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Đang tải thông tin...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
   if (!profile) return null;
 
   return (
     <div className="bg-[#fdfde9] min-h-screen flex">
+      <ToastContainer position="top-right" autoClose={3500} />
       {/* Sidebar */}
       <aside className="w-1/4 px-8 py-12 flex flex-col items-center border-r border-[#e5e5e5]">
-        <img
-          src={profile.userUrlImage ? profile.userUrlImage : '/images/default-avatar.png'}
-          alt="User Avatar"
-          className="w-28 h-28 rounded-full object-cover mb-4 border"
-        />
+        <div 
+          className="relative mb-4"
+          onMouseEnter={() => setIsHoveringAvatar(true)}
+          onMouseLeave={() => setIsHoveringAvatar(false)}
+        >
+          <img
+            src={profile.userUrlImage ? profile.userUrlImage : '/images/default-avatar.png'}
+            alt="User Avatar"
+            className="w-28 h-28 rounded-full object-cover border"
+          />
+          {isHoveringAvatar && (
+            <div className="absolute inset-0 rounded-full overflow-hidden">
+              {/* Top half - View image */}
+              <div 
+                className="absolute top-0 left-0 right-0 h-1/2 bg-black bg-opacity-50 flex items-center justify-center cursor-pointer transition-all hover:bg-opacity-70"
+                onClick={handleViewImage}
+              >
+                <div className="text-white text-center">
+                  <FaEye className="mx-auto mb-1" size={20} />
+                  <span className="text-xs">Xem ảnh</span>
+                </div>
+              </div>
+              {/* Bottom half - Change image */}
+              <div 
+                className="absolute bottom-0 left-0 right-0 h-1/2 bg-black bg-opacity-50 flex items-center justify-center cursor-pointer transition-all hover:bg-opacity-70"
+                onClick={handleAvatarClick}
+              >
+                <div className="text-white text-center">
+                  <FaCamera className="mx-auto mb-1" size={20} />
+                  <span className="text-xs">Đổi ảnh</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            className="hidden"
+          />
+        </div>
         <div className="font-bold text-lg mb-2">{profile.name}</div>
         <nav className="w-full mt-6">
           <ul className="space-y-4">
@@ -221,14 +366,29 @@ function ProfileSection() {
               </div>
               <div>
                 <label className="block mb-2 font-medium">Tên</label>
-                <input type="text" value={profile.name} className="w-full border rounded px-4 py-2" readOnly />
+                <input 
+                  type="text" 
+                  value={isEditMode ? editedProfile.name : profile.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  className="w-full border rounded px-4 py-2" 
+                  readOnly={!isEditMode}
+                />
               </div>
               <div>
                 <label className="block mb-2 font-medium">Số điện thoại</label>
-                <div className="flex items-center border rounded px-4 py-2 bg-white">
-                  <FaPhoneAlt className="mr-2 text-gray-400" />
-                  <span>{profile.phone}</span>
-                </div>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={editedProfile.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="w-full border rounded px-4 py-2"
+                  />
+                ) : (
+                  <div className="flex items-center border rounded px-4 py-2 bg-white">
+                    <FaPhoneAlt className="mr-2 text-gray-400" />
+                    <span>{profile.phone}</span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block mb-2 font-medium">Email</label>
@@ -243,20 +403,76 @@ function ProfileSection() {
               </div>
               <div>
                 <label className="block mb-2 font-medium">Ngày tháng năm sinh</label>
-                <input
-                  type="text"
-                  value={profile.dob ? new Date(profile.dob).toLocaleDateString('vi-VN') : ''}
-                  className="w-full border rounded px-4 py-2"
-                  readOnly
-                />
+                {isEditMode ? (
+                  <input
+                    type="date"
+                    value={editedProfile.dob ? new Date(editedProfile.dob).toISOString().split('T')[0] : ''}
+                    onChange={(e) => handleInputChange('dob', e.target.value)}
+                    className="w-full border rounded px-4 py-2"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={profile.dob ? new Date(profile.dob).toLocaleDateString('vi-VN') : ''}
+                    className="w-full border rounded px-4 py-2"
+                    readOnly
+                  />
+                )}
               </div>
             </form>
-            <button className="mt-8 px-8 py-2 bg-[#9e211f] text-white rounded font-semibold">Sửa thông tin</button>
+            <div className="mt-8 flex gap-4">
+              {!isEditMode ? (
+                <button 
+                  onClick={handleEditToggle}
+                  className="px-8 py-2 bg-[#9e211f] text-white rounded font-semibold flex items-center gap-2"
+                >
+                  <FaEdit /> Sửa thông tin
+                </button>
+              ) : (
+                <>
+                  <button 
+                    onClick={handleSaveProfile}
+                    disabled={loading}
+                    className="px-8 py-2 bg-green-600 text-white rounded font-semibold"
+                  >
+                    {loading ? 'Đang lưu...' : 'Lưu thông tin'}
+                  </button>
+                  <button 
+                    onClick={handleEditToggle}
+                    className="px-8 py-2 bg-gray-500 text-white rounded font-semibold"
+                  >
+                    Hủy
+                  </button>
+                </>
+              )}
+            </div>
           </>
         ) : (
           <ChangePasswordSection email={profile.email} />
         )}
       </main>
+
+      {/* Image Modal */}
+      {showImageModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] p-4">
+            <button 
+              className="absolute top-2 right-2 text-white hover:text-gray-300 text-3xl"
+              onClick={() => setShowImageModal(false)}
+            >
+              ×
+            </button>
+            <img
+              src={profile.userUrlImage || '/images/default-avatar.png'}
+              alt="User Avatar Full Size"
+              className="max-w-full max-h-[85vh] object-contain rounded"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
