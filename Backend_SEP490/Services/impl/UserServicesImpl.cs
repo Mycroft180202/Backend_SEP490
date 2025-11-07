@@ -60,7 +60,7 @@ public class UserServicesImpl : GenericServices, IUserServices
         {
             users = users.Where(u => u.UserRoles.Any(ur => requestFilter.roleId.Equals(ur.RoleID))).ToList();
         }
-       
+
         var userList = _mapper.Map<IEnumerable<ResponseDTOUser>>(users);
 
         return new PagedResult<ResponseDTOUser>
@@ -87,7 +87,8 @@ public class UserServicesImpl : GenericServices, IUserServices
             return "User not found!";
         }
 
-        string url = null;
+        string url = user.UserUrlImage;
+
         if (request.UserUrlImage != null)
         {
             using var stream = request.UserUrlImage.OpenReadStream();
@@ -99,6 +100,7 @@ public class UserServicesImpl : GenericServices, IUserServices
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
             url = uploadResult.SecureUrl.ToString();
         }
+
         var status = await _context.Users.UpdateUserAsync(user, request, url);
 
 
