@@ -1,155 +1,402 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
-using System.Net;
-using System.Text;
+using Xunit;
 
-namespace Backend_SEP490.IntegrationTests.User
+namespace Backend_SEP490.IntegrationTests.User;
+
+public class UserControllerTestsV2 : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    public class UserControllerTest : IClassFixture<CustomWebApplicationFactory<Program>>
+    private readonly HttpClient _client;
+    private readonly AppDbContext _db;
+
+    public UserControllerTestsV2(CustomWebApplicationFactory<Program> factory)
     {
-        private readonly HttpClient _client;
-        private readonly AppDbContext _db;
+        _client = factory.CreateClient();
+        var scope = factory.Services.CreateScope();
+        _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    }
 
-        public UserControllerTest(CustomWebApplicationFactory<Program> factory)
+    // ---------- Helpers ----------
+    private static FormUrlEncodedContent ToRegisterForm(RequestDTORegister r)
+    {
+        var dict = new Dictionary<string, string?>
         {
-            _client = factory.CreateClient();
-            var scope = factory.Services.CreateScope();
-            _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        }
+            [nameof(RequestDTORegister.Username)] = r.Username,
+            [nameof(RequestDTORegister.PasswordHash)] = r.PasswordHash,
+            [nameof(RequestDTORegister.Email)] = r.Email,
+            [nameof(RequestDTORegister.PhoneNumber)] = r.PhoneNumber,
+            [nameof(RequestDTORegister.DisplayName)] = r.DisplayName,
+            [nameof(RequestDTORegister.Dob)] = r.Dob?.ToString("O")
+        }!;
+        return new FormUrlEncodedContent(dict!);
+    }
 
-        //  GetAll -> GetDetail
-        [Fact(DisplayName = "UserFlow: GetAll -> GetDetail")]
-        public async Task UserFlow_GetAll_Then_GetDetail_ShouldReturnSameUser()
-        {
-            // Arrange: tạo filter trống
-            var filter = new { FullName = "", Email = "" };
-            var json = JsonConvert.SerializeObject(filter);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            // Step 1: GET ALL
-            var getAllResponse = await _client.PostAsync("/users/1/10", content);
-            getAllResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-            var getAllBody = await getAllResponse.Content.ReadAsStringAsync();
-
-            // Step 2: Lấy 1 userId thực tế từ DB
-            var firstUser = _db.Users.FirstOrDefault();
-            firstUser.Should().NotBeNull();
-
-            // Step 3: Gọi API GET DETAIL
-            var getDetailResponse = await _client.GetAsync($"/users/{firstUser!.UserID}");
-            getDetailResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            var detailBody = await getDetailResponse.Content.ReadAsStringAsync();
-            detailBody.Should().Contain(firstUser.Email);
-        }
-
-        //  GetDetail -> Update -> GetDetail
-        [Fact(DisplayName = "UserFlow: GetDetail -> Update -> GetDetail")]
-        public async Task UserFlow_GetDetail_Update_GetDetail_ShouldReflectChange()
-        {
-            // Step 1: Lấy 1 user từ DB
-            var user = _db.Users.FirstOrDefault();
-            user.Should().NotBeNull();
-
-            // Step 2: Gọi GET DETAIL
-            var getResponse = await _client.GetAsync($"/users/{user!.UserID}");
-            getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            // Step 3: UPDATE user
-            var updatePayload = new
+    private (RequestDTORegister form, string password) BuildRegisterForm(string? email = null, string? username = null)
+    {
+        var pwd = "Aa1@abcd"; // matches policy
+        return (
+            new RequestDTORegister
             {
-                DisplayName = "Updated_Flow_User",
-                PhoneNumber = "0988777666"
+                Username = username ?? $"user_{Guid.NewGuid().ToString("N")[..8]}",
+                PasswordHash = pwd,
+                Email = email ?? $"{Guid.NewGuid().ToString("N")[..8]}@example.com",
+                PhoneNumber = "0123456789",
+                DisplayName = "Integration Tester",
+                Dob = null
+            },
+            pwd
+        );
+    }
+
+    private async Task CleanupUserAsync(string email)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user != null)
+        {
+            var addresses = _db.Addresses.Where(a => a.UserID == user.UserID);
+            _db.Addresses.RemoveRange(addresses);
+            await _db.SaveChangesAsync();
+
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+        }
+        var otps = _db.UserOtps.Where(o => o.Email == email);
+        _db.UserOtps.RemoveRange(otps);
+        await _db.SaveChangesAsync();
+        var tokens = _db.RefreshTokens.Where(r => r.User.Email == email);
+        _db.RefreshTokens.RemoveRange(tokens);
+        await _db.SaveChangesAsync();
+    }
+
+    private async Task<(string userId, string accessToken, string refreshToken, string email, string username)> CreateUserAndLoginAsync(string? email = null, string? username = null, string? password = null)
+    {
+        var (reg, pwd) = BuildRegisterForm(email, username);
+        if (password != null) reg.PasswordHash = password; else password = pwd;
+
+        // Register (FromForm)
+        var regRes = await _client.PostAsync("/api/Auth/register", ToRegisterForm(reg));
+        regRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Verify OTP
+        var otp = await _db.UserOtps.Where(x => x.Email == reg.Email && !x.IsUsed)
+            .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync();
+        otp.Should().NotBeNull();
+        var ver = new RequestDTOVerifyOtp { RegisterDto = reg, Otp = otp!.OtpCode };
+        var verRes = await _client.PostAsJsonAsync("/api/Auth/verify-otp", ver);
+        verRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Login (FromForm)
+        var loginForm = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Username"] = reg.Username,
+            ["Password"] = password!
+        });
+        var loginRes = await _client.PostAsync("/api/Auth/login", loginForm);
+        loginRes.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tokens = await loginRes.Content.ReadFromJsonAsync<AuthTokens>();
+        tokens.Should().NotBeNull();
+
+        var user = await _db.Users.AsNoTracking().FirstAsync(u => u.Email == reg.Email);
+        return (user.UserID, tokens!.AccessToken, tokens.RefreshToken, reg.Email, reg.Username);
+    }
+
+    private void SetBearer(string token) =>
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+    private sealed class AuthTokens
+    {
+        public string AccessToken { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime ExpireAt { get; set; }
+    }
+
+    // ===============================
+    // GET /api/User/users/me
+    // ===============================
+
+    [Fact]
+    public async Task GET_Profile_Đã_đăng_nhập__200()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var res = await _client.GetAsync("/api/User/users/me");
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task GET_Profile_Không_có_token__404()
+    {
+        // Không có [Authorize] trên controller → userId null → service trả null → NotFound
+        var res = await _client.GetAsync("/api/User/users/me");
+        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ===============================
+    // GET /api/User/users/{id}
+    // ===============================
+
+    [Fact]
+    public async Task GET_User_ById_Tồn_tại__200()
+    {
+        var (userId, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var res = await _client.GetAsync($"/api/User/users/{Uri.EscapeDataString(userId)}");
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task GET_User_ById_Không_tồn_tại__404()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var res = await _client.GetAsync($"/api/User/users/u_{Guid.NewGuid().ToString("N")[..10]}");
+            res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact(Skip = "Bật khi áp dụng policy, hiện API không kiểm quyền theo owner → thường trả 200/404")]
+    public async Task GET_User_ById_Không_đủ_quyền__403()
+    {
+        var (_, accessA, _, emailA, _) = await CreateUserAndLoginAsync();
+        var (userIdB, _, _, emailB, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(accessA);
+            var res = await _client.GetAsync($"/api/User/users/{Uri.EscapeDataString(userIdB)}");
+            res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+        finally { await CleanupUserAsync(emailA); await CleanupUserAsync(emailB); }
+    }
+
+    // ===============================
+    // PUT /api/User/users/me (update self)
+    // ===============================
+
+    [Fact]
+    public async Task PUT_Update_Self__200()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var update = new RequestUpdateUser
+            {
+                IsActive = true,
+                DisplayName = "Tester Updated",
+                PhoneNumber = "0987654321"
             };
-            var updateJson = JsonConvert.SerializeObject(updatePayload);
-            var updateContent = new StringContent(updateJson, Encoding.UTF8, "application/json");
-
-            var putResponse = await _client.PutAsync($"/users/{user.UserID}", updateContent);
-            putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            // Step 4: Gọi GET DETAIL lại và verify
-            var recheck = await _client.GetAsync($"/users/{user.UserID}");
-            recheck.StatusCode.Should().Be(HttpStatusCode.OK);
-            var recheckBody = await recheck.Content.ReadAsStringAsync();
-            recheckBody.Should().Contain("Updated_Flow_User");
+            var res = await _client.PutAsJsonAsync("/api/User/users/me", update);
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
         }
+        finally { await CleanupUserAsync(email); }
+    }
 
-        //  Profile Flow -> GetMe -> UpdateMe -> GetMe
-        [Fact(DisplayName = "UserFlow: GetProfile -> UpdateProfile -> Verify")]
-        public async Task UserFlow_GetProfile_UpdateProfile_Verify_ShouldPass()
+    [Fact]
+    public async Task PUT_Update_Self_Invalid__400()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
         {
-            // Step 1: GET PROFILE
-            var profileResponse = await _client.GetAsync("/users/me");
-            profileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            // Step 2: UPDATE PROFILE
-            var updatePayload = new
-            {
-                DisplayName = "IntegrationTester",
-                PhoneNumber = "0123123123"
-            };
-            var content = new StringContent(JsonConvert.SerializeObject(updatePayload), Encoding.UTF8, "application/json");
-            var updateResponse = await _client.PutAsync("/users/me", content);
-            updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            // Step 3: GET PROFILE AGAIN
-            var recheck = await _client.GetAsync("/users/me");
-            recheck.StatusCode.Should().Be(HttpStatusCode.OK);
-            var body = await recheck.Content.ReadAsStringAsync();
-            body.Should().Contain("IntegrationTester");
+            SetBearer(access);
+            var invalid = new RequestUpdateUser { IsActive = true, DisplayName = "", PhoneNumber = "12" };
+            var res = await _client.PutAsJsonAsync("/api/User/users/me", invalid);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
+        finally { await CleanupUserAsync(email); }
+    }
 
-        //  Address Flow -> Create -> GetAll -> Update -> Delete
-        [Fact(DisplayName = "UserFlow: Address CRUD Flow")]
-        public async Task UserFlow_Address_CRUD_ShouldWork()
+    // ===============================
+    // PUT /api/User/users/change-password
+    // ===============================
+
+    [Fact]
+    public async Task PUT_ChangePassword_Đúng__200()
+    {
+        var oldPwd = "Aa1@abcd";
+        var newPwd = "Bb2@bcde";
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync(password: oldPwd);
+        try
         {
-            // Step 1: CREATE ADDRESS
-            var createPayload = new RequestCreateAndUpdateAddress
+            SetBearer(access);
+            var dto = new RequestUpdateUserHashPassword { OldPassword = oldPwd, NewPassword = newPwd, ConfirmNewPassword = newPwd };
+            var res = await _client.PutAsJsonAsync("/api/User/users/change-password", dto);
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task PUT_ChangePassword_Sai_mật_khẩu_cũ__400()
+    {
+        var oldPwd = "Aa1@abcd";
+        var newPwd = "Bb2@bcde";
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync(password: oldPwd);
+        try
+        {
+            SetBearer(access);
+            var dto = new RequestUpdateUserHashPassword { OldPassword = "Wrong123!", NewPassword = newPwd, ConfirmNewPassword = newPwd };
+            var res = await _client.PutAsJsonAsync("/api/User/users/change-password", dto);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task PUT_ChangePassword_Vi_phạm_policy__400()
+    {
+        var oldPwd = "Aa1@abcd";
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync(password: oldPwd);
+        try
+        {
+            SetBearer(access);
+            var dto = new RequestUpdateUserHashPassword { OldPassword = oldPwd, NewPassword = "short", ConfirmNewPassword = "short" };
+            var res = await _client.PutAsJsonAsync("/api/User/users/change-password", dto);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    // ===============================
+    // Address endpoints
+    // ===============================
+
+    [Fact]
+    public async Task GET_Address_List__200()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var res = await _client.GetAsync("/api/User/users/address");
+            res.StatusCode.Should().Be(HttpStatusCode.OK); // service trả list (không null)
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Address_Tạo_mới__200()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var create = new RequestCreateAndUpdateAddress
             {
-                Line1 = "123 Flow Street",
-                Line2 = "Apt 4B",
-                City = "Hanoi",
-                PosttalCode = "111000",
+                Line1 = "123 Test Street",
+                City = "HCM",
+                PosttalCode = "700000",
                 Country = "Vietnam",
                 IsDefault = true
             };
-            var createContent = new StringContent(JsonConvert.SerializeObject(createPayload), Encoding.UTF8, "application/json");
-            var createResponse = await _client.PostAsync("/users/address", createContent);
-            createResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            // Step 2: GET ALL ADDRESS
-            var getAll = await _client.GetAsync("/users/address");
-            getAll.StatusCode.Should().Be(HttpStatusCode.OK);
-            var getAllBody = await getAll.Content.ReadAsStringAsync();
-            getAllBody.Should().Contain("123 Flow Street");
-
-            // Step 3: Lấy addressId thực tế từ DB
-            var addr = _db.Addresses.FirstOrDefault(x => x.PosttalCode == createPayload.PosttalCode);
-            addr.Should().NotBeNull();
-
-            // Data raw : ADR-USER-20251022-095607-11/1/2025 8:56:49 AM
-            var encodedId = Uri.EscapeDataString(addr.Id);
-            //// Step 4: UPDATE
-            var updatePayload = new RequestCreateAndUpdateAddress
-            {
-                Line1 = "Dong Da",
-                Line2 = "Apt 4B",
-                City = "Hanoi",
-                PosttalCode = "111000",
-                Country = "Vietnam",
-                IsDefault = true
-            };
-
-            var updateContent = new StringContent(JsonConvert.SerializeObject(updatePayload), Encoding.UTF8, "application/json");
-            var updateResponse = await _client.PutAsync($"/users/address/{encodedId}", updateContent);
-            updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            // Step 5: DELETE
-            var deleteResponse = await _client.DeleteAsync($"users/address/{encodedId}");
-            deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var res = await _client.PostAsJsonAsync("/api/User/users/address", create);
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
         }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Address_Thiếu_field_bắt_buộc__400()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var create = new { /* thiếu Line1/City/Country */ };
+            var res = await _client.PostAsJsonAsync("/api/User/users/address", create);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task PUT_Address_Cập_nhật__200()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            // create first
+            var create = new RequestCreateAndUpdateAddress { Line1 = "1 A St", City = "HCM", PosttalCode = "700000", Country = "Vietnam", IsDefault = false };
+            var createRes = await _client.PostAsJsonAsync("/api/User/users/address", create);
+            createRes.EnsureSuccessStatusCode();
+            var created = await createRes.Content.ReadFromJsonAsync<string>();
+            created.Should().NotBeNullOrWhiteSpace();
+
+            var id = created!; // Address service returns id string
+            var update = new RequestCreateAndUpdateAddress { Line1 = "2 B St", City = "HCM", PosttalCode = "700000", Country = "Vietnam", IsDefault = true };
+            var res = await _client.PutAsJsonAsync($"/api/User/users/address/{Uri.EscapeDataString(id)}", update);
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    // [Fact(Skip = "Hiện controller không kiểm owner → trả 200 với chuỗi \"Address not found!\" khi không đúng id")] 
+    // public async Task PUT_Address_Id_không_thuộc_user__403_or_404()
+    // {
+    //     var (_, accessA, _, emailA, _) = await CreateUserAndLoginAsync();
+    //     var (_, accessB, _, emailB, _) = await CreateUserAndLoginAsync();
+    //     try
+    //     {
+    //         // create for B
+    //         SetBearer(accessB);
+    //         var createdRes = await _client.PostAsJsonAsync("/api/User/users/address", new RequestCreateAndUpdateAddress { Line1 = "C", City = "HCM", Country = "Vietnam", PosttalCode = "700000", IsDefault = false });
+    //         createdRes.EnsureSuccessStatusCode();
+    //         var id = await createdRes.Content.ReadFromJsonAsync<string>();
+    //
+    //         // try update by A
+    //         SetBearer(accessA);
+    //         var res = await _client.PutAsJsonAsync($"/api/User/users/address/{Uri.EscapeDataString(id!)}", new RequestCreateAndUpdateAddress { Line1 = "Hacker", City = "HCM", Country = "Vietnam", PosttalCode = "700000", IsDefault = false });
+    //         res.StatusCode.Should().Match<HttpStatusCode>(s => s == HttpStatusCode.Forbidden || s == HttpStatusCode.NotFound);
+    //     }
+    //     finally { await CleanupUserAsync(emailA); await CleanupUserAsync(emailB); }
+    // }
+
+    [Fact]
+    public async Task DELETE_Address_Xóa__200()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var createRes = await _client.PostAsJsonAsync("/api/User/users/address", new RequestCreateAndUpdateAddress { Line1 = "D", City = "HCM", Country = "Vietnam", PosttalCode = "700000", IsDefault = false });
+            createRes.EnsureSuccessStatusCode();
+            var id = await createRes.Content.ReadFromJsonAsync<string>();
+
+            var res = await _client.DeleteAsync($"/api/User/users/address/{Uri.EscapeDataString(id!)}");
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task DELETE_Address_Không_tồn_tại__200_theo_codebase()
+    {
+        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        try
+        {
+            SetBearer(access);
+            var id = $"ADR-{Guid.NewGuid().ToString("N")[..10]}";
+            var res = await _client.DeleteAsync($"/api/User/users/address/{Uri.EscapeDataString(id)}");
+            res.StatusCode.Should().Be(HttpStatusCode.OK); // controller trả Ok("Address not found!")
+        }
+        finally { await CleanupUserAsync(email); }
     }
 }

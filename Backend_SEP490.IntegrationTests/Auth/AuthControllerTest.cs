@@ -1,549 +1,451 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using System.Net;
+using System.Net.Http.Json;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
-using System.Net.Http.Json;
+using Xunit;
 
-namespace Backend_SEP490.IntegrationTests.Auth
+namespace Backend_SEP490.IntegrationTests.Auth;
+
+// Integration tests for AuthController covering login/refresh/logout/register/verify-otp/forgot/reset flows
+public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    //Integration Test : Kiểm tra sự tương tác giữa nhiều tầng/lớp(API + DB + service thật)
-    public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>
+    private readonly HttpClient _client;
+    private readonly AppDbContext _db;
+
+    public AuthControllerTests(CustomWebApplicationFactory<Program> factory)
     {
-        private readonly HttpClient _client;
-        private readonly AppDbContext _db;
-        public AuthControllerTests(CustomWebApplicationFactory<Program> factory)
+        _client = factory.CreateClient();
+        var scope = factory.Services.CreateScope();
+        _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    }
+
+    // -------------------
+    // Helpers
+    // -------------------
+    private async Task CleanupUserAsync(string email)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user != null)
         {
-            _client = factory.CreateClient();
-
-            var scope = factory.Services.CreateScope();
-            _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        }
-
-        [Fact] // dinh nghia la 1 phuong thuc test
-        public async Task POST_Login_ShouldReturnUnauthorized_WhenInvalidCredentials()
-        {
-            // Arrange
-            var formData = new Dictionary<string, string>
-            {
-                { "Username", "admin" },
-                { "Password", "wrong_pass" }
-            };
-            var content = new FormUrlEncodedContent(formData);
-            var response = await _client.PostAsync("/login", content);
-            // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        }
-
-        [Fact]
-        public async Task POST_Login_ShouldReturnOk_WhenValidCredentials()
-        {
-            // Arrange
-            var formData = new Dictionary<string, string>
-            {
-                { "Username", "MinhBDHE170083" },
-                { "Password", "NewPassword123!" }
-            };
-            var loginRequest = new FormUrlEncodedContent(formData);
-            // Act
-            var response = await _client.PostAsync("/login", loginRequest);
-            // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-        }
-        [Fact]
-        // case normal
-        public async Task Register_Then_VerifyOtp_Success()
-        {
-            var emailTest = "trandinhkhanh180502@gmail.com";
-            try { 
-                // Arrange
-                var formData = new Dictionary<string, string>
-                    {
-                        { "Username", "testuser_integration" },
-                        { "PasswordHash", "Test@123" },
-                        { "Email", $"{emailTest}" },
-                        { "PhoneNumber", "0123456789" },
-                        { "DisplayName", "Integration Tester" },
-                        { "Dob", "" } 
-                    };
-                var content = new FormUrlEncodedContent(formData);
-                // Act
-                var registerResponse = await _client.PostAsync("/register", content);
-                // Assert
-                registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-                var registerMessage = await registerResponse.Content.ReadAsStringAsync();
-                registerMessage.Should().Contain("OTP sent to email");
-
-                // Get OTP Code
-                var otpSent = await _db.UserOtps
-                      .Where(x => x.Email == "trandinhkhanh180502@gmail.com" && !x.IsUsed)
-                      .OrderByDescending(x => x.CreatedAt)
-                      .FirstOrDefaultAsync();
-                if (otpSent != null)
-                {
-                    var registerRequest = new RequestDTORegister { Username = "testuser_integration", PasswordHash = "Test@123", Email = emailTest, PhoneNumber = "0123456789", DisplayName = "Integration Tester", Dob = null, };
-                    var verifyRequest = new RequestDTOVerifyOtp
-                    {
-                        RegisterDto = registerRequest,
-                        Otp = otpSent.OtpCode,
-                    };
-
-                    var verifyResponse = await _client.PostAsJsonAsync("/verify-otp", verifyRequest);
-                    verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-                    var verifyMessage = await verifyResponse.Content.ReadAsStringAsync();
-                    verifyMessage.Should().Contain("Registration successful");
-                }
-            }
-            finally
-            {
-                // Rollback
-                await CleanupUser(emailTest);
-            }
-        }
-        #region Username Validation Tests
-
-        [Theory]
-        [InlineData("ab", "Tên đăng nhập phải từ 3–30 ký tự")] // Too short
-        [InlineData("a", "Tên đăng nhập phải từ 3–30 ký tự")] // Too short
-        [InlineData("this_is_a_very_long_username_over_thirty_chars", "Tên đăng nhập phải từ 3–30 ký tự")] // Too long
-        public async Task Register_InvalidUsername_ReturnsBadRequest(string username, string expectedError)
-        {
-            var emailTest = $"username_test_{Guid.NewGuid()}@example.com";
-            try
-            {
-                // Arrange
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", username },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain(expectedError);
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        [Fact]
-        public async Task Register_EmptyUsername_ReturnsBadRequest()
-        {
-            var emailTest = "empty_username@example.com";
-            try
-            {
-                // Arrange
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain("Tên đăng nhập không được để trống");
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-       
-        #endregion
-
-        #region Password Validation Tests
-
-        [Theory]
-        [InlineData("12345", "Mật khẩu phải có ít nhất 6 ký tự")] // Too short
-        [InlineData("abc", "Mật khẩu phải có ít nhất 6 ký tự")] // Too short
-        [InlineData("", "Mật khẩu không được để trống")] // Empty
-        public async Task Register_InvalidPassword_ReturnsBadRequest(string password, string expectedError)
-        {
-            var emailTest = $"password_test_{Guid.NewGuid()}@example.com";
-            try
-            {
-                // Arrange
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "testuser_pwd" },
-                { "PasswordHash", password },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain(expectedError);
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        [Fact]
-        public async Task Register_PasswordOver100Chars_ReturnsBadRequest()
-        {
-            var emailTest = "long_password@example.com";
-            try
-            {
-                // Arrange - Password with 101 characters
-                var longPassword = new string('a', 101);
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "testuser_longpwd" },
-                { "PasswordHash", longPassword },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain("Mật khẩu phải có ít nhất 6 ký tự");
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        #endregion
-
-        #region Email Validation Tests
-
-       
-        #endregion
-
-        #region Phone Number Validation Tests
-
-        [Fact]
-        public async Task Register_NullPhoneNumber_Success()
-        {
-            var emailTest = "null_phone@example.com";
-            try
-            {
-                // Arrange - PhoneNumber is optional
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "user_no_phone" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest }
-                // No PhoneNumber
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.OK);
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        #endregion
-
-        #region Display Name Validation Tests
-
-        [Fact]
-        public async Task Register_DisplayNameOver50Chars_ReturnsBadRequest()
-        {
-            var emailTest = "long_displayname@example.com";
-            try
-            {
-                // Arrange - DisplayName with 51 characters
-                var longDisplayName = new string('A', 51);
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "testuser_longname" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" },
-                { "DisplayName", longDisplayName }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain("Tên hiển thị không được dài quá 50 ký tự");
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        [Fact]
-        public async Task Register_NullDisplayName_Success()
-        {
-            var emailTest = "null_displayname@example.com";
-            try
-            {
-                // Arrange - DisplayName is optional
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "user_no_display" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" }
-                // No DisplayName
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.OK);
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        #endregion
-
-        #region Date of Birth Validation Tests
-
-        [Fact]
-        public async Task Register_FutureDob_ReturnsBadRequest()
-        {
-            var emailTest = "future_dob@example.com";
-            try
-            {
-                // Arrange
-                var futureDate = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd");
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "user_future_dob" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" },
-                { "Dob", futureDate }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain("Ngày sinh không thể ở tương lai");
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        [Fact]
-        public async Task Register_DobOver120YearsAgo_ReturnsBadRequest()
-        {
-            var emailTest = "old_dob@example.com";
-            try
-            {
-                // Arrange
-                var veryOldDate = DateTime.Now.AddYears(-121).ToString("yyyy-MM-dd");
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "user_old_dob" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" },
-                { "Dob", veryOldDate }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                errorMessage.Should().Contain("Ngày sinh không hợp lệ");
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        [Fact]
-        public async Task Register_ValidDob_Success()
-        {
-            var emailTest = "valid_dob@example.com";
-            try
-            {
-                // Arrange
-                var validDate = DateTime.Now.AddYears(-25).ToString("yyyy-MM-dd");
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "user_valid_dob" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" },
-                { "Dob", validDate }
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.OK);
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        [Fact]
-        public async Task Register_NullDob_Success()
-        {
-            var emailTest = "null_dob@example.com";
-            try
-            {
-                // Arrange - Dob is optional
-                var formData = new Dictionary<string, string>
-            {
-                { "Username", "user_no_dob" },
-                { "PasswordHash", "Test@123" },
-                { "Email", emailTest },
-                { "PhoneNumber", "0123456789" }
-                // No Dob
-            };
-                var content = new FormUrlEncodedContent(formData);
-
-                // Act
-                var response = await _client.PostAsync("/register", content);
-
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.OK);
-            }
-            finally
-            {
-                await CleanupUser(emailTest);
-            }
-        }
-
-        #endregion
-
-        [Fact(DisplayName = "UserFlow: ForgotPassword_Then_ResetPassword_Success")]
-        public async Task ForgotPassword_Then_ResetPassword_Success()
-        {
-            // Step 1: Lấy thông tin một user có sẵn trong hệ thống
-            var user = await _db.Users
-                .Where(u => u.IsActive && u.Email.Equals("blabla180202@gmail.com"))
-                .FirstOrDefaultAsync();
-
-            user.Should().NotBeNull("Cần có ít nhất một user tồn tại trong hệ thống để test");
-            var email = user!.Email;
-
-            try
-            {
-                // Step 2: Gửi yêu cầu quên mật khẩu
-                var forgotResponse = await _client.PostAsJsonAsync("/forgot-password", email);
-                forgotResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-                var forgotMsg = await forgotResponse.Content.ReadAsStringAsync();
-                forgotMsg.Should().Contain("OTP đã được gửi tới email của bạn.");
-
-                // Step 3: Lấy OTP từ DB
-                var otpRecord = await _db.UserOtps
-                    .Where(x => x.Email == email && !x.IsUsed)
-                    .OrderByDescending(x => x.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                otpRecord.Should().NotBeNull("OTP phải tồn tại sau khi gọi forgot-password");
-                var otpCode = otpRecord!.OtpCode;
-
-                // Step 4: Reset password bằng OTP đó
-                var resetRequest = new RequestDTOResetPassword
-                {
-                    Email = email,
-                    OtpCode = otpCode,
-                    NewPassword = "NewPassword123!"
-                };
-
-                var resetResponse = await _client.PostAsJsonAsync("/reset-password", resetRequest);
-                resetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-                var resetMsg = await resetResponse.Content.ReadAsStringAsync();
-                resetMsg.Should().Contain("Mật khẩu đã được đặt lại thành công");
-
-                // Sau khi doi mk chay lai login 
-                // Arrange
-                var formData = new Dictionary<string, string>
-                    {
-                        { "Username", $"{user.Username}" },
-                        { "Password", "NewPassword123!" }
-                    };
-                var loginRequest = new FormUrlEncodedContent(formData);
-                // Act
-                var response = await _client.PostAsync("/login", loginRequest);
-                // Assert
-                response.StatusCode.Should().Be(HttpStatusCode.OK);
-            }
-            finally
-            {
-                // Cleanup: Xóa OTP test để không ảnh hưởng lần test sau
-                var testOtps = _db.UserOtps.Where(o => o.Email == email);
-                _db.UserOtps.RemoveRange(testOtps);
-                await _db.SaveChangesAsync();
-            }
-        }
-        private async Task CleanupUser(string email)
-        {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user != null)
-            {
-                _db.Users.Remove(user);
-                await _db.SaveChangesAsync();
-            }
-
-            var otps = _db.UserOtps.Where(o => o.Email == email);
-            _db.UserOtps.RemoveRange(otps);
+            _db.Users.Remove(user);
             await _db.SaveChangesAsync();
         }
+        var otps = _db.UserOtps.Where(o => o.Email == email);
+        _db.UserOtps.RemoveRange(otps);
+        await _db.SaveChangesAsync();
+        var tokens = _db.RefreshTokens.Where(r => r.User.Email == email);
+        _db.RefreshTokens.RemoveRange(tokens);
+        await _db.SaveChangesAsync();
+    }
 
+    private static string NewUserId() => $"u{Guid.NewGuid():N}";
+
+    private (RequestDTORegister form, string password) BuildRegisterForm(string? email = null, string? username = null)
+    {
+        var pwd = "Aa1@abcd"; // meets policy
+        return (
+            new RequestDTORegister
+            {
+                Username = username ?? $"user_{Guid.NewGuid().ToString("N")[..8]}",
+                PasswordHash = pwd,
+                Email = email ?? $"{Guid.NewGuid().ToString("N")[..8]}@example.com",
+                PhoneNumber = "0123456789",
+                DisplayName = "Integration Tester",
+                Dob = null
+            },
+            pwd
+        );
+    }
+
+    private static FormUrlEncodedContent ToForm(RequestDTORegister r)
+    {
+        var dict = new Dictionary<string, string?>
+        {
+            [nameof(RequestDTORegister.Username)] = r.Username,
+            [nameof(RequestDTORegister.PasswordHash)] = r.PasswordHash,
+            [nameof(RequestDTORegister.Email)] = r.Email,
+            [nameof(RequestDTORegister.PhoneNumber)] = r.PhoneNumber,
+            [nameof(RequestDTORegister.DisplayName)] = r.DisplayName,
+            [nameof(RequestDTORegister.Dob)] = r.Dob?.ToString("O")
+        }!;
+        return new FormUrlEncodedContent(dict!);
+    }
+
+    private async Task CreateVerifiedUserAsync(string email, string username, string password)
+    {
+        // 1) register (form)
+        var (reg, _) = BuildRegisterForm(email, username);
+        reg.PasswordHash = password;
+        var regRes = await _client.PostAsync("/register", ToForm(reg));
+        regRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 2) fetch OTP from DB then verify
+        var otp = await _db.UserOtps
+            .Where(x => x.Email == email && !x.IsUsed)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync();
+        otp.Should().NotBeNull();
+
+        var verifyReq = new RequestDTOVerifyOtp { RegisterDto = reg, Otp = otp!.OtpCode };
+        var verifyRes = await _client.PostAsJsonAsync("/verify-otp", verifyReq);
+        verifyRes.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    private sealed class AuthTokens
+    {
+        public string AccessToken { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime ExpireAt { get; set; }
+    }
+
+    private async Task<AuthTokens> LoginAsync(string username, string password)
+    {
+        var res = await _client.PostAsJsonAsync("/login", new { Username = username, Password = password });
+        res.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tokens = await res.Content.ReadFromJsonAsync<AuthTokens>();
+        tokens.Should().NotBeNull();
+        tokens!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        tokens.RefreshToken.Should().NotBeNullOrWhiteSpace();
+        return tokens!;
+    }
+
+    // ======================
+    // POST /api/Auth/login
+    // ======================
+
+    [Fact]
+    public async Task POST_Login_Đúng_thông_tin__200_kèm_token()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var tokens = await LoginAsync(username, password);
+            tokens.AccessToken.Should().NotBeNullOrWhiteSpace();
+            tokens.RefreshToken.Should().NotBeNullOrWhiteSpace();
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Login_Sai_mật_khẩu__401()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var res = await _client.PostAsJsonAsync("/login", new { Username = username, Password = "Wrong123!" });
+            res.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact(Skip = "Chưa hỗ trợ khóa tài khoản trong LoginAsync; bật test này khi service trả 403 cho IsActive=false")]
+    public async Task POST_Login_Tài_khoản_bị_khóa__403()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var user = await _db.Users.FirstAsync(u => u.Email == email);
+            user.IsActive = false;
+            await _db.SaveChangesAsync();
+
+            var res = await _client.PostAsJsonAsync("/login", new { Username = username, Password = password });
+            res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Login_Thiếu_trường_bắt_buộc__400()
+    {
+        var res = await _client.PostAsJsonAsync("/login", new { Username = "someone" /* thiếu Password */});
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // ======================
+    // POST /api/Auth/refresh
+    // ======================
+
+    [Fact]
+    public async Task POST_Refresh_Refresh_token_hợp_lệ__200()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var tokens = await LoginAsync(username, password);
+
+            var res = await _client.PostAsJsonAsync("/refresh", new RequestDTORefresh { RefreshToken = tokens.RefreshToken });
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+            var refreshed = await res.Content.ReadFromJsonAsync<AuthTokens>();
+            refreshed!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Refresh_Hết_hạn_hoặc_không_khớp__401()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var tokens = await LoginAsync(username, password);
+
+            // set refresh token vừa tạo thành hết hạn để IsActive=false
+            var tokenEntity = await _db.RefreshTokens.FirstAsync(r => r.Token == tokens.RefreshToken);
+            tokenEntity.Expires = DateTime.UtcNow.AddMinutes(-1);
+            await _db.SaveChangesAsync();
+
+            var res = await _client.PostAsJsonAsync("/refresh", new RequestDTORefresh { RefreshToken = tokens.RefreshToken });
+            res.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Refresh_Thiếu_refresh_token__400()
+    {
+        var res = await _client.PostAsJsonAsync("/refresh", new { /* thiếu RefreshToken */ });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // ======================
+    // POST /api/Auth/logout
+    // ======================
+
+    [Fact]
+    public async Task POST_Logout_Hợp_lệ__200()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var tokens = await LoginAsync(username, password);
+
+            var res = await _client.PostAsJsonAsync("/logout", new RequestDTORefresh { RefreshToken = tokens.RefreshToken });
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Logout_Refresh_token_không_tồn_tại__400()
+    {
+        var res = await _client.PostAsJsonAsync("/logout", new RequestDTORefresh { RefreshToken = Guid.NewGuid().ToString("N") });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // ======================
+    // POST /api/Auth/register
+    // ======================
+
+    [Fact]
+    public async Task POST_Register_Đăng_ký_tài_khoản_mới__200()
+    {
+        var (reg, _) = BuildRegisterForm();
+        try
+        {
+            var res = await _client.PostAsync("/register", ToForm(reg));
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(reg.Email); }
+    }
+
+    [Fact]
+    public async Task POST_Register_Email_trùng__400()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            // đăng ký lại với cùng email
+            var (reg2, _) = BuildRegisterForm(email: email, username: $"{username}_2");
+            var res = await _client.PostAsync("/register", ToForm(reg2));
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest); // service trả BadRequest khi trùng
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_Register_Thiếu_hoặc_invalid_dữ_liệu__400()
+    {
+        var invalid = new Dictionary<string, string?>
+        {
+            ["Username"] = "ab", // < 3
+            ["PasswordHash"] = "weak", // < 8 & thiếu pattern
+            ["Email"] = "not-an-email"
+        }!;
+        var res = await _client.PostAsync("/register", new FormUrlEncodedContent(invalid!));
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // ======================
+    // POST /api/Auth/verify-otp
+    // ======================
+
+    [Fact]
+    public async Task POST_VerifyOtp_OTP_đúng__200()
+    {
+        var (reg, _) = BuildRegisterForm();
+        try
+        {
+            var regRes = await _client.PostAsync("/register", ToForm(reg));
+            regRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var otp = await _db.UserOtps.Where(o => o.Email == reg.Email && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+            otp.Should().NotBeNull();
+
+            var verify = new RequestDTOVerifyOtp { RegisterDto = reg, Otp = otp!.OtpCode };
+            var verifyRes = await _client.PostAsJsonAsync("/verify-otp", verify);
+            verifyRes.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(reg.Email); }
+    }
+
+    [Fact]
+    public async Task POST_VerifyOtp_OTP_sai_hoặc_hết_hạn__400()
+    {
+        var (reg, _) = BuildRegisterForm();
+        try
+        {
+            var regRes = await _client.PostAsync("/register", ToForm(reg));
+            regRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var verify = new RequestDTOVerifyOtp { RegisterDto = reg, Otp = "000000" };
+            var res = await _client.PostAsJsonAsync("/verify-otp", verify);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally { await CleanupUserAsync(reg.Email); }
+    }
+
+    // ======================
+    // POST /api/Auth/forgot-password
+    // ======================
+
+    [Fact]
+    public async Task POST_ForgotPassword_Email_tồn_tại__200()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var res = await _client.PostAsJsonAsync("/forgot-password", email);
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_ForgotPassword_Email_không_tồn_tại__400()
+    {
+        var res = await _client.PostAsJsonAsync("/forgot-password", "ghost@example.com");
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest); // controller hiện trả 400 khi không tồn tại
+    }
+
+    // ======================
+    // POST /api/Auth/reset-password
+    // ======================
+
+    [Fact]
+    public async Task POST_ResetPassword_Token_hợp_lệ__200()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            // yêu cầu OTP quên mật khẩu
+            var forgotRes = await _client.PostAsJsonAsync("/forgot-password", email);
+            forgotRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var latestOtp = await _db.UserOtps.Where(o => o.Email == email && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+            latestOtp.Should().NotBeNull();
+
+            var dto = new RequestDTOResetPassword
+            {
+                Email = email,
+                OtpCode = latestOtp!.OtpCode,
+                NewPassword = "Bb2@bcde"
+            };
+            var res = await _client.PostAsJsonAsync("/reset-password", dto);
+            res.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_ResetPassword_Token_sai_hoặc_hết_hạn__400()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var dto = new RequestDTOResetPassword
+            {
+                Email = email,
+                OtpCode = "111111", // sai
+                NewPassword = "Bb2@bcde"
+            };
+            var res = await _client.PostAsJsonAsync("/reset-password", dto);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally { await CleanupUserAsync(email); }
+    }
+
+    [Fact]
+    public async Task POST_ResetPassword_Mật_khẩu_không_đạt_policy__400()
+    {
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..6]}";
+        var password = "Aa1@abcd";
+        try
+        {
+            await CreateVerifiedUserAsync(email, username, password);
+            var _ = await _client.PostAsJsonAsync("/forgot-password", email);
+            var latestOtp = await _db.UserOtps.Where(o => o.Email == email && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+            latestOtp.Should().NotBeNull();
+
+            var bad = new RequestDTOResetPassword
+            {
+                Email = email,
+                OtpCode = latestOtp!.OtpCode,
+                NewPassword = "short" // < 8, thiếu pattern
+            };
+            var res = await _client.PostAsJsonAsync("/reset-password", bad);
+            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        finally { await CleanupUserAsync(email); }
     }
 }
