@@ -14,6 +14,8 @@ import ArtisanShop from './pages/ArtisanShop';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import OrderHistory from './pages/OrderHistory';
+import OrderTracking from './pages/OrderTracking';
+import Blog from './pages/Blog';
 function App() {
   return (
     <UserProvider>
@@ -29,7 +31,9 @@ function App() {
         <Route path="/product-detail" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/order-history" element={<OrderHistory />} />
+        <Route path="/order-tracking" element={<OrderTracking />} />
         <Route path="/artisan-shop" element={<ArtisanShop />} />
+        <Route path="/blog" element={<Blog />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
