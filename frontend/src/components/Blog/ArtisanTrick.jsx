@@ -34,11 +34,12 @@ const ArtisanTrick = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      {/* Title */}
-      <h2 className="text-3xl font-bold text-red-600 mb-8">
-        Mẹo vặt hay với đồ thủ công
-      </h2>
+    <div className="w-full py-12 md:py-20 lg:py-[120px] px-4 md:px-10 lg:px-36 bg-[#FFFBF0]">
+      <div className="max-w-7xl mx-auto">
+        {/* Title */}
+        <h2 className="text-3xl font-bold text-red-600 mb-8">
+          Mẹo vặt hay với đồ thủ công
+        </h2>
 
       {/* Blog Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -75,6 +76,7 @@ const ArtisanTrick = () => {
           onChange={handlePageChange}
           color="primary"
         />
+      </div>
       </div>
     </div>
   );

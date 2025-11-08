@@ -57,7 +57,7 @@ const FamousBlog = () => {
   ];
 
   return (
-    <section className="w-full py-12 md:py-20 lg:py-[120px] px-4 md:px-10 lg:px-36 bg-[#F5EFE7]">
+    <section className="w-full py-12 md:py-20 lg:py-[120px] px-4 md:px-10 lg:px-36 bg-[#FFFBF0]">
       <div className="max-w-[1440px] mx-auto">
         <h2 className="font-alata text-2xl md:text-3xl lg:text-4xl text-[#8B4513] mb-8 md:mb-12">
           Tin tức nổi bật

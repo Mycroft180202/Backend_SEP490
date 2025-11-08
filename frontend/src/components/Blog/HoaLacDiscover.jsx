@@ -34,11 +34,12 @@ const HoaLacDiscover = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      {/* Title */}
-      <h2 className="text-3xl font-bold text-gray-800 mb-8">
-        Khám phá Hòa Lạc
-      </h2>
+    <div className="w-full py-12 md:py-20 lg:py-[120px] px-4 md:px-10 lg:px-36 bg-[#FFFBF0]">
+      <div className="max-w-7xl mx-auto">
+        {/* Title */}
+        <h2 className="text-3xl font-bold text-gray-800 mb-8">
+          Khám phá Hòa Lạc
+        </h2>
 
       {/* Blog Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -70,6 +71,7 @@ const HoaLacDiscover = () => {
       {/* Pagination */}
       <div className="flex justify-center">
         <Pagination count={totalPages} page={currentPage} onChange={(event, page) => handlePageChange(page)} />
+      </div>
       </div>
     </div>
   );
