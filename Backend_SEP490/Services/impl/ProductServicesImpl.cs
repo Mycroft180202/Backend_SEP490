@@ -375,7 +375,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
 
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize)
+        string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize,string? sortOrder)
     {
         if (pageIndex < 1)
             pageIndex = 1;
@@ -402,6 +402,21 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 .ToList();
 
             products = ranked;
+        }
+        
+        if (!string.IsNullOrEmpty(sortOrder))
+        {
+            switch (sortOrder.ToLower())
+            {
+                case "asc":
+                case "lowtohigh":
+                    products = products.OrderBy(p => p.Price).ToList();
+                    break;
+                case "desc":
+                case "hightolow":
+                    products = products.OrderByDescending(p => p.Price).ToList();
+                    break;
+            }
         }
         
         var totalCount = products.Count;

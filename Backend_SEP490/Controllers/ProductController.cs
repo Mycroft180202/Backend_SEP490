@@ -64,11 +64,15 @@ public class ProductController:ControllerBase
         [FromQuery] string? categoryId,
         [FromQuery] bool? isactive,
         [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? sortOrder = null) // thêm sort
     {
-        var result = await _productServices.GetProductsAsync(productName, categoryId,isactive, pageIndex, pageSize);
+        var result = await _productServices.GetProductsAsync(
+            productName, categoryId, isactive, pageIndex, pageSize, sortOrder);
+
         return Ok(result);
     }
+
     [Authorize(Roles = "Artisan,Admin")]
     [HttpDelete("products/{id}")]
     public async Task<IActionResult> DeleteProduct(string id)

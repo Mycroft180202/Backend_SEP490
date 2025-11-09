@@ -18,7 +18,7 @@ public interface IProductServices
     public Task<bool> UpdateProductAsync(string id, RequestDTOProduct productDto);
 
     public Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize);
+        string? productName, string? categoryId,bool? isactive, int pageIndex, int pageSize, string? sortBy = null);
     public Task<bool> DeleteProductAsync(string productId);
     
 }
