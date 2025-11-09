@@ -1,74 +1,187 @@
-import React from "react";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { ProductService } from '../../services/modules/products/productService';
 
-const imgVuesaxLinearArrowLeft = "https://www.figma.com/api/mcp/asset/6d59ec5c-a5a1-49d5-91cd-28960953f2a6";
-const imgVuesaxLinearArrowRight = "https://www.figma.com/api/mcp/asset/179ad049-6990-4a25-b2c1-aff02ed2114c";
-const imgStar = "https://www.figma.com/api/mcp/asset/862d3571-5051-433c-a564-108f2ead6b04";
-const imgEllipse37 = "https://www.figma.com/api/mcp/asset/0e5474bd-8bc9-4ff2-93e4-fb66e7d75505";
+const RelationProduct = ({ categoryId, currentProductId }) => {
+  const navigate = useNavigate();
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const productsPerPage = 4;
 
-function Pagination({ className = "" }) {
-	return (
-		<div className={`flex items-center gap-5 ${className}`}>
-			<button className="w-6 h-6 flex items-center justify-center">
-				<img src={imgVuesaxLinearArrowLeft} alt="prev" className="w-full h-full" />
-			</button>
-			<div className="flex items-center gap-5 text-[18px] leading-8 font-normal font-nunito">
-				<span className="text-black">1</span>
-				<span className="text-text-light">2</span>
-				<span className="text-text-light">3</span>
-				<span className="text-text-light">...</span>
-				<span className="text-text-light">10</span>
-			</div>
-			<button className="w-6 h-6 flex items-center justify-center">
-				<img src={imgVuesaxLinearArrowRight} alt="next" className="w-full h-full" />
-			</button>
-		</div>
-	);
-}
+  useEffect(() => {
+    const fetchRelatedProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await ProductService.getAllProducts({
+          CategoryId: categoryId,
+          PageSize: 20,
+        });
+        
+        // Lọc bỏ sản phẩm hiện tại
+        const filtered = response.items.filter(p => p.id !== currentProductId);
+        setRelatedProducts(filtered);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching related products:', err);
+        setLoading(false);
+      }
+    };
 
-function LtBanVaSao({ className = "" }) {
-	return (
-		<div className={`flex gap-3 items-center ${className}`}>
-			<span className="text-[16px] leading-6 font-normal font-nunito text-black">200 lượt bán</span>
-			<div className="flex items-center gap-1">
-				<span className="text-[16px] leading-6 font-normal font-nunito text-black">4.9</span>
-				<img src={imgStar} alt="star" className="w-5 h-5" />
-				<span className="text-[16px] leading-6 font-normal font-nunito text-text-gray">(80)</span>
-			</div>
-		</div>
-	);
-}
+    if (categoryId) {
+      fetchRelatedProducts();
+    }
+  }, [categoryId, currentProductId]);
 
-function CardSanPham({ className = "" }) {
-	return (
-		<div className={`flex flex-col gap-1 items-start w-[270px] ${className}`}> 
-			<div className="bg-[#d9d9d9] h-[320px] w-full rounded-[12px] mb-2" />
-			<span className="font-medium font-nunito text-[18px] leading-8 text-black">Chuồn chuồn tre nhiều màu</span>
-			<div className="flex items-center gap-1">
-				<img src={imgEllipse37} alt="shop" className="w-6 h-6" />
-				<span className="font-nunito text-[16px] text-black">Shop A</span>
-			</div>
-			<div className="flex gap-3 items-baseline w-full">
-				<span className="font-nunito text-[16px] text-text-gray line-through">100.000đ</span>
-				<span className="font-alata text-[20px] leading-8 text-primary">200.000đ</span>
-			</div>
-			<LtBanVaSao className="w-full" />
-		</div>
-	);
-}
+  const totalPages = Math.ceil(relatedProducts.length / productsPerPage);
+  const currentProducts = relatedProducts.slice(
+    currentPage * productsPerPage,
+    (currentPage + 1) * productsPerPage
+  );
 
-export default function RelationProduct() {
-	return (
-		<div className="flex flex-col items-center gap-10 px-36 py-28 w-full">
-			<h2 className="font-alata text-[36px] leading-[56px] text-primary text-center w-full mb-2">Sản phẩm tương tự</h2>
-			<div className="flex flex-col gap-6 items-center w-full">
-				<div className="flex gap-6 w-full justify-center">
-					<CardSanPham />
-					<CardSanPham />
-					<CardSanPham />
-					<CardSanPham />
-				</div>
-				<Pagination />
-			</div>
-		</div>
-	);
-}
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
+  };
+
+  const handleProductClick = (productId) => {
+    navigate(`/product-detail/${productId}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, index) => (
+      <FaStar
+        key={index}
+        className={index < Math.floor(rating) ? 'text-yellow-400' : 'text-gray-300'}
+        size={14}
+      />
+    ));
+  };
+
+  if (loading) {
+    return (
+      <div className="w-full bg-white py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <p className="text-center text-gray-500">Đang tải sản phẩm liên quan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (relatedProducts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="w-full bg-gradient-to-b from-white to-[#FFF8E7] py-16">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Header với style truyền thống */}
+        <div className="text-center mb-12">
+          <div className="inline-block">
+            <h2 className="text-4xl font-bold text-[#8B4513] mb-3" style={{ fontFamily: 'Georgia, serif' }}>
+              Sản phẩm tương tự
+            </h2>
+            <div className="h-1 bg-gradient-to-r from-transparent via-[#D4A574] to-transparent rounded"></div>
+          </div>
+          <p className="text-gray-600 mt-4">Khám phá thêm các sản phẩm mỹ nghệ truyền thống</p>
+        </div>
+
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {currentProducts.map((product) => (
+            <div
+              key={product.id}
+              onClick={() => handleProductClick(product.id)}
+              className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-[#D4A574]"
+            >
+              {/* Product Image */}
+              <div className="relative h-64 overflow-hidden bg-gradient-to-br from-[#FFF8E7] to-white rounded-t-2xl">
+                <img
+                  src={product.imageUrl || '/images/default-product.png'}
+                  alt={product.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                {/* Badge giá */}
+                <div className="absolute top-4 right-4 bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                  {product.price.toLocaleString('vi-VN')}₫
+                </div>
+              </div>
+
+              {/* Product Info */}
+              <div className="p-5 space-y-3">
+                {/* Product Name */}
+                <h3 className="text-lg font-semibold text-[#8B4513] line-clamp-2 group-hover:text-[#D4A574] transition-colors" style={{ fontFamily: 'Telex, sans-serif' }}>
+                  {product.name}
+                </h3>
+
+                {/* Shop Name */}
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#D4A574] to-[#8B4513] flex items-center justify-center text-white text-xs font-bold">
+                    {product.displayName?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="truncate">{product.displayName}</span>
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center gap-2">
+                  <div className="flex">{renderStars(product.rating || 0)}</div>
+                  <span className="text-sm text-gray-600">({product.rating || 0})</span>
+                </div>
+
+                {/* Stock */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                  <span className="text-sm text-gray-500">Còn {product.stock} sản phẩm</span>
+                  <span className="text-[#8B4513] font-semibold group-hover:text-[#D4A574]">Xem chi tiết →</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination với style đẹp */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 0}
+              className="p-3 rounded-full bg-white border-2 border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+            >
+              <FaChevronLeft size={20} />
+            </button>
+
+            <div className="flex items-center gap-2">
+              {[...Array(totalPages)].map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentPage(index)}
+                  className={`w-10 h-10 rounded-full font-bold transition-all shadow-md ${
+                    currentPage === index
+                      ? 'bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white scale-110'
+                      : 'bg-white border-2 border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white'
+                  }`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages - 1}
+              className="p-3 rounded-full bg-white border-2 border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+            >
+              <FaChevronRight size={20} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default RelationProduct;
