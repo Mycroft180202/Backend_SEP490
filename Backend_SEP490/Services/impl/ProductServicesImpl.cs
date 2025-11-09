@@ -377,6 +377,10 @@ public class ProductServicesImpl: GenericServices, IProductServices
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
         string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize)
     {
+        if (pageIndex < 1)
+            pageIndex = 1;
+        if (pageSize <= 0)
+            pageSize = 10;
         var products = await _context.Products.GetProductsAsync(categoryId, isActive);
 
         if (!string.IsNullOrEmpty(productName))
@@ -428,7 +432,9 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return new PagedResult<ResponseDTOProduct>
         {
             TotalCount = totalCount,
-            Items =result
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Items = result
         };
     }
     private double CalculateCosineSimilarity(double[] a, double[] b)
