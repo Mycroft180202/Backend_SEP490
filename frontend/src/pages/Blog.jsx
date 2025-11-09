@@ -1,9 +1,9 @@
 import React from 'react';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
-import FamousBlog from '../components/Blog/FamousBlog';
-import HoaLacDiscover from '../components/Blog/HoaLacDiscover';
-import ArtisanTrick from '../components/Blog/ArtisanTrick';
+import FamousBlog from '../components/blog/FamousBlog';
+import HoaLacDiscover from '../components/blog/HoaLacDiscover';
+import ArtisanTrick from '../components/blog/ArtisanTrick';
 
 const Blog = () => {
   return (

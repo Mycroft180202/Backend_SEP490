@@ -17,6 +17,7 @@ import OrderHistory from './pages/OrderHistory';
 import OrderTracking from './pages/OrderTracking';
 import Blog from './pages/Blog';
 import BlogDetail from './pages/BlogDetail';
+import AdminDashboard from './pages/AdminDashboard';
 function App() {
   return (
     <UserProvider>
@@ -36,6 +37,7 @@ function App() {
         <Route path="/artisan-shop" element={<ArtisanShop />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog-detail" element={<BlogDetail />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
