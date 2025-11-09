@@ -63,7 +63,7 @@ namespace Backend_SEP490.Services.impl
             if (request.IsDefault)
             {
                 var defaultAddress = await _context.Address.GetDefaultAddressAsync();
-                if (!defaultAddress.Id.EndsWith(addressId))
+                if (!defaultAddress.Id.Equals(addressId))
                 {
                     return await _context.Address.UpdateAddressAsync(address, request, defaultAddress);
                 }

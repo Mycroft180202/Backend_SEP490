@@ -129,7 +129,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize(Roles = "Artisan")]
         [HttpPut("users/my-shop")]
-        public async Task<IActionResult> UpdateShopProfile([FromBody] RequestUpdateUserShop request)
+        public async Task<IActionResult> UpdateShopProfile([FromForm] RequestUpdateUserShop request)
         {
             var userId = User.FindFirstValue("userID");
             var users = await _userServices.UpdateUserShopByIDAsync(userId, request);
