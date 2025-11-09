@@ -11,5 +11,6 @@ public class ProductImagesMapper :Profile
     {
         CreateMap<ResponseDTOProductImages,ProductImage>().ReverseMap();
         CreateMap<RequestDTOProductImage,ProductImage>().ReverseMap();
+        CreateMap<RequestDTOAddProductImage, ProductImage>().ReverseMap();
     }
 }

@@ -35,6 +35,9 @@
   </ItemGroup>
 
 	<ItemGroup>
+	  <Folder Include="Cart\" />
+	  <Folder Include="Category\" />
+	  <Folder Include="ProductCollection\" />
 	  <Folder Include="Product\" />
 	</ItemGroup>
 

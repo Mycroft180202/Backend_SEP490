@@ -13,10 +13,11 @@ namespace Backend_SEP490.Controllers;
 public class ProductController:ControllerBase
 {
     private readonly IProductServices _productServices;
-
-    public ProductController(IProductServices productServices)
+    private readonly IProductImagesServices _productImagesServices;
+    public ProductController(IProductServices productServices, IProductImagesServices productImagesServices)
     {
         _productServices = productServices;
+        _productImagesServices = productImagesServices;
     }
 
     [HttpGet("products/{id}")]
@@ -57,7 +58,6 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
-    
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? productName,
@@ -79,5 +79,24 @@ public class ProductController:ControllerBase
 
         return NoContent(); 
     }
+    [HttpPost("image/add")]
+    public async Task<IActionResult> AddProductImage([FromForm] RequestDTOAddProductImage dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
+        try
+        {
+            var image = await _productImagesServices.AddProductImageAsync(dto);
+            return Ok(new
+            {
+                message = "Image added successfully",
+                data = image
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

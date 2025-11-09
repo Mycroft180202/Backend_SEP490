@@ -26,4 +26,11 @@ public class ProductImagesRepositoriesImpl: GenericRepositoryImpl<ProductImage>,
         _context.ProductImages.RemoveRange(images);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<ProductImage> AddImageAsync(ProductImage image)
+    {
+        _context.ProductImages.Add(image);
+        await _context.SaveChangesAsync();
+        return image;
+    }
 }

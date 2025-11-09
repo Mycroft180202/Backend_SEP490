@@ -177,29 +177,29 @@ public class ProductServicesImpl: GenericServices, IProductServices
         await _context.Products.AddProductAsync(newProduct);
 
         // Upload hình ảnh
-        //if (productDto.images != null && productDto.images.Any())
-        //{
-        //    int position = 0;
-        //    foreach (var file in productDto.images)
-        //    {
-        //        using var stream = file.OpenReadStream();
-        //        var uploadParams = new ImageUploadParams
-        //        {
-        //            File = new FileDescription(file.FileName, stream)
-        //        };
+        if (productDto.Images != null && productDto.Images.Any())
+        {
+            int position = 0;
+            foreach (var file in productDto.Images)
+            {
+                using var stream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream)
+                };
 
-        //        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-        //        var productImage = new ProductImage
-        //        {
-        //            Id = GenerateID("PIMG"),
-        //            ProductId = newProduct.Id,
-        //            URL = uploadResult.SecureUrl.ToString(),
-        //            Position = position++
-        //        };
-        //        await _context.ProductImages.AddProductImageAsync(productImage);
-        //    }
-        //}
+                var productImage = new ProductImage
+                {
+                    Id = GenerateID("PIMG"),
+                    ProductId = newProduct.Id,
+                    URL = uploadResult.SecureUrl.ToString(),
+                    Position = position++
+                };
+                await _context.ProductImages.AddProductImageAsync(productImage);
+            }
+        }
 
         return true;
     }
@@ -331,34 +331,34 @@ public class ProductServicesImpl: GenericServices, IProductServices
     existingProduct.Stock = productDto.Stock;
     existingProduct.UpdateAt = DateTime.UtcNow;
 
-    // Cập nhật images (xóa cũ -> thêm mới)
-    //if (productDto.images != null && productDto.images.Any())
-    //{
-    //    // Xóa ảnh cũ
-    //    await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
+     // Cập nhật images (xóa cũ -> thêm mới)
+    if (productDto.Images != null && productDto.Images.Any())
+    {
+        // Xóa ảnh cũ
+        await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
 
-    //    int position = 0;
-    //    foreach (var file in productDto.images)
-    //    {
-    //        using var stream = file.OpenReadStream();
-    //        var uploadParams = new ImageUploadParams
-    //        {
-    //            File = new FileDescription(file.FileName, stream)
-    //        };
+        int position = 0;
+        foreach (var file in productDto.Images)
+        {
+            using var stream = file.OpenReadStream();
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(file.FileName, stream)
+            };
 
-    //        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-    //        var productImage = new ProductImage
-    //        {
-    //            Id = GenerateID("PIMG"),
-    //            ProductId = existingProduct.Id,
-    //            URL = uploadResult.SecureUrl.ToString(),
-    //            Position = position++
-    //        };
+            var productImage = new ProductImage
+            {
+                Id = GenerateID("PIMG"),
+                ProductId = existingProduct.Id,
+                URL = uploadResult.SecureUrl.ToString(),
+                Position = position++
+            };
 
-    //        await _context.ProductImages.AddProductImageAsync(productImage);
-    //    }
-    //}
+            await _context.ProductImages.AddProductImageAsync(productImage);
+        }
+    }
 
    
     var textForEmbedding = $"{existingProduct.Name} {existingProduct.ShortDescription} {existingProduct.LongDescription}";
