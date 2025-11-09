@@ -416,6 +416,12 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 case "hightolow":
                     products = products.OrderByDescending(p => p.Price).ToList();
                     break;
+                case "atoz":
+                    products = products.OrderBy(p => p.Name).ToList();
+                    break;
+                case "ztoa":
+                    products = products.OrderByDescending(p => p.Name).ToList();
+                    break;
             }
         }
         
