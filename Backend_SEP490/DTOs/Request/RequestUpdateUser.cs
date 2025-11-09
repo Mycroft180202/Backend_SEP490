@@ -18,7 +18,6 @@ namespace Backend_SEP490.DTOs.Request
         [CustomValidation(typeof(RequestUpdateUser), nameof(ValidateDob))]
         public DateTime? Dob { get; set; }
 
-        
         public IFormFile? UserUrlImage { get; set; } 
 
         public static ValidationResult? ValidateDob(DateTime? dob, ValidationContext context)

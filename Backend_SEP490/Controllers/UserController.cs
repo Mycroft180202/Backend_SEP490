@@ -127,6 +127,31 @@ namespace Backend_SEP490.Controllers
             return Ok(status);
         }
 
+        [Authorize(Roles = "Artisan")]
+        [HttpPut("users/my-shop")]
+        public async Task<IActionResult> UpdateShopProfile([FromBody] RequestUpdateUserShop request)
+        {
+            var userId = User.FindFirstValue("userID");
+            var users = await _userServices.UpdateUserShopByIDAsync(userId, request);
+            if (users == null)
+            {
+                return NotFound();
+            }
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("users/my-shop")]
+        public async Task<IActionResult> GetShopProfile()
+        {
+            var userId = User.FindFirstValue("userID");
+            var users = await _userServices.GetUserShopByIDAsync(userId);
+            if (users == null)
+            {
+                return NotFound();
+            }
+            return Ok(users);
+        }
 
     }
 }

@@ -17,5 +17,8 @@ public class UserMapper : Profile
                      : null))
              .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses))
              .ReverseMap();
+        CreateMap<User, ResponseDTOUserShop>()
+            .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses))
+            .ReverseMap();
     }
 }

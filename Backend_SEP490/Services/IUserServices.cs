@@ -20,4 +20,7 @@ public interface IUserServices
     public Task<bool> ForgotPasswordAsync(string email);
     public Task<bool> ResetPasswordAsync(RequestDTOResetPassword dto);
     public Task<string> ChangePasswordAsync(string userId, RequestUpdateUserHashPassword request);
+
+    public Task<ResponseDTOUserShop?> GetUserShopByIDAsync(string userID);
+    public Task<string?> UpdateUserShopByIDAsync(string userID, RequestUpdateUserShop request);
 }

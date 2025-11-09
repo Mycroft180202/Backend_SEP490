@@ -153,4 +153,32 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return "Update user information succesfully!";
 
     }
+
+    public async Task<string?> UpdateUserAsync(User user, RequestUpdateUserShop request, string imageURL)
+    {
+        //Chỉnh sửa thông tin user
+        try
+        {
+            user.ShopName = request.ShopName;
+            user.PhoneNumber = request.PhoneNumber;
+            user.ShopUrlImage = imageURL;
+            
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(ex);
+            return "Update artisan shop information error!";
+        }
+        try
+        {
+            _context.Users.Update(user);
+            _context.SaveChanges();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(ex);
+            return "Update artisan information failed!";
+        }
+        return "Update artisan information succesfully!";
+    }
 }

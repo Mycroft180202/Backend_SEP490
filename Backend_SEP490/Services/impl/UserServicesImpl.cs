@@ -364,4 +364,38 @@ public class UserServicesImpl : GenericServices, IUserServices
 
         return status;
     }
+
+    public async Task<ResponseDTOUserShop?> GetUserShopByIDAsync(string userID)
+    {
+        var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
+        return _mapper.Map<ResponseDTOUserShop>(user);
+    }
+
+    public async Task<string?> UpdateUserShopByIDAsync(string userID, RequestUpdateUserShop request)
+    {
+
+        var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
+
+        if (user == null)
+        {
+            return "User not found!";
+        }
+
+        string url = user.ShopUrlImage;
+
+        if (request.ShopURLImage != null)
+        {
+            using var stream = request.ShopURLImage.OpenReadStream();
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(request.ShopURLImage.FileName, stream)
+            };
+
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            url = uploadResult.SecureUrl.ToString();
+        }
+        var status = await _context.Users.UpdateUserAsync(user, request, url);
+
+        return status;
+    }
 }

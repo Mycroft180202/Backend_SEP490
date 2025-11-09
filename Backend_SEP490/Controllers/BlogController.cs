@@ -32,6 +32,7 @@ namespace Backend_SEP490.Controllers
             if (blog == null) NotFound();
             return Ok(blog);
         }
+
         [HttpPut("blogs/{id}")]
         public async Task<IActionResult> UpdateBlogPost([FromRoute] string blogId, [FromBody] RequestUpdateBlogPost request)
         {
