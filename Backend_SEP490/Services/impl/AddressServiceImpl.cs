@@ -28,8 +28,15 @@ namespace Backend_SEP490.Services.impl
                 IsDefault = request.IsDefault
             };
 
-            var status = await _context.Address.CreateAddressAsync(newAddress);
-            return status;
+            // Nếu như address mới người dùng để mặc định thì chuyển cả address đang là default thì false
+            if (request.IsDefault)
+            {
+                var defaultAddress = await _context.Address.GetDefaultAddressAsync();
+                return await _context.Address.CreateAddressAsync(newAddress, defaultAddress);
+
+            }
+            return await _context.Address.CreateAddressAsync(newAddress, null);
+           
         }
 
         public async Task<string> DeleteUserAddressAsync(string addressId)
@@ -52,8 +59,17 @@ namespace Backend_SEP490.Services.impl
             var address = await _context.Address.GetAddressByIdAsync(addressId);
             if (address == null) return "Address not found!";
 
-            var status = await _context.Address.UpdateAddressAsync(address, request);
-            return status;
+            // Nếu như address này người dùng để thành mặc định thì chuyển cái đang là default thành false
+            if (request.IsDefault)
+            {
+                var defaultAddress = await _context.Address.GetDefaultAddressAsync();
+                if (!defaultAddress.Id.EndsWith(addressId))
+                {
+                    return await _context.Address.UpdateAddressAsync(address, request, defaultAddress);
+                }
+            }
+
+            return await _context.Address.UpdateAddressAsync(address, request, null);
         }
     }
 }

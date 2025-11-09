@@ -10,11 +10,19 @@ namespace Backend_SEP490.Repositories.impl
         {
         }
 
-        public async Task<string> CreateAddressAsync(Address address)
+        public async Task<string> CreateAddressAsync(Address address, Address defaultAddress)
         {
             try
             {
                 _context.Addresses.Add(address);
+
+                //Nếu như address mới người dùng để là mặc định thì chuyển isdefault thành false
+                if (defaultAddress != null)
+                {
+                    defaultAddress.IsDefault = false;
+                    _context.Addresses.Update(defaultAddress);
+                }
+
                 _context.SaveChanges();
 
             }
@@ -44,12 +52,16 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.Addresses.Where(a => a.Id.Equals(addressId)).FirstOrDefaultAsync();
         }
 
+        public async Task<Address> GetDefaultAddressAsync()
+        {
+            return await _context.Addresses.Where(a => a.IsDefault == true).FirstOrDefaultAsync();
+        }
         public async Task<IEnumerable<Address>> GetAllAddressByUserIdAsync(string userId)
         {
             return await _context.Addresses.Where(a => a.UserID == userId).ToListAsync();
         }
 
-        public async Task<string> UpdateAddressAsync(Address address, RequestCreateAndUpdateAddress request)
+        public async Task<string> UpdateAddressAsync(Address address, RequestCreateAndUpdateAddress request, Address defaultAddress)
         {
             try
             {
@@ -59,6 +71,12 @@ namespace Backend_SEP490.Repositories.impl
                 address.City = request.City;
                 address.Country = request.Country;
                 address.PosttalCode = request.PosttalCode;
+
+                //Nếu như address mới người dùng để là mặc định thì chuyển isdefault thành false
+                if (defaultAddress != null)
+                {
+                    defaultAddress.IsDefault = false;
+                }
             }
             catch (Exception ex)
             {
@@ -67,6 +85,10 @@ namespace Backend_SEP490.Repositories.impl
 
             try
             {
+                if (defaultAddress != null)
+                {
+                    _context.Addresses.Update(defaultAddress);
+                }
                 _context.Addresses.Update(address);
                 _context.SaveChanges();
             }
