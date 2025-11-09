@@ -13,10 +13,11 @@ namespace Backend_SEP490.Controllers;
 public class ProductController:ControllerBase
 {
     private readonly IProductServices _productServices;
-
-    public ProductController(IProductServices productServices)
+    private readonly IProductImagesServices _productImagesServices;
+    public ProductController(IProductServices productServices, IProductImagesServices productImagesServices)
     {
         _productServices = productServices;
+        _productImagesServices = productImagesServices;
     }
 
     [HttpGet("products/{id}")]
@@ -57,18 +58,21 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
-    
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? productName,
         [FromQuery] string? categoryId,
         [FromQuery] bool? isactive,
         [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? sortOrder = null) // thêm sort
     {
-        var result = await _productServices.GetProductsAsync(productName, categoryId,isactive, pageIndex, pageSize);
+        var result = await _productServices.GetProductsAsync(
+            productName, categoryId, isactive, pageIndex, pageSize, sortOrder);
+
         return Ok(result);
     }
+
     [Authorize(Roles = "Artisan,Admin")]
     [HttpDelete("products/{id}")]
     public async Task<IActionResult> DeleteProduct(string id)
@@ -79,5 +83,24 @@ public class ProductController:ControllerBase
 
         return NoContent(); 
     }
+    [HttpPost("image/add")]
+    public async Task<IActionResult> AddProductImage([FromForm] RequestDTOAddProductImage dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
+        try
+        {
+            var image = await _productImagesServices.AddProductImageAsync(dto);
+            return Ok(new
+            {
+                message = "Image added successfully",
+                data = image
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

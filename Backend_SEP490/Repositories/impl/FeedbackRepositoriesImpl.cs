@@ -46,6 +46,7 @@ public class FeedbackRepositoriesImpl : GenericRepositoryImpl<Feedback>, IFeedba
     {
         var result = new Feedback
         {
+            Id = GenerateID("FEB"),
             Comment = feedback.Comment,
             Rating = feedback.Rating,
             CustomerId = userID,
@@ -55,7 +56,13 @@ public class FeedbackRepositoriesImpl : GenericRepositoryImpl<Feedback>, IFeedba
     _context.Feedbacks.Add(result);
     await _context.SaveChangesAsync();
     }
+    public static string GenerateID(string prefix)
+    {   
+        
+        string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
 
+        return $"{prefix}-{timestamp}";
+    }
     public async Task<int> CountFeedbacksByProductIdAsync(string productId)
     {
         return await _context.Feedbacks

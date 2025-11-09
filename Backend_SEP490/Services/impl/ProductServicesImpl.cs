@@ -177,29 +177,29 @@ public class ProductServicesImpl: GenericServices, IProductServices
         await _context.Products.AddProductAsync(newProduct);
 
         // Upload hình ảnh
-        //if (productDto.images != null && productDto.images.Any())
-        //{
-        //    int position = 0;
-        //    foreach (var file in productDto.images)
-        //    {
-        //        using var stream = file.OpenReadStream();
-        //        var uploadParams = new ImageUploadParams
-        //        {
-        //            File = new FileDescription(file.FileName, stream)
-        //        };
+        if (productDto.Images != null && productDto.Images.Any())
+        {
+            int position = 0;
+            foreach (var file in productDto.Images)
+            {
+                using var stream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream)
+                };
 
-        //        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-        //        var productImage = new ProductImage
-        //        {
-        //            Id = GenerateID("PIMG"),
-        //            ProductId = newProduct.Id,
-        //            URL = uploadResult.SecureUrl.ToString(),
-        //            Position = position++
-        //        };
-        //        await _context.ProductImages.AddProductImageAsync(productImage);
-        //    }
-        //}
+                var productImage = new ProductImage
+                {
+                    Id = GenerateID("PIMG"),
+                    ProductId = newProduct.Id,
+                    URL = uploadResult.SecureUrl.ToString(),
+                    Position = position++
+                };
+                await _context.ProductImages.AddProductImageAsync(productImage);
+            }
+        }
 
         return true;
     }
@@ -331,34 +331,34 @@ public class ProductServicesImpl: GenericServices, IProductServices
     existingProduct.Stock = productDto.Stock;
     existingProduct.UpdateAt = DateTime.UtcNow;
 
-    // Cập nhật images (xóa cũ -> thêm mới)
-    //if (productDto.images != null && productDto.images.Any())
-    //{
-    //    // Xóa ảnh cũ
-    //    await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
+     // Cập nhật images (xóa cũ -> thêm mới)
+    if (productDto.Images != null && productDto.Images.Any())
+    {
+        // Xóa ảnh cũ
+        await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
 
-    //    int position = 0;
-    //    foreach (var file in productDto.images)
-    //    {
-    //        using var stream = file.OpenReadStream();
-    //        var uploadParams = new ImageUploadParams
-    //        {
-    //            File = new FileDescription(file.FileName, stream)
-    //        };
+        int position = 0;
+        foreach (var file in productDto.Images)
+        {
+            using var stream = file.OpenReadStream();
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(file.FileName, stream)
+            };
 
-    //        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-    //        var productImage = new ProductImage
-    //        {
-    //            Id = GenerateID("PIMG"),
-    //            ProductId = existingProduct.Id,
-    //            URL = uploadResult.SecureUrl.ToString(),
-    //            Position = position++
-    //        };
+            var productImage = new ProductImage
+            {
+                Id = GenerateID("PIMG"),
+                ProductId = existingProduct.Id,
+                URL = uploadResult.SecureUrl.ToString(),
+                Position = position++
+            };
 
-    //        await _context.ProductImages.AddProductImageAsync(productImage);
-    //    }
-    //}
+            await _context.ProductImages.AddProductImageAsync(productImage);
+        }
+    }
 
    
     var textForEmbedding = $"{existingProduct.Name} {existingProduct.ShortDescription} {existingProduct.LongDescription}";
@@ -375,8 +375,12 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
 
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize)
+        string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize,string? sortOrder)
     {
+        if (pageIndex < 1)
+            pageIndex = 1;
+        if (pageSize <= 0)
+            pageSize = 10;
         var products = await _context.Products.GetProductsAsync(categoryId, isActive);
 
         if (!string.IsNullOrEmpty(productName))
@@ -399,19 +403,53 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
             products = ranked;
         }
-
+        
+        if (!string.IsNullOrEmpty(sortOrder))
+        {
+            switch (sortOrder.ToLower())
+            {
+                case "asc":
+                case "lowtohigh":
+                    products = products.OrderBy(p => p.Price).ToList();
+                    break;
+                case "desc":
+                case "hightolow":
+                    products = products.OrderByDescending(p => p.Price).ToList();
+                    break;
+            }
+        }
+        
         var totalCount = products.Count;
         var paged = products.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
         var result = _mapper.Map<List<ResponseDTOProduct>>(paged);
         foreach (var pro in result)
         {
-            var image = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            pro.ImageUrl = image.FirstOrDefault(p=>p.Position == 0)?.URL;
+            // Artisan info
+            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
+            if (user != null)
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            // Ratings
+            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
+            if (ratings != null && ratings.Any())
+            {
+                var ratingSum = ratings.Sum(o => o.Rating);
+                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
         }
         return new PagedResult<ResponseDTOProduct>
         {
             TotalCount = totalCount,
-            Items =result
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Items = result
         };
     }
     private double CalculateCosineSimilarity(double[] a, double[] b)
