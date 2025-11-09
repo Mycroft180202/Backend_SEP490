@@ -1,112 +1,125 @@
 import React, { useState } from 'react';
+import { FaList, FaComments, FaTag, FaStar, FaBoxOpen } from 'react-icons/fa';
 
-const imgEllipse34 = "https://www.figma.com/api/mcp/asset/19274594-08ce-4e09-b869-ea2ac9a5a078";
-const imgVuesaxLinearArrowRight = "https://www.figma.com/api/mcp/asset/7d7e2137-bb8e-4862-94f6-36c4392a83bc";
-const imgVuesaxLinearStar = "https://www.figma.com/api/mcp/asset/73fcaa65-6d1c-4803-b6a9-86db4a49c94c";
-
-export default function Detail() {
+const Detail = ({ product, categoryName }) => {
   const [tab, setTab] = useState('description');
+
+  if (!product) return null;
+
   return (
-    <div className="min-h-screen pb-40 px-36 pt-10">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-11 h-11">
-          <img alt="" className="w-full h-full object-cover rounded-full" src={imgEllipse34} />
-        </div>
-        <p className="font-['Alata:Regular'] text-[20px] text-black">Shop A</p>
-        <div className="w-6 h-6">
-          <img alt="" className="w-full h-full" src={imgVuesaxLinearArrowRight} />
-        </div>
-      </div>
-
-
-      <div className="flex gap-10">
-        <div className="flex-1 space-y-6">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTab('description')}
-              className={`text-[20px] font-['Alata:Regular'] cursor-pointer hover:text-primary focus:outline-none ${tab === 'description' ? 'text-[#9e211f]' : 'text-[#a0a0a0]'}`}
-            >
-              Mô tả
-            </button>
-            <span className={`w-2 h-2 rounded-full inline-block ${tab === 'description' ? 'bg-[#9e211f]' : 'bg-[#e0e0e0]'}`} />
-            <button
-              onClick={() => setTab('feedback')}
-              className={`text-[20px] cursor-pointer hover:text-primary focus:outline-none ${tab === 'feedback' ? 'text-[#9e211f]' : 'text-[#a0a0a0]'}`}
-            >
-              Feedback (80)
-            </button>
-          </div>
-
-          {tab === 'description' ? (
-            <>
-              <p className="text-[18px] text-black leading-8">
-                Lorem ipsum dolor sit amet consectetur. Netus duis nullam feugiat nisl nunc. Aliquam mi nunc lacinia ultrices proin id pulvinar magna. Scelerisque enim in lorem dui vulputate a. Commodo at morbi eget laoreet aliquet.
-              </p>
-
-              <div className="bg-[#d9d9d9] h-[252px] rounded-[12px]" />
-
-              <div className="flex gap-10 mt-6">
-                <div className="flex flex-col gap-2 w-1/2">
-                  <p className="font-medium">Xuất xứ</p>
-                  <p className="font-medium">Chất liệu</p>
-                </div>
-                <div className="flex-1">
-                  <p>Làng chuồn chuồn tre Thạch Xá</p>
-                  <p>Tre, bột màu</p>
-                </div>
-              </div>
-
-              <p className="text-[18px] text-black leading-8 mt-6">
-                Lorem ipsum dolor sit amet consectetur. Netus duis nullam feugiat nisl nunc. Aliquam mi nunc lacinia ultrices proin id pulvinar magna. Scelerisque enim in lorem dui vulputate a. Commodo at morbi eget laoreet aliquet.
-              </p>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-[#d9d9d9] h-[252px] rounded-[12px]" />
-                <div className="bg-[#d9d9d9] h-[252px] rounded-[12px]" />
-              </div>
-            </>
-          ) : (
-            <div className="mt-6 flex flex-col gap-6">
-              {[1,2,3,4].map(i => (
-                <div key={i} className="bg-[#f5f5f5] rounded-lg p-4 shadow">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold">Người dùng {i}</span>
-                    <span className="text-yellow-500">★★★★★</span>
-                  </div>
-                  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque vitae velit ex.</p>
-                </div>
-              ))}
+    <div className="w-full bg-gradient-to-b from-[#FFFDEB] to-white py-12">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Shop Info với style truyền thống */}
+        <div className="flex items-center gap-4 mb-10 bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border-l-4 border-[#D4A574]">
+          <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-[#D4A574] to-[#8B4513] p-1 shadow-lg">
+            <div className="w-full h-full rounded-full overflow-hidden bg-white">
+              <img 
+                alt={product.displayName} 
+                className="w-full h-full object-cover" 
+                src={product.userUrlImage || '/images/default-avatar.png'} 
+              />
             </div>
-          )}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-gray-500 mb-1">Nghệ nhân</p>
+            <p className="text-xl font-bold text-[#8B4513]" style={{ fontFamily: 'Telex, sans-serif' }}>
+              {product.shopName || product.displayName}
+            </p>
+          </div>
+          <button className="px-6 py-2 bg-gradient-to-r from-[#D4A574] to-[#8B4513] text-white rounded-lg hover:from-[#8B4513] hover:to-[#D4A574] transition-all font-medium shadow-md">
+            Xem Shop →
+          </button>
         </div>
 
-        <div className="flex-1 flex flex-col gap-4">
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-3">
-              <p className="text-[48px] text-[#9e211f] font-['Alata:Regular']">4.9</p>
-              <div className="w-12 h-12">
-                <img alt="" className="w-full h-full" src={imgVuesaxLinearStar} />
+        {/* Tabs với style đẹp */}
+        <div className="flex items-center gap-6 mb-8 border-b-2 border-[#D4A574] pb-1">
+          <button
+            onClick={() => setTab('description')}
+            className={`flex items-center gap-2 text-lg font-semibold pb-3 border-b-4 transition-all ${
+              tab === 'description' 
+                ? 'text-[#8B4513] border-[#8B4513]' 
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            }`}
+          >
+            <FaList />
+            Mô tả sản phẩm
+          </button>
+          <button
+            onClick={() => setTab('feedback')}
+            className={`flex items-center gap-2 text-lg font-semibold pb-3 border-b-4 transition-all ${
+              tab === 'feedback' 
+                ? 'text-[#8B4513] border-[#8B4513]' 
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            }`}
+          >
+            <FaComments />
+            Đánh giá
+          </button>
+        </div>
+
+        {/* Content */}
+        {tab === 'description' ? (
+          <div className="space-y-8">
+            {/* Long Description với khung trang trí */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border-2 border-[#D4A574]/30">
+              <div className="prose max-w-none">
+                <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line" style={{ fontFamily: 'Telex, sans-serif' }}>
+                  {product.longDescription || product.shortDescription}
+                </p>
               </div>
             </div>
-            <p className="text-[24px] text-black">(80)</p>
-          </div>
 
-
-          <div className="flex flex-col gap-2 w-full">
-            {[5, 4, 3, 2, 1].map((num, idx) => {
-              const filledWidth = [254, 191, 15, 15, 15][idx];
-              return (
-                <div key={num} className="flex items-center gap-2">
-                  <p className="w-6 text-right">{num}</p>
-                  <div className="w-full bg-[#e0e0e0] h-3 rounded-full relative">
-                    <div className="bg-[#f7f32f] h-3 rounded-full" style={{ width: filledWidth }} />
+            {/* Product Info - Gộp thành 1 phần */}
+            <div className="bg-gradient-to-br from-white to-[#FFF8E7] rounded-2xl p-8 shadow-xl border-2 border-[#D4A574]">
+              <h3 className="text-2xl font-bold text-[#8B4513] mb-6 flex items-center gap-3" style={{ fontFamily: 'Telex, sans-serif' }}>
+                <FaTag className="text-[#D4A574]" />
+                Thông tin sản phẩm
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Danh mục */}
+                <div className="bg-white/80 rounded-xl p-5 shadow-md border-l-4 border-[#D4A574] hover:shadow-lg transition-all">
+                  <div className="flex items-center gap-3 mb-2">
+                    <FaTag className="text-[#D4A574]" size={20} />
+                    <span className="text-sm text-gray-500 font-medium">Danh mục</span>
                   </div>
+                  <p className="text-lg font-semibold text-[#8B4513]">{categoryName || product.category}</p>
                 </div>
-              );
-            })}
+                
+                {/* Đánh giá */}
+                <div className="bg-white/80 rounded-xl p-5 shadow-md border-l-4 border-yellow-500 hover:shadow-lg transition-all">
+                  <div className="flex items-center gap-3 mb-2">
+                    <FaStar className="text-yellow-500" size={20} />
+                    <span className="text-sm text-gray-500 font-medium">Đánh giá</span>
+                  </div>
+                  <p className="text-lg font-semibold text-[#8B4513]">{product.rating || 0} / 5 ⭐</p>
+                </div>
+                
+                {/* Kho */}
+                <div className="bg-white/80 rounded-xl p-5 shadow-md border-l-4 border-green-500 hover:shadow-lg transition-all">
+                  <div className="flex items-center gap-3 mb-2">
+                    <FaBoxOpen className="text-green-500" size={20} />
+                    <span className="text-sm text-gray-500 font-medium">Tồn kho</span>
+                  </div>
+                  <p className="text-lg font-semibold text-[#8B4513]">{product.stock} sản phẩm</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Feedback Section - TODO: Implement when API is ready */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border-2 border-[#D4A574]/30">
+              <div className="text-center text-gray-500">
+                <FaComments className="mx-auto mb-4 text-[#D4A574]" size={48} />
+                <p className="text-lg">Chưa có đánh giá nào cho sản phẩm này</p>
+                <p className="text-sm mt-2">Hãy là người đầu tiên đánh giá sản phẩm!</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default Detail;
