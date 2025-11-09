@@ -18,6 +18,7 @@ import OrderTracking from './pages/OrderTracking';
 import Blog from './pages/Blog';
 import BlogDetail from './pages/BlogDetail';
 import AdminDashboard from './pages/AdminDashboard';
+import ArtisanDashboard from './pages/ArtisanDashboard';
 function App() {
   return (
     <UserProvider>
@@ -38,6 +39,7 @@ function App() {
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog-detail" element={<BlogDetail />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/artisan" element={<ArtisanDashboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
