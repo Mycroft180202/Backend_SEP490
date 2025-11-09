@@ -399,14 +399,31 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
             products = ranked;
         }
-
+        
         var totalCount = products.Count;
         var paged = products.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
         var result = _mapper.Map<List<ResponseDTOProduct>>(paged);
         foreach (var pro in result)
         {
-            var image = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            pro.ImageUrl = image.FirstOrDefault(p=>p.Position == 0)?.URL;
+            // Artisan info
+            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
+            if (user != null)
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            // Ratings
+            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
+            if (ratings != null && ratings.Any())
+            {
+                var ratingSum = ratings.Sum(o => o.Rating);
+                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
         }
         return new PagedResult<ResponseDTOProduct>
         {
