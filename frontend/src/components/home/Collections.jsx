@@ -1,49 +1,85 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
+import { FaStar, FaStarHalfAlt, FaRegStar, FaShoppingCart } from 'react-icons/fa';
 import { ProductService } from '../../services/modules/products/productService';
 
+const CollectionCard = ({ product, loading, navigate }) => {
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
 
-const Star = ({ filled }) => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M10.4421 1.92495L11.9087 4.85828C12.1087 5.26662 12.6421 5.65828 13.0921 5.73328L15.7504 6.17495C17.4504 6.45828 17.8504 7.69162 16.6254 8.90828L14.5587 10.975C14.2087 11.325 14.0171 12 14.1254 12.4833L14.7171 15.0416C15.1837 17.0666 14.1087 17.85 12.3171 16.7916L9.8254 15.3166C9.3754 15.05 8.6337 15.05 8.1754 15.3166L5.6837 16.7916C3.9004 17.85 2.8171 17.0583 3.2837 15.0416L3.8754 12.4833C3.9837 12 3.7921 11.325 3.4421 10.975L1.3754 8.90828C0.1587 7.69162 0.5504 6.45828 2.2504 6.17495L4.9087 5.73328C5.3504 5.65828 5.8837 5.26662 6.0837 4.85828L7.5504 1.92495C8.3504 0.333283 9.6504 0.333283 10.4421 1.92495Z" fill={filled ? "#F0BE1D" : "#E5E7EB"}/>
-  </svg>
-);
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<FaStar key={i} className="text-yellow-500" />);
+    }
+    if (hasHalfStar) {
+      stars.push(<FaStarHalfAlt key="half" className="text-yellow-500" />);
+    }
+    const emptyStars = 5 - stars.length;
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<FaRegStar key={`empty-${i}`} className="text-yellow-500" />);
+    }
+    return stars;
+  };
 
-const CollectionCard = ({ image, title, shortDescription, price, rating, loading }) => {
-  return (
-    <div className="flex flex-col gap-4 w-full max-w-[368px] bg-white rounded-xl shadow-md p-4">
-      {loading ? (
-        <Skeleton height={320} style={{ borderRadius: '0.75rem', marginBottom: '0.5rem' }} />
-      ) : (
-        <img 
-          src={image} 
-          alt={title}
-          className="w-full h-[320px] object-cover rounded-xl mb-2" 
-        />
-      )}
-      <div className="font-alata text-xl text-primary mb-1">
-        {loading ? <Skeleton width={120} /> : title}
-      </div>
-  {/* ...existing code... */}
-      <div className="font-nunito text-base text-gray-700 mb-2">
-        {loading ? <Skeleton count={2} /> : shortDescription}
-      </div>
-      <div className="flex items-center justify-between mb-2">
-        <div className="font-nunito text-lg font-bold text-[#9e211f]">
-          {loading ? <Skeleton width={80} /> : `Giá: ${price?.toLocaleString('vi-VN')}₫`}
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <Skeleton height={280} />
+        <div className="p-4">
+          <Skeleton height={24} className="mb-2" />
+          <Skeleton count={2} className="mb-3" />
+          <Skeleton height={20} width={100} />
         </div>
-        <div className="flex items-center gap-1">
-          {loading ? (
-            <Skeleton width={100} />
-          ) : (
-            <>
-              {Array.from({ length: 5 }).map((_, idx) => (
-                <Star key={idx} filled={idx < Math.round(rating || 0)} />
-              ))}
-              <span className="font-nunito text-base text-gray-700 ml-2">{rating?.toFixed(1) || '0.0'}</span>
-            </>
-          )}
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="group bg-white rounded-xl overflow-hidden border border-[#D4A574]/30 hover:border-[#D4A574] transition-all duration-300 hover:shadow-xl cursor-pointer"
+      onClick={() => navigate(`/product-detail/${product.id}`)}
+    >
+      {/* Product Image */}
+      <div className="relative h-64 overflow-hidden bg-gradient-to-br from-[#FFF8E7] to-white">
+        <img
+          src={product.imageUrl || '/images/default-product.png'}
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+        />
+      </div>
+
+      {/* Product Info */}
+      <div className="p-4 bg-gradient-to-b from-white to-[#FFFBF0]">
+        {/* Product Name */}
+        <h3 className="font-['Nunito'] text-lg font-semibold text-[#8B4513] mb-2 line-clamp-2 group-hover:text-[#D4A574] transition min-h-[56px]">
+          {product.name}
+        </h3>
+
+        {/* Rating */}
+        <div className="flex items-center gap-1 mb-3">
+          {renderStars(product.rating || 0)}
+          <span className="text-sm text-gray-600 ml-1">
+            ({product.rating?.toFixed(1) || '0.0'})
+          </span>
+        </div>
+
+        {/* Price and Action */}
+        <div className="flex items-center justify-between pt-2 border-t border-[#D4A574]/20">
+          <span className="text-xl font-bold text-[#8B4513] font-['Nunito']">
+            {product.price?.toLocaleString('vi-VN')}đ
+          </span>
+          <button 
+            className="bg-[#8B4513] text-white p-2 rounded-lg hover:bg-[#D4A574] transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              // TODO: Add to cart functionality
+            }}
+          >
+            <FaShoppingCart className="text-lg" />
+          </button>
         </div>
       </div>
     </div>
@@ -53,47 +89,49 @@ const CollectionCard = ({ image, title, shortDescription, price, rating, loading
 const Pagination = ({ totalPages, pageIndex, setPageIndex }) => {
   if (!totalPages || totalPages < 1) return null;
 
-  // Tạo mảng số trang để hiển thị
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
-    <div className="flex justify-center items-center gap-2 mt-6">
+    <div className="flex justify-center items-center gap-3 mt-10">
       <button
-        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-100"
+        className="w-10 h-10 flex items-center justify-center rounded-full bg-white border-2 border-[#D4A574] text-[#9e211f] hover:bg-[#9e211f] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md font-semibold"
         disabled={pageIndex === 1}
         onClick={() => setPageIndex(pageIndex - 1)}
       >
-        &lt;
+        ‹
       </button>
       {pages.map((num) => (
         <button
           key={num}
-          className={`w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 mx-1
-            ${pageIndex === num ? 'bg-[#9e211f] text-white font-bold' : 'bg-white text-black hover:bg-gray-100'}`}
+          className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 shadow-md font-semibold
+            ${pageIndex === num 
+              ? 'bg-[#9e211f] border-[#9e211f] text-white scale-110' 
+              : 'bg-white border-[#D4A574] text-gray-700 hover:bg-[#FFF8E7] hover:border-[#9e211f]'
+            }`}
           onClick={() => setPageIndex(num)}
         >
           {num}
         </button>
       ))}
       <button
-        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-100"
+        className="w-10 h-10 flex items-center justify-center rounded-full bg-white border-2 border-[#D4A574] text-[#9e211f] hover:bg-[#9e211f] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md font-semibold"
         disabled={pageIndex === totalPages}
         onClick={() => setPageIndex(pageIndex + 1)}
       >
-        &gt;
+        ›
       </button>
     </div>
   );
 };
 
 const Collections = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageIndex, setPageIndexRaw] = useState(1);
   const [pageSize] = useState(3);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
 
   // Khi chuyển trang, set loading true ngay lập tức
   const setPageIndex = (idx) => {
@@ -111,7 +149,6 @@ const Collections = () => {
             ? response.totalPages
             : Math.ceil((response.totalCount || 0) / pageSize)
         );
-        setTotalCount(response.totalCount || 0);
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -122,32 +159,49 @@ const Collections = () => {
   }, [pageIndex, pageSize]);
 
 
-  if (error) return <div>Error: {error}</div>;
+  if (error) return (
+    <div className="w-full py-20 text-center">
+      <div className="text-red-600 text-lg">Lỗi: {error}</div>
+    </div>
+  );
 
   return (
-    <section className="w-full py-12 md:py-20 lg:py-[106px] px-4 md:px-10 lg:px-36 bg-background">
+    <section className="w-full py-12 md:py-20 lg:py-[106px] px-4 md:px-10 lg:px-36 bg-gradient-to-b from-[#FFFBF0] to-white">
       <div className="max-w-[1440px] mx-auto">
-        <h2 className="font-alata text-2xl md:text-3xl lg:text-4xl text-primary leading-tight lg:leading-[56px] mb-6 md:mb-10">
-          Bộ sưu tập sản phẩm
-        </h2>
+        {/* Title with traditional decoration */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="h-px bg-gradient-to-r from-transparent via-[#D4A574] to-[#D4A574] w-20"></div>
+            <div className="w-3 h-3 bg-[#9e211f] rotate-45"></div>
+            <h2 className="font-['Nunito'] text-3xl md:text-4xl lg:text-5xl text-[#9e211f] font-bold px-4">
+              Bộ sưu tập sản phẩm
+            </h2>
+            <div className="w-3 h-3 bg-[#9e211f] rotate-45"></div>
+            <div className="h-px bg-gradient-to-l from-transparent via-[#D4A574] to-[#D4A574] w-20"></div>
+          </div>
+          <p className="font-['Nunito'] text-gray-600 text-lg">
+            Khám phá những sản phẩm thủ công mỹ nghệ truyền thống Việt Nam
+          </p>
+        </div>
+
         <div className="flex flex-col items-center gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
             {loading ? (
               Array.from({ length: 3 }).map((_, idx) => (
                 <CollectionCard key={idx} loading={true} />
               ))
             ) : products.length === 0 ? (
-              <div className="col-span-3 text-center text-gray-500 py-10">Không có sản phẩm nào.</div>
+              <div className="col-span-3 text-center text-gray-500 py-20 bg-white rounded-2xl shadow-lg">
+                <div className="text-6xl mb-4">🏺</div>
+                <p className="text-xl font-['Nunito']">Không có sản phẩm nào.</p>
+              </div>
             ) : (
               products.map((product) => (
                 <CollectionCard
                   key={product.id}
-                  image={product.imageUrl || '/default-product-image.jpg'}
-                  title={product.name}
-                  shortDescription={product.shortDescription}
-                  price={product.price}
-                  rating={product.rating || 0}
+                  product={product}
                   loading={false}
+                  navigate={navigate}
                 />
               ))
             )}

@@ -160,7 +160,7 @@ const ShortDescription = ({ product }) => {
           <div className="space-y-6">
             {/* Product Name với họa tiết */}
             <div className="border-b-2 border-[#D4A574] pb-4">
-              <h1 className="text-4xl font-bold text-[#8B4513] mb-2" style={{ fontFamily: 'Telex, sans-serif' }}>
+              <h1 className="text-4xl font-bold text-[#8B4513] mb-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
                 {product.name}
               </h1>
               <div className="h-1 w-20 bg-gradient-to-r from-[#D4A574] to-transparent rounded"></div>

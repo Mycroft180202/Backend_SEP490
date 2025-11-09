@@ -115,7 +115,7 @@ const RelationProduct = ({ categoryId, currentProductId }) => {
               {/* Product Info */}
               <div className="p-5 space-y-3">
                 {/* Product Name */}
-                <h3 className="text-lg font-semibold text-[#8B4513] line-clamp-2 group-hover:text-[#D4A574] transition-colors" style={{ fontFamily: 'Telex, sans-serif' }}>
+                <h3 className="text-lg font-semibold text-[#8B4513] line-clamp-2 group-hover:text-[#D4A574] transition-colors" style={{ fontFamily: 'Nunito, sans-serif' }}>
                   {product.name}
                 </h3>
 

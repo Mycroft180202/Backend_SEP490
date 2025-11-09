@@ -22,7 +22,7 @@ const Detail = ({ product, categoryName }) => {
           </div>
           <div className="flex-1">
             <p className="text-sm text-gray-500 mb-1">Nghệ nhân</p>
-            <p className="text-xl font-bold text-[#8B4513]" style={{ fontFamily: 'Telex, sans-serif' }}>
+            <p className="text-xl font-bold text-[#8B4513]" style={{ fontFamily: 'Nunito, sans-serif' }}>
               {product.shopName || product.displayName}
             </p>
           </div>
@@ -63,7 +63,7 @@ const Detail = ({ product, categoryName }) => {
             {/* Long Description với khung trang trí */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border-2 border-[#D4A574]/30">
               <div className="prose max-w-none">
-                <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line" style={{ fontFamily: 'Telex, sans-serif' }}>
+                <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line" style={{ fontFamily: 'Nunito, sans-serif' }}>
                   {product.longDescription || product.shortDescription}
                 </p>
               </div>
@@ -71,7 +71,7 @@ const Detail = ({ product, categoryName }) => {
 
             {/* Product Info - Gộp thành 1 phần */}
             <div className="bg-gradient-to-br from-white to-[#FFF8E7] rounded-2xl p-8 shadow-xl border-2 border-[#D4A574]">
-              <h3 className="text-2xl font-bold text-[#8B4513] mb-6 flex items-center gap-3" style={{ fontFamily: 'Telex, sans-serif' }}>
+              <h3 className="text-2xl font-bold text-[#8B4513] mb-6 flex items-center gap-3" style={{ fontFamily: 'Nunito, sans-serif' }}>
                 <FaTag className="text-[#D4A574]" />
                 Thông tin sản phẩm
               </h3>
