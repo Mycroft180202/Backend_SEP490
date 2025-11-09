@@ -416,6 +416,12 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 case "hightolow":
                     products = products.OrderByDescending(p => p.Price).ToList();
                     break;
+                case "atoz":
+                    products = products.OrderBy(p => p.Name).ToList();
+                    break;
+                case "ztoa":
+                    products = products.OrderByDescending(p => p.Name).ToList();
+                    break;
             }
         }
         
@@ -443,6 +449,8 @@ public class ProductServicesImpl: GenericServices, IProductServices
             {
                 pro.Rating = 0;
             }
+            var image = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
+            pro.ImageUrl = image.FirstOrDefault(p=>p.Position == 0)?.URL;
         }
         return new PagedResult<ResponseDTOProduct>
         {
