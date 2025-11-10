@@ -30,10 +30,21 @@ namespace Backend_SEP490.Services.impl
                 cart = await _context.Cart.GetCartByUserIdAsync(userId);
             }
             int count = cart.CartItems.Count;
+
             var pagedCartItems = cart.CartItems.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
 
             // Map từng cart item sang DTO
             var mappedCartItems = _mapper.Map<IEnumerable<ResponseDTOCartItem>>(pagedCartItems);
+
+            // 🔹 Bổ sung lấy ảnh cho mỗi product
+            foreach (var item in mappedCartItems)
+            {
+                if (item.Product != null)
+                {
+                    var images = await _context.ProductImages.GetImagesByProductIdAsync(item.Product.Id);
+                    item.Product.ImageUrl = images.FirstOrDefault().URL;
+                }
+            }
 
             var cartItemPagination = new PagedResult<ResponseDTOCartItem>
             {
