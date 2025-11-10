@@ -16,7 +16,7 @@ namespace Backend_SEP490.Controllers
             _cartService = cartService;
         }
 
-        [HttpGet("carts/{pageIndex}/{pageSize}")]
+        [HttpGet("carts")]
         public async Task<IActionResult> GetAllCartItems([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
            var userId = User.FindFirst("userId")?.Value;

@@ -22,7 +22,7 @@ namespace Backend_SEP490.Controllers
         }
 
 
-        [HttpPost("users/{pageIndex}/{pageSize}")]
+        [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers([FromBody] RequestFilterUser? requestFilter, [FromQuery] int pageIndex =1, [FromQuery] int pageSize = 10)
         {
             var users = await _userServices.GetAllUsersAsync(requestFilter, pageIndex, pageSize);

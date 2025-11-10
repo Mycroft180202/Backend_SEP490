@@ -17,7 +17,7 @@ namespace Backend_SEP490.Controllers
             _blogPostService = blogPostService;
         }
 
-        [HttpGet("blogs/{pageIndex}/{pageSize}")]
+        [HttpGet("blogs")]
         public async Task<IActionResult> GetAllBlogPost([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 3)
         {
             var blog = await _blogPostService.GetAllBlogPostAsync(pageIndex, pageSize);
