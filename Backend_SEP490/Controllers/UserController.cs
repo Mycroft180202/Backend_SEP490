@@ -153,5 +153,17 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
+
+        [HttpGet("users/shop/{userId}")]
+        public async Task<IActionResult> GetShopByUserId([FromRoute] string userId)
+        {
+            var users = await _userServices.GetUserShopByIDAsync(userId);
+            if (users == null)
+            {
+                return NotFound();
+            }
+            return Ok(users);
+        }
+
     }
 }
