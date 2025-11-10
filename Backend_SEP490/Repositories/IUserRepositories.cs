@@ -16,4 +16,6 @@ public interface IUserRepositories
     Task<User?> GetUserByEmailAsync(string email);
     Task UpdateUserPasswordAsync(User user);
     Task<string> GetUserNameByIdAsync(string userId);
+    Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> userIds);
+
 }

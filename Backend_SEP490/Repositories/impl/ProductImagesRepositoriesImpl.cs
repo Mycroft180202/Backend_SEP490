@@ -33,4 +33,19 @@ public class ProductImagesRepositoriesImpl: GenericRepositoryImpl<ProductImage>,
         await _context.SaveChangesAsync();
         return image;
     }
+    public async Task<List<ProductImage>> GetImagesByProductIdsAsync(IEnumerable<string> productIds)
+    {
+        var ids = productIds?
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList() ?? new List<string>();
+
+        if (!ids.Any())
+            return new List<ProductImage>();
+
+        return await _context.ProductImages
+            .Where(img => ids.Contains(img.ProductId))
+            .ToListAsync();
+    }
+
 }

@@ -79,4 +79,19 @@ public class FeedbackRepositoriesImpl : GenericRepositoryImpl<Feedback>, IFeedba
             .Take(pageSize)
             .ToListAsync();
     }
+    public async Task<List<Feedback>> GetFeedbacksByProductIdsAsync(IEnumerable<string> productIds)
+    {
+        var ids = productIds?
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList() ?? new List<string>();
+
+        if (!ids.Any())
+            return new List<Feedback>();
+
+        return await _context.Feedbacks
+            .Where(f => ids.Contains(f.ProductId))
+            .ToListAsync();
+    }
+
 }

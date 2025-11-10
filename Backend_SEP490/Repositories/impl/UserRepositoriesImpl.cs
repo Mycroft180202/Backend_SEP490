@@ -139,4 +139,19 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         var user = await _context.Users.Where(u => u.UserID == userId).FirstOrDefaultAsync();
         return user.DisplayName;
     }
+    public async Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> userIds)
+    {
+        var ids = userIds?
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList() ?? new List<string>();
+
+        if (!ids.Any())
+            return new List<User>();
+
+        return await _context.Users
+            .Where(u => ids.Contains(u.UserID))
+            .ToListAsync();
+    }
+
 }

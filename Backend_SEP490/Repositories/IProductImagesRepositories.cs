@@ -8,4 +8,6 @@ public interface IProductImagesRepositories
     public Task AddProductImageAsync(ProductImage productImage);
     public Task RemoveProductImageAsync(IEnumerable<ProductImage> images);
     Task<ProductImage> AddImageAsync(ProductImage image);
+    Task<List<ProductImage>> GetImagesByProductIdsAsync(IEnumerable<string> productIds);
+
 }

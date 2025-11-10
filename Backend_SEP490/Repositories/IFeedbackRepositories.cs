@@ -13,5 +13,6 @@ public interface IFeedbackRepositories
     Task CreateFeedback(RequestDTOFeedback feedback,string productID, string userID);
     Task<int> CountFeedbacksByProductIdAsync(string productId);
     Task<List<Feedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize);
+    Task<List<Feedback>> GetFeedbacksByProductIdsAsync(IEnumerable<string> productIds);
 
 }
