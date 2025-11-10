@@ -4,6 +4,7 @@ namespace Backend_SEP490.DTOs.Response
 {
     public class ResponseDTOCartItem
     {
+        public string Id { get; set; }
         public int? Quantity { get; set; }
         public decimal? PriceAtAdd { get; set; }
         public RequestDTOProduct? Product { get; set; }
