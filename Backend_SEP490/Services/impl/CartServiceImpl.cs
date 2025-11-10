@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
@@ -11,28 +12,72 @@ namespace Backend_SEP490.Services.impl
         public CartServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
         {
         }
-
-        public async Task<ResponseDTOCart> GetCartByUserIdAsync(string userId)
+        private string GenerateID(string prefix, string userId) => $"{prefix}-{userId}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        public async Task<ResponseDTOCart> GetCartByUserIdAsync(string userId, int pageIndex, int pageSize)
         {
-            var cart = await _context.Cart.GetAllCartItemsAsync(userId);
+            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
+            if(cart == null)
+            {
+                Cart newCart = new Cart
+                {
+                    Id =  GenerateID("Cart", userId),
+                    CustomerID = userId,
+                    CreateAt = DateTime.UtcNow
+                };
+                var status = await _context.Cart.AddCartAsync(newCart);
+                if (!status) return null;
 
-            return _mapper.Map<ResponseDTOCart>(cart);
+                cart = await _context.Cart.GetCartByUserIdAsync(userId);
+            }
+            int count = cart.CartItems.Count;
+            var pagedCartItems = cart.CartItems.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+
+            // Map từng cart item sang DTO
+            var mappedCartItems = _mapper.Map<IEnumerable<ResponseDTOCartItem>>(pagedCartItems);
+
+            var cartItemPagination = new PagedResult<ResponseDTOCartItem>
+            {
+                Items = mappedCartItems,
+                TotalCount = count,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
+
+            // Map phần cart (không bao gồm items)
+            var result = _mapper.Map<ResponseDTOCart>(cart);
+            result.CartItems = cartItemPagination;
+
+            return result;
         }
         public async Task<string> AddCartItemAsync(string userId, RequestAddCartItem request)
         {
             //Check xem sản phẩm đó có trong giỏ hàng hay chưa
-            var cart = await _context.Cart.GetAllCartItemsAsync(userId);
+            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
+            if (cart == null)
+            {
+                Cart newCart = new Cart
+                {
+                    Id = GenerateID("Cart", userId),
+                    CustomerID = userId,
+                    CreateAt = DateTime.UtcNow
+                };
+                var status = await _context.Cart.AddCartAsync(newCart);
+                if (!status) return null;
+
+                cart = await _context.Cart.GetCartByUserIdAsync(userId);
+            }
+
             var product = await _context.Products.GetProductByIdAsync(request.ProductId);
             var item = cart.CartItems.Where(ci => ci.ProductId.Equals(request.ProductId)).FirstOrDefault();
 
            //Nếu có thì add 1 vào sản phẩm đó
             if (item != null)
             {
-                if (item.Quantity + 1 > product.Stock)
+                if (item.Quantity + request.quantity > product.Stock)
                 {
                     return "Out of stock!";
                 }
-                return await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + 1);
+                return await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + request.quantity);
             }
 
             //Nếu chưa có thì tạo mới sản phẩm đó trong CartItem
@@ -41,10 +86,12 @@ namespace Backend_SEP490.Services.impl
                 Id = cart.Id + "-" + request.ProductId,
                 ProductId = request.ProductId,
                 CartId = cart.Id,
-                Quantity = 1,
+                Quantity = request.quantity,
                 PriceAtAdd = request.PriceAtAdd
             };
+
             return await _context.CartItem.AddCartItemAsync(cartItem);
+
         }
 
         public async Task<string> UpdateCartItemAsync(string cartItemId, int quatity)

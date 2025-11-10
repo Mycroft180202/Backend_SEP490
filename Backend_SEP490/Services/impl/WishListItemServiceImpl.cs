@@ -18,7 +18,7 @@ namespace Backend_SEP490.Services.impl
             var wishListItem = await _context.WishListItem.GetWishListItemByIdAsync(wishListItemId);
 
             // thêm sản phẩm vào CartItem
-            var cart = await _context.Cart.GetAllCartItemsAsync(userId);
+            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
             var product = await _context.Products.GetProductByIdAsync(wishListItem.ProductID);
             var item = cart.CartItems.Where(ci => ci.ProductId.Equals(wishListItem.ProductID)).FirstOrDefault();
 

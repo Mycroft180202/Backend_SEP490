@@ -18,7 +18,7 @@ namespace Backend_SEP490.Services.impl
         {
             await using var transaction = await _context.BeginTransactionAsync();
 
-            var cart = await _context.Cart.GetAllCartItemsAsync(userId);
+            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
             var cartItems = await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id);
 
 

@@ -10,7 +10,7 @@ namespace Backend_SEP490.Mapper
         {
             CreateMap<Cart, ResponseDTOCart>()
                 .ForMember(dest => dest.Customer, opt => opt.MapFrom(src => src.Customer))
-                .ForMember(dest => dest.CartItems, opt => opt.MapFrom(src => src.CartItems)).ReverseMap();
+                .ForMember(dest => dest.CartItems, opt => opt.Ignore()).ReverseMap();
         }
     }
 }

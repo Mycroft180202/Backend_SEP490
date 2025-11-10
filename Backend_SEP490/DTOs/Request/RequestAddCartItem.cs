@@ -11,5 +11,9 @@ namespace Backend_SEP490.DTOs.Request
         [Required(ErrorMessage = "Giá sản phẩm không được để trống")]
         [Range(0.01, double.MaxValue, ErrorMessage = "Giá phải lớn hơn 0")]
         public decimal PriceAtAdd { get; set; }
+
+        [Required(ErrorMessage = "Giá sản phẩm không được để trống")]
+        [Range(1, int.MaxValue, ErrorMessage = "Giá phải lớn hơn 0")]
+        public int quantity { get; set; }
     }
 }
