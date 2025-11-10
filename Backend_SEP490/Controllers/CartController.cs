@@ -20,7 +20,7 @@ namespace Backend_SEP490.Controllers
         public async Task<IActionResult> GetAllCartItems()
         {
            var userId = User.FindFirst("userId")?.Value;
-            var cart = _cartService.GetCartByUserIdAsync(userId);
+            var cart = await _cartService.GetCartByUserIdAsync(userId);
             return Ok(cart);
         }
 
@@ -31,8 +31,8 @@ namespace Backend_SEP490.Controllers
                 return BadRequest(ModelState);
             else
             {
-                var userId = User.FindFirst("userId")?.Value;
-                var status = _cartService.AddCartItemAsync(userId, request);
+                var userId =  User.FindFirst("userId")?.Value;
+                var status = await _cartService.AddCartItemAsync(userId, request);
                 return Ok(status);    
             }
             
@@ -40,13 +40,13 @@ namespace Backend_SEP490.Controllers
         [HttpPut("carts/{id}")]
         public async Task<IActionResult> UpdateCartItems([FromRoute] string cartItemId, int quantity)
         {
-            var status = _cartService.UpdateCartItemAsync(cartItemId, quantity);
+            var status = await _cartService.UpdateCartItemAsync(cartItemId, quantity);
             return Ok(status);
         }
         [HttpDelete("carts/{id}")]
         public async Task<IActionResult> DeleteCartItems([FromRoute] string cartItemId)
         {
-            var status = _cartService.DeleteCartItemAsync(cartItemId);
+            var status = await _cartService.DeleteCartItemAsync(cartItemId);
             return Ok(status);
         }
     }
