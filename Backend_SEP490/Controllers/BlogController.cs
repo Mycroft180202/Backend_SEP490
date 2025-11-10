@@ -18,7 +18,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("blogs/{pageIndex}/{pageSize}")]
-        public async Task<IActionResult> GetAllBlogPost([FromRoute] int pageIndex = 1, [FromRoute] int pageSize = 3)
+        public async Task<IActionResult> GetAllBlogPost([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 3)
         {
             var blog = await _blogPostService.GetAllBlogPostAsync(pageIndex, pageSize);
             if (blog == null) NotFound();
