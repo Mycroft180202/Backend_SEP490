@@ -58,6 +58,11 @@ const CollectionCard = ({ product, loading, navigate }) => {
           {product.name}
         </h3>
 
+        {/* Short Description */}
+        <p className="font-['Nunito'] text-sm text-gray-600 mb-3 line-clamp-2 min-h-[40px]">
+          {product.shortDescription || 'Sản phẩm thủ công mỹ nghệ truyền thống'}
+        </p>
+
         {/* Rating */}
         <div className="flex items-center gap-1 mb-3">
           {renderStars(product.rating || 0)}
