@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { UserContext } from '../context/UserContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/modules/auth/authService';
@@ -11,7 +11,22 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { updateUserInfo } = useContext(UserContext);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('rememberMeUsername');
+    if (storedUsername) {
+      setUsername(storedUsername);
+      setRememberMe(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (rememberMe) {
+      localStorage.setItem('rememberMeUsername', username);
+    }
+  }, [rememberMe, username]);
 
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -21,6 +36,11 @@ const Login = () => {
     console.log('Response từ AuthService.login:', res);
     if (res && res.accessToken) {
       localStorage.setItem('accessToken', res.accessToken);
+      if (rememberMe) {
+        localStorage.setItem('rememberMeUsername', username);
+      } else {
+        localStorage.removeItem('rememberMeUsername');
+      }
       await updateUserInfo();
       toast.success('Đăng nhập thành công!', {
         position: "top-right",
@@ -45,10 +65,9 @@ const Login = () => {
 
 const handleRememberMe = (e) => {
   const isChecked = e.target.checked;
-  if (isChecked) {
-    localStorage.setItem('rememberMe', JSON.stringify({ username, password }));
-  } else {
-    localStorage.removeItem('rememberMe');
+  setRememberMe(isChecked);
+  if (!isChecked) {
+    localStorage.removeItem('rememberMeUsername');
   }
 };
 
@@ -135,6 +154,7 @@ const handleRememberMe = (e) => {
                   <input
                     type="checkbox"
                     className="w-4 h-4 border-[#a0a0a0]"
+                    checked={rememberMe}
                     onChange={handleRememberMe}
                   />
                   <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Ghi nhớ đăng nhập</span>

@@ -4,7 +4,19 @@ import PropTypes from 'prop-types';
 const Pagination = ({ totalPages, pageIndex, setPageIndex }) => {
   if (!totalPages || totalPages < 1) return null;
 
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const maxVisiblePages = 4;
+  let startPage = Math.max(1, pageIndex - Math.floor(maxVisiblePages / 2));
+  let endPage = startPage + maxVisiblePages - 1;
+
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+  }
+
+  const pages = [];
+  for (let i = startPage; i <= endPage; i += 1) {
+    pages.push(i);
+  }
 
   return (
     <div className="flex justify-center items-center gap-2 mt-6">

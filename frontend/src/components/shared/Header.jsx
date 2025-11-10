@@ -2,9 +2,11 @@ import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 import { FaBell, FaShoppingCart, FaSearch } from 'react-icons/fa';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const Header = () => {
   const { userInfo } = useContext(UserContext);
+  const { language, changeLanguage, t } = useContext(LanguageContext);
   const navigate = useNavigate();
   const [isDropdownVisible, setDropdownVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,12 +24,12 @@ const Header = () => {
         </span>
       </div>
       <nav className="flex items-center gap-[24px] relative z-10">
-        <Link to="/" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>Trang chủ</Link>
-        <Link to="/about" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>Về chúng tôi</Link>
-        <Link to="/shop" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>Cửa hàng</Link>
-        <Link to="/blog" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>Blog</Link>
-        <Link to="/contact" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>Liên hệ</Link>
-        <Link to="/policy" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>Chính sách</Link>
+        <Link to="/" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.home')}</Link>
+        <Link to="/about" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.about')}</Link>
+        <Link to="/shop" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.shop')}</Link>
+        <Link to="/blog" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.blog')}</Link>
+        <Link to="/contact" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.contact')}</Link>
+        <Link to="/policy" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.policy')}</Link>
 
       </nav>
       <div className="flex items-center gap-[16px] relative z-10">
@@ -35,7 +37,7 @@ const Header = () => {
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
           <input
             type="text"
-            placeholder="Tìm kiếm..."
+            placeholder={t('header.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -68,13 +70,13 @@ const Header = () => {
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
-                    Tài khoản của tôi
+                    {t('header.profile')}
                   </Link>
                   <Link
                     to="/orders"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
-                    Đơn mua
+                    {t('header.orders')}
                   </Link>
                   <button
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -83,7 +85,7 @@ const Header = () => {
                       window.location.href = '/';
                     }}
                   >
-                    Đăng xuất
+                    {t('header.logout')}
                   </button>
                 </div>
               )}
@@ -91,12 +93,12 @@ const Header = () => {
           </div>
         ) : (
           <Link to="/login" className="px-6 py-[6px] border border-white rounded-[12px] flex items-center" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, fontWeight: 500, lineHeight: '32px', color: '#fff' }}>
-            Đăng nhập
+            {t('header.login')}
           </Link>
         )}
         <FaShoppingCart
           className="text-white text-xl cursor-pointer"
-          title="Giỏ hàng"
+          title={t('header.cartTooltip')}
           onClick={() => navigate('/cart')}
         />
         <div className="relative">
@@ -110,16 +112,26 @@ const Header = () => {
               className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
               style={{ zIndex: 1000 }}
             >
-              <div className="p-4 text-sm text-gray-700">Không có thông báo mới.</div>
+              <div className="p-4 text-sm text-gray-700">{t('header.notificationsEmpty')}</div>
             </div>
           )}
         </div>
-        <div className="w-[36px] h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center">
+        <button
+          type="button"
+          onClick={() => changeLanguage('vi')}
+          className={`w-[36px] h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center transition ${language === 'vi' ? 'ring-2 ring-white ring-offset-2 ring-offset-[#7a0909]' : ''}`}
+          aria-pressed={language === 'vi'}
+        >
           <img src="/images/VNFlag.png" alt="flag" className="w-full h-full object-cover" />
-        </div>
-        <div className="w-[36px] h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center">
+        </button>
+        <button
+          type="button"
+          onClick={() => changeLanguage('en')}
+          className={`w-[36px] h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center transition ${language === 'en' ? 'ring-2 ring-white ring-offset-2 ring-offset-[#7a0909]' : ''}`}
+          aria-pressed={language === 'en'}
+        >
           <img src="/images/Engflag.png" alt="Eflag" className="w-full h-full object-cover" />
-        </div>
+        </button>
       </div>
     </header>
   );

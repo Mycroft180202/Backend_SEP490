@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
@@ -7,73 +7,89 @@ import Pagination from '../components/shared/Pagination';
 import ProductCard from '../components/shared/ProductCard';
 import ShopFilter from '../components/shop/ShopFilter';
 import { ProductService } from '../services/modules/products/productService';
+import { LanguageContext } from '../context/LanguageContext';
 
-export default function Shop() {
+const Shop = () => {
   const navigate = useNavigate();
+  const { t } = useContext(LanguageContext);
+
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pageIndex, setPageIndexRaw] = useState(1);
+  const [pageIndex, setPageIndex] = useState(1);
   const [pageSize] = useState(12);
   const [totalPages, setTotalPages] = useState(0);
   const [searchValue, setSearchValue] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); // Query thực sự được gửi đi
+  const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
 
-  const setPageIndex = (idx) => {
-    setLoading(true);
-    setPageIndexRaw(idx);
-  };
-
-  // Hàm xử lý khi nhấn Enter
   const handleSearchSubmit = () => {
     setSearchQuery(searchValue);
-    setPageIndexRaw(1); // Reset về trang 1 khi search
+    setPageIndex(1);
+  };
+
+  const handlePageChange = (idx) => {
+    setLoading(true);
+    setPageIndex(idx);
   };
 
   useEffect(() => {
-    setLoading(true); 
-    setProducts([]);  
+    let isMounted = true;
+
     const fetchProducts = async () => {
       try {
+        if (!isMounted) return;
+        setLoading(true);
+        setError(null);
+        setProducts([]);
+
         const params = {
           pageIndex,
           pageSize,
         };
+
         if (selectedCategory) {
           params.categoryId = selectedCategory;
         }
         if (searchQuery) {
-          params.productName = searchQuery; // Search theo productName (OpenAI embedding)
+          params.productName = searchQuery;
         }
         if (sortOption) {
-          // Map frontend sort values to backend format
           const sortMap = {
-            'lowToHigh': 'lowToHigh',
-            'highToLow': 'highToLow',
-            'aToZ': 'aToZ',
-            'zToA': 'zToA',
+            lowToHigh: 'lowToHigh',
+            highToLow: 'highToLow',
+            aToZ: 'aToZ',
+            zToA: 'zToA',
           };
           params.sortOrder = sortMap[sortOption] || '';
         }
+
         const response = await ProductService.getAllProducts(params);
+        if (!isMounted) return;
+
         setProducts(response.items || []);
         setTotalPages(
           response.totalPages && response.totalPages > 0
             ? response.totalPages
-            : Math.ceil((response.totalCount || 0) / pageSize)
+            : Math.ceil((response.totalCount || 0) / pageSize),
         );
-        setLoading(false);
       } catch (err) {
-        setError(err.message);
-        setLoading(false);
+        if (!isMounted) return;
+        setError(err?.message || 'Unknown error');
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    fetchProducts();
-  }, [pageIndex, pageSize, selectedCategory, searchQuery, sortOption]);
 
-  if (error) return <div>Error: {error}</div>;
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pageIndex, pageSize, selectedCategory, searchQuery, sortOption]);
 
   return (
     <div className="bg-gradient-to-b from-[#FFFBF0] to-[#FFF8E7] min-h-screen">
@@ -81,48 +97,55 @@ export default function Shop() {
       <ShopBanner onSelect={(label) => setSelectedCategory(label)} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <ShopFilter
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          onSearchSubmit={handleSearchSubmit}
-          sortOption={sortOption}
-          onSortChange={setSortOption}
-        />
+        {error ? (
+          <div className="text-center text-red-600 text-lg">
+            {`${t('general.errorPrefix')}${error}`}
+          </div>
+        ) : (
+          <>
+            <ShopFilter
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onSearchSubmit={handleSearchSubmit}
+              sortOption={sortOption}
+              onSortChange={setSortOption}
+            />
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
-          {loading ? (
-            Array.from({ length: 12 }).map((_, idx) => (
-              <ProductCard key={idx} loading={true} />
-            ))
-          ) : products.length === 0 ? (
-            <div className="col-span-full text-center py-20 bg-white rounded-2xl shadow-lg">
-              <div className="text-6xl mb-4">🏺</div>
-              <p className="text-xl font-['Nunito'] text-gray-500">Không có sản phẩm nào.</p>
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
+              {loading ? (
+                Array.from({ length: 12 }).map((_, idx) => <ProductCard key={idx} loading />)
+              ) : products.length === 0 ? (
+                <div className="col-span-full text-center py-20 bg-white rounded-2xl shadow-lg">
+                  <div className="text-6xl mb-4">:/</div>
+                  <p className="text-xl font-['Nunito'] text-gray-500">{t('shop.empty')}</p>
+                </div>
+              ) : (
+                products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    image={product.imageUrl || '/images/default-product.png'}
+                    title={product.name}
+                    shortDescription={product.shortDescription}
+                    price={product.price}
+                    rating={product.rating || 0}
+                    onClick={() => navigate(`/product-detail/${product.id}`)}
+                  />
+                ))
+              )}
+            </section>
+
+            <div className="flex justify-center mt-12">
+              <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={handlePageChange} />
             </div>
-          ) : (
-            products.map((product) => (
-              <div key={product.id} onClick={() => navigate(`/product-detail/${product.id}`)} className="cursor-pointer">
-                <ProductCard
-                  image={product.imageUrl || '/images/default-product.png'}
-                  title={product.name}
-                  shortDescription={product.shortDescription}
-                  price={product.price}
-                  rating={product.rating || 0}
-                  loading={false}
-                />
-              </div>
-            ))
-          )}
-        </section>
-
-        <div className="flex justify-center mt-12">
-          <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
-        </div>
+          </>
+        )}
       </main>
 
       <Footer />
     </div>
   );
-}
+};
+
+export default Shop;
