@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
 import ShopBanner from '../components/shop/ShopBanner';
@@ -8,10 +9,13 @@ import ProductCard from '../components/shared/ProductCard';
 import ShopFilter from '../components/shop/ShopFilter';
 import { ProductService } from '../services/modules/products/productService';
 import { LanguageContext } from '../context/LanguageContext';
+import { CartService } from '../services/modules/cart/cartService';
+import { UserContext } from '../context/UserContext';
 
 const Shop = () => {
   const navigate = useNavigate();
   const { t } = useContext(LanguageContext);
+  const { userInfo } = useContext(UserContext);
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [products, setProducts] = useState([]);
@@ -23,6 +27,40 @@ const Shop = () => {
   const [searchValue, setSearchValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
+  const ensureAuthenticated = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (token) return true;
+    if (!userInfo) {
+      toast.info(t('messages.loginRequired'));
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 500);
+    }
+    return false;
+  };
+
+  const handleAddToCart = async (productId, price, quantity = 1, redirect = false) => {
+    if (!ensureAuthenticated()) return;
+    try {
+      await CartService.addItem(productId, price, quantity);
+      toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
+      if (redirect) {
+        navigate('/cart');
+      }
+    } catch (err) {
+      console.error(err);
+      const message =
+        err?.response?.data?.message
+        || err?.response?.data?.title
+        || err?.message
+        || t('messages.addToCartError');
+      toast.error(message);
+    }
+  };
+
+  const handleBuyNow = async (productId, price) => {
+    await handleAddToCart(productId, price, 1, true);
+  };
 
   const handleSearchSubmit = () => {
     setSearchQuery(searchValue);
@@ -130,6 +168,8 @@ const Shop = () => {
                     shortDescription={product.shortDescription}
                     price={product.price}
                     rating={product.rating || 0}
+                    onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}
+                    onBuyNow={() => handleBuyNow(product.id, product.price ?? 0)}
                     onClick={() => navigate(`/product-detail/${product.id}`)}
                   />
                 ))

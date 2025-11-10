@@ -1,37 +1,56 @@
-import React, { useState } from 'react';
-import { FaStar, FaStarHalfAlt, FaRegStar, FaHeart, FaRegHeart, FaShare, FaChevronLeft, FaChevronRight, FaShoppingCart, FaStore, FaBoxOpen } from 'react-icons/fa';
+import React, { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import {
+  FaStar,
+  FaStarHalfAlt,
+  FaRegStar,
+  FaHeart,
+  FaRegHeart,
+  FaShare,
+  FaChevronLeft,
+  FaChevronRight,
+  FaShoppingCart,
+  FaStore,
+  FaBoxOpen,
+  FaBolt,
+} from 'react-icons/fa';
+import { LanguageContext } from '../../context/LanguageContext';
+import { UserContext } from '../../context/UserContext';
+import { CartService } from '../../services/modules/cart/cartService';
 
 const ShortDescription = ({ product }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [thumbnailStart, setThumbnailStart] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const { t } = useContext(LanguageContext);
+  const { userInfo } = useContext(UserContext);
+  const navigate = useNavigate();
 
   if (!product) return null;
 
-  // Lấy ảnh chính (ảnh đầu tiên) hoặc ảnh mặc định
-  const images = product.images && product.images.length > 0 
-    ? product.images 
+  const images = product.images && product.images.length > 0
+    ? product.images
     : ['/images/default-product.png'];
 
   const mainImage = images[selectedImage] || images[0];
   const thumbnailsPerPage = 4;
   const maxThumbnailStart = Math.max(0, images.length - thumbnailsPerPage);
 
-  // Render stars dựa trên rating
   const renderStars = (rating) => {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 !== 0;
 
-    for (let i = 0; i < fullStars; i++) {
+    for (let i = 0; i < fullStars; i += 1) {
       stars.push(<FaStar key={i} className="text-yellow-400" />);
     }
     if (hasHalfStar) {
       stars.push(<FaStarHalfAlt key="half" className="text-yellow-400" />);
     }
     const emptyStars = 5 - stars.length;
-    for (let i = 0; i < emptyStars; i++) {
+    for (let i = 0; i < emptyStars; i += 1) {
       stars.push(<FaRegStar key={`empty-${i}`} className="text-yellow-400" />);
     }
     return stars;
@@ -39,15 +58,41 @@ const ShortDescription = ({ product }) => {
 
   const handleQuantityChange = (type) => {
     if (type === 'increase' && quantity < product.stock) {
-      setQuantity(quantity + 1);
+      setQuantity((prev) => prev + 1);
     } else if (type === 'decrease' && quantity > 1) {
-      setQuantity(quantity - 1);
+      setQuantity((prev) => prev - 1);
     }
   };
 
-  const handleAddToCart = () => {
-    // TODO: Implement add to cart functionality
-    console.log('Add to cart:', { productId: product.id, quantity });
+  const ensureAuthenticated = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (token) return true;
+    if (!userInfo) {
+      toast.info(t('messages.loginRequired'));
+      setTimeout(() => {
+        navigate('/login', { replace: true, state: { from: `/product-detail/${product.id}` } });
+      }, 1200);
+    }
+    return false;
+  };
+
+  const handleAddToCart = async (redirect = false) => {
+    if (!ensureAuthenticated()) return;
+    try {
+      await CartService.addItem(product.id, product.price ?? 0, quantity);
+      toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
+      if (redirect) {
+        navigate('/cart');
+      }
+    } catch (err) {
+      console.error(err);
+      const message =
+        err?.response?.data?.message
+        || err?.response?.data?.title
+        || err?.message
+        || t('messages.addToCartError');
+      toast.error(message);
+    }
   };
 
   const handlePrevImage = () => {
@@ -67,85 +112,79 @@ const ShortDescription = ({ product }) => {
   };
 
   const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite);
+    setIsFavorite((prev) => !prev);
   };
 
   return (
     <div className="w-full py-10 bg-gradient-to-b from-[#FFF8E7] to-[#FFFDEB]">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left - Images */}
           <div className="space-y-4">
-            {/* Main Image với khung trang trí */}
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-white shadow-xl border-4 border-[#D4A574]">
-              <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5" />
               <img
                 src={mainImage}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
-              
-              {/* Navigation Arrows với style truyền thống */}
+
               {images.length > 1 && (
                 <>
                   <button
+                    type="button"
                     onClick={handlePrevImage}
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg p-3 hover:bg-[#D4A574] hover:text-white transition-all duration-300 border-2 border-[#D4A574]"
-                    aria-label="Ảnh trước"
+                    aria-label="Previous image"
                   >
-                    <span className="text-xl">‹</span>
+                    <span className="text-xl">{'<'}</span>
                   </button>
                   <button
+                    type="button"
                     onClick={handleNextImage}
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg p-3 hover:bg-[#D4A574] hover:text-white transition-all duration-300 border-2 border-[#D4A574]"
-                    aria-label="Ảnh sau"
+                    aria-label="Next image"
                   >
-                    <span className="text-xl">›</span>
+                    <span className="text-xl">{'>'}</span>
                   </button>
                 </>
               )}
             </div>
 
-            {/* Thumbnail Images Slider */}
             {images.length > 1 && (
               <div className="relative">
-                {/* Previous Button */}
                 {thumbnailStart > 0 && (
                   <button
+                    type="button"
                     onClick={handlePrevThumbnail}
                     className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 rounded-full shadow-md p-2 hover:bg-[#D4A574] hover:text-white transition-all"
                   >
                     <FaChevronLeft size={16} />
                   </button>
                 )}
-                
-                {/* Thumbnails Grid */}
+
                 <div className="grid grid-cols-4 gap-2 px-8">
                   {images.slice(thumbnailStart, thumbnailStart + thumbnailsPerPage).map((img, idx) => {
                     const actualIndex = thumbnailStart + idx;
                     return (
                       <button
-                        key={actualIndex}
+                        type="button"
+                        key={img}
                         onClick={() => setSelectedImage(actualIndex)}
-                        className={`aspect-square rounded-lg overflow-hidden border-3 transition-all duration-300 ${
+                        className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-300 ${
                           selectedImage === actualIndex
-                            ? 'border-[#D4A574] shadow-lg scale-105'
-                            : 'border-gray-300 hover:border-[#D4A574] hover:scale-105'
+                            ? 'border-[#D4A574] shadow-lg ring-2 ring-[#8B4513]/40'
+                            : 'border-transparent hover:border-[#D4A574]/50'
                         }`}
                       >
-                        <img
-                          src={img}
-                          alt={`${product.name} ${actualIndex + 1}`}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={img} alt={`${product.name} thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Next Button */}
                 {thumbnailStart < maxThumbnailStart && (
                   <button
+                    type="button"
                     onClick={handleNextThumbnail}
                     className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 rounded-full shadow-md p-2 hover:bg-[#D4A574] hover:text-white transition-all"
                   >
@@ -156,47 +195,55 @@ const ShortDescription = ({ product }) => {
             )}
           </div>
 
-          {/* Right - Product Info */}
           <div className="space-y-6">
-            {/* Product Name với họa tiết */}
-            <div className="border-b-2 border-[#D4A574] pb-4">
-              <h1 className="text-4xl font-bold text-[#8B4513] mb-2" style={{ fontFamily: 'Nunito, sans-serif' }}>
-                {product.name}
-              </h1>
-              <div className="h-1 w-20 bg-gradient-to-r from-[#D4A574] to-transparent rounded"></div>
-            </div>
-
-            {/* Rating & Actions */}
-            <div className="flex items-center justify-between bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-md border border-[#D4A574]/30">
-              <div className="flex items-center gap-3">
-                <div className="flex">{renderStars(product.rating || 0)}</div>
-                <span className="text-sm font-medium text-gray-700">
-                  {product.rating || 0} / 5
-                </span>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-[#FFF1E5] text-[#8B4513] px-4 py-1 rounded-full text-sm font-semibold border border-[#D4A574]/40">
+                  <FaStore />
+                  {product?.artisanName || 'Hoa Lac Handicraft'}
+                </div>
+                <h1 className="mt-3 text-3xl md:text-4xl font-bold text-[#8B4513] leading-snug">
+                  {product.name}
+                </h1>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex items-center gap-1 text-xl text-yellow-400">
+                    {renderStars(product.rating || 0)}
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {t('productCard.rating', { count: (product.rating || 0).toFixed(1) })}
+                  </span>
+                  <span className="text-sm text-gray-400">|</span>
+                  <span className="text-sm text-gray-500">
+                    {t('productCard.sold', { count: product.sold || 0 })}
+                  </span>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <button 
+
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
                   onClick={handleToggleFavorite}
                   className="p-3 hover:bg-[#D4A574]/20 rounded-full transition-all duration-300 border border-[#D4A574]/30"
                 >
                   {isFavorite ? (
-                    <FaHeart className="text-red-600" size={20} />
+                    <FaHeart className="text-red-500" size={20} />
                   ) : (
                     <FaRegHeart className="text-red-600" size={20} />
                   )}
                 </button>
-                <button className="p-3 hover:bg-[#D4A574]/20 rounded-full transition-all duration-300 border border-[#D4A574]/30">
+                <button
+                  type="button"
+                  className="p-3 hover:bg-[#D4A574]/20 rounded-full transition-all duration-300 border border-[#D4A574]/30"
+                >
                   <FaShare className="text-[#8B4513]" size={20} />
                 </button>
               </div>
             </div>
 
-            {/* Short Description với style truyền thống */}
             <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 shadow-md border-l-4 border-[#D4A574]">
               <p className="text-gray-700 leading-relaxed italic">{product.shortDescription}</p>
             </div>
 
-            {/* Price với viền trang trí */}
             <div className="bg-gradient-to-r from-[#8B4513] to-[#A0522D] rounded-xl p-6 shadow-lg text-center border-4 border-[#D4A574]">
               <p className="text-sm text-white/80 mb-1">Giá bán</p>
               <div className="text-4xl font-bold text-white">
@@ -204,79 +251,67 @@ const ShortDescription = ({ product }) => {
               </div>
             </div>
 
-            {/* Artisan Info với icon */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 shadow-md border border-[#D4A574]/30 space-y-3">
-              <div className="flex items-center gap-3">
-                <FaStore className="text-[#D4A574]" size={20} />
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 shadow-md border border-[#E2C8A2]">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#D4A574]">
+                  <img
+                    src={product.artisanAvatar || '/images/default-avatar.png'}
+                    alt={product.artisanName || 'artisan'}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500">Nghệ nhân</p>
-                  <p className="font-semibold text-gray-800">{product.displayName}</p>
-                </div>
-              </div>
-              {product.shopName && (
-                <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
-                  <FaStore className="text-[#D4A574]" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500">Cửa hàng</p>
-                    <p className="font-semibold text-gray-800">{product.shopName}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Stock với icon */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-md border border-[#D4A574]/30">
-              <div className="flex items-center gap-3">
-                <FaBoxOpen className="text-[#D4A574]" size={20} />
-                <div className="flex-1">
-                  <span className="text-sm text-gray-600">Kho: </span>
-                  <span className={`font-semibold text-lg ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {product.stock > 0 ? `${product.stock} sản phẩm` : 'Hết hàng'}
-                  </span>
+                  <p className="text-sm text-gray-500">Người bán</p>
+                  <p className="text-lg font-semibold text-[#8B4513]">{product.artisanName || 'Nghệ nhân làng nghề'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Quantity Selector với style đẹp */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 shadow-md border border-[#D4A574]/30">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700 font-medium">Số lượng:</span>
-                <div className="flex items-center border-2 border-[#D4A574] rounded-lg overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1 bg-[#FFF8E7] px-3 py-2 rounded-full border border-[#E2C8A2]">
                   <button
+                    type="button"
                     onClick={() => handleQuantityChange('decrease')}
-                    className="px-5 py-3 bg-white hover:bg-[#D4A574] hover:text-white font-bold text-xl transition-all disabled:opacity-50"
-                    disabled={quantity <= 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition"
                   >
-                    −
+                    -
                   </button>
-                  <span className="px-8 py-3 bg-white font-bold text-lg border-x-2 border-[#D4A574]">{quantity}</span>
+                  <span className="w-10 text-center text-lg font-semibold text-[#8B4513]">{quantity}</span>
                   <button
+                    type="button"
                     onClick={() => handleQuantityChange('increase')}
-                    className="px-5 py-3 bg-white hover:bg-[#D4A574] hover:text-white font-bold text-xl transition-all disabled:opacity-50"
-                    disabled={quantity >= product.stock}
+                    className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition"
                   >
                     +
                   </button>
                 </div>
+                <span className="text-sm text-gray-500">
+                  <FaBoxOpen className="inline-block mr-1 text-[#8B4513]" />
+                  {product.stock > 0 ? `${product.stock} sản phẩm có sẵn` : 'Hết hàng'}
+                </span>
               </div>
-            </div>
 
-            {/* Action Buttons với style truyền thống */}
-            <div className="flex gap-4">
-              <button
-                onClick={handleAddToCart}
-                disabled={product.stock === 0}
-                className="flex-1 bg-white border-3 border-[#D4A574] text-[#8B4513] py-4 rounded-xl font-bold text-lg hover:bg-[#D4A574] hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
-              >
-                <FaShoppingCart size={20} />
-                Thêm vào giỏ
-              </button>
-              <button
-                disabled={product.stock === 0}
-                className="flex-1 bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white py-4 rounded-xl font-bold text-lg hover:from-[#A0522D] hover:to-[#8B4513] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg border-2 border-[#D4A574]"
-              >
-                Mua ngay
-              </button>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleAddToCart(false)}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#8B4513] text-white text-lg font-semibold shadow-lg hover:bg-[#DDA15E] transition-all duration-300 disabled:opacity-60"
+                  disabled={product.stock <= 0}
+                >
+                  <FaShoppingCart />
+                  {t('productCard.addToCart')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddToCart(true)}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-full border-2 border-[#8B4513] text-[#8B4513] text-lg font-semibold hover:bg-[#FFF8E7] transition-all duration-300 disabled:opacity-60"
+                  disabled={product.stock <= 0}
+                >
+                  <FaBolt />
+                  {t('productCard.buyNow')}
+                </button>
+              </div>
             </div>
           </div>
         </div>

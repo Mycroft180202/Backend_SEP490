@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { FaStar, FaStarHalfAlt, FaRegStar, FaShoppingCart } from 'react-icons/fa';
+import { FaStar, FaStarHalfAlt, FaRegStar, FaShoppingCart, FaBolt } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 
 const renderStars = (ratingValue) => {
@@ -32,20 +32,21 @@ const formatCurrency = (value, suffix = '') => {
 };
 
 const ProductCard = ({
-  variant,
-  image,
-  title,
-  shortDescription,
-  price,
-  rating,
-  loading,
-  shopName,
+  variant = 'grid',
+  image = '',
+  title = '',
+  shortDescription = '',
+  price = 0,
+  rating = 0,
+  loading = false,
+  shopName = '',
   originalPrice,
   discountedPrice,
   sales,
   reviews,
   stock,
   onAddToCart,
+  onBuyNow,
   onClick,
 }) => {
   const { t } = useContext(LanguageContext);
@@ -55,6 +56,13 @@ const ProductCard = ({
     event.stopPropagation();
     if (onAddToCart) {
       onAddToCart();
+    }
+  };
+
+  const handleBuyNow = (event) => {
+    event.stopPropagation();
+    if (onBuyNow) {
+      onBuyNow();
     }
   };
 
@@ -114,9 +122,9 @@ const ProductCard = ({
             )}
           </div>
           <div className="flex items-center justify-between text-sm text-gray-600">
-            {sales !== undefined && (
-              <span>{t('productCard.sold', { count: sales })}</span>
-            )}
+          {sales !== undefined && (
+            <span>{t('productCard.sold', { count: sales })}</span>
+          )}
             <div className="flex items-center gap-1">
               <span>{(Number(rating) || 0).toFixed(1)}</span>
               <FaStar className="text-yellow-400" />
@@ -180,7 +188,7 @@ const ProductCard = ({
               </span>
             )}
             <span className="text-[#8B4513] font-semibold group-hover:text-[#D4A574]">
-              {`${t('productCard.viewDetail')} →`}
+              {`${t('productCard.viewDetail')} ->`}
             </span>
           </div>
         </div>
@@ -225,15 +233,31 @@ const ProductCard = ({
           <span className="text-xl font-bold text-[#8B4513] font-['Nunito']">
             {formatCurrency(price, priceSuffix)}
           </span>
-          <button
-            type="button"
-            className={`bg-[#8B4513] text-white p-2 rounded-lg transition ${onAddToCart ? 'hover:bg-[#D4A574]' : 'opacity-60 cursor-not-allowed'}`}
-            onClick={handleAddToCart}
-            disabled={!onAddToCart}
-          >
-            <FaShoppingCart className="text-lg" />
-          </button>
         </div>
+        {(onAddToCart || onBuyNow) && (
+          <div className="mt-4 flex flex-col gap-3">
+            {onAddToCart && (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#8B4513] text-white px-4 py-3 font-['Nunito'] font-semibold hover:bg-[#D4A574] transition"
+              >
+                <FaShoppingCart />
+                <span>{t('productCard.addToCart')}</span>
+              </button>
+            )}
+            {onBuyNow && (
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                className="flex items-center justify-center gap-2 w-full rounded-lg border-2 border-[#8B4513] text-[#8B4513] px-4 py-3 font-['Nunito'] font-semibold hover:bg-[#FFFBF0] transition"
+              >
+                <FaBolt />
+                <span>{t('productCard.buyNow')}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -254,25 +278,8 @@ ProductCard.propTypes = {
   reviews: PropTypes.number,
   stock: PropTypes.number,
   onAddToCart: PropTypes.func,
+  onBuyNow: PropTypes.func,
   onClick: PropTypes.func,
-};
-
-ProductCard.defaultProps = {
-  variant: 'grid',
-  image: '',
-  title: '',
-  shortDescription: '',
-  price: 0,
-  rating: 0,
-  loading: false,
-  shopName: '',
-  originalPrice: undefined,
-  discountedPrice: undefined,
-  sales: undefined,
-  reviews: undefined,
-  stock: undefined,
-  onAddToCart: undefined,
-  onClick: undefined,
 };
 
 export default ProductCard;

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 import { FaEnvelope, FaLock, FaKey, FaPaperPlane, FaArrowLeft } from 'react-icons/fa';
 import { AuthService } from '../services/modules/auth/authService';
 
@@ -71,18 +70,6 @@ const ForgotPassword = () => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-6 bg-gradient-to-r from-yellow-100 to-white-300 animate-fadeIn">
-      <ToastContainer
-        position="top-right"
-        autoClose={3500}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
 
       <div className="w-full max-w-md bg-white rounded-lg p-6 shadow-md animate-slideUp">
         <div className="flex items-center justify-between mb-4">

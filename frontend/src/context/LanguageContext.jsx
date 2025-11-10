@@ -1,9 +1,9 @@
 import React, {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useState,
-  useEffect,
 } from 'react';
 import PropTypes from 'prop-types';
 
@@ -34,8 +34,8 @@ const translations = {
       },
     },
     shop: {
-      empty: 'Khong co san pham nao.',
       loading: 'Dang tai san pham...',
+      empty: 'Khong co san pham nao.',
       banner: {
         title: 'Chao mung den voi gian hang Hoa Lac Handicraft',
         subtitle: 'Noi quy tu cac tac pham thu cong tinh xao',
@@ -61,10 +61,12 @@ const translations = {
     },
     productCard: {
       fallbackDescription: 'San pham thu cong mang dam net truyen thong',
-      viewDetail: 'Xem chi tiet',
-      stock: 'Con {stock} san pham',
       sold: '{count} luot ban',
       rating: '({count})',
+      stock: 'Con {stock} san pham',
+      viewDetail: 'Xem chi tiet',
+      addToCart: 'Them vao gio',
+      buyNow: 'Mua ngay',
       priceSuffix: ' VND',
     },
     relation: {
@@ -99,6 +101,35 @@ const translations = {
       returnTitle: 'Chinh sach doi tra',
       returnContent: 'Ban co the doi tra san pham trong vong 7 ngay ke tu khi nhan hang neu san pham bi loi hoac hu hong trong qua trinh van chuyen.',
     },
+    cart: {
+      title: 'Gio hang cua ban',
+      empty: 'Gio hang cua ban dang trong.',
+      headerProduct: 'San pham',
+      headerQuantity: 'So luong',
+      headerPrice: 'Gia',
+      headerSubtotal: 'Thanh tien',
+      summaryTitle: 'Thong tin don hang',
+      subtotal: 'Tam tinh',
+      shipping: 'Phi ship',
+      total: 'Tong cong',
+      checkout: 'Tien hanh dat hang',
+      continueShopping: 'Tiep tuc mua sam',
+      itemsCount: '{count} san pham',
+      updating: 'Dang cap nhat...',
+      remove: 'Xoa',
+    },
+    messages: {
+      loginRequired: 'Vui long dang nhap de tiep tuc.',
+      addedToCart: 'Da them san pham vao gio hang.',
+      addedToCartRedirect: 'Da them san pham, dang chuyen toi gio hang...',
+      addToCartError: 'Khong the them san pham vao gio hang.',
+      cartLoadError: 'Khong the tai gio hang.',
+      cartUpdateSuccess: 'Da cap nhat so luong.',
+      cartUpdateError: 'Cap nhat so luong that bai.',
+      cartRemoveSuccess: 'Da xoa san pham khoi gio hang.',
+      cartRemoveError: 'Xoa san pham that bai.',
+      checkoutComingSoon: 'Tinh nang thanh toan dang duoc phat trien.',
+    },
     general: {
       errorPrefix: 'Loi: ',
     },
@@ -129,8 +160,8 @@ const translations = {
       },
     },
     shop: {
-      empty: 'No products available.',
       loading: 'Loading products...',
+      empty: 'No products available.',
       banner: {
         title: 'Welcome to the Hoa Lac Handicraft boutique',
         subtitle: 'A curated collection of refined handcrafted pieces',
@@ -156,10 +187,12 @@ const translations = {
     },
     productCard: {
       fallbackDescription: 'Handcrafted piece inspired by tradition',
-      viewDetail: 'View detail',
-      stock: '{stock} items left',
       sold: '{count} sold',
       rating: '({count})',
+      stock: '{stock} items left',
+      viewDetail: 'View detail',
+      addToCart: 'Add to cart',
+      buyNow: 'Buy now',
       priceSuffix: ' VND',
     },
     relation: {
@@ -194,6 +227,35 @@ const translations = {
       returnTitle: 'Return policy',
       returnContent: 'You can return products within 7 days of delivery if they are defective or damaged during transportation.',
     },
+    cart: {
+      title: 'Your cart',
+      empty: 'Your cart is empty.',
+      headerProduct: 'Product',
+      headerQuantity: 'Quantity',
+      headerPrice: 'Unit price',
+      headerSubtotal: 'Subtotal',
+      summaryTitle: 'Order summary',
+      subtotal: 'Subtotal',
+      shipping: 'Shipping',
+      total: 'Total',
+      checkout: 'Proceed to checkout',
+      continueShopping: 'Continue shopping',
+      itemsCount: '{count} items',
+      updating: 'Updating...',
+      remove: 'Remove',
+    },
+    messages: {
+      loginRequired: 'Please log in to continue.',
+      addedToCart: 'Product added to cart.',
+      addedToCartRedirect: 'Product added. Redirecting to cart...',
+      addToCartError: 'Could not add the product to cart.',
+      cartLoadError: 'Unable to load your cart.',
+      cartUpdateSuccess: 'Quantity updated.',
+      cartUpdateError: 'Failed to update quantity.',
+      cartRemoveSuccess: 'Item removed from cart.',
+      cartRemoveError: 'Failed to remove item.',
+      checkoutComingSoon: 'Checkout is coming soon.',
+    },
     general: {
       errorPrefix: 'Error: ',
     },
@@ -226,12 +288,14 @@ export const LanguageProvider = ({ children }) => {
     (key, replacements = {}) => {
       if (!key) return '';
 
-      const rawValue = key.split('.').reduce((acc, part) => {
-        if (acc && typeof acc === 'object') {
-          return acc[part];
-        }
-        return undefined;
-      }, translations[language]);
+      const rawValue = key
+        .split('.')
+        .reduce((acc, part) => {
+          if (acc && typeof acc === 'object') {
+            return acc[part];
+          }
+          return undefined;
+        }, translations[language]);
 
       if (typeof rawValue !== 'string') {
         return key;

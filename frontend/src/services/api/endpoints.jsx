@@ -27,4 +27,14 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: '/forgot-password',
     RESET_PASSWORD: '/reset-password',
   },
+
+  CART: {
+    ROOT: '/carts',
+    ITEM: (id) => `/carts/${id}`,
+  },
+
+  BLOGS: {
+    ROOT: '/blogs',
+    BY_ID: (id) => `/blogs/${id}`,
+  },
 };

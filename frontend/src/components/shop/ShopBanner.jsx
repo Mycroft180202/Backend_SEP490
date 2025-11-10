@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import { LanguageContext } from '../../context/LanguageContext';
 
-const ShopBanner = ({ onSelect }) => {
+const ShopBanner = ({ onSelect = null }) => {
   const { t } = useContext(LanguageContext);
 
   const handleExploreClick = () => {
@@ -45,10 +45,6 @@ const ShopBanner = ({ onSelect }) => {
 
 ShopBanner.propTypes = {
   onSelect: PropTypes.func,
-};
-
-ShopBanner.defaultProps = {
-  onSelect: null,
 };
 
 export default ShopBanner;

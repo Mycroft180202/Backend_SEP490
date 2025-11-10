@@ -20,13 +20,6 @@ const CartBanner = () => {
           />
         </div>
       </div>
-      <h2 className="cart-title" style={{
-        fontFamily: 'Alata, sans-serif',
-        fontSize: '36px',
-        lineHeight: '56px',
-        color: '#9e211f',
-        marginTop: '48px',
-      }}>Giỏ hàng của tôi (5)</h2>
     </div>
   );
 };

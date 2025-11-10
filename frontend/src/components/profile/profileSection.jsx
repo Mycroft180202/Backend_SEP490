@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthService } from '../../services/modules/auth/authService';
 import { FaUserCircle, FaPhoneAlt, FaHeart, FaHistory, FaLock, FaSignOutAlt, FaUserTie, FaEnvelope, FaKey, FaPaperPlane, FaCamera, FaEdit, FaEye } from 'react-icons/fa';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 
 // Component đổi mật khẩu
 function ChangePasswordSection({ email }) {
@@ -59,7 +58,6 @@ function ChangePasswordSection({ email }) {
 
   return (
     <div className="max-w-md mx-auto">
-      <ToastContainer position="top-right" autoClose={3500} />
       <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Đổi mật khẩu</h2>
       {step === 1 && (
         <div>
@@ -268,7 +266,6 @@ function ProfileSection() {
 
   return (
     <div className="bg-[#fdfde9] min-h-screen flex">
-      <ToastContainer position="top-right" autoClose={3500} />
       {/* Sidebar */}
       <aside className="w-1/4 px-8 py-12 flex flex-col items-center border-r border-[#e5e5e5]">
         <div 
