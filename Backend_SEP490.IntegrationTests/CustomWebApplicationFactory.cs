@@ -101,6 +101,8 @@ namespace Backend_SEP490.IntegrationTests
             {
                 new Claim(ClaimTypes.Name, "TestUser"),
                 new Claim("userId", userId),
+                new Claim("userID", userId),
+                new Claim(ClaimTypes.NameIdentifier, userId)
             };
 
             foreach (var role in roles.Distinct(StringComparer.OrdinalIgnoreCase))

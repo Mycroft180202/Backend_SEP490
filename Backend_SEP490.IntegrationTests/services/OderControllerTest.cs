@@ -1,20 +1,21 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Backend_SEP490.DTOs.Response;
-using System.Text;
-using System.Text.Json;
 using Xunit;
-using OrderEntity = Backend_SEP490.Models.Order;
-using OrderItemEntity = Backend_SEP490.Models.OrderItem;
 using CartEntity = Backend_SEP490.Models.Cart;
 using CartItemEntity = Backend_SEP490.Models.CartItem;
-using ProductEntity = global::Product;
 using CategoryEntity = Backend_SEP490.Models.Category;
+using OrderEntity = Backend_SEP490.Models.Order;
+using OrderItemEntity = Backend_SEP490.Models.OrderItem;
+using ProductEntity = global::Product;
 using UserEntity = global::User;
 
 namespace Backend_SEP490.IntegrationTests.Services;
@@ -37,139 +38,161 @@ public class OderControllerTest
     }
 
     [Fact]
-    public async Task POST_orders_returns_ok_with_status_message_even_when_user_claim_missing()
+    public async Task POST_orders_creates_order_and_returns_success_message()
     {
+        var userId = $"USER-ORDER-{Guid.NewGuid():N}";
+        SetAuthenticatedUser(userId);
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, customerId: null, quantity: 2, price: 5m);
+        var cart = await CreateCartWithItemAsync(db, userId, quantity: 2, price: 5m);
 
         try
         {
             var payload = new RequestCreateOrder { ShipingAddressId = "ADDR-001" };
             var response = await _client.PostAsJsonAsync("/api/Order/orders", payload);
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var message = await response.Content.ReadAsStringAsync();
+            message.Should().Contain("Create order successfully!");
+
+            var order = await db.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.CustomerId == userId);
+
+            order.Should().NotBeNull();
+            order!.ShipingAddressId.Should().Be("ADDR-001");
+            order.TotalAmount.Should().Be(10m); // 2 items * 5m
+            order.OrderItems.Should().ContainSingle();
+            order.OrderItems.Single().Quantity.Should().Be(2);
         }
         finally
         {
+            await CleanupOrdersByCustomerAsync(db, userId);
             await CleanupCartAsync(db, cart.Id);
         }
     }
 
     [Fact]
-    public async Task POST_orders_with_empty_cart_still_returns_ok()
+    public async Task POST_orders_accepts_unknown_fields_and_returns_success()
     {
+        var userId = $"USER-ORDER-{Guid.NewGuid():N}";
+        SetAuthenticatedUser(userId);
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartAsync(db, customerId: null);
+        var cart = await CreateCartWithItemAsync(db, userId, quantity: 1, price: 10m);
 
         try
         {
-            var response = await _client.PostAsJsonAsync("/api/Order/orders", new RequestCreateOrder { ShipingAddressId = "ADDR-EMPTY" });
+            var payload = JsonContent.Create(new { ShipingAddressId = "ADDR-UNKNOWN", VoucherCode = "INVALID" });
+            var response = await _client.PostAsync("/api/Order/orders", payload);
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var message = await response.Content.ReadAsStringAsync();
+            message.Should().Contain("Create order successfully!");
         }
         finally
         {
+            await CleanupOrdersByCustomerAsync(db, userId);
             await CleanupCartAsync(db, cart.Id);
         }
     }
 
     [Fact]
-    public async Task POST_orders_missing_shipping_address_returns_ok()
+    public async Task POST_my_orders_with_filter_returns_user_orders()
     {
+        var userId = $"USER-ORDER-{Guid.NewGuid():N}";
+        SetAuthenticatedUser(userId);
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, customerId: null, quantity: 1, price: 9m);
+        var cart = await CreateCartWithItemAsync(db, userId, quantity: 1, price: 9m);
 
         try
         {
-            var response = await _client.PostAsJsonAsync("/api/Order/orders", new RequestCreateOrder { ShipingAddressId = null! });
+            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", new RequestCreateOrder { ShipingAddressId = "ADDR-USER" });
+            createOrderResponse.EnsureSuccessStatusCode();
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        }
-        finally
-        {
-            await CleanupCartAsync(db, cart.Id);
-        }
-    }
+            var filter = new RequestFilterOrder
+            {
+                search = string.Empty,
+                Status = "Pending",
+                CreateAt = null
+            };
 
-    [Fact]
-    public async Task POST_orders_with_voucher_field_not_supported_returns_ok()
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, customerId: null, quantity: 1, price: 10m);
-
-        try
-        {
-            var payload = new { ShipingAddressId = "ADDR", VoucherCode = "INVALID" };
-            var response = await _client.PostAsJsonAsync("/api/Order/orders", payload);
-
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        }
-        finally
-        {
-            await CleanupCartAsync(db, cart.Id);
-        }
-    }
-
-    [Fact]
-    public async Task POST_my_orders_without_body_throws_null_reference_and_returns_500()
-    {
-        var response = await _client.PostAsync("/api/Order/my-orders", new StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json"));
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task POST_my_orders_with_filter_returns_empty_list_even_when_orders_exist()
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var order = await CreateOrderAsync(db, customerId: null);
-
-        try
-        {
-            var filter = new RequestFilterOrder { search = string.Empty, Status = string.Empty, CreateAt = null };
             var response = await _client.PostAsJsonAsync("/api/Order/my-orders", filter);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            var orders = await response.Content.ReadFromJsonAsync<List<ResponseDTOOrder>>();
+            orders.Should().NotBeNull();
+            orders!.Any(o => o.CustomerId == userId).Should().BeTrue();
         }
         finally
         {
-            await CleanupOrderAsync(db, order.Id);
+            await CleanupOrdersByCustomerAsync(db, userId);
+            await CleanupCartAsync(db, cart.Id);
         }
     }
 
     [Fact]
-    public async Task GET_order_by_id_returns_500_when_route_parameters_are_missing()
+    public async Task GET_orders_by_id_returns_order_details_with_pagination()
     {
-        var response = await _client.GetAsync("/api/Order/orders/ANY-ORDER-ID");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var userId = $"USER-ORDER-{Guid.NewGuid():N}";
+        SetAuthenticatedUser(userId);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var cart = await CreateCartWithItemAsync(db, userId, quantity: 3, price: 7m);
+
+        try
+        {
+            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", new RequestCreateOrder { ShipingAddressId = "ADDR-DETAIL" });
+            createOrderResponse.EnsureSuccessStatusCode();
+
+            var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CustomerId == userId);
+            order.Should().NotBeNull();
+
+            var response = await _client.GetAsync($"/api/Order/orders/{order!.Id}?pageIndex=1&pageSize=10");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var dto = await response.Content.ReadFromJsonAsync<ResponseDTOOrder>();
+            dto.Should().NotBeNull();
+            dto!.CustomerId.Should().Be(userId);
+            dto.ShipingAddressId.Should().Be("ADDR-DETAIL");
+            dto.Items.Should().NotBeNull();
+            dto.Items.Should().NotBeEmpty();
+        }
+        finally
+        {
+            await CleanupOrdersByCustomerAsync(db, userId);
+            await CleanupCartAsync(db, cart.Id);
+        }
     }
 
-    [Fact]
-    public async Task GET_order_by_id_for_different_user_also_returns_500_due_to_same_issue()
+    private void SetAuthenticatedUser(string userId)
     {
-        var response = await _client.GetAsync("/api/Order/orders/OTHER-USER-ORDER");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        _client.DefaultRequestHeaders.Remove("X-Test-Auth");
+        _client.DefaultRequestHeaders.Remove("X-Test-UserId");
+        _client.DefaultRequestHeaders.Add("X-Test-Auth", "success");
+        _client.DefaultRequestHeaders.Add("X-Test-UserId", userId);
     }
 
-    [Fact]
-    public async Task PUT_order_cancel_endpoint_is_not_implemented_and_returns_404()
+    private static async Task CleanupOrdersByCustomerAsync(AppDbContext db, string customerId)
     {
-        var response = await _client.PutAsync("/api/Order/orders/ORDER-123/cancel", new StringContent(string.Empty));
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var orderIds = await db.Orders
+            .Where(o => o.CustomerId == customerId)
+            .Select(o => o.Id)
+            .ToListAsync();
+
+        foreach (var orderId in orderIds)
+        {
+            await CleanupOrderAsync(db, orderId);
+        }
     }
 
-    [Fact]
-    public async Task PUT_order_status_endpoint_is_not_implemented_and_returns_404()
-    {
-        var response = await _client.PutAsync("/api/Order/orders/ORDER-123/status", JsonContent.Create(new { Status = "Shipped" }));
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    private static async Task<CartEntity> CreateCartWithItemAsync(AppDbContext db, string? customerId, int quantity, decimal price)
+    private static async Task<CartEntity> CreateCartWithItemAsync(AppDbContext db, string customerId, int quantity, decimal price)
     {
         var cart = await CreateCartAsync(db, customerId);
         var product = await CreateProductAsync(db);
@@ -188,17 +211,17 @@ public class OderControllerTest
         return cart;
     }
 
-    private static async Task<CartEntity> CreateCartAsync(AppDbContext db, string? customerId)
+    private static async Task<CartEntity> CreateCartAsync(AppDbContext db, string customerId)
     {
-        var userId = customerId ?? "USER-ORDER";
-        await EnsureUserAsync(db, userId);
+        await EnsureUserAsync(db, customerId);
 
         var cart = new CartEntity
         {
-            Id = $"CART-{Guid.NewGuid().ToString("N")}",
-            CustomerID = userId,
+            Id = $"CART-{Guid.NewGuid():N}",
+            CustomerID = customerId,
             CreateAt = DateTime.UtcNow
         };
+
         db.Carts.Add(cart);
         await db.SaveChangesAsync();
         return cart;
@@ -210,14 +233,14 @@ public class OderControllerTest
 
         var category = new CategoryEntity
         {
-            Id = $"CAT-{Guid.NewGuid().ToString("N")}",
+            Id = $"CAT-{Guid.NewGuid():N}",
             Name = $"Category_{Guid.NewGuid().ToString("N")[..8]}"
         };
         db.Categories.Add(category);
 
         var product = new ProductEntity
         {
-            Id = $"PROD-{Guid.NewGuid().ToString("N")}",
+            Id = $"PROD-{Guid.NewGuid():N}",
             Name = $"Product_{Guid.NewGuid().ToString("N")[..8]}",
             Category = category.Id,
             ArtisanId = "ARTISAN-ORDER",
@@ -232,27 +255,6 @@ public class OderControllerTest
 
         await db.SaveChangesAsync();
         return product;
-    }
-
-    private static async Task<OrderEntity> CreateOrderAsync(AppDbContext db, string? customerId)
-    {
-        var userId = customerId ?? "USER-ORDER";
-        await EnsureUserAsync(db, userId);
-
-        var order = new OrderEntity
-        {
-            Id = $"ORDER-{Guid.NewGuid().ToString("N")}",
-            OrderNumber = $"ORD-{Guid.NewGuid().ToString("N")[..6]}",
-            CustomerId = userId,
-            Status = "Pending",
-            TotalAmount = 0,
-            ShipingAddressId = "ADDR",
-            CreateAt = DateTime.UtcNow,
-            OrderItems = new List<OrderItemEntity>()
-        };
-        db.Orders.Add(order);
-        await db.SaveChangesAsync();
-        return order;
     }
 
     private static async Task CleanupCartAsync(AppDbContext db, string cartId)
