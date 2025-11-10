@@ -17,7 +17,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("carts/{pageIndex}/{pageSize}")]
-        public async Task<IActionResult> GetAllCartItems([FromRoute] int pageIndex, [FromRoute] int pageSize)
+        public async Task<IActionResult> GetAllCartItems([FromRoute] int pageIndex = 1, [FromRoute] int pageSize = 10)
         {
            var userId = User.FindFirst("userId")?.Value;
             var cart = await _cartService.GetCartByUserIdAsync(userId, pageIndex, pageSize);

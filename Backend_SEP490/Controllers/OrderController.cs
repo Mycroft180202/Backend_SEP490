@@ -28,7 +28,7 @@ namespace Backend_SEP490.Controllers
             return Ok(orders);
         }
         [HttpGet("orders/{id}")]
-        public async Task<IActionResult> GetAllOrderById([FromRoute]string orderId, [FromRoute] int pageIndex, [FromRoute] int pageSize)
+        public async Task<IActionResult> GetAllOrderById([FromRoute]string orderId, [FromRoute] int pageIndex = 1, [FromRoute] int pageSize = 10)
         {
             var order = await _orderServices.GetOrderByIdAsync(orderId, pageIndex, pageSize);
             if (order == null) NotFound();
