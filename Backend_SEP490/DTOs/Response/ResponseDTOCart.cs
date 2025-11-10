@@ -7,6 +7,7 @@ namespace Backend_SEP490.DTOs.Response
     public class ResponseDTOCart
     {
         public DateTime? CreateAt { get; set; }
+        public int? TotalAmmount { get; set; } 
         public ResponseDTOUser Customer { get; set; }
         public PagedResult<ResponseDTOCartItem>? CartItems { get; set; }
     }

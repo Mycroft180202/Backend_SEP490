@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
@@ -73,11 +74,22 @@ namespace Backend_SEP490.Services.impl
         public async Task<ResponseDTOOrder> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize)
         {
             var order = await _context.Order.GetAllOrderByIdAsync(orderId);
+            int count = order.OrderItems.Count;
+            var orderItem = order.OrderItems.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
 
-            var orderDetail = _mapper.Map<ResponseDTOOrder>(order);
-            orderDetail.Items = orderDetail.Items.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+            var mappedOrderItems = _mapper.Map<IEnumerable<ResponseDTOOrderItem>>(orderItem);
+            var orderItemPagination = new PagedResult<ResponseDTOOrderItem>
+            {
+                Items = mappedOrderItems,
+                TotalCount = count,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
 
-            return orderDetail;
+            var result = _mapper.Map<ResponseDTOOrder>(order);
+            result.Items = orderItemPagination;
+
+            return result;
         }
 
         public async Task<IEnumerable<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter)

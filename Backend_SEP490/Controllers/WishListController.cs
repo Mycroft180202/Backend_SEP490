@@ -20,8 +20,8 @@ namespace Backend_SEP490.Controllers
         public async Task<IActionResult> GetAllWishListItem([FromRoute] int pageIndex, [FromRoute] int pageSize)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var wishLit = await _wishListItemService.GetAllWishListItemByUserIdAsync(userId,pageIndex,pageSize);
-            return Ok(wishLit);
+            var wishList = await _wishListItemService.GetAllWishListItemByUserIdAsync(userId,pageIndex,pageSize);
+            return Ok(wishList);
         }
 
         [HttpGet("wish-list/{id}")]

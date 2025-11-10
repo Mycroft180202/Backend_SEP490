@@ -1,4 +1,6 @@
-﻿namespace Backend_SEP490.DTOs.Response
+﻿using Backend_SEP490.Data;
+
+namespace Backend_SEP490.DTOs.Response
 {
     public class ResponseDTOOrder
     {
@@ -8,6 +10,6 @@
         public decimal TotalAmount { get; set; }
         public string ShipingAddressId { get; set; }
         public DateTime CreateAt { get; set; }
-        public List<ResponseDTOOrderItem> Items { get; set; }
+        public PagedResult<ResponseDTOOrderItem> Items { get; set; }
     }
 }

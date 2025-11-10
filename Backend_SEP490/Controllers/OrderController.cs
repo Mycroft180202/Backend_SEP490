@@ -17,7 +17,7 @@ namespace Backend_SEP490.Controllers
             _orderServices = orderServices;
         }
 
-        [HttpPost("my-orders")]
+        [HttpGet("my-orders")]
         public async Task<IActionResult> GetAllOrderByUserId([FromBody] RequestFilterOrder? requestFilter)
         {
             if (!ModelState.IsValid)
