@@ -8,6 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 
@@ -34,6 +37,10 @@ namespace Backend_SEP490.IntegrationTests
             builder.ConfigureServices(services =>
             {
                 // Override authentication
+                services.RemoveAll<IConfigureOptions<AuthenticationOptions>>();
+                services.RemoveAll<IPostConfigureOptions<AuthenticationSchemeOptions>>();
+                services.RemoveAll<IAuthenticationSchemeProvider>();
+
                 services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = "Test";
@@ -56,12 +63,51 @@ namespace Backend_SEP490.IntegrationTests
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            var claims = new[]
+            if (Context.Request.Headers.TryGetValue("X-Test-Auth", out var authMode))
             {
-            new Claim(ClaimTypes.Name, "TestUser"),
-            new Claim(ClaimTypes.Role, "Admin"),
-            new Claim("userId", "USER-20251022-095607"),  // in database
-        };
+                var mode = authMode.ToString();
+                if (string.Equals(mode, "fail", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(mode, "unauthorized", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Task.FromResult(AuthenticateResult.Fail("Authentication forced to fail by test header."));
+                }
+
+                if (string.Equals(mode, "anonymous", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Task.FromResult(AuthenticateResult.NoResult());
+                }
+            }
+
+            var userId = Context.Request.Headers.TryGetValue("X-Test-UserId", out var userIdHeader)
+                ? userIdHeader.ToString()
+                : "USER-20251022-095607";
+
+            var roles = new List<string>();
+            if (Context.Request.Headers.TryGetValue("X-Test-Roles", out var rolesHeader))
+            {
+                roles.AddRange(
+                    rolesHeader.ToString()
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(r => r.Trim())
+                        .Where(r => !string.IsNullOrWhiteSpace(r)));
+            }
+
+            if (roles.Count == 0)
+            {
+                roles.Add("Admin");
+            }
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, "TestUser"),
+                new Claim("userId", userId),
+            };
+
+            foreach (var role in roles.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
             var identity = new ClaimsIdentity(claims, "Test");
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, "Test");
