@@ -1,304 +1,316 @@
-﻿using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using Backend_SEP490.Controllers;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
+using Backend_SEP490.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using UserEntity = global::User;
 
-namespace Backend_SEP490.IntegrationTests.User;
+namespace Backend_SEP490.IntegrationTests.Users;
 
-public class UserControllerTestsV2 : IClassFixture<CustomWebApplicationFactory<Program>>
+[CollectionDefinition(nameof(UserControllerCollection), DisableParallelization = true)]
+public sealed class UserControllerCollection : ICollectionFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly HttpClient _client;
+}
+
+[Collection(nameof(UserControllerCollection))]
+public sealed class UserControllerTests : IDisposable
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IServiceScope _scope;
     private readonly AppDbContext _db;
+    private readonly IUserServices _userServices;
+    private readonly IAddressService _addressService;
 
-    public UserControllerTestsV2(CustomWebApplicationFactory<Program> factory)
+    public UserControllerTests(CustomWebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
-        var scope = factory.Services.CreateScope();
-        _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        _scopeFactory = factory.Services.GetRequiredService<IServiceScopeFactory>();
+        _scope = _scopeFactory.CreateScope();
+        _db = _scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        _userServices = _scope.ServiceProvider.GetRequiredService<IUserServices>();
+        _addressService = _scope.ServiceProvider.GetRequiredService<IAddressService>();
     }
 
-    // ---------- Helpers ----------
-    private static FormUrlEncodedContent ToRegisterForm(RequestDTORegister r)
+    public void Dispose()
     {
-        var dict = new Dictionary<string, string?>
-        {
-            [nameof(RequestDTORegister.Username)] = r.Username,
-            [nameof(RequestDTORegister.PasswordHash)] = r.PasswordHash,
-            [nameof(RequestDTORegister.Email)] = r.Email,
-            [nameof(RequestDTORegister.PhoneNumber)] = r.PhoneNumber,
-            [nameof(RequestDTORegister.DisplayName)] = r.DisplayName,
-            [nameof(RequestDTORegister.Dob)] = r.Dob?.ToString("O")
-        }!;
-        return new FormUrlEncodedContent(dict!);
+        _scope.Dispose();
     }
 
-    private (RequestDTORegister form, string password) BuildRegisterForm(string? email = null, string? username = null)
-    {
-        var pwd = "Aa1@abcd"; // matches policy
-        return (
-            new RequestDTORegister
-            {
-                Username = username ?? $"user_{Guid.NewGuid().ToString("N")[..8]}",
-                PasswordHash = pwd,
-                Email = email ?? $"{Guid.NewGuid().ToString("N")[..8]}@example.com",
-                PhoneNumber = "0123456789",
-                DisplayName = "Integration Tester",
-                Dob = null
-            },
-            pwd
-        );
-    }
-
-    private async Task CleanupUserAsync(string email)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user != null)
-        {
-            var addresses = _db.Addresses.Where(a => a.UserID == user.UserID);
-            _db.Addresses.RemoveRange(addresses);
-            await _db.SaveChangesAsync();
-
-            _db.Users.Remove(user);
-            await _db.SaveChangesAsync();
-        }
-        var otps = _db.UserOtps.Where(o => o.Email == email);
-        _db.UserOtps.RemoveRange(otps);
-        await _db.SaveChangesAsync();
-        var tokens = _db.RefreshTokens.Where(r => r.User.Email == email);
-        _db.RefreshTokens.RemoveRange(tokens);
-        await _db.SaveChangesAsync();
-    }
-
-    private async Task<(string userId, string accessToken, string refreshToken, string email, string username)> CreateUserAndLoginAsync(string? email = null, string? username = null, string? password = null)
-    {
-        var (reg, pwd) = BuildRegisterForm(email, username);
-        if (password != null) reg.PasswordHash = password; else password = pwd;
-
-        // Register (FromForm)
-        var regRes = await _client.PostAsync("/api/Auth/register", ToRegisterForm(reg));
-        regRes.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // Verify OTP
-        var otp = await _db.UserOtps.Where(x => x.Email == reg.Email && !x.IsUsed)
-            .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync();
-        otp.Should().NotBeNull();
-        var ver = new RequestDTOVerifyOtp { RegisterDto = reg, Otp = otp!.OtpCode };
-        var verRes = await _client.PostAsJsonAsync("/api/Auth/verify-otp", ver);
-        verRes.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // Login (FromForm)
-        var loginForm = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["Username"] = reg.Username,
-            ["Password"] = password!
-        });
-        var loginRes = await _client.PostAsync("/api/Auth/login", loginForm);
-        loginRes.StatusCode.Should().Be(HttpStatusCode.OK);
-        var tokens = await loginRes.Content.ReadFromJsonAsync<AuthTokens>();
-        tokens.Should().NotBeNull();
-
-        var user = await _db.Users.AsNoTracking().FirstAsync(u => u.Email == reg.Email);
-        return (user.UserID, tokens!.AccessToken, tokens.RefreshToken, reg.Email, reg.Username);
-    }
-
-    private void SetBearer(string token) =>
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-    private sealed class AuthTokens
-    {
-        public string AccessToken { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-        public DateTime ExpireAt { get; set; }
-    }
-
-    // ===============================
-    // GET /api/User/users/me
-    // ===============================
+    // ---------- Tests ----------
 
     [Fact]
-    public async Task GET_Profile_Đã_đăng_nhập__200()
+    public async Task GetUsersById_Returns_NotFound_For_Unknown_User()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
-        try
-        {
-            SetBearer(access);
-            var res = await _client.GetAsync("/api/User/users/me");
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
-        }
-        finally { await CleanupUserAsync(email); }
+        var controller = CreateController();
+
+        var result = await controller.GetUsersById("UNKNOWN-USER");
+
+        result.Should().BeOfType<NotFoundResult>();
     }
 
     [Fact]
-    public async Task GET_Profile_Không_có_token__404()
+    public async Task GetUsersById_Returns_User_When_Exists()
     {
-        // Không có [Authorize] trên controller → userId null → service trả null → NotFound
-        var res = await _client.GetAsync("/api/User/users/me");
-        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
+        var user = await CreateUserAsync();
 
-    // ===============================
-    // GET /api/User/users/{id}
-    // ===============================
-
-    [Fact]
-    public async Task GET_User_ById_Tồn_tại__200()
-    {
-        var (userId, access, _, email, _) = await CreateUserAndLoginAsync();
         try
         {
-            SetBearer(access);
-            var res = await _client.GetAsync($"/api/User/users/{Uri.EscapeDataString(userId)}");
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
+            var controller = CreateController();
+
+            var result = await controller.GetUsersById(user.UserId);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            var dto = ok.Value.Should().BeAssignableTo<ResponseDTOUser>().Subject;
+            dto.UserID.Should().Be(user.UserId);
+            dto.Email.Should().Be(user.Email);
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
 
     [Fact]
-    public async Task GET_User_ById_Không_tồn_tại__404()
+    public async Task GetUsersProfile_Returns_NotFound_When_UserId_Missing()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
-        try
-        {
-            SetBearer(access);
-            var res = await _client.GetAsync($"/api/User/users/u_{Guid.NewGuid().ToString("N")[..10]}");
-            res.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        }
-        finally { await CleanupUserAsync(email); }
-    }
+        var controller = CreateController();
 
-    [Fact(Skip = "Bật khi áp dụng policy, hiện API không kiểm quyền theo owner → thường trả 200/404")]
-    public async Task GET_User_ById_Không_đủ_quyền__403()
-    {
-        var (_, accessA, _, emailA, _) = await CreateUserAndLoginAsync();
-        var (userIdB, _, _, emailB, _) = await CreateUserAndLoginAsync();
-        try
-        {
-            SetBearer(accessA);
-            var res = await _client.GetAsync($"/api/User/users/{Uri.EscapeDataString(userIdB)}");
-            res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        }
-        finally { await CleanupUserAsync(emailA); await CleanupUserAsync(emailB); }
-    }
+        var result = await controller.GetUsersProfile();
 
-    // ===============================
-    // PUT /api/User/users/me (update self)
-    // ===============================
+        result.Should().BeOfType<NotFoundResult>();
+    }
 
     [Fact]
-    public async Task PUT_Update_Self__200()
+    public async Task GetUsersProfile_Returns_User_When_Authenticated()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            var update = new RequestUpdateUser
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var result = await controller.GetUsersProfile();
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            var dto = ok.Value.Should().BeAssignableTo<ResponseDTOUser>().Subject;
+            dto.UserID.Should().Be(user.UserId);
+        }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateUsersProfile_Returns_BadRequest_When_ModelState_Invalid()
+    {
+        var user = await CreateUserAsync();
+
+        try
+        {
+            var controller = CreateController(CreatePrincipal(user.UserId));
+            controller.ModelState.AddModelError("RolesId", "Required");
+
+            var payload = new RequestUpdateUser
             {
                 IsActive = true,
-                DisplayName = "Tester Updated",
-                PhoneNumber = "0987654321"
+                DisplayName = "AB",
+                PhoneNumber = "123",
+                RolesId = null
             };
-            var res = await _client.PutAsJsonAsync("/api/User/users/me", update);
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await controller.UpdateUsersProfile(payload);
+
+            result.Should().BeOfType<BadRequestObjectResult>();
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
 
     [Fact]
-    public async Task PUT_Update_Self_Invalid__400()
+    public async Task UpdateUsersProfile_Persists_Changes_When_Data_Valid()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+        var role = await EnsureRoleAsync();
+
         try
         {
-            SetBearer(access);
-            var invalid = new RequestUpdateUser { IsActive = true, DisplayName = "", PhoneNumber = "12" };
-            var res = await _client.PutAsJsonAsync("/api/User/users/me", invalid);
-            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var payload = new RequestUpdateUser
+            {
+                IsActive = false,
+                DisplayName = "Updated Tester",
+                PhoneNumber = "0912345678",
+                RolesId = role.Id,
+                UserUrlImage = "https://example.com/avatar.png"
+            };
+
+            var result = await controller.UpdateUsersProfile(payload);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Update user information");
+
+            using (var verifyScope = _scopeFactory.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var refreshed = await verifyDb.Users.Include(u => u.UserRoles)
+                    .FirstAsync(u => u.UserID == user.UserId);
+                refreshed.DisplayName.Should().Be("Updated Tester");
+                refreshed.PhoneNumber.Should().Be("0912345678");
+                refreshed.IsActive.Should().BeFalse();
+                refreshed.UserRoles.Should().ContainSingle(ur => ur.RoleID == role.Id);
+            }
         }
-        finally { await CleanupUserAsync(email); }
-    }
-
-    // ===============================
-    // PUT /api/User/users/change-password
-    // ===============================
-
-    [Fact]
-    public async Task PUT_ChangePassword_Đúng__200()
-    {
-        var oldPwd = "Aa1@abcd";
-        var newPwd = "Bb2@bcde";
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync(password: oldPwd);
-        try
+        finally
         {
-            SetBearer(access);
-            var dto = new RequestUpdateUserHashPassword { OldPassword = oldPwd, NewPassword = newPwd, ConfirmNewPassword = newPwd };
-            var res = await _client.PutAsJsonAsync("/api/User/users/change-password", dto);
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
+            await CleanupUserAsync(user);
+            await CleanupRoleAsync(role.Id);
         }
-        finally { await CleanupUserAsync(email); }
-    }
-
-    [Fact]
-    public async Task PUT_ChangePassword_Sai_mật_khẩu_cũ__400()
-    {
-        var oldPwd = "Aa1@abcd";
-        var newPwd = "Bb2@bcde";
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync(password: oldPwd);
-        try
-        {
-            SetBearer(access);
-            var dto = new RequestUpdateUserHashPassword { OldPassword = "Wrong123!", NewPassword = newPwd, ConfirmNewPassword = newPwd };
-            var res = await _client.PutAsJsonAsync("/api/User/users/change-password", dto);
-            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        }
-        finally { await CleanupUserAsync(email); }
     }
 
     [Fact]
-    public async Task PUT_ChangePassword_Vi_phạm_policy__400()
+    public async Task ChangePassword_Returns_Error_When_OldPassword_Wrong()
     {
-        var oldPwd = "Aa1@abcd";
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync(password: oldPwd);
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            var dto = new RequestUpdateUserHashPassword { OldPassword = oldPwd, NewPassword = "short", ConfirmNewPassword = "short" };
-            var res = await _client.PutAsJsonAsync("/api/User/users/change-password", dto);
-            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var payload = new RequestUpdateUserHashPassword
+            {
+                OldPassword = "Wrong123!",
+                NewPassword = "Bb2@bcde",
+                ConfirmNewPassword = "Bb2@bcde"
+            };
+
+            var result = await controller.UpdateUserPassword(payload);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Wrong old password");
+
+            using (var verifyScope = _scopeFactory.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var refreshed = await verifyDb.Users.AsNoTracking().FirstAsync(u => u.UserID == user.UserId);
+                refreshed.PasswordHash.Should().Be(HashPassword(user.PlainPassword));
+            }
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
 
-    // ===============================
-    // Address endpoints
-    // ===============================
-
     [Fact]
-    public async Task GET_Address_List__200()
+    public async Task ChangePassword_Updates_Hash_When_Data_Valid()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            var res = await _client.GetAsync("/api/User/users/address");
-            res.StatusCode.Should().Be(HttpStatusCode.OK); // service trả list (không null)
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var newPassword = "Cc3@cdef";
+            var payload = new RequestUpdateUserHashPassword
+            {
+                OldPassword = user.PlainPassword,
+                NewPassword = newPassword,
+                ConfirmNewPassword = newPassword
+            };
+
+            var result = await controller.UpdateUserPassword(payload);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Change password successfully");
+
+            using (var verifyScope = _scopeFactory.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var refreshed = await verifyDb.Users.AsNoTracking().FirstAsync(u => u.UserID == user.UserId);
+                refreshed.PasswordHash.Should().Be(HashPassword(newPassword));
+            }
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
 
     [Fact]
-    public async Task POST_Address_Tạo_mới__200()
+    public async Task GetAllUsersAddress_Returns_Empty_When_User_Has_No_Address()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            var create = new RequestCreateAndUpdateAddress
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var result = await controller.GetAllUsersAddress();
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            var addresses = ok.Value.Should().BeAssignableTo<IEnumerable<ResponseDTOAddress>>().Subject;
+            addresses.Should().BeEmpty();
+        }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
+    }
+
+    [Fact]
+    public async Task GetAllUsersAddress_Returns_Addresses_When_They_Exist()
+    {
+        var user = await CreateUserAsync();
+
+        try
+        {
+            await CreateAddressEntityAsync(user.UserId, "First street", "HCM");
+            await CreateAddressEntityAsync(user.UserId, "Second street", "Hanoi");
+
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var result = await controller.GetAllUsersAddress();
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            var addresses = ok.Value.Should().BeAssignableTo<IEnumerable<ResponseDTOAddress>>().Subject.ToList();
+            addresses.Should().HaveCount(2);
+            addresses.Select(a => a.Line1).Should().Contain(new[] { "First street", "Second street" });
+        }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
+    }
+
+    [Fact]
+    public async Task CreateUsersAddress_Returns_Status_Message()
+    {
+        var user = await CreateUserAsync();
+
+        try
+        {
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var payload = new RequestCreateAndUpdateAddress
             {
                 Line1 = "123 Test Street",
                 City = "HCM",
@@ -306,97 +318,256 @@ public class UserControllerTestsV2 : IClassFixture<CustomWebApplicationFactory<P
                 Country = "Vietnam",
                 IsDefault = true
             };
-            var res = await _client.PostAsJsonAsync("/api/User/users/address", create);
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await controller.CreateUsersAddress(payload);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Create Address");
+
+            using (var verifyScope = _scopeFactory.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var stored = await verifyDb.Addresses.Where(a => a.UserID == user.UserId).ToListAsync();
+                stored.Should().ContainSingle();
+                stored[0].Line1.Should().Be("123 Test Street");
+            }
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
 
     [Fact]
-    public async Task POST_Address_Thiếu_field_bắt_buộc__400()
+    public async Task UpdateUsersAddress_Returns_Status_Message()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            var create = new { /* thiếu Line1/City/Country */ };
-            var res = await _client.PostAsJsonAsync("/api/User/users/address", create);
-            res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var address = await CreateAddressEntityAsync(user.UserId, "Old street", "HCM");
+
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var payload = new RequestCreateAndUpdateAddress
+            {
+                Line1 = "New street",
+                City = "Da Nang",
+                PosttalCode = "550000",
+                Country = "Vietnam",
+                IsDefault = true
+            };
+
+            var result = await controller.UpdateUsersAddress(address.Id, payload);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Update Address");
+
+            using (var verifyScope = _scopeFactory.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var refreshed = await verifyDb.Addresses.AsNoTracking().FirstAsync(a => a.Id == address.Id);
+                refreshed.Line1.Should().Be("New street");
+                refreshed.City.Should().Be("Da Nang");
+                refreshed.IsDefault.Should().BeTrue();
+            }
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
 
     [Fact]
-    public async Task PUT_Address_Cập_nhật__200()
+    public async Task DeleteUsersAddress_Returns_Status_Message_When_Deleted()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            // create first
-            var create = new RequestCreateAndUpdateAddress { Line1 = "1 A St", City = "HCM", PosttalCode = "700000", Country = "Vietnam", IsDefault = false };
-            var createRes = await _client.PostAsJsonAsync("/api/User/users/address", create);
-            createRes.EnsureSuccessStatusCode();
-            var created = await createRes.Content.ReadFromJsonAsync<string>();
-            created.Should().NotBeNullOrWhiteSpace();
+            var address = await CreateAddressEntityAsync(user.UserId, "To delete", "Hue");
 
-            var id = created!; // Address service returns id string
-            var update = new RequestCreateAndUpdateAddress { Line1 = "2 B St", City = "HCM", PosttalCode = "700000", Country = "Vietnam", IsDefault = true };
-            var res = await _client.PutAsJsonAsync($"/api/User/users/address/{Uri.EscapeDataString(id)}", update);
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var result = await controller.DeleteUsersAddress(address.Id);
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Delete Address");
+
+            using (var verifyScope = _scopeFactory.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var remaining = await verifyDb.Addresses.Where(a => a.UserID == user.UserId).ToListAsync();
+                remaining.Should().BeEmpty();
+            }
         }
-        finally { await CleanupUserAsync(email); }
-    }
-
-    // [Fact(Skip = "Hiện controller không kiểm owner → trả 200 với chuỗi \"Address not found!\" khi không đúng id")] 
-    // public async Task PUT_Address_Id_không_thuộc_user__403_or_404()
-    // {
-    //     var (_, accessA, _, emailA, _) = await CreateUserAndLoginAsync();
-    //     var (_, accessB, _, emailB, _) = await CreateUserAndLoginAsync();
-    //     try
-    //     {
-    //         // create for B
-    //         SetBearer(accessB);
-    //         var createdRes = await _client.PostAsJsonAsync("/api/User/users/address", new RequestCreateAndUpdateAddress { Line1 = "C", City = "HCM", Country = "Vietnam", PosttalCode = "700000", IsDefault = false });
-    //         createdRes.EnsureSuccessStatusCode();
-    //         var id = await createdRes.Content.ReadFromJsonAsync<string>();
-    //
-    //         // try update by A
-    //         SetBearer(accessA);
-    //         var res = await _client.PutAsJsonAsync($"/api/User/users/address/{Uri.EscapeDataString(id!)}", new RequestCreateAndUpdateAddress { Line1 = "Hacker", City = "HCM", Country = "Vietnam", PosttalCode = "700000", IsDefault = false });
-    //         res.StatusCode.Should().Match<HttpStatusCode>(s => s == HttpStatusCode.Forbidden || s == HttpStatusCode.NotFound);
-    //     }
-    //     finally { await CleanupUserAsync(emailA); await CleanupUserAsync(emailB); }
-    // }
-
-    [Fact]
-    public async Task DELETE_Address_Xóa__200()
-    {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
-        try
+        finally
         {
-            SetBearer(access);
-            var createRes = await _client.PostAsJsonAsync("/api/User/users/address", new RequestCreateAndUpdateAddress { Line1 = "D", City = "HCM", Country = "Vietnam", PosttalCode = "700000", IsDefault = false });
-            createRes.EnsureSuccessStatusCode();
-            var id = await createRes.Content.ReadFromJsonAsync<string>();
-
-            var res = await _client.DeleteAsync($"/api/User/users/address/{Uri.EscapeDataString(id!)}");
-            res.StatusCode.Should().Be(HttpStatusCode.OK);
+            await CleanupUserAsync(user);
         }
-        finally { await CleanupUserAsync(email); }
     }
 
     [Fact]
-    public async Task DELETE_Address_Không_tồn_tại__200_theo_codebase()
+    public async Task DeleteUsersAddress_Returns_NotFound_Message_When_Address_Missing()
     {
-        var (_, access, _, email, _) = await CreateUserAndLoginAsync();
+        var user = await CreateUserAsync();
+
         try
         {
-            SetBearer(access);
-            var id = $"ADR-{Guid.NewGuid().ToString("N")[..10]}";
-            var res = await _client.DeleteAsync($"/api/User/users/address/{Uri.EscapeDataString(id)}");
-            res.StatusCode.Should().Be(HttpStatusCode.OK); // controller trả Ok("Address not found!")
+            var controller = CreateController(CreatePrincipal(user.UserId));
+
+            var result = await controller.DeleteUsersAddress($"ADR-{Guid.NewGuid().ToString("N")}");
+
+            var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().BeOfType<string>().Which.Should().Contain("Address not found");
         }
-        finally { await CleanupUserAsync(email); }
+        finally
+        {
+            await CleanupUserAsync(user);
+        }
     }
+
+    // ---------- Helpers ----------
+
+    private UserController CreateController(ClaimsPrincipal? principal = null)
+    {
+        var httpContext = new DefaultHttpContext
+        {
+            User = principal ?? new ClaimsPrincipal(new ClaimsIdentity())
+        };
+
+        return new UserController(_userServices, _addressService)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = httpContext
+            }
+        };
+    }
+
+    private static ClaimsPrincipal CreatePrincipal(string userId)
+    {
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim("userID", userId),
+            new Claim(ClaimTypes.NameIdentifier, userId)
+        }, "Test");
+
+        return new ClaimsPrincipal(identity);
+    }
+
+    private async Task<TestUserContext> CreateUserAsync(bool isActive = true)
+    {
+        var userId = $"USER-{Guid.NewGuid().ToString("N")}";
+        var email = $"{Guid.NewGuid().ToString("N")[..8]}@example.com";
+        var username = $"user_{Guid.NewGuid().ToString("N")[..8]}";
+        const string password = "Aa1@abcd";
+
+        var entity = new UserEntity
+        {
+            UserID = userId,
+            Username = username,
+            Email = email,
+            PasswordHash = HashPassword(password),
+            PhoneNumber = "0123456789",
+            DisplayName = "Integration Tester",
+            Dob = DateTime.UtcNow.Date,
+            IsActive = isActive,
+            CreateAt = DateTime.UtcNow,
+            UpdateAt = DateTime.UtcNow
+        };
+
+        _db.Users.Add(entity);
+        await _db.SaveChangesAsync();
+
+        return new TestUserContext(userId, email, username, password);
+    }
+
+    private async Task CleanupUserAsync(TestUserContext user)
+    {
+        using var cleanupScope = _scopeFactory.CreateScope();
+        var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var addresses = await cleanupDb.Addresses.Where(a => a.UserID == user.UserId).ToListAsync();
+        cleanupDb.Addresses.RemoveRange(addresses);
+
+        var userRoles = await cleanupDb.UserRoles.Where(ur => ur.UserID == user.UserId).ToListAsync();
+        cleanupDb.UserRoles.RemoveRange(userRoles);
+
+        var tokens = await cleanupDb.RefreshTokens.Where(t => t.UserId == user.UserId).ToListAsync();
+        cleanupDb.RefreshTokens.RemoveRange(tokens);
+
+        var otps = await cleanupDb.UserOtps.Where(o => o.Email == user.Email).ToListAsync();
+        cleanupDb.UserOtps.RemoveRange(otps);
+
+        await cleanupDb.SaveChangesAsync();
+
+        var entity = await cleanupDb.Users.FindAsync(user.UserId);
+        if (entity != null)
+        {
+            cleanupDb.Users.Remove(entity);
+            await cleanupDb.SaveChangesAsync();
+        }
+    }
+
+    private async Task<Role> EnsureRoleAsync()
+    {
+        var role = new Role
+        {
+            Id = $"ROLE-{Guid.NewGuid().ToString("N")}",
+            Name = $"Role_{Guid.NewGuid().ToString("N")[..6]}",
+            Description = "Test role"
+        };
+
+        _db.Roles.Add(role);
+        await _db.SaveChangesAsync();
+        return role;
+    }
+
+    private async Task CleanupRoleAsync(string roleId)
+    {
+        using var cleanupScope = _scopeFactory.CreateScope();
+        var cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var role = await cleanupDb.Roles.FindAsync(roleId);
+        if (role == null)
+        {
+            return;
+        }
+
+        var userRoles = await cleanupDb.UserRoles.Where(ur => ur.RoleID == roleId).ToListAsync();
+        cleanupDb.UserRoles.RemoveRange(userRoles);
+        cleanupDb.Roles.Remove(role);
+        await cleanupDb.SaveChangesAsync();
+    }
+
+    private async Task<Address> CreateAddressEntityAsync(string userId, string line1, string city)
+    {
+        var address = new Address
+        {
+            Id = $"ADR-{Guid.NewGuid().ToString("N")}",
+            UserID = userId,
+            Line1 = line1,
+            City = city,
+            Country = "Vietnam",
+            PosttalCode = "700000",
+            IsDefault = false
+        };
+
+        _db.Addresses.Add(address);
+        await _db.SaveChangesAsync();
+        return address;
+    }
+
+    private static string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(bytes);
+    }
+
+    private sealed record TestUserContext(string UserId, string Email, string Username, string PlainPassword);
 }
