@@ -3,13 +3,17 @@ using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using Backend_SEP490.Services;
 
 namespace Backend_SEP490.Services.impl;
 
 public class FeedbackServicesImpl: GenericServices, IFeedbackServices
 {
-    public FeedbackServicesImpl(IMapper mapper, IUnitOfWork context) : base(mapper, context)
+    private readonly INotificationService _notificationService;
+
+    public FeedbackServicesImpl(IMapper mapper, IUnitOfWork context, INotificationService notificationService) : base(mapper, context)
     {
+        _notificationService = notificationService;
     }
 
     public async Task<PagedResult<ResponseDTOFeedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize)
@@ -47,5 +51,13 @@ public class FeedbackServicesImpl: GenericServices, IFeedbackServices
     public async Task CreateFeedback(RequestDTOFeedback feedback, string productID, string userID)
     {
         await _context.Feedback.CreateFeedback(feedback, productID, userID);
+
+        var product = await _context.Products.GetProductByIdAsync(productID);
+        var customer = await _context.Users.GetByIdAsync(userID);
+
+        if (product != null && customer != null)
+        {
+            await _notificationService.NotifyArtisanFeedbackAsync(product, customer, feedback);
+        }
     }
 }

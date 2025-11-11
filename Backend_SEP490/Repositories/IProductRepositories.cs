@@ -23,4 +23,5 @@ public interface IProductRepositories
     Task<List<Product>> GetProductsAsync(string? categoryId, bool? isActive);
     Task<List<Product>> GetAllAsync();
     Task SaveChangesAsync();
+    Task<List<Product>> GetProductsByIdsAsync(IEnumerable<string> productIds);
 }

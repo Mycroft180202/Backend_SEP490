@@ -5,13 +5,23 @@ using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Repositories.impl;
+using Microsoft.Extensions.Logging;
 
 namespace Backend_SEP490.Services.impl;
 
 public class OrderServiceImpl : GenericServices, IOrderService
 {
-    public OrderServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<OrderServiceImpl> _logger;
+
+    public OrderServiceImpl(
+        IMapper mapper,
+        IUnitOfWork unitOfWork,
+        INotificationService notificationService,
+        ILogger<OrderServiceImpl> logger) : base(mapper, unitOfWork)
     {
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     private static string GenerateId(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
@@ -79,6 +89,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
 
             await transaction.CommitAsync();
+
+            await NotifyOrderActorsAsync(order, orderItems);
             return "Create order successfully!";
         }
         catch
@@ -149,5 +161,22 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         return _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
+    }
+
+    private async Task NotifyOrderActorsAsync(Order order, List<OrderItem> orderItems)
+    {
+        try
+        {
+            var products = await _context.Products.GetProductsByIdsAsync(orderItems.Select(item => item.ProductID));
+            var productLookup = products
+                .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+                .ToDictionary(p => p.Id, p => p);
+
+            await _notificationService.NotifyOrderCreatedAsync(order, orderItems, productLookup);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send notifications for order {OrderId}.", order.Id);
+        }
     }
 }

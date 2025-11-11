@@ -154,4 +154,25 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
             .ToListAsync();
     }
 
+    public async Task<List<User>> GetUsersByRoleAsync(string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            return new List<User>();
+        }
+
+        return await _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .Where(u => u.UserRoles.Any(ur => ur.Role.Name == roleName))
+            .ToListAsync();
+    }
+
+    public async Task<List<User>> GetActiveUsersAsync()
+    {
+        return await _context.Users
+            .Where(u => u.IsActive)
+            .ToListAsync();
+    }
+
 }

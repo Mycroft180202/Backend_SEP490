@@ -133,4 +133,21 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
     }
 
     public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+
+    public async Task<List<Product>> GetProductsByIdsAsync(IEnumerable<string> productIds)
+    {
+        var ids = productIds?
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+
+        if (ids == null || ids.Count == 0)
+        {
+            return new List<Product>();
+        }
+
+        return await _context.Products
+            .Where(p => ids.Contains(p.Id))
+            .ToListAsync();
+    }
 }
