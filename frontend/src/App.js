@@ -20,6 +20,7 @@ import BlogDetail from './pages/BlogDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import ArtisanDashboard from './pages/ArtisanDashboard';
 import CheckOut from './pages/CheckOut';
+import Payment from './pages/Payment';
 function App() {
   return (
     <UserProvider>
@@ -42,6 +43,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/artisan" element={<ArtisanDashboard />} />
         <Route path="/checkout" element={<CheckOut />} />
+        <Route path="/payment" element={<Payment />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
