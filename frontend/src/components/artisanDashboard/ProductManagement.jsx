@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch } from 'react-icons/fa';
+import AddProductForm from './AddProductForm';
 
 const ProductManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
   const [products, setProducts] = useState([
     { id: 1, name: 'Đèn gốm sứ thủ công', category: 'Đồ gốm', price: 450000, stock: 45, status: 'Còn hàng', sales: 156, image: '/images/products/lamp.jpg' },
@@ -58,6 +60,35 @@ const ProductManagement = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
+  // Handle add product
+  const handleAddProduct = (formData) => {
+    // Here you would typically make an API call to submit the product
+    console.log('Product data to submit:', formData);
+    
+    // For now, let's just show a success message and close the form
+    // In production, you would:
+    // 1. Make API call with formData
+    // 2. Wait for response
+    // 3. Update products list
+    // 4. Show success/error message
+    
+    // Example:
+    // try {
+    //   const response = await fetch('/api/products', {
+    //     method: 'POST',
+    //     body: formData
+    //   });
+    //   const newProduct = await response.json();
+    //   setProducts([newProduct, ...products]);
+    //   alert('Thêm sản phẩm thành công!');
+    // } catch (error) {
+    //   alert('Lỗi khi thêm sản phẩm!');
+    // }
+    
+    alert('Đã gửi dữ liệu sản phẩm! (Xem console để kiểm tra)');
+    setIsAddFormOpen(false);
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       {/* Header */}
@@ -66,7 +97,10 @@ const ProductManagement = () => {
           <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý sản phẩm</h2>
           <p className="text-sm text-gray-600 mt-1">Tổng {products.length} sản phẩm</p>
         </div>
-        <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+        <button 
+          onClick={() => setIsAddFormOpen(true)}
+          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+        >
           <FaPlus /> Thêm sản phẩm mới
         </button>
       </div>
@@ -207,6 +241,13 @@ const ProductManagement = () => {
           </button>
         </div>
       </div>
+
+      {/* Add Product Form Modal */}
+      <AddProductForm
+        isOpen={isAddFormOpen}
+        onClose={() => setIsAddFormOpen(false)}
+        onSubmit={handleAddProduct}
+      />
     </div>
   );
 };
