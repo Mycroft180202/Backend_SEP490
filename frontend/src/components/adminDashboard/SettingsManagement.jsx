@@ -216,42 +216,67 @@ const SettingsManagement = () => {
           {/* Notification Settings */}
           {activeTab === 'notifications' && (
             <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm font-semibold text-gray-700">Thông báo đơn hàng mới</span>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-semibold text-gray-800">Thông báo đơn hàng mới</p>
+                  <p className="text-sm text-gray-600">Nhận thông báo khi có đơn hàng mới</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.orderNotifications}
                     onChange={() => handleToggle('orderNotifications')}
-                    className="toggle"
+                    className="sr-only peer"
                   />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm font-semibold text-gray-700">Thông báo sản phẩm mới</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-semibold text-gray-800">Thông báo sản phẩm mới</p>
+                  <p className="text-sm text-gray-600">Nhận thông báo khi người bán thêm sản phẩm mới</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.newProductNotifications}
                     onChange={() => handleToggle('newProductNotifications')}
-                    className="toggle"
+                    className="sr-only peer"
                   />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm font-semibold text-gray-700">Thông báo báo cáo/khiếu nại</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-semibold text-gray-800">Thông báo báo cáo/khiếu nại</p>
+                  <p className="text-sm text-gray-600">Nhận thông báo về các báo cáo và khiếu nại mới</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.reportNotifications}
                     onChange={() => handleToggle('reportNotifications')}
-                    className="toggle"
+                    className="sr-only peer"
                   />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm font-semibold text-gray-700">Báo cáo tuần</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-semibold text-gray-800">Báo cáo tuần</p>
+                  <p className="text-sm text-gray-600">Nhận báo cáo thống kê hàng tuần qua email</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.weeklyReport}
                     onChange={() => handleToggle('weeklyReport')}
-                    className="toggle"
+                    className="sr-only peer"
                   />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
             </div>
