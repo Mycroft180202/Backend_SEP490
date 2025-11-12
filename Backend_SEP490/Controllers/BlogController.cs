@@ -38,7 +38,7 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var blog = await _blogPostService.UpdateBlogPostAsync(Id, request);
+            var blog = await _blogPostService.UpdateBlogPostAsync(id, request);
             return Ok(blog);
         }
         [HttpPost("blogs")]
