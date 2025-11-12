@@ -39,7 +39,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         try
         {
-            var cart = await _context.Cart.GetAllCartItemsAsync(userId);
+            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
             if (cart == null)
             {
                 await transaction.RollbackAsync();
@@ -121,11 +121,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         var orderDetail = _mapper.Map<ResponseDTOOrder>(order);
-        orderDetail.Items ??= new List<ResponseDTOOrderItem>();
-        orderDetail.Items = orderDetail.Items
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+        
+        //orderDetail.Items ??= new List<ResponseDTOOrderItem>();
+        //orderDetail.Items = orderDetail.Items
+        //    .Skip((pageIndex - 1) * pageSize)
+        //    .Take(pageSize)
+        //    .ToList();
 
         return orderDetail;
     }

@@ -181,7 +181,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         }
         return "Update artisan information succesfully!";
     }
-}
+
     public async Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> userIds)
     {
         var ids = userIds?
