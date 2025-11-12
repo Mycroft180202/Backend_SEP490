@@ -17,16 +17,12 @@ namespace Backend_SEP490.Services.impl
         {
             _cloudinary = cloudinary;
         }
-
+        private string GenerateID(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
         public async Task<string> CreateBlogPostAsync(string userid, RequestCreateBlogPost request)
         {
 
             var blogPosts = await _context.Blog.GetAllBlogPostAsync();
-            var blogId = "B001";
-            if (blogPosts.Any())
-            {
-                blogId = blogPosts.OrderByDescending(b => b.Id).FirstOrDefault().Id;
-            }
+           
             string url = "";
 
             if (request.Image != null)
@@ -41,15 +37,10 @@ namespace Backend_SEP490.Services.impl
                 url = uploadResult.SecureUrl.ToString();
             }
 
-            int nextNumber = 1;
-            if (!"B001".Equals(blogId))
-            {
-                nextNumber = int.Parse(blogId.Substring(1)) + 1;
-            }
 
             var blog = new BlogPost
             {
-                Id = $"B{nextNumber:D3}",
+                Id = GenerateID("BLOG"),
                 Title = request.Title,
                 Content = request.Content,
                 Image = url,
