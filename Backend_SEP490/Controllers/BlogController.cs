@@ -34,11 +34,11 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPut("blogs")]
-        public async Task<IActionResult> UpdateBlogPost([FromQuery] string blogId, [FromForm] RequestUpdateBlogPost request)
+        public async Task<IActionResult> UpdateBlogPost([FromQuery] string Id, [FromForm] RequestUpdateBlogPost request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var blog = await _blogPostService.UpdateBlogPostAsync(blogId, request);
+            var blog = await _blogPostService.UpdateBlogPostAsync(Id, request);
             return Ok(blog);
         }
         [HttpPost("blogs")]
