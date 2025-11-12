@@ -34,7 +34,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPut("blogs")]
-        public async Task<IActionResult> UpdateBlogPost([FromQuery] string Id, [FromForm] RequestUpdateBlogPost request)
+        public async Task<IActionResult> UpdateBlogPost([FromQuery] string id, [FromForm] RequestUpdateBlogPost request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
