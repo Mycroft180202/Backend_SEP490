@@ -33,8 +33,8 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
 
-        [HttpPut("blogs/{id}")]
-        public async Task<IActionResult> UpdateBlogPost([FromRoute] string blogId, [FromForm] RequestUpdateBlogPost request)
+        [HttpPut("blogs")]
+        public async Task<IActionResult> UpdateBlogPost([FromQuery] string blogId, [FromForm] RequestUpdateBlogPost request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
