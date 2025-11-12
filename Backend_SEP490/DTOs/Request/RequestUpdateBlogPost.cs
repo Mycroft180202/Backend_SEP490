@@ -16,7 +16,6 @@ namespace Backend_SEP490.DTOs.Request
         [RegularExpression("^(Draft|Published|Archived)$", ErrorMessage = "Trạng thái chỉ có thể là Draft, Published hoặc Archived")]
         public string PostStatus { get; set; }
 
-        [Url(ErrorMessage = "Đường dẫn hình ảnh không hợp lệ")]
-        public string? Image { get; set; }
+        public IFormFile? Image { get; set; }
     }
 }

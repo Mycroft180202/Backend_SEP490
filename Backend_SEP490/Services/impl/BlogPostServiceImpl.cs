@@ -92,7 +92,20 @@ namespace Backend_SEP490.Services.impl
             var blogPost = await _context.Blog.GetBlogByIdAsync(blogId);
             if (blogPost == null) return "Blog not found!";
 
-            var updateStatus = await _context.Blog.UpdateBlogPostAsync(blogPost, request);
+            string url = blogPost.Image;
+
+            if (request.Image != null)
+            {
+                using var stream = request.Image.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(request.Image.FileName, stream)
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                url = uploadResult.SecureUrl.ToString();
+            }
+            var updateStatus = await _context.Blog.UpdateBlogPostAsync(blogPost, request, url);
             return updateStatus;
         }
     }

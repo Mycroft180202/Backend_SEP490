@@ -7,7 +7,7 @@ namespace Backend_SEP490.Repositories
     {
         public Task<IEnumerable<BlogPost>> GetAllBlogPostAsync();
         public Task<BlogPost> GetBlogByIdAsync(string blogId);
-        public Task<string> UpdateBlogPostAsync(BlogPost blog, RequestUpdateBlogPost request);
+        public Task<string> UpdateBlogPostAsync(BlogPost blog, RequestUpdateBlogPost request, string url);
         public Task<string> CreateBlogPostAsync(BlogPost blog);
     }
 }

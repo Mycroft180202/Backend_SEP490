@@ -36,14 +36,14 @@ namespace Backend_SEP490.Repositories.impl
             return blogPost;
         }
 
-        public async Task<string> UpdateBlogPostAsync(BlogPost blog, RequestUpdateBlogPost request)
+        public async Task<string> UpdateBlogPostAsync(BlogPost blog, RequestUpdateBlogPost request, string url)
         {
             try
             {
                 blog.Title = request.Title;
                 blog.Content = request.Content;
                 blog.PostStatus = request.PostStatus;
-                blog.Image = request.Image;
+                blog.Image = url;
             }
             catch(Exception ex)
             {

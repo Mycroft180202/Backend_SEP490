@@ -34,7 +34,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPut("blogs/{id}")]
-        public async Task<IActionResult> UpdateBlogPost([FromRoute] string blogId, [FromBody] RequestUpdateBlogPost request)
+        public async Task<IActionResult> UpdateBlogPost([FromRoute] string blogId, [FromForm] RequestUpdateBlogPost request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -42,7 +42,7 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
         [HttpPost("blogs")]
-        public async Task<IActionResult> CreateBlogPost([FromBody] RequestCreateBlogPost request)
+        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

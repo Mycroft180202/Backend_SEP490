@@ -21,7 +21,6 @@ namespace Backend_SEP490.Controllers
             _addressServices = addressServices;
         }
 
-
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers( [FromQuery] int pageIndex =1, [FromQuery] int pageSize = 10)
         {
