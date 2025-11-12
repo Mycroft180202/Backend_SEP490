@@ -9,13 +9,42 @@ const normalizeList = (data) => {
   return [];
 };
 
+const buildFormData = ({
+  title,
+  content,
+  image,
+  postStatus,
+}) => {
+  const formData = new FormData();
+  formData.append('Title', title || '');
+  formData.append('Content', content || '');
+
+  if (postStatus) {
+    formData.append('PostStatus', postStatus);
+  }
+
+  if (image instanceof File || image instanceof Blob) {
+    formData.append('Image', image);
+  }
+
+  return formData;
+};
+
 export const BlogService = {
   getAll: async (params = {}) => {
     const response = await axiosClient.get(API_ENDPOINTS.BLOGS.ROOT, { params });
-    const items = normalizeList(response.data);
+    const data = response?.data || {};
+    const items = normalizeList(data);
+
     return {
-      raw: response.data,
+      raw: data,
       items,
+      pageIndex: data.pageIndex ?? params.pageIndex ?? 1,
+      pageSize: data.pageSize ?? params.pageSize ?? items.length,
+      totalPages: data.totalPages ?? 1,
+      totalCount: data.totalCount ?? items.length,
+      hasNextPage: data.hasNextPage ?? false,
+      hasPreviousPage: data.hasPreviousPage ?? false,
     };
   },
 
@@ -24,21 +53,32 @@ export const BlogService = {
     return response.data;
   },
 
-  create: async (payload) => {
-    const response = await axiosClient.post(API_ENDPOINTS.BLOGS.ROOT, payload, {
-      headers: {
-        'Content-Type': payload instanceof FormData ? 'multipart/form-data' : 'application/json',
+  create: async (payload = {}) => {
+    const body = payload instanceof FormData ? payload : buildFormData(payload);
+    const response = await axiosClient.post(
+      API_ENDPOINTS.BLOGS.ROOT,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       },
-    });
+    );
     return response.data;
   },
 
-  update: async (id, payload) => {
-    const response = await axiosClient.put(API_ENDPOINTS.BLOGS.BY_ID(id), payload, {
-      headers: {
-        'Content-Type': payload instanceof FormData ? 'multipart/form-data' : 'application/json',
+  update: async (id, payload = {}) => {
+    const body = payload instanceof FormData ? payload : buildFormData(payload);
+    const response = await axiosClient.put(
+      API_ENDPOINTS.BLOGS.ROOT,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        params: { Id: id },
       },
-    });
+    );
     return response.data;
   },
 };
