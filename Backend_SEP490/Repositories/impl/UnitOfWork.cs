@@ -11,7 +11,8 @@ public class UnitOfWork: IUnitOfWork
         IFeedbackRepositories feedback,IOrderRepositories order,IRefreshTokenRepository refreshToken,ICategoryRepositories category, IBlogRepositories blog,
         IRoleRepository role, IUserRoleRepository userRole, IAddressRepositories address, IUserOtpRepositories userOtp, ICartRepositories cart,
         ICartItemRepositories cartItem, IWishListItemRepositories wishListItem,IProductCollectionRepositories productCollection, IVoucherRepositories voucher,
-        IOrderDetailRepositories orderDetail, IShipmentRepositories shipment)
+        IOrderDetailRepositories orderDetail, IShipmentRepositories shipment, INotificationRepository notification, IReportRepository report,
+        IPaymentRepository payment)
     {
         _context = context;
         Products = product;
@@ -33,6 +34,9 @@ public class UnitOfWork: IUnitOfWork
         Voucher = voucher;
         OrderDetail = orderDetail;
         Shipment = shipment;
+        Notifications = notification;
+        Reports = report;
+        Payments = payment;
     }
 
     public async Task<IDbContextTransaction> BeginTransactionAsync()
@@ -72,5 +76,8 @@ public class UnitOfWork: IUnitOfWork
     public IVoucherRepositories Voucher { get; }
     public IOrderDetailRepositories OrderDetail { get; }
     public IShipmentRepositories Shipment { get; }
+    public INotificationRepository Notifications { get; }
+    public IReportRepository Reports { get; }
+    public IPaymentRepository Payments { get; }
     
 }

@@ -27,5 +27,8 @@ public interface IUnitOfWork: IDisposable
     IVoucherRepositories Voucher { get; }
     IOrderDetailRepositories OrderDetail { get; }
     IShipmentRepositories Shipment { get; }
+    INotificationRepository Notifications { get; }
+    IReportRepository Reports { get; }
+    IPaymentRepository Payments { get; }
 
 }

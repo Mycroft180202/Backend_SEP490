@@ -1,9 +1,11 @@
+using Backend_SEP490.Hubs;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Repositories.impl;
 using Backend_SEP490.Services;
 using Backend_SEP490.Services.impl;
 using Backend_SEP490.Mapper;
+using Backend_SEP490.Services.Background;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using CloudinaryDotNet;
@@ -87,6 +89,9 @@ builder.Services.AddScoped<IProductCollectionRepositories, ProductCollectionRepo
 builder.Services.AddScoped<IVoucherRepositories, VoucherRipositoriesImpl>();
 builder.Services.AddScoped<IOrderDetailRepositories, OrderDetailRepositoriesImpl>();
 builder.Services.AddScoped<IShipmentRepositories, ShipmentRepositoriesImpl>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepositoryImpl>();
+builder.Services.AddScoped<IReportRepository, ReportRepositoryImpl>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepositoryImpl>();
 
 // ----------------------
 // Services
@@ -104,7 +109,9 @@ builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
 builder.Services.AddScoped<ICartService,CartServiceImpl>();
 builder.Services.AddScoped<IWishListItemService,WishListItemServiceImpl>();
 builder.Services.AddScoped<IVoucherService,VoucherServiceImpl>();
-builder.Services.AddScoped<INoitificationServices,NoitificationServicesImpl>();
+builder.Services.AddScoped<INotificationService,NotificationServicesImpl>();
+builder.Services.AddScoped<IReportService, ReportServiceImpl>();
+builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
@@ -112,6 +119,7 @@ builder.Services.AddScoped<INoitificationServices,NoitificationServicesImpl>();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
 builder.Services.AddScoped<IProductCollectionServices, ProductCollectionServicesImpl>();
+builder.Services.AddHostedService<NotificationCleanupService>();
 
 // IEmbeddingService (inject OpenAI API Key)
 builder.Services.AddScoped<IEmbeddingService>(sp =>
@@ -125,6 +133,7 @@ builder.Services.AddScoped<IEmbeddingService>(sp =>
 // Controllers
 // ----------------------
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 // ----------------------
 // Swagger + JWT Auth
@@ -179,6 +188,22 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // ----------------------
@@ -188,9 +213,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://192.168.1.183:3000/", "http://localhost:3000")
+            .WithOrigins("http://192.168.1.183:3000", "http://localhost:3000")
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
 
@@ -212,6 +238,7 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
 public partial class Program { }

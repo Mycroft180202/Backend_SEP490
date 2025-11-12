@@ -4,13 +4,17 @@ using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using Backend_SEP490.Services;
 
 namespace Backend_SEP490.Services.impl
 {
     public class VoucherServiceImpl : GenericServices, IVoucherService
     {
-        public VoucherServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        private readonly INotificationService _notificationService;
+
+        public VoucherServiceImpl(IMapper mapper, IUnitOfWork unitOfWork, INotificationService notificationService) : base(mapper, unitOfWork)
         {
+            _notificationService = notificationService;
         }
 
         public async Task<string> CreateVoucherAsync(string userId, RequestCreateVoucher request)
@@ -36,6 +40,10 @@ namespace Backend_SEP490.Services.impl
             };
 
             var status = await _context.Voucher.CreateVoucherAsync(voucher);
+            if (status.Contains("success", StringComparison.OrdinalIgnoreCase))
+            {
+                await _notificationService.NotifyPromotionAsync(voucher);
+            }
             return status;
         }
 

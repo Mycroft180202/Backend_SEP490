@@ -182,3 +182,40 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return "Update artisan information succesfully!";
     }
 }
+    public async Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> userIds)
+    {
+        var ids = userIds?
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList() ?? new List<string>();
+
+        if (!ids.Any())
+            return new List<User>();
+
+        return await _context.Users
+            .Where(u => ids.Contains(u.UserID))
+            .ToListAsync();
+    }
+
+    public async Task<List<User>> GetUsersByRoleAsync(string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            return new List<User>();
+        }
+
+        return await _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .Where(u => u.UserRoles.Any(ur => ur.Role.Name == roleName))
+            .ToListAsync();
+    }
+
+    public async Task<List<User>> GetActiveUsersAsync()
+    {
+        return await _context.Users
+            .Where(u => u.IsActive)
+            .ToListAsync();
+    }
+
+}

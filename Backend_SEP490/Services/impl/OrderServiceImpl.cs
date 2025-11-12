@@ -1,43 +1,70 @@
-﻿using AutoMapper;
+
 using Backend_SEP490.Data;
+using AutoMapper;
+using System.Linq;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Repositories.impl;
+using Microsoft.Extensions.Logging;
 
-namespace Backend_SEP490.Services.impl
+namespace Backend_SEP490.Services.impl;
+
+public class OrderServiceImpl : GenericServices, IOrderService
 {
-    public class OrderServiceImpl : GenericServices, IOrderService
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<OrderServiceImpl> _logger;
+
+    public OrderServiceImpl(
+        IMapper mapper,
+        IUnitOfWork unitOfWork,
+        INotificationService notificationService,
+        ILogger<OrderServiceImpl> logger) : base(mapper, unitOfWork)
     {
-        public OrderServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        _notificationService = notificationService;
+        _logger = logger;
+    }
+
+    private static string GenerateId(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
+
+    public async Task<string> CreateOrderAsync(string? userId, RequestCreateOrder request)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
         {
+            return "Create order failed!";
         }
 
-        private string GenerateID(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
-        public async Task<string> CreateOrderAsync(string userId, RequestCreateOrder request)
+        await using var transaction = await _context.BeginTransactionAsync();
+
+        try
         {
-            await using var transaction = await _context.BeginTransactionAsync();
-
-            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
-            var cartItems = await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id);
-
-
-            decimal totalAmount = 0;
-            foreach (var item in cartItems)
+            var cart = await _context.Cart.GetAllCartItemsAsync(userId);
+            if (cart == null)
             {
-                totalAmount = (decimal)(item.PriceAtAdd * item.Quantity) + totalAmount;
+                await transaction.RollbackAsync();
+                return "Create order failed!";
             }
-            string orderId = "Order-" + userId + totalAmount + DateTime.UtcNow;
-            Order order = new Order
+
+            var cartItems = (await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id)).ToList();
+            if (cartItems.Count == 0)
+            {
+                await transaction.RollbackAsync();
+                return "Create order failed!";
+            }
+
+            var orderId = $"Order-{userId}-{Guid.NewGuid():N}";
+            var order = new Order
             {
                 Id = orderId,
-                OrderNumber = GenerateID("ORDER"),
+                OrderNumber = GenerateId("ORDER"),
+                CustomerId = userId,
                 Status = "Pending",
-                TotalAmount = totalAmount,
+                TotalAmount = cartItems.Sum(item => (item.PriceAtAdd ?? 0m) * (item.Quantity ?? 0)),
                 ShipingAddressId = request.ShipingAddressId,
                 CreateAt = DateTime.UtcNow,
             };
+
             var addOrderStatus = await _context.Order.CreateOrderAsync(order);
             if (!addOrderStatus)
             {
@@ -45,18 +72,17 @@ namespace Backend_SEP490.Services.impl
                 return "Create order failed!";
             }
 
-            List<OrderItem> orderItems = new List<OrderItem>();
-            foreach (var item in cartItems)
-            {
-                orderItems.Add(new OrderItem
+            var orderItems = cartItems
+                .Select(item => new OrderItem
                 {
-                    Id = orderId + item.ProductId,
+                    Id = $"{orderId}-{item.ProductId}",
                     OrderID = orderId,
                     ProductID = item.ProductId,
-                    Quantity = (int)item.Quantity,
-                    UnitPrice = (decimal)item.PriceAtAdd
-                });
-            }
+                    Quantity = item.Quantity ?? 0,
+                    UnitPrice = item.PriceAtAdd ?? 0m
+                })
+                .ToList();
+
             var addOrderItemStatus = await _context.OrderDetail.CreateOrderItemAsync(orderItems);
             if (!addOrderItemStatus)
             {
@@ -64,56 +90,95 @@ namespace Backend_SEP490.Services.impl
                 return "Create order item failed!";
             }
 
-            //Add Shipment (Đợi API bên thứ 3)
+            await transaction.CommitAsync();
 
-
-
+            await NotifyOrderActorsAsync(order, orderItems);
             return "Create order successfully!";
         }
-
-        public async Task<ResponseDTOOrder> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize)
+        catch
         {
-            var order = await _context.Order.GetAllOrderByIdAsync(orderId);
-            int count = order.OrderItems.Count;
-            var orderItem = order.OrderItems.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
 
-            var mappedOrderItems = _mapper.Map<IEnumerable<ResponseDTOOrderItem>>(orderItem);
-            var orderItemPagination = new PagedResult<ResponseDTOOrderItem>
-            {
-                Items = mappedOrderItems,
-                TotalCount = count,
-                PageIndex = pageIndex,
-                PageSize = pageSize
-            };
-
-            var result = _mapper.Map<ResponseDTOOrder>(order);
-            result.Items = orderItemPagination;
-
-            return result;
+    public async Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize)
+    {
+        if (pageIndex < 1)
+        {
+            pageIndex = 1;
         }
 
-        public async Task<IEnumerable<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter)
+        if (pageSize < 1)
         {
-            var orders = await _context.Order.GetAllOrderByUserIdAsync(userId);
-
-            if (string.IsNullOrEmpty(requestFilter.search))
-            {
-                orders = orders.Where(o => o.OrderNumber.ToLower().Contains(requestFilter.search.ToLower()));
-            }
-
-            if (string.IsNullOrEmpty(requestFilter.Status))
-            {
-                orders = orders.Where(o => o.Status.Equals(requestFilter.Status));
-            }
-
-            if (requestFilter.CreateAt != null)
-            {
-                orders = orders.Where(o => o.CreateAt.Equals(requestFilter.CreateAt));
-            }
-
-            return _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
+            pageSize = 10;
         }
 
+        var order = await _context.Order.GetAllOrderByIdAsync(orderId);
+        if (order == null)
+        {
+            return null;
+        }
 
+        var orderDetail = _mapper.Map<ResponseDTOOrder>(order);
+        orderDetail.Items ??= new List<ResponseDTOOrderItem>();
+        orderDetail.Items = orderDetail.Items
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return orderDetail;
+    }
+
+    public async Task<IEnumerable<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Enumerable.Empty<ResponseDTOOrder>();
+        }
+
+        var orders = await _context.Order.GetAllOrderByUserIdAsync(userId);
+
+        if (requestFilter != null)
+        {
+            if (!string.IsNullOrWhiteSpace(requestFilter.search))
+            {
+                orders = orders.Where(o =>
+                    o.OrderNumber != null &&
+                    o.OrderNumber.Contains(requestFilter.search, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(requestFilter.Status))
+            {
+                orders = orders.Where(o =>
+                    o.Status != null &&
+                    string.Equals(o.Status, requestFilter.Status, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (requestFilter.CreateAt.HasValue)
+            {
+                var targetDate = requestFilter.CreateAt.Value.Date;
+                orders = orders.Where(o => o.CreateAt.Date == targetDate);
+            }
+        }
+
+        return _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
+    }
+
+    private async Task NotifyOrderActorsAsync(Order order, List<OrderItem> orderItems)
+    {
+        try
+        {
+            var products = await _context.Products.GetProductsByIdsAsync(orderItems.Select(item => item.ProductID));
+            var productLookup = products
+                .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+                .ToDictionary(p => p.Id, p => p);
+
+            await _notificationService.NotifyOrderCreatedAsync(order, orderItems, productLookup);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send notifications for order {OrderId}.", order.Id);
+        }
     }
 }

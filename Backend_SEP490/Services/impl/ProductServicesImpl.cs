@@ -375,83 +375,78 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
 
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
-        string? productName, string? categoryId, bool? isActive, int pageIndex, int pageSize,string? sortOrder)
+    string? productName,
+    string? categoryId,
+    bool? isActive,
+    int pageIndex,
+    int pageSize,
+    string? sortOrder)
+{
+    if (pageIndex < 1)
+        pageIndex = 1;
+    if (pageSize <= 0)
+        pageSize = 10;
+
+    // Lấy danh sách product đã filter theo category + isActive
+    var products = await _context.Products.GetProductsAsync(categoryId, isActive);
+
+    // ----- 1. Semantic search theo embedding (nếu có productName) -----
+    if (!string.IsNullOrWhiteSpace(productName))
     {
-        if (pageIndex < 1)
-            pageIndex = 1;
-        if (pageSize <= 0)
-            pageSize = 10;
-        var products = await _context.Products.GetProductsAsync(categoryId, isActive);
+        var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(productName);
 
-        if (!string.IsNullOrEmpty(productName))
+        products = products
+            .Where(p => p.EmbeddingJson != null)
+            .Select(p =>
+            {
+                var embedding = JsonConvert.DeserializeObject<double[]>(
+                    p.EmbeddingJson!.RootElement.GetRawText()
+                );
+
+                var score = CalculateCosineSimilarity(queryEmbedding, embedding);
+                return new { Product = p, Score = score };
+            })
+            .OrderByDescending(x => x.Score)
+            .Select(x => x.Product)
+            .ToList();
+    }
+
+    // ----- 2. Sort theo sortOrder (trên bộ nhớ như cũ) -----
+    if (!string.IsNullOrWhiteSpace(sortOrder))
+    {
+        switch (sortOrder.ToLower())
         {
-            var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(productName);
-
-            var ranked = products
-                .Where(p => p.EmbeddingJson != null)
-                .Select(p => new
-                {
-                    Product = p,
-                    Score = CalculateCosineSimilarity(
-                        queryEmbedding,
-                        JsonConvert.DeserializeObject<double[]>(p.EmbeddingJson!.RootElement.GetRawText())
-                    )
-                })
-                .OrderByDescending(x => x.Score)
-                .Select(x => x.Product)
-                .ToList();
-
-            products = ranked;
+            case "asc":
+            case "lowtohigh":
+                products = products.OrderBy(p => p.Price).ToList();
+                break;
+            case "desc":
+            case "hightolow":
+                products = products.OrderByDescending(p => p.Price).ToList();
+                break;
+            case "atoz":
+                products = products.OrderBy(p => p.Name).ToList();
+                break;
+            case "ztoa":
+                products = products.OrderByDescending(p => p.Name).ToList();
+                break;
         }
-        
-        if (!string.IsNullOrEmpty(sortOrder))
-        {
-            switch (sortOrder.ToLower())
-            {
-                case "asc":
-                case "lowtohigh":
-                    products = products.OrderBy(p => p.Price).ToList();
-                    break;
-                case "desc":
-                case "hightolow":
-                    products = products.OrderByDescending(p => p.Price).ToList();
-                    break;
-                case "atoz":
-                    products = products.OrderBy(p => p.Name).ToList();
-                    break;
-                case "ztoa":
-                    products = products.OrderByDescending(p => p.Name).ToList();
-                    break;
-            }
-        }
-        
-        var totalCount = products.Count;
-        var paged = products.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
-        var result = _mapper.Map<List<ResponseDTOProduct>>(paged);
-        foreach (var pro in result)
-        {
-            // Artisan info
-            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
-            if (user != null)
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
+    }
 
-            // Ratings
-            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
-            if (ratings != null && ratings.Any())
-            {
-                var ratingSum = ratings.Sum(o => o.Rating);
-                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-            var image = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            pro.ImageUrl = image.FirstOrDefault(p=>p.Position == 0)?.URL;
-        }
+    var totalCount = products.Count;
+
+    // ----- 3. Paging -----
+    var pagedProducts = products
+        .Skip((pageIndex - 1) * pageSize)
+        .Take(pageSize)
+        .ToList();
+
+    // GIỮ NGUYÊN MAPPER như bạn yêu cầu
+    var result = _mapper.Map<List<ResponseDTOProduct>>(pagedProducts);
+
+    // Không có sản phẩm thì trả luôn
+    if (result.Count == 0)
+    {
         return new PagedResult<ResponseDTOProduct>
         {
             TotalCount = totalCount,
@@ -460,6 +455,77 @@ public class ProductServicesImpl: GenericServices, IProductServices
             Items = result
         };
     }
+
+    // ----- 4. BATCH QUERY: user, feedback, image -----
+    var artisanIds = result
+        .Select(p => p.ArtisanId)
+        .Where(id => !string.IsNullOrEmpty(id))
+        .Distinct()
+        .ToList();
+
+    var productIds = result
+        .Select(p => p.Id)
+        .Distinct()
+        .ToList();
+
+    
+    var users = await _context.Users.GetUsersByIdsAsync(artisanIds);
+    var feedbacks = await _context.Feedback.GetFeedbacksByProductIdsAsync(productIds);
+    var images = await _context.ProductImages.GetImagesByProductIdsAsync(productIds);
+
+    var userDict = users.ToDictionary(u => u.UserID);
+
+    var ratingDict = feedbacks
+        .GroupBy(f => f.ProductId)
+        .ToDictionary(
+            g => g.Key,
+            g => g.Average(x => x.Rating)
+        );
+
+    var imageDict = images
+        .GroupBy(i => i.ProductId)
+        .ToDictionary(
+            g => g.Key,
+            g => g.OrderBy(i => i.Position).FirstOrDefault()
+        );
+
+    // ----- 5. Gán dữ liệu bổ sung cho DTO -----
+    foreach (var pro in result)
+    {
+        // Artisan info
+        if (!string.IsNullOrEmpty(pro.ArtisanId)
+            && userDict.TryGetValue(pro.ArtisanId, out var user))
+        {
+            pro.DisplayName = user.DisplayName;
+            pro.ShopName = user.ShopName;
+        }
+
+        // Rating
+        if (ratingDict.TryGetValue(pro.Id, out var rating))
+        {
+            pro.Rating = (double)rating;
+        }
+        else
+        {
+            pro.Rating = 0;
+        }
+
+        // Image
+        if (imageDict.TryGetValue(pro.Id, out var img) && img != null)
+        {
+            pro.ImageUrl = img.URL;
+        }
+    }
+
+    return new PagedResult<ResponseDTOProduct>
+    {
+        TotalCount = totalCount,
+        PageIndex = pageIndex,
+        PageSize = pageSize,
+        Items = result
+    };
+}
+
     private double CalculateCosineSimilarity(double[] a, double[] b)
     {
         if (a == null || b == null || a.Length != b.Length) return 0;
