@@ -6,7 +6,7 @@ namespace Backend_SEP490.Services;
 
 public interface IUserServices
 {
-    public Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter, int pageIndex, int pageSize);
+    public Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync( int pageIndex, int pageSize);
     public Task<ResponseDTOUser?> GetUserByIDAsync(string userID);
     public Task<string?> UpdateUserAsync(string userID, RequestUpdateUser request);
     public Task<string?> UpdateUserAsync(string userID, RequestAdminUpdateUser request);

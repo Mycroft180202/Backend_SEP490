@@ -28,7 +28,7 @@ namespace Backend_SEP490.Controllers
         [HttpGet("blogs/{id}")]
         public async Task<IActionResult> GetBlogPostById([FromRoute] string blogId)
         {
-            var blog = await _blogPostService.GetAllOrderByIdAsync(blogId);
+            var blog = await _blogPostService.GetBlogByIdAsync(blogId);
             if (blog == null) NotFound();
             return Ok(blog);
         }

@@ -30,7 +30,7 @@ namespace Backend_SEP490.Repositories.impl
            return await _context.BlogPosts.ToListAsync();
         }
 
-        public async Task<BlogPost> GetAllOrderByIdAsync(string blogId)
+        public async Task<BlogPost> GetBlogByIdAsync(string blogId)
         {
             var blogPost = await _context.BlogPosts.Where(b => b.Id == blogId).FirstOrDefaultAsync();
             return blogPost;

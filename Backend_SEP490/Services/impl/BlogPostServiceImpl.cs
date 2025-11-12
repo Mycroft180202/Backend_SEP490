@@ -62,16 +62,16 @@ namespace Backend_SEP490.Services.impl
             };
         }
 
-        public async Task<ResponseDTOBlogPost> GetAllOrderByIdAsync(string blogId)
+        public async Task<ResponseDTOBlogPost> GetBlogByIdAsync(string blogId)
         {
-            var blogPost = await _context.Blog.GetAllOrderByIdAsync(blogId);
+            var blogPost = await _context.Blog.GetBlogByIdAsync(blogId);
 
             return _mapper.Map<ResponseDTOBlogPost>(blogPost);
         }
 
         public async Task<string> UpdateBlogPostAsync(string blogId, RequestUpdateBlogPost request)
         {
-            var blogPost = await _context.Blog.GetAllOrderByIdAsync(blogId);
+            var blogPost = await _context.Blog.GetBlogByIdAsync(blogId);
             if (blogPost == null) return "Blog not found!";
 
             var updateStatus = await _context.Blog.UpdateBlogPostAsync(blogPost, request);

@@ -42,24 +42,10 @@ public class UserServicesImpl : GenericServices, IUserServices
         _jwtRefreshTokenExpireDays = double.Parse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS") ?? "7");
     }
 
-    public async Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync(RequestFilterUser requestFilter, int pageIndex, int pageSize)
+    public async Task<PagedResult<ResponseDTOUser>> GetAllUsersAsync(int pageIndex, int pageSize)
     {
         var usersList = await _context.Users.GetAllUsersAsync();
         var users = await _context.Users.GetAllUsersWithRolesAsync(pageIndex, pageSize);
-
-        if (!string.IsNullOrEmpty(requestFilter.search))
-        {
-            users = users.Where(u => u.DisplayName.ToLower().Contains(requestFilter.search.ToLower()) || u.PhoneNumber.ToLower().Contains(requestFilter.search.ToLower())
-                            || u.Username.ToLower().Contains(requestFilter.search.ToLower()) || u.Email.ToLower().Contains(requestFilter.search.ToLower())).ToList();
-        }
-        if (requestFilter.status != null)
-        {
-            users = users.Where(u => u.IsActive == requestFilter.status).ToList();
-        }
-        if (!string.IsNullOrEmpty(requestFilter.roleId))
-        {
-            users = users.Where(u => u.UserRoles.Any(ur => requestFilter.roleId.Equals(ur.RoleID))).ToList();
-        }
 
         var userList = _mapper.Map<IEnumerable<ResponseDTOUser>>(users);
 
