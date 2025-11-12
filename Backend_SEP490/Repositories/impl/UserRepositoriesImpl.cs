@@ -22,7 +22,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
     {
         var user = await _context.Users.OrderByDescending(u => u.CreateAt)  
                         .ThenBy(u => u.UserID).Skip((pageIndex -1) * pageSize).Take(pageSize)
-                        .Include(u => u.UserRoles).Include(u => u.Addresses).ToListAsync();
+                        .Include(u => u.UserRoles).ThenInclude(u => u.Role).Include(u => u.Addresses).ToListAsync();
         return user;
     }
 

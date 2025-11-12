@@ -4,14 +4,18 @@ using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Services.impl
 {
     public class BlogPostServiceImpl : GenericServices, IBlogPostService
     {
-        public BlogPostServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        private readonly Cloudinary _cloudinary;
+        public BlogPostServiceImpl(IMapper mapper, IUnitOfWork unitOfWork, Cloudinary cloudinary) : base(mapper, unitOfWork)
         {
+            _cloudinary = cloudinary;
         }
 
         public async Task<string> CreateBlogPostAsync(string userid, RequestCreateBlogPost request)
@@ -23,18 +27,32 @@ namespace Backend_SEP490.Services.impl
             {
                 blogId = blogPosts.OrderByDescending(b => b.Id).FirstOrDefault().Id;
             }
+            string url = "";
+
+            if (request.Image != null)
+            {
+                using var stream = request.Image.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(request.Image.FileName, stream)
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                url = uploadResult.SecureUrl.ToString();
+            }
 
             int nextNumber = 1;
             if (!"B001".Equals(blogId))
             {
                 nextNumber = int.Parse(blogId.Substring(1)) + 1;
             }
+
             var blog = new BlogPost
             {
                 Id = $"B{nextNumber:D3}",
                 Title = request.Title,
                 Content = request.Content,
-                Image = request.Image,
+                Image = url,
                 AuthorId = userid,
                 PostStatus = "Active",
                 PublishedAt = DateTime.UtcNow
