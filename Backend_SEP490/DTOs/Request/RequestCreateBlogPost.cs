@@ -12,8 +12,7 @@ namespace Backend_SEP490.DTOs.Request
         [MinLength(20, ErrorMessage = "Nội dung bài viết phải có ít nhất 20 ký tự")]
         public string Content { get; set; }
 
-        [Required(ErrorMessage = "Hình ảnh không được để trống")]
-        [Url(ErrorMessage = "Hình ảnh phải là một URL hợp lệ")]
-        public IFormFile? Image { get; set; }
+
+        public IFormFile?  Image { get; set; }
     }
 }
