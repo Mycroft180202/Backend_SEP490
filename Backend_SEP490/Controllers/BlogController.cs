@@ -25,7 +25,7 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
 
-        [HttpGet("blogs/{id}")]
+        [HttpGet("blogs")]
         public async Task<IActionResult> GetBlogPostById([FromQuery] string id)
         {
             var blog = await _blogPostService.GetBlogByIdAsync(id);
