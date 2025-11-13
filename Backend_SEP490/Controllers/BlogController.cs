@@ -41,6 +41,14 @@ namespace Backend_SEP490.Controllers
             var blog = await _blogPostService.UpdateBlogPostAsync(id, request);
             return Ok(blog);
         }
+        [HttpDelete("blogs")]
+        public async Task<IActionResult> DeleteBlogPost([FromQuery] string id)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var blog = await _blogPostService.DeleteBlogPostAsync(id);
+            return Ok(blog);
+        }
         [HttpPost("blogs")]
         public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
         {

@@ -7,6 +7,7 @@ using Backend_SEP490.Repositories;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Mvc;
+using System;
 
 namespace Backend_SEP490.Services.impl
 {
@@ -97,6 +98,14 @@ namespace Backend_SEP490.Services.impl
                 url = uploadResult.SecureUrl.ToString();
             }
             var updateStatus = await _context.Blog.UpdateBlogPostAsync(blogPost, request, url);
+            return updateStatus;
+        }
+
+        public async Task<string> DeleteBlogPostAsync(string blogId)
+        {
+            var blogPost = await _context.Blog.GetBlogByIdAsync(blogId);
+            if (blogPost == null) return "Blog not found!";
+            var updateStatus = await _context.Blog.DeleteBlogPostAsync(blogPost);
             return updateStatus;
         }
     }

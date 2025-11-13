@@ -25,6 +25,21 @@ namespace Backend_SEP490.Repositories.impl
             return "Create Blog successfully!";
         }
 
+        public async Task<string> DeleteBlogPostAsync(BlogPost blog)
+        {
+            try
+            {
+                _context.BlogPosts.Remove(blog);
+                _context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+                return "Remove Blog failed!";
+            }
+            return "Remove Blog successfully!";
+        }
+
         public async Task<IEnumerable<BlogPost>> GetAllBlogPostAsync()
         {
            return await _context.BlogPosts.ToListAsync();
