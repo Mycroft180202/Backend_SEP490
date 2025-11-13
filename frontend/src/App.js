@@ -21,6 +21,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ArtisanDashboard from './pages/ArtisanDashboard';
 import CheckOut from './pages/CheckOut';
 import Payment from './pages/Payment';
+import WishList from './pages/WishList';
 function App() {
   return (
     <UserProvider>
@@ -44,6 +45,7 @@ function App() {
         <Route path="/artisan" element={<ArtisanDashboard />} />
         <Route path="/checkout" element={<CheckOut />} />
         <Route path="/payment" element={<Payment />} />
+        <Route path="/wish-list" element={<WishList />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
