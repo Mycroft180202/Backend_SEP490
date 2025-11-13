@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     USERS_PROFILE: '/users/me',
     UPDATE_PROFILE: '/users/me',
     DELETE_ACCOUNT: '/users/profile/delete',
+    BY_ID: (id) => `/users/${id}`,
   },
 
   PASSWORD: {
@@ -36,5 +37,11 @@ export const API_ENDPOINTS = {
   BLOGS: {
     ROOT: '/blogs',
     BY_ID: (id) => `/blogs/${id}`,
+  },
+
+  ORDERS: {
+    ROOT: '/Order/orders',
+    BY_ID: (orderId) => `/Order/orders/${orderId}`,
+    CANCEL: (orderId) => `/Order/orders/${orderId}/cancel`,
   },
 };

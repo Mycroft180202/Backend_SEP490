@@ -129,6 +129,10 @@ const translations = {
       cartRemoveSuccess: 'Da xoa san pham khoi gio hang.',
       cartRemoveError: 'Xoa san pham that bai.',
       checkoutComingSoon: 'Tinh nang thanh toan dang duoc phat trien.',
+      cartEmpty: 'Gio hang cua ban dang trong.',
+      addressRequired: 'Vui long chon dia chi giao hang.',
+      orderSuccess: 'Dat hang thanh cong.',
+      orderError: 'Khong the dat hang. Vui long thu lai.',
     },
     general: {
       errorPrefix: 'Loi: ',
@@ -255,6 +259,10 @@ const translations = {
       cartRemoveSuccess: 'Item removed from cart.',
       cartRemoveError: 'Failed to remove item.',
       checkoutComingSoon: 'Checkout is coming soon.',
+      cartEmpty: 'Your cart is empty.',
+      addressRequired: 'Please select a shipping address.',
+      orderSuccess: 'Order placed successfully.',
+      orderError: 'Could not place the order. Please try again.',
     },
     general: {
       errorPrefix: 'Error: ',

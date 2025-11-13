@@ -135,7 +135,16 @@ const Cart = () => {
   };
 
   const handleCheckout = () => {
-    toast.info(t('messages.checkoutComingSoon'));
+    if (!token) {
+      toast.info(t('messages.loginRequired'));
+      navigate('/login', { replace: true, state: { from: '/cart' } });
+      return;
+    }
+    if (!items.length) {
+      toast.info(t('messages.cartEmpty'));
+      return;
+    }
+    navigate('/checkout');
   };
 
   return (

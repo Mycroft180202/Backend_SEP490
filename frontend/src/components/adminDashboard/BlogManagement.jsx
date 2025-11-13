@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import PropTypes from 'prop-types';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
@@ -13,21 +19,41 @@ import {
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { BlogService } from '../../services/modules/blog/blogService';
+import { UserService } from '../../services/modules/users/userService';
+import axiosClient from '../../services/api/axiosConfig';
+import Pagination from '../shared/Pagination';
 
 const statusOptions = [
-  { value: 'draft', label: 'Bản nháp' },
-  { value: 'published', label: 'Xuất bản' },
+  { value: 'Active', label: 'Published' },
+  { value: 'Draft', label: 'Draft' },
+  { value: 'Archived', label: 'Archived' },
 ];
 
 const emptyForm = {
-  id: null,
+  id: '',
   title: '',
-  summary: '',
   content: '',
-  status: 'draft',
-  tags: '',
-  coverImage: null,
-  coverImageUrl: '',
+  postStatus: 'Draft',
+  image: null,
+  imageUrl: '',
+  authorId: '',
+};
+
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20];
+
+const normalizeStatus = (status) => {
+  if (!status) return 'Draft';
+  const value = status.toString().toLowerCase();
+  if (value === 'active' || value === 'published') return 'Active';
+  if (value === 'archived' || value === 'inactive') return 'Archived';
+  if (value === 'draft') return 'Draft';
+  return status;
+};
+
+const getStatusLabel = (status) => {
+  const normalized = normalizeStatus(status);
+  return statusOptions.find((option) => option.value === normalized)?.label || normalized;
 };
 
 const BlogManagement = ({ isAdmin = true }) => {
@@ -35,102 +61,217 @@ const BlogManagement = ({ isAdmin = true }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [previewUrl, setPreviewUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1 });
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [authorMap, setAuthorMap] = useState({});
+  const pageSizeRef = useRef(DEFAULT_PAGE_SIZE);
+  const [previewBlog, setPreviewBlog] = useState(null);
+  const releasePreviewUrl = useCallback((url) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  }, []);
 
-  const isEditing = Boolean(formData.id);
+  const buildAuthorName = useCallback((blog) => {
+    if (!blog) return '';
+    return authorMap[blog.authorId]
+      || blog.authorName
+      || blog.author
+      || blog.authorId
+      || '';
+  }, [authorMap]);
 
-  const loadBlogs = async () => {
+  useEffect(() => {
+    pageSizeRef.current = pageSize;
+  }, [pageSize]);
+
+  const loadBlogs = useCallback(async (page = 1, size) => {
+    const effectiveSize = size || pageSizeRef.current;
     try {
       setLoading(true);
-      const response = await BlogService.getAll();
-      setBlogs(response.items);
+      const response = await BlogService.getAll({
+        pageIndex: page,
+        pageSize: effectiveSize,
+      });
+      const items = response.items || [];
+      setBlogs(items);
+
+      const raw = response.raw || {};
+      const totalCount = raw.totalCount ?? items.length;
+      const totalPages = raw.totalPages
+        ?? Math.max(1, Math.ceil(totalCount / effectiveSize));
+
+      setMeta({
+        totalCount,
+        totalPages,
+        pageSize: effectiveSize,
+      });
     } catch (error) {
       console.error('Load blogs error:', error);
       toast.error(
         error?.response?.data?.message
           || error?.message
-          || 'Không thể tải danh sách blog.',
+          || 'Unable to load blog list.',
       );
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadBlogs();
+    loadBlogs(pageIndex, pageSize);
+  }, [loadBlogs, pageIndex, pageSize]);
 
+  useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      releasePreviewUrl(previewUrl);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const categories = useMemo(
-    () => [...new Set(blogs.map((blog) => blog.category).filter(Boolean))],
-    [blogs],
-  );
+  }, [previewUrl, releasePreviewUrl]);
 
   const filteredBlogs = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
     return blogs.filter((blog) => {
-      const matchSearch = searchTerm
-        ? (blog.title || '').toLowerCase().includes(searchTerm.toLowerCase())
-          || (blog.author || '').toLowerCase().includes(searchTerm.toLowerCase())
+      const titleMatch = keyword
+        ? (blog.title || '').toLowerCase().includes(keyword)
         : true;
+      const authorSource = buildAuthorName(blog);
+      const authorMatch = keyword
+        ? authorSource.toLowerCase().includes(keyword)
+        : true;
+      const normalizedStatus = normalizeStatus(blog.postStatus);
+      const matchStatus = statusFilter === 'all'
+        || normalizedStatus === statusFilter;
 
-      const matchStatus = statusFilter === 'all' || blog.status === statusFilter;
-      const matchCategory = categoryFilter === 'all' || blog.category === categoryFilter;
-      return matchSearch && matchStatus && matchCategory;
+      return (titleMatch || authorMatch) && matchStatus;
     });
-  }, [blogs, searchTerm, statusFilter, categoryFilter]);
+  }, [blogs, searchTerm, statusFilter, buildAuthorName]);
 
-  const stats = useMemo(() => ({
-    total: blogs.length,
-    published: blogs.filter((b) => b.status === 'published').length,
-    draft: blogs.filter((b) => b.status === 'draft').length,
-    totalViews: blogs.reduce((sum, b) => sum + (b.views || 0), 0),
-  }), [blogs]);
+  const stats = useMemo(() => {
+    const counts = blogs.reduce(
+      (acc, blog) => {
+        const normalizedStatus = normalizeStatus(blog.postStatus);
+        if (normalizedStatus === 'Active') acc.active += 1;
+        if (normalizedStatus === 'Draft') acc.draft += 1;
+        if (normalizedStatus === 'Archived') acc.archived += 1;
+        return acc;
+      },
+      { active: 0, draft: 0, archived: 0 },
+    );
+
+    return {
+      total: meta.totalCount || blogs.length,
+      active: counts.active,
+      draft: counts.draft,
+      archived: counts.archived,
+      visible: blogs.length,
+    };
+  }, [blogs, meta.totalCount]);
+
+  const pageRange = useMemo(() => {
+    if (!meta.totalCount) {
+      return { start: 0, end: 0 };
+    }
+    const start = ((pageIndex - 1) * pageSize) + 1;
+    const end = Math.min(meta.totalCount, pageIndex * pageSize);
+    return { start, end };
+  }, [meta.totalCount, pageIndex, pageSize]);
+
+  useEffect(() => {
+    const uniqueIds = [...new Set(blogs.map((blog) => blog.authorId).filter(Boolean))];
+    const missingIds = uniqueIds.filter((id) => !authorMap[id]);
+    if (!missingIds.length) return undefined;
+    let isMounted = true;
+
+    const fetchAuthors = async () => {
+      try {
+        const results = await Promise.all(missingIds.map(async (id) => {
+          try {
+            const data = await UserService.getById(id);
+            return {
+              id,
+              name: data?.displayName
+                || data?.fullName
+                || data?.username
+                || data?.email
+                || id,
+            };
+          } catch (error) {
+            console.warn('Fetch author name error:', error);
+            return { id, name: id };
+          }
+        }));
+
+        if (!isMounted) return;
+
+        setAuthorMap((prev) => {
+          const next = { ...prev };
+          results.forEach(({ id, name }) => {
+            next[id] = name;
+          });
+          return next;
+        });
+      } catch (error) {
+        console.error('Author loading error:', error);
+      }
+    };
+
+    fetchAuthors();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authorMap, blogs]);
 
   const handleOpenModal = (blog = null) => {
     if (!isAdmin) {
-      toast.warn('Bạn không có quyền tạo/chỉnh sửa blog.');
+      toast.warn('You do not have permission to edit blogs.');
       return;
     }
 
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl('');
-    }
+    releasePreviewUrl(previewUrl);
+    setPreviewUrl('');
 
     if (blog) {
+      const displayImage = blog.imageUrl || blog.coverImageUrl || blog.image || '';
       setFormData({
         id: blog.id,
         title: blog.title || '',
-        summary: blog.summary || '',
         content: blog.content || '',
-        status: blog.status || 'draft',
-        tags: Array.isArray(blog.tags) ? blog.tags.join(', ') : (blog.tags || ''),
-        coverImage: null,
-        coverImageUrl: blog.coverImageUrl || blog.thumbnail || '',
+        postStatus: normalizeStatus(blog.postStatus),
+        image: null,
+        imageUrl: displayImage || '',
+        authorId: blog.authorId || '',
       });
-      if (blog.coverImageUrl || blog.thumbnail) {
-        setPreviewUrl(blog.coverImageUrl || blog.thumbnail);
+
+      if (displayImage) {
+        setPreviewUrl(displayImage);
       }
     } else {
       setFormData(emptyForm);
     }
+
     setModalOpen(true);
+  };
+
+  const handlePreview = (blog) => {
+    setPreviewBlog(blog);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewBlog(null);
   };
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setFormData(emptyForm);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl('');
-    }
+    releasePreviewUrl(previewUrl);
+    setPreviewUrl('');
   };
 
   const handleInputChange = (field, value) => {
@@ -143,44 +284,80 @@ const BlogManagement = ({ isAdmin = true }) => {
   const handleCoverImageChange = (event) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(file));
+      releasePreviewUrl(previewUrl);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
       setFormData((prev) => ({
         ...prev,
-        coverImage: file,
+        image: file,
+        imageUrl: url,
       }));
+    }
+  };
+
+  const handlePageSizeChange = (event) => {
+    const value = Number(event.target.value);
+    setPageIndex(1);
+    setPageSize(value);
+  };
+
+  const fetchImageFile = async (url) => {
+    if (!url) return null;
+    try {
+      const response = await axiosClient.get(url, { responseType: 'blob' });
+      const blob = response.data;
+      const contentType = blob.type || response.headers['content-type'] || 'image/jpeg';
+      const baseName = url.split('?')[0]?.split('/').pop() || 'image';
+      const extension = contentType.split('/')[1] || 'jpg';
+      const fileName = baseName.includes('.') ? baseName : `${baseName}.${extension}`;
+      return new File([blob], fileName, { type: contentType });
+    } catch (error) {
+      console.error('Image fetch error:', error);
+      toast.error('Không thể tải ảnh hiện tại. Vui lòng chọn ảnh mới khi chỉnh sửa.');
+      return null;
     }
   };
 
   const validateForm = () => {
     if (!formData.title.trim()) {
-      toast.error('Vui lòng nhập tiêu đề bài viết.');
+      toast.error('Vui lòng nhập tiêu đề.');
       return false;
     }
-    if (!formData.content.trim()) {
-      toast.error('Nội dung bài viết chưa được nhập.');
+    const plainContent = formData.content
+      ? formData.content.replace(/<[^>]*>/g, '').trim()
+      : '';
+    if (plainContent.length < 20) {
+      toast.error('Nội dung cần tối thiểu 20 ký tự.');
+      return false;
+    }
+    if (!formData.image && !formData.imageUrl) {
+      toast.error('Vui lòng chọn ảnh đại diện.');
       return false;
     }
     return true;
   };
 
-  const buildPayload = () => {
+  const buildPayload = async () => {
     const payload = new FormData();
-    payload.append('title', formData.title.trim());
-    payload.append('summary', formData.summary.trim());
-    payload.append('content', formData.content);
-    payload.append('status', formData.status);
-    payload.append('tags', formData.tags);
-
-    if (formData.coverImage instanceof File) {
-      payload.append('coverImage', formData.coverImage);
-    } else if (formData.coverImageUrl) {
-      payload.append('coverImageUrl', formData.coverImageUrl);
+    payload.append('Title', formData.title.trim());
+    payload.append('Content', formData.content);
+    payload.append('PostStatus', normalizeStatus(formData.postStatus));
+    if (formData.id) {
+      payload.append('Id', formData.id);
+    }
+    if (formData.authorId) {
+      payload.append('AuthorId', formData.authorId);
     }
 
-    // Ghi chú cho backend: cần hỗ trợ các field trên (title, summary, content,
-    // status, tags, coverImage/coverImageUrl). Nếu muốn lưu category, thêm input
-    // và append tương ứng.
+    if (formData.image instanceof File) {
+      payload.append('Image', formData.image);
+    } else if (formData.imageUrl) {
+      const existingFile = await fetchImageFile(formData.imageUrl);
+      if (!existingFile) {
+        return null;
+      }
+      payload.append('Image', existingFile);
+    }
 
     return payload;
   };
@@ -188,65 +365,104 @@ const BlogManagement = ({ isAdmin = true }) => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
     setSaving(true);
+
     try {
-      const payload = buildPayload();
-      if (isEditing) {
+      const payload = await buildPayload();
+      if (!payload) {
+        setSaving(false);
+        return;
+      }
+
+      if (formData.id) {
         await BlogService.update(formData.id, payload);
-        toast.success('Đã cập nhật blog thành công.');
+        toast.success('Blog updated successfully.');
       } else {
         await BlogService.create(payload);
-        toast.success('Đã tạo blog mới thành công.');
+        toast.success('Blog created successfully.');
       }
+
       handleCloseModal();
-      loadBlogs();
+      await loadBlogs(pageIndex, pageSize);
     } catch (error) {
       console.error('Save blog error:', error);
       toast.error(
         error?.response?.data?.message
           || error?.message
-          || 'Không thể lưu bài viết.',
+          || 'Unable to save blog.',
       );
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (blog) => {
-    toast.info('API hiện chưa hỗ trợ xóa blog. Vui lòng cập nhật backend nếu cần.');
+  const handleDelete = () => {
+    toast.info('Delete API is not available yet.');
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '--';
+    try {
+      return new Date(value).toLocaleDateString('vi-VN');
+    } catch (error) {
+      return value;
+    }
+  };
+
+  const resolveImage = (blog) => (
+    blog.imageUrl || blog.coverImageUrl || blog.image || ''
+  );
+
+  const renderStatusBadge = (status) => {
+    const normalized = normalizeStatus(status);
+    const className = {
+      Published: 'bg-green-100 text-green-700',
+      Draft: 'bg-yellow-100 text-yellow-700',
+      Archived: 'bg-gray-200 text-gray-700',
+    }[normalized] || 'bg-gray-100 text-gray-600';
+
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${className}`}>
+        {getStatusLabel(normalized)}
+      </span>
+    );
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <p className="text-sm text-gray-600">Tổng bài viết</p>
+          <p className="text-sm text-gray-600">Total posts</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-sm text-gray-600">Đã xuất bản</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.published}</p>
+          <p className="text-sm text-gray-600">Published</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.active}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <p className="text-sm text-gray-600">Bản nháp</p>
+          <p className="text-sm text-gray-600">Draft posts</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.draft}</p>
         </div>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+          <p className="text-sm text-gray-600">Archived</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.archived}</p>
+        </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-          <p className="text-sm text-gray-600">Tổng lượt xem</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.totalViews.toLocaleString()}</p>
+          <p className="text-sm text-gray-600">Visible on page</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.visible}</p>
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-1 items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[220px]">
               <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Tìm kiếm theo tiêu đề hoặc tác giả..."
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Search by title or author..."
               />
             </div>
             <select
@@ -254,25 +470,27 @@ const BlogManagement = ({ isAdmin = true }) => {
               onChange={(event) => setStatusFilter(event.target.value)}
               className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="all">Tất cả trạng thái</option>
-              {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              <option value="all">All statuses</option>
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
-            <select
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">Tất cả danh mục</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Posts/page</span>
+              <select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <button
             type="button"
@@ -281,7 +499,7 @@ const BlogManagement = ({ isAdmin = true }) => {
             disabled={!isAdmin}
           >
             <FaPlus />
-            Thêm bài viết
+            Add blog
           </button>
         </div>
 
@@ -289,171 +507,170 @@ const BlogManagement = ({ isAdmin = true }) => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
-                <th className="py-3 px-4">Tiêu đề</th>
-                <th className="py-3 px-4">Tác giả</th>
-                <th className="py-3 px-4">Danh mục</th>
-                <th className="py-3 px-4 text-center">Lượt xem</th>
-                <th className="py-3 px-4 text-center">Trạng thái</th>
-                <th className="py-3 px-4 text-center">Ngày cập nhật</th>
-                <th className="py-3 px-4 text-center">Thao tác</th>
+                <th className="py-3 px-4">Title</th>
+                <th className="py-3 px-4">Author</th>
+                <th className="py-3 px-4 text-center">Status</th>
+                <th className="py-3 px-4 text-center">Published</th>
+                <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-gray-500">
-                    Đang tải dữ liệu...
+                  <td colSpan={5} className="py-6 text-center text-gray-500">
+                    Loading blogs...
                   </td>
                 </tr>
               ) : filteredBlogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-gray-500">
-                    Không tìm thấy bài viết nào phù hợp.
+                  <td colSpan={5} className="py-6 text-center text-gray-500">
+                    No blog matches your filters.
                   </td>
                 </tr>
               ) : (
-                filteredBlogs.map((blog) => (
-                  <tr key={blog.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        {blog.coverImageUrl && (
-                          <img
-                            src={blog.coverImageUrl}
-                            alt={blog.title}
-                            className="w-12 h-12 rounded object-cover border"
-                          />
-                        )}
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800 line-clamp-2">
-                            {blog.title}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            #{blog.id}
-                          </p>
+                filteredBlogs.map((blog) => {
+                  const imageSrc = resolveImage(blog);
+                  return (
+                    <tr
+                      key={blog.id}
+                      className="border-b border-gray-100 hover:bg-gray-50 transition"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          {imageSrc && (
+                            <img
+                              src={imageSrc}
+                              alt={blog.title}
+                              className="w-12 h-12 rounded object-cover border"
+                            />
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800 line-clamp-2">
+                              {blog.title || 'Untitled'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              #
+                              {blog.id}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
                     <td className="py-3 px-4 text-sm text-gray-600">
-                      {blog.author || '—'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
-                        {blog.category || 'Khác'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-center font-semibold">
-                      {(blog.views || 0).toLocaleString()}
+                      {buildAuthorName(blog) || 'Unknown'}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          blog.status === 'published'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {blog.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
-                      </span>
+                      {renderStatusBadge(blog.postStatus)}
                     </td>
-                    <td className="py-3 px-4 text-sm text-center text-gray-500">
-                      {blog.updatedAt
-                        ? new Date(blog.updatedAt).toLocaleDateString('vi-VN')
-                        : (blog.createdAt
-                          ? new Date(blog.createdAt).toLocaleDateString('vi-VN')
-                          : '—')}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          className="text-blue-600 hover:text-blue-800"
-                          title="Xem trước"
-                          onClick={() => toast.info('Chức năng xem trước đang phát triển.')}
-                        >
-                          <FaEye />
-                        </button>
-                        <button
-                          type="button"
-                          className="text-green-600 hover:text-green-800"
-                          title="Chỉnh sửa"
-                          onClick={() => handleOpenModal(blog)}
-                          disabled={!isAdmin}
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          type="button"
-                          className="text-red-600 hover:text-red-800"
-                          title="Xóa"
-                          onClick={() => handleDelete(blog)}
-                          disabled={!isAdmin}
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      <td className="py-3 px-4 text-sm text-center text-gray-500">
+                        {formatDate(blog.publishedAt || blog.updatedAt || blog.createdAt)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Preview"
+                            onClick={() => handlePreview(blog)}
+                          >
+                            <FaEye />
+                          </button>
+                          <button
+                            type="button"
+                            className="text-green-600 hover:text-green-800 disabled:opacity-40"
+                            title="Edit"
+                            onClick={() => handleOpenModal(blog)}
+                            disabled={!isAdmin}
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            type="button"
+                            className="text-red-600 hover:text-red-800 disabled:opacity-40"
+                            title="Delete"
+                            onClick={handleDelete}
+                            disabled={!isAdmin}
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        <div className="text-sm text-gray-500 mt-2">
+          Showing
+          {' '}
+          {pageRange.start}
+          {' '}
+          -
+          {' '}
+          {pageRange.end}
+          {' '}
+          of
+          {' '}
+          {meta.totalCount}
+          {' '}
+          posts
+        </div>
+
+        {meta.totalPages > 1 && (
+          <Pagination
+            totalPages={meta.totalPages}
+            pageIndex={pageIndex}
+            setPageIndex={setPageIndex}
+          />
+        )}
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-xl font-semibold text-[#8B4513]">
-                {isEditing ? 'Chỉnh sửa blog' : 'Tạo blog mới'}
-              </h3>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <p className="text-lg font-semibold text-gray-800">
+                  {formData.id ? 'Edit blog' : 'Create blog'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Fill the fields below to publish your story.
+                </p>
+              </div>
               <button
                 type="button"
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-gray-600"
                 onClick={handleCloseModal}
               >
                 <FaTimes size={18} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-6">
-                <div className="space-y-4">
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Tiêu đề
+                      Title
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(event) => handleInputChange('title', event.target.value)}
                       className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Nhập tiêu đề hấp dẫn..."
+                      placeholder="Enter a clear headline"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Tóm tắt
-                    </label>
-                    <textarea
-                      value={formData.summary}
-                      onChange={(event) => handleInputChange('summary', event.target.value)}
-                      rows={3}
-                      className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                      placeholder="Viết tóm tắt ngắn gọn cho bài viết..."
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Trạng thái
+                      Status
                     </label>
                     <select
-                      value={formData.status}
-                      onChange={(event) => handleInputChange('status', event.target.value)}
+                      value={formData.postStatus}
+                      onChange={(event) => handleInputChange('postStatus', event.target.value)}
                       className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       {statusOptions.map((option) => (
@@ -463,52 +680,41 @@ const BlogManagement = ({ isAdmin = true }) => {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Tags (phân cách bằng dấu phẩy)
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cover image
+                  </label>
+                  <div className="border border-dashed border-[#D4A574] rounded-lg p-4 text-center">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-full h-40 object-cover rounded-lg mb-4"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-500 mb-4">
+                        Choose an image to make your story stand out.
+                      </p>
+                    )}
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#8B4513] text-white text-sm font-semibold cursor-pointer hover:bg-[#DDA15E] transition">
+                      <FaUpload />
+                      Select image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleCoverImageChange}
+                      />
                     </label>
-                    <input
-                      type="text"
-                      value={formData.tags}
-                      onChange={(event) => handleInputChange('tags', event.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Thủ công, gốm sứ, lưu niệm..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Ảnh đại diện
-                    </label>
-                    <div className="border border-dashed border-[#D4A574] rounded-lg p-4 text-center">
-                      {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt="Preview"
-                          className="w-full h-40 object-cover rounded-lg mb-4"
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-500 mb-4">
-                          Chưa chọn ảnh, vui lòng tải lên hình ảnh minh họa cho bài viết.
-                        </p>
-                      )}
-                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#8B4513] text-white text-sm font-semibold cursor-pointer hover:bg-[#DDA15E] transition">
-                        <FaUpload />
-                        Chọn ảnh
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleCoverImageChange}
-                        />
-                      </label>
-                    </div>
                   </div>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Nội dung bài viết
+                  Content
                 </label>
                 <div className="border rounded-lg overflow-hidden">
                   <CKEditor
@@ -546,7 +752,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                 onClick={handleCloseModal}
                 disabled={saving}
               >
-                Hủy
+                Cancel
               </button>
               <button
                 type="button"
@@ -554,8 +760,68 @@ const BlogManagement = ({ isAdmin = true }) => {
                 onClick={handleSubmit}
                 disabled={saving}
               >
-                {saving ? 'Đang lưu...' : (isEditing ? 'Cập nhật' : 'Tạo mới')}
+                {saving ? 'Saving...' : (formData.id ? 'Save changes' : 'Create post')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewBlog && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <div>
+                <p className="text-lg font-semibold text-gray-800">
+                  Preview: {previewBlog.title || 'Untitled'}
+                </p>
+                <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                  <span>{buildAuthorName(previewBlog) || 'Unknown author'}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>{formatDate(previewBlog.publishedAt || previewBlog.updatedAt || previewBlog.createdAt)}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>#{previewBlog.id}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600"
+                onClick={handleClosePreview}
+              >
+                <FaTimes size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {resolveImage(previewBlog) && (
+                <div className="rounded-xl overflow-hidden border border-gray-100">
+                  <img
+                    src={resolveImage(previewBlog)}
+                    alt={previewBlog.title}
+                    className="w-full h-64 object-cover"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                {renderStatusBadge(previewBlog.postStatus)}
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                  {buildAuthorName(previewBlog) || 'Unknown'}
+                </span>
+              </div>
+
+              <div className="prose max-w-none">
+                {previewBlog.content ? (
+                  <div
+                    className="blog-preview-content text-gray-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: previewBlog.content }}
+                  />
+                ) : (
+                  <p className="text-gray-500 text-sm">
+                    This blog does not have any content yet.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -569,3 +835,4 @@ BlogManagement.propTypes = {
 };
 
 export default BlogManagement;
+

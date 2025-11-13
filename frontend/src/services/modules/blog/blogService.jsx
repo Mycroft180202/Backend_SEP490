@@ -34,11 +34,16 @@ export const BlogService = {
   },
 
   update: async (id, payload) => {
-    const response = await axiosClient.put(API_ENDPOINTS.BLOGS.BY_ID(id), payload, {
-      headers: {
-        'Content-Type': payload instanceof FormData ? 'multipart/form-data' : 'application/json',
+    const response = await axiosClient.put(
+      API_ENDPOINTS.BLOGS.ROOT,
+      payload,
+      {
+        params: { id },
+        headers: {
+          'Content-Type': payload instanceof FormData ? 'multipart/form-data' : 'application/json',
+        },
       },
-    });
+    );
     return response.data;
   },
 };

@@ -1,111 +1,144 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 
-const OrderSummary = () => {
-  const navigate = useNavigate();
+const formatCurrency = (value, suffix = 'đ') => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return `0${suffix}`;
+  }
+  return `${Number(value).toLocaleString('vi-VN')}${suffix}`;
+};
 
-  // Mock data - should come from cart context/state in real implementation
-  const orderData = {
-    subtotal: 150000,
-    shipping: 30000,
-    discount: 0,
-    total: 180000
+const OrderSummary = ({
+  subtotal = 0,
+  shipping = 0,
+  discount = 0,
+  total,
+  currencySuffix = 'đ',
+  onPlaceOrder = () => {},
+  placingOrder = false,
+  disabled = false,
+}) => {
+  const [couponCode, setCouponCode] = useState('');
+
+  const computedTotal = useMemo(() => {
+    if (typeof total === 'number' && !Number.isNaN(total)) {
+      return total;
+    }
+    return Math.max(subtotal + shipping - discount, 0);
+  }, [discount, shipping, subtotal, total]);
+
+  const handleApplyCoupon = () => {
+    // Placeholder for future coupon integration
+    if (couponCode) {
+      // eslint-disable-next-line no-alert
+      alert('Chuc nang ma giam gia se cap nhat sau.');
+    }
   };
 
   const handlePlaceOrder = () => {
-    // Handle order placement logic here
-    alert('Đặt hàng thành công!');
-    navigate('/order-tracking');
+    if (!disabled && !placingOrder) {
+      onPlaceOrder();
+    }
   };
 
   return (
     <div className="bg-[#DBEFE2] rounded-xl p-6 shadow-sm sticky top-24">
       <h2 className="font-alata text-2xl text-black text-center mb-6">
-        Đơn hàng của bạn
+        Don hang cua ban
       </h2>
 
       <div className="flex flex-col gap-4">
-        {/* Subtotal */}
         <div className="flex justify-between items-center">
+          <span className="font-nunito text-lg text-black">Tam tinh</span>
           <span className="font-nunito text-lg text-black">
-            Tạm tính
-          </span>
-          <span className="font-nunito text-lg text-black">
-            {orderData.subtotal.toLocaleString('vi-VN')}đ
+            {formatCurrency(subtotal, currencySuffix)}
           </span>
         </div>
 
-        {/* Shipping */}
         <div className="flex justify-between items-center">
+          <span className="font-nunito text-lg text-black">Phi van chuyen</span>
           <span className="font-nunito text-lg text-black">
-            Phí vận chuyển
-          </span>
-          <span className="font-nunito text-lg text-black">
-            {orderData.shipping.toLocaleString('vi-VN')}đ
+            {formatCurrency(shipping, currencySuffix)}
           </span>
         </div>
 
-        {/* Discount */}
-        {orderData.discount > 0 && (
+        {discount > 0 && (
           <div className="flex justify-between items-center">
-            <span className="font-nunito text-lg text-black">
-              Giảm giá
-            </span>
+            <span className="font-nunito text-lg text-black">Giam gia</span>
             <span className="font-nunito text-lg text-primary">
-              -{orderData.discount.toLocaleString('vi-VN')}đ
+              -{formatCurrency(discount, currencySuffix)}
             </span>
           </div>
         )}
 
-        {/* Divider */}
-        <div className="w-full h-px bg-text-gray"></div>
+        <div className="w-full h-px bg-text-gray" />
 
-        {/* Total */}
         <div className="flex justify-between items-center">
           <span className="font-nunito text-xl font-semibold text-black">
-            Tổng cộng
+            Tong cong
           </span>
           <span className="font-alata text-2xl font-semibold text-primary">
-            {orderData.total.toLocaleString('vi-VN')}đ
+            {formatCurrency(computedTotal, currencySuffix)}
           </span>
         </div>
 
-        {/* Coupon Code */}
         <div className="flex flex-col gap-2 mt-2">
-          <label className="font-nunito text-base text-black">
-            Mã giảm giá
+          <label htmlFor="coupon-input" className="font-nunito text-base text-black">
+            Ma giam gia
           </label>
           <div className="flex gap-2">
             <input
+              id="coupon-input"
               type="text"
-              placeholder="Nhập mã giảm giá"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              placeholder="Nhap ma giam gia"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-nunito text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
-            <button className="px-6 py-2 bg-white border border-primary rounded-lg font-nunito text-base font-semibold text-primary hover:bg-primary hover:text-white transition-colors">
-              Áp dụng
+            <button
+              type="button"
+              onClick={handleApplyCoupon}
+              className="px-6 py-2 bg-white border border-primary rounded-lg font-nunito text-base font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+            >
+              Ap dung
             </button>
           </div>
         </div>
 
-        {/* Place Order Button */}
         <button
+          type="button"
           onClick={handlePlaceOrder}
-          className="w-full py-3 bg-primary rounded-lg font-nunito text-lg font-semibold text-white hover:bg-[#7a1a18] transition-colors mt-4"
+          className={`w-full py-3 rounded-lg font-nunito text-lg font-semibold text-white transition-colors mt-4 ${
+            disabled || placingOrder
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-primary hover:bg-[#7a1a18]'
+          }`}
+          disabled={disabled || placingOrder}
         >
-          Đặt hàng
+          {placingOrder ? 'Dang dat hang...' : 'Dat hang'}
         </button>
 
-        {/* Terms */}
         <p className="font-nunito text-sm text-text-gray text-center mt-2">
-          Bằng việc đặt hàng, bạn đồng ý với{' '}
-          <a href="/terms" className="text-primary hover:underline">
-            Điều khoản sử dụng
-          </a>{' '}
-          của chúng tôi
+          Bang viec dat hang, ban dong y voi{' '}
+          <a href="/policy" className="text-primary hover:underline">
+            dieu khoan su dung
+          </a>
+          .
         </p>
       </div>
     </div>
   );
+};
+
+OrderSummary.propTypes = {
+  subtotal: PropTypes.number,
+  shipping: PropTypes.number,
+  discount: PropTypes.number,
+  total: PropTypes.number,
+  currencySuffix: PropTypes.string,
+  onPlaceOrder: PropTypes.func,
+  placingOrder: PropTypes.bool,
+  disabled: PropTypes.bool,
 };
 
 export default OrderSummary;

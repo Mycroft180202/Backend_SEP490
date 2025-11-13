@@ -23,6 +23,7 @@ import BlogDetail from './pages/BlogDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
 import Policy from './pages/Policy';
+import CheckOut from './pages/CheckOut';
 function App() {
   return (
     <UserProvider>
@@ -39,11 +40,12 @@ function App() {
               <Route path="/shop" element={<Shop />} />
               <Route path="/product-detail/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<CheckOut />} />
               <Route path="/order-history" element={<OrderHistory />} />
               <Route path="/order-tracking" element={<OrderTracking />} />
               <Route path="/artisan-shop" element={<ArtisanShop />} />
               <Route path="/blog" element={<Blog />} />
-              <Route path="/blog-detail" element={<BlogDetail />} />
+              <Route path="/blog/:id" element={<BlogDetail />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/policy" element={<Policy />} />
               <Route path="/admin" element={<AdminDashboard />} />
