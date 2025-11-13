@@ -63,16 +63,11 @@ namespace Backend_SEP490.Repositories.impl
             return "Delete wishlist item successfully!";
         }
 
-        public async Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId, int pageIndex, int pageSize)
-        {
-            return  await _context.WishListItems.Where(w => w.UserID.EndsWith(userId)).OrderByDescending( w=> w.AddAt)
-                .Skip((pageIndex - 1) * pageSize).Take(pageSize).ToListAsync();
-            
-        }
 
         public async Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId)
         {
-            return await _context.WishListItems.Where(w => w.UserID.EndsWith(userId)).ToListAsync();
+            return await _context.WishListItems.Include(w => w.Product).ThenInclude( w => w.ProductImages)
+                .Where(w => w.UserID.EndsWith(userId)).ToListAsync();
         }
 
         public async Task<WishListItem> GetWishListItemByIdAsync(string wishListItemId)

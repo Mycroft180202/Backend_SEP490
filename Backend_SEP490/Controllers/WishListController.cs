@@ -16,31 +16,26 @@ namespace Backend_SEP490.Controllers
         {
             _wishListItemService = wishListItemService;
         }
-        [HttpGet("wish-list/{pageIndex}/{pageSize}")]
-        public async Task<IActionResult> GetAllWishListItem([FromRoute] int pageIndex, [FromRoute] int pageSize)
+
+        [HttpGet("wish-list")]
+        public async Task<IActionResult> GetAllWishListItem([FromQuery] int pageIndex =1, [FromQuery] int pageSize = 10)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userID");
             var wishList = await _wishListItemService.GetAllWishListItemByUserIdAsync(userId,pageIndex,pageSize);
             return Ok(wishList);
         }
 
-        [HttpGet("wish-list/{id}")]
-        public async Task<IActionResult> AddWishListItemToCart([FromRoute] string wishListItemId)
+
+        [HttpPost("wish-list")]
+        public async Task<IActionResult> CreateWishListItem([FromQuery]string productId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var status = await _wishListItemService.AddWishListItemToCartAsync(userId,wishListItemId);
+            var userId = User.FindFirstValue("userID");
+            var status = await _wishListItemService.CreateWishListItemAsync(userId, productId);
             return Ok(status);
         }
 
-        [HttpPost("wish-list")]
-        public async Task<IActionResult> CreateWishListItem([FromRoute]string wishListItemId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var status = await _wishListItemService.CreateWishListItemAsync(userId,wishListItemId);
-            return Ok(status);
-        }
         [HttpDelete("wish-list")]
-        public async Task<IActionResult> DeleteWishListItem(string wishListItemId)
+        public async Task<IActionResult> DeleteWishListItem([FromQuery]string wishListItemId)
         {
             var status = await _wishListItemService.DeleteWishListItemAsync(wishListItemId);
             return Ok(status);

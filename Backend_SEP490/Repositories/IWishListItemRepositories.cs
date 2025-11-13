@@ -7,7 +7,6 @@ namespace Backend_SEP490.Repositories
     public interface IWishListItemRepositories
     {
         public Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId);
-        public Task<IEnumerable<WishListItem>> GetAllWishListItemByUserIdAsync(string userId, int pageIndex, int pageSize);
         public Task<WishListItem> GetWishListItemByIdAsync(string wishListItemId);
         public Task<string> AddWishListItemToCartAsync(WishListItem wishListItem, CartItem cartItem);
         public Task<string> CreateWishListItemAsync(WishListItem wishListItem);

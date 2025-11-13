@@ -33,10 +33,10 @@ namespace Backend_SEP490.Services.impl
 
             var pagedCartItems = cart.CartItems.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
 
-            // Map từng cart item sang DTO
+            //Map từng cart item sang DTO
             var mappedCartItems = _mapper.Map<IEnumerable<ResponseDTOCartItem>>(pagedCartItems);
 
-            // 🔹 Bổ sung lấy ảnh cho mỗi product
+            //Bổ sung lấy ảnh cho mỗi product
             foreach (var item in mappedCartItems)
             {
                 if (item.Product != null)

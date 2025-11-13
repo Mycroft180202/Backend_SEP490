@@ -75,11 +75,22 @@ namespace Backend_SEP490.Services.impl
 
         public async Task<PagedResult<ResponseDTOWishListItem>> GetAllWishListItemByUserIdAsync(string userId, int pageIndex, int pageSize)
         {
-            var wishList = await _context.WishListItem.GetAllWishListItemByUserIdAsync(userId, pageIndex, pageSize);
+
             var wishListTotal = await _context.WishListItem.GetAllWishListItemByUserIdAsync(userId);
+            var wishList = wishListTotal.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
             var totalCount = wishListTotal.Count();
 
             var DTOWishList = _mapper.Map<IEnumerable<ResponseDTOWishListItem>>(wishList);
+            
+
+            foreach (var item in DTOWishList)
+            {
+                if (item.Product != null)
+                {
+                    var images = await _context.ProductImages.GetImagesByProductIdAsync(item.Product.Id);
+                    item.Product.ImageUrl = images.FirstOrDefault().URL;
+                }
+            }
 
             return new PagedResult<ResponseDTOWishListItem>
             {
