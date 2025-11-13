@@ -10,6 +10,7 @@ namespace Backend_SEP490.DTOs.Response
         public decimal TotalAmount { get; set; }
         public string ShipingAddressId { get; set; }
         public DateTime CreateAt { get; set; }
-        public PagedResult<ResponseDTOOrderItem> Items { get; set; }
+        public List<ResponseDTOOrderItem> Items { get; set; }
+        public List<ResponseDTOShipment>? Shipments { get; set; }
     }
 }
