@@ -26,13 +26,20 @@ namespace Backend_SEP490.Repositories.impl
 
         public async Task<Order> GetAllOrderByIdAsync(string orderId)
         {
-            var order = await _context.Orders.Include( o=> o.OrderItems).Where(o => o.Id.Equals(orderId)).FirstOrDefaultAsync();
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .FirstOrDefaultAsync(o => o.Id.Equals(orderId));
             return order;
         }
 
         public async Task<IEnumerable<Order>> GetAllOrderByUserIdAsync(string userId)
         {
-            var orders = await _context.Orders.Where(o => o.CustomerId.Equals(userId)).ToListAsync();
+            var orders = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .Where(o => o.CustomerId.Equals(userId))
+                .ToListAsync();
             return orders;
         }
     }

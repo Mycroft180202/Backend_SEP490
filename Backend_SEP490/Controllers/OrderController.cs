@@ -73,4 +73,27 @@ public class OrderController : ControllerBase
 
         return Ok(status);
     }
+
+    [HttpPost("orders/{orderId}/cancel")]
+    public async Task<IActionResult> CancelOrder([FromRoute] string orderId, [FromBody] RequestCancelOrder? request)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return BadRequest("Order id is required.");
+        }
+
+        var userId = User.FindFirstValue("userId") ?? User.FindFirstValue("userID");
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var status = await _orderServices.CancelOrderAsync(userId, orderId, request);
+        if (!status.Contains("success", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(status);
+        }
+
+        return Ok(status);
+    }
 }

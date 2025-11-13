@@ -9,5 +9,6 @@
         public string ShipingAddressId { get; set; }
         public DateTime CreateAt { get; set; }
         public List<ResponseDTOOrderItem> Items { get; set; }
+        public List<ResponseDTOShipment>? Shipments { get; set; }
     }
 }

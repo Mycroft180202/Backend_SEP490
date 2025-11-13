@@ -1,3 +1,4 @@
+using Backend_SEP490.Config;
 using Backend_SEP490.Hubs;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
@@ -13,6 +14,7 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +26,12 @@ Env.Load();
 
 string GetEnvOrThrow(string key) =>
     Environment.GetEnvironmentVariable(key) ?? throw new Exception($"{key} is not set in .env file!");
+
+int GetEnvInt(string key, int defaultValue = 0)
+{
+    var rawValue = Environment.GetEnvironmentVariable(key);
+    return int.TryParse(rawValue, out var parsed) ? parsed : defaultValue;
+}
 
 // Database
 var dbPassword = GetEnvOrThrow("DB_PASSWORD");
@@ -53,6 +61,28 @@ var emailHost = GetEnvOrThrow("EMAIL_HOST");
 var emailPort = int.Parse(Environment.GetEnvironmentVariable("EMAIL_PORT") ?? "587");
 var emailUsername = GetEnvOrThrow("EMAIL_USERNAME");
 var emailPassword = GetEnvOrThrow("EMAIL_PASSWORD");
+
+var ghnSettings = new GhnSettings
+{
+    Token = Environment.GetEnvironmentVariable("GHN_TEST_TOKEN") ?? string.Empty,
+    ShopId = GetEnvInt("GHN_TEST_SHOP_ID"),
+    BaseUrl = Environment.GetEnvironmentVariable("GHN_TEST_BASE_URL") ?? "https://dev-online-gateway.ghn.vn",
+    FromName = Environment.GetEnvironmentVariable("GHN_TEST_FROM_NAME") ?? "Test Warehouse",
+    FromPhone = Environment.GetEnvironmentVariable("GHN_TEST_FROM_PHONE") ?? "0000000000",
+    FromAddress = Environment.GetEnvironmentVariable("GHN_TEST_FROM_ADDRESS") ?? "GHN Test Address",
+    FromDistrictId = GetEnvInt("GHN_TEST_FROM_DISTRICT_ID"),
+    FromWardCode = Environment.GetEnvironmentVariable("GHN_TEST_FROM_WARD_CODE") ?? string.Empty,
+    FallbackReceiverPhone = Environment.GetEnvironmentVariable("GHN_TEST_FALLBACK_PHONE"),
+    DefaultToDistrictId = GetEnvInt("GHN_TEST_TO_DISTRICT_ID"),
+    DefaultToWardCode = Environment.GetEnvironmentVariable("GHN_TEST_TO_WARD_CODE") ?? string.Empty,
+    PaymentTypeId = GetEnvInt("GHN_TEST_PAYMENT_TYPE_ID", 2),
+    ServiceTypeId = GetEnvInt("GHN_TEST_SERVICE_TYPE_ID", 2),
+    RequiredNote = Environment.GetEnvironmentVariable("GHN_TEST_REQUIRED_NOTE") ?? "KHONGCHOXEMHANG",
+    DefaultItemWeight = GetEnvInt("GHN_TEST_DEFAULT_ITEM_WEIGHT", 500),
+    DefaultParcelLength = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_LENGTH", 20),
+    DefaultParcelWidth = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_WIDTH", 20),
+    DefaultParcelHeight = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_HEIGHT", 10)
+};
 
 // ----------------------
 // DbContext
@@ -112,6 +142,16 @@ builder.Services.AddScoped<IVoucherService,VoucherServiceImpl>();
 builder.Services.AddScoped<INotificationService,NotificationServicesImpl>();
 builder.Services.AddScoped<IReportService, ReportServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
+builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
+builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
+{
+    var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        httpClient.BaseAddress = new Uri(options.BaseUrl);
+    }
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)
