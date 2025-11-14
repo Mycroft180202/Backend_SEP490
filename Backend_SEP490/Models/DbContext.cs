@@ -29,6 +29,7 @@ namespace Backend_SEP490.Models
         public DbSet<WishListItem> WishListItems { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserOtp> UserOtps { get; set; }
+        public DbSet<ProductShippingProfile> ProductShippingProfiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -133,6 +134,12 @@ namespace Backend_SEP490.Models
                 .HasMany(p => p.WishListItems)
                 .WithOne(w => w.Product)
                 .HasForeignKey(w => w.ProductID);
+
+            modelBuilder.Entity<ProductShippingProfile>()
+                .HasOne(psp => psp.Product)
+                .WithOne(p => p.ShippingProfile)
+                .HasForeignKey<ProductShippingProfile>(psp => psp.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ========== ORDER ==========
             modelBuilder.Entity<Order>()

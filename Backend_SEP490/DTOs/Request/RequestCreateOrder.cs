@@ -22,17 +22,15 @@ public class RequestCreateOrder
     [Required]
     public string ToWardCode { get; set; } = default!;
 
+    [Required]
+    [StringLength(150)]
+    public string ToAddress { get; set; } = default!;
+
+    [StringLength(100)]
+    public string? ToProvinceName { get; set; }
+
     [Range(1, int.MaxValue, ErrorMessage = "Total weight must be greater than zero")]
     public int TotalWeight { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int? ParcelLength { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int? ParcelWidth { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int? ParcelHeight { get; set; }
 
     public List<RequestShipmentItemOverride>? ShipmentItems { get; set; }
 }

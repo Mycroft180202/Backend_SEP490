@@ -122,6 +122,7 @@ builder.Services.AddScoped<IShipmentRepositories, ShipmentRepositoriesImpl>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepositoryImpl>();
 builder.Services.AddScoped<IReportRepository, ReportRepositoryImpl>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepositoryImpl>();
+builder.Services.AddScoped<IProductShippingProfileRepository, ProductShippingProfileRepository>();
 
 // ----------------------
 // Services
@@ -144,6 +145,16 @@ builder.Services.AddScoped<IReportService, ReportServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
+{
+    var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        httpClient.BaseAddress = new Uri(options.BaseUrl);
+    }
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<IGhnMasterDataService, GhnMasterDataService>();
+builder.Services.AddHttpClient<IGhnMasterDataService, GhnMasterDataService>((sp, httpClient) =>
 {
     var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
     if (!string.IsNullOrWhiteSpace(options.BaseUrl))

@@ -39,10 +39,9 @@ Configure the codes/phones above with GHN's test data to avoid rejected requests
   "receiverPhone": "0912345678",
   "toDistrictId": 1454,
   "toWardCode": "21039",
+  "toAddress": "45 Ly Thuong Kiet, P.7, Q.10",
+  "toProvinceName": "TP.HCM",
   "totalWeight": 1200,
-  "parcelLength": 30,
-  "parcelWidth": 20,
-  "parcelHeight": 15,
   "shipmentItems": [
     { "productId": "PRD001", "weight": 800 },
     { "productId": "PRD002", "weight": 400 }
@@ -51,6 +50,9 @@ Configure the codes/phones above with GHN's test data to avoid rejected requests
 ```
 
 Those values are passed unchanged to GHN (only falling back to `GHN_TEST_*` defaults if a field is missing), letting you verify the full payload/response loop without shipping real parcels.
+
+- **Luu y Address/Product**: moi dia chi nguoi dung can khai bao `ContactName`, `ContactPhone`, `GhnProvinceId`, `GhnDistrictId`, `GhnWardCode`. Moi san pham co the gan `ProductShippingProfile` (can nang, kich thuoc) de backend tu tinh toan khi gui GHN.
+- **Tra cuu ma khu vuc**: dung `GET /api/ghn/master-data/provinces`, `GET /api/ghn/master-data/districts?provinceId=...`, `GET /api/ghn/master-data/wards?districtId=...` de hien danh sach cho nguoi dung lua chon thay vi nhap tay.
 
 ### Shipment lifecycle
 

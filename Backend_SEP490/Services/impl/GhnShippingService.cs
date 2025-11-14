@@ -108,6 +108,10 @@ public class GhnShippingService : IGhnShippingService
         var toWardCode = !string.IsNullOrWhiteSpace(shipmentOptions?.ToWardCode)
             ? shipmentOptions!.ToWardCode!
             : _settings.DefaultToWardCode;
+        var toAddress = !string.IsNullOrWhiteSpace(shipmentOptions?.ToAddress)
+            ? shipmentOptions!.ToAddress!
+            : addressLine;
+        var toProvinceName = shipmentOptions?.ToProvinceName;
         if (toDistrictId <= 0 || string.IsNullOrWhiteSpace(toWardCode))
         {
             _logger.LogWarning("Missing destination district/ward for order {OrderId}.", order.Id);
@@ -136,7 +140,8 @@ public class GhnShippingService : IGhnShippingService
             FromWardCode = shipmentOptions?.FromWardCode ?? _settings.FromWardCode,
             ToName = receiverName,
             ToPhone = receiverPhone,
-            ToAddress = addressLine,
+            ToAddress = toAddress,
+            ToProvinceName = toProvinceName,
             ToDistrictId = toDistrictId,
             ToWardCode = toWardCode,
             Weight = totalWeight,

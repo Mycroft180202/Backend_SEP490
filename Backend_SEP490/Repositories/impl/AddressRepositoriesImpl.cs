@@ -59,6 +59,11 @@ namespace Backend_SEP490.Repositories.impl
                 address.City = request.City;
                 address.Country = request.Country;
                 address.PosttalCode = request.PosttalCode;
+                address.ContactName = request.ContactName;
+                address.ContactPhone = request.ContactPhone;
+                address.GhnProvinceId = request.GhnProvinceId;
+                address.GhnDistrictId = request.GhnDistrictId;
+                address.GhnWardCode = request.GhnWardCode;
             }
             catch (Exception ex)
             {

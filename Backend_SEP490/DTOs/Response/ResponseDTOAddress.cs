@@ -8,5 +8,10 @@
         public string? PosttalCode { get; set; }
         public string Country { get; set; }
         public bool IsDefault { get; set; }
+        public string? ContactName { get; set; }
+        public string? ContactPhone { get; set; }
+        public int? GhnProvinceId { get; set; }
+        public int? GhnDistrictId { get; set; }
+        public string? GhnWardCode { get; set; }
     }
 }

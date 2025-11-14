@@ -32,4 +32,5 @@ public class Product
     public ICollection<OrderItem>? OrderItems { get; set; }
     public ICollection<Feedback>? Feedbacks { get; set; }
     public ICollection<WishListItem>? WishListItems { get; set; }
+    public ProductShippingProfile? ShippingProfile { get; set; }
 }

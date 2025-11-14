@@ -8,6 +8,8 @@ public class GhnShipmentOptions
     public string? ReceiverPhone { get; set; }
     public int? ToDistrictId { get; set; }
     public string? ToWardCode { get; set; }
+    public string? ToAddress { get; set; }
+    public string? ToProvinceName { get; set; }
     public int? Weight { get; set; }
     public int? Length { get; set; }
     public int? Width { get; set; }

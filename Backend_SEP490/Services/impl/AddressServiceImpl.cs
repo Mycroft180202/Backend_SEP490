@@ -25,7 +25,12 @@ namespace Backend_SEP490.Services.impl
                 City = request.City,
                 PosttalCode = request.PosttalCode,
                 Country = request.Country,
-                IsDefault = request.IsDefault
+                IsDefault = request.IsDefault,
+                ContactName = request.ContactName,
+                ContactPhone = request.ContactPhone,
+                GhnProvinceId = request.GhnProvinceId,
+                GhnDistrictId = request.GhnDistrictId,
+                GhnWardCode = request.GhnWardCode
             };
 
             var status = await _context.Address.CreateAddressAsync(newAddress);

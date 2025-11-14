@@ -46,6 +46,9 @@ public class GhnCreateOrderRequest
     [JsonPropertyName("to_address")]
     public string ToAddress { get; set; } = string.Empty;
 
+    [JsonPropertyName("to_province_name")]
+    public string? ToProvinceName { get; set; }
+
     [JsonPropertyName("to_district_id")]
     public int ToDistrictId { get; set; }
 

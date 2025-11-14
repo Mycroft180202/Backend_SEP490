@@ -30,5 +30,6 @@ public interface IUnitOfWork: IDisposable
     INotificationRepository Notifications { get; }
     IReportRepository Reports { get; }
     IPaymentRepository Payments { get; }
+    IProductShippingProfileRepository ProductShippingProfiles { get; }
 
 }

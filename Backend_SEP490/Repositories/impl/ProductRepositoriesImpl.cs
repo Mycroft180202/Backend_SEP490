@@ -148,6 +148,7 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
         return await _context.Products
             .Where(p => ids.Contains(p.Id))
+            .Include(p => p.ShippingProfile)
             .ToListAsync();
     }
 }
