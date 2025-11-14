@@ -53,13 +53,13 @@ Those values are passed unchanged to GHN (only falling back to `GHN_TEST_*` defa
 
 - **Luu y Address/Product**: moi dia chi nguoi dung can khai bao `ContactName`, `ContactPhone`, `GhnProvinceId`, `GhnDistrictId`, `GhnWardCode`. Moi san pham co the gan `ProductShippingProfile` (can nang, kich thuoc) de backend tu tinh toan khi gui GHN.
 - **Tra cuu ma khu vuc**: dung `GET /api/ghn/master-data/provinces`, `GET /api/ghn/master-data/districts?provinceId=...`, `GET /api/ghn/master-data/wards?districtId=...` de hien danh sach cho nguoi dung lua chon thay vi nhap tay.
+- **Cau hinh pick-up theo seller**: seller goi `GET/PUT /api/seller/shipping-profile/me` de dang ky token/shopId GHN va dia chi lay hang rieng. Neu bo trong, he thong tu fallback ve kho mac dinh cua san.
 
 ### Shipment lifecycle
 
-- `POST /api/Order/orders/{orderId}/cancel` lets a customer cancel a pending shipment. The service updates GHN via the sandbox cancel API and marks the local `Shipment` + `Order` as `cancelled`.
-- GHN can push status/ COD updates to `POST /api/ghn/webhook`. The controller will:
-  1. Update the matching `Shipment` status (`ready_to_pick`, `delivered`, `cancelled`, â€¦) and timestamps.
-  2. Sync the parent `Order.Status` (`Shipping`, `Completed`, `Cancelled`).
-  3. Mark related `Payment` rows as `Paid` when GHN reports `CodCollected = true` and notify the customer through the existing notification service.
-- `ResponseDTOOrder` now includes `Shipments[]` so frontend testers can see tracking numbers + statuses immediately after placing an order.
-- If an order contains items from multiple sellers, the backend automatically groups them per seller and creates one GHN shipment per seller (using that sellerâ€™s pickup info). Each shipment receives its own tracking code, and cancellations/webhooks operate on every shipment individually.
+- `POST /api/Order/orders/{orderId}/cancel` cho phép ngu?i mua h?y v?n don dang ch?; backend g?i GHN cancel và d?i tr?ng thái `Shipment` + `Order` sang `Cancelled`.
+- GHN g?i status/COD qua `POST /api/ghn/webhook`: controller c?p nh?t `Shipment.ShippingStatus`, d?ng b? `Order.Status`, và d?i `Payment` sang `Paid` khi `CodCollected = true`.
+- M?i l?n tr?ng thái thay d?i, m?t b?n ghi `ShipmentHistory` m?i du?c t?o và phát real-time t?i ngu?i dùng qua SignalR (`ShipmentStatusUpdated`), vì v?y UI không c?n refresh th? công.
+- `ResponseDTOOrder` tr? thêm `Shipments[]` (tracking, status, timestamp) d? frontend hi?n th? chi ti?t t?ng v?n don.
+- V?i don nhi?u seller, backend t? nhóm theo ngu?i bán và t?o 1 shipment GHN cho t?ng seller d?a trên c?u hình pickup/token mà seller dang ký.
+

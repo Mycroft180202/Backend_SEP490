@@ -19,6 +19,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     private readonly INotificationService _notificationService;
     private readonly IGhnShippingService _ghnShippingService;
+    private readonly IShipmentRealtimeService _shipmentRealtimeService;
     private readonly ILogger<OrderServiceImpl> _logger;
     private readonly GhnSettings _ghnSettings;
 
@@ -27,11 +28,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
         IGhnShippingService ghnShippingService,
+        IShipmentRealtimeService shipmentRealtimeService,
         IOptions<GhnSettings> ghnOptions,
         ILogger<OrderServiceImpl> logger) : base(mapper, unitOfWork)
     {
         _notificationService = notificationService;
         _ghnShippingService = ghnShippingService;
+        _shipmentRealtimeService = shipmentRealtimeService;
         _logger = logger;
         _ghnSettings = ghnOptions.Value;
     }
@@ -177,6 +180,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         var shipments = await _context.Shipment.GetByOrderIdAsync(order.Id);
+        var cancelledShipments = new List<Shipment>();
         foreach (var shipment in shipments)
         {
             if (!string.IsNullOrWhiteSpace(shipment.TrackingNumber) &&
@@ -198,10 +202,16 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             shipment.ShippingStatus = "cancelled";
             shipment.DeliveredAt = DateTime.UtcNow;
+            await AddShipmentHistoryEntryAsync(shipment, "cancelled", request?.Reason ?? "Cancelled by user");
+            cancelledShipments.Add(shipment);
         }
 
         order.Status = "Cancelled";
         await _context.SaveChangesAsync();
+        foreach (var shipment in cancelledShipments)
+        {
+            await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment cancelled");
+        }
 
         return "Cancel order successfully!";
     }
@@ -325,12 +335,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 .ToList();
 
             var anyShipmentCreated = false;
+            var createdShipments = new List<Shipment>();
 
             foreach (var group in sellerGroups)
             {
                 var sellerId = group.Key;
                 User? seller = null;
                 Address? pickupAddress = null;
+                SellerShippingProfile? sellerProfile = null;
                 if (sellerId != PlatformSellerId)
                 {
                     seller = await _context.Users.GetByIdAsync(sellerId);
@@ -340,17 +352,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
                         continue;
                     }
 
-                    pickupAddress = await GetSellerPickupAddressAsync(sellerId);
-                    if (pickupAddress == null)
+                    sellerProfile = await _context.SellerShippingProfiles.GetBySellerIdAsync(sellerId);
+                    if (sellerProfile == null)
                     {
-                        _logger.LogWarning("Seller {SellerId} has no pickup address. Skipping shipment for order {OrderId}.", sellerId, order.Id);
-                        continue;
+                        pickupAddress = await GetSellerPickupAddressAsync(sellerId);
+                        if (pickupAddress == null)
+                        {
+                            _logger.LogWarning("Seller {SellerId} has no pickup info. Skipping shipment for order {OrderId}.", sellerId, order.Id);
+                            continue;
+                        }
                     }
                 }
 
                 var sellerOptions = sellerId == PlatformSellerId
                     ? BuildPlatformShipmentOptions(baseOptions, group, shippingProfiles)
-                    : BuildSellerShipmentOptions(baseOptions, pickupAddress!, seller!, group, shippingProfiles);
+                    : BuildSellerShipmentOptions(baseOptions, pickupAddress, seller!, sellerProfile, group, shippingProfiles);
 
                 var sellerProducts = group
                     .Select(item =>
@@ -393,6 +409,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 };
 
                 await _context.Shipment.AddAsync(shipment);
+                await AddShipmentHistoryEntryAsync(shipment, "created", "Shipment created");
+                createdShipments.Add(shipment);
                 anyShipmentCreated = true;
             }
 
@@ -400,6 +418,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
             {
                 order.Status = "Shipping";
                 await _context.SaveChangesAsync();
+                foreach (var shipment in createdShipments)
+                {
+                    await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment created");
+                }
             }
         }
         catch (Exception ex)
@@ -438,12 +460,24 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     private GhnShipmentOptions BuildSellerShipmentOptions(
         GhnShipmentOptions baseOptions,
-        Address pickupAddress,
+        Address? fallbackPickupAddress,
         User seller,
+        SellerShippingProfile? sellerProfile,
         IEnumerable<OrderItem> sellerItems,
         IReadOnlyDictionary<string, ProductShippingProfile> shippingProfiles)
     {
-        var pickupAddressLine = BuildFullAddress(pickupAddress);
+        var pickupAddressLine = sellerProfile?.PickupAddressLine
+            ?? (fallbackPickupAddress != null ? BuildFullAddress(fallbackPickupAddress) : null)
+            ?? _ghnSettings.FromAddress;
+
+        var fromDistrict = sellerProfile?.PickupDistrictId
+            ?? fallbackPickupAddress?.GhnDistrictId
+            ?? _ghnSettings.FromDistrictId;
+
+        var fromWard = sellerProfile?.PickupWardCode
+            ?? fallbackPickupAddress?.GhnWardCode
+            ?? _ghnSettings.FromWardCode;
+
         var options = new GhnShipmentOptions
         {
             ReceiverName = baseOptions.ReceiverName,
@@ -452,17 +486,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToWardCode = baseOptions.ToWardCode,
             ToAddress = baseOptions.ToAddress,
             ToProvinceName = baseOptions.ToProvinceName,
-            Length = baseOptions.Length,
-            Width = baseOptions.Width,
-            Height = baseOptions.Height,
             ItemWeights = baseOptions.ItemWeights,
-            FromName = seller.ShopName ?? seller.DisplayName ?? seller.Username,
-            FromPhone = seller.PhoneNumber ?? _ghnSettings.FromPhone,
-            FromAddress = string.IsNullOrWhiteSpace(pickupAddressLine)
-                ? _ghnSettings.FromAddress
-                : pickupAddressLine,
-            FromDistrictId = pickupAddress.GhnDistrictId ?? _ghnSettings.FromDistrictId,
-            FromWardCode = pickupAddress.GhnWardCode ?? _ghnSettings.FromWardCode
+            FromName = sellerProfile?.PickupContactName ?? seller.ShopName ?? seller.DisplayName ?? seller.Username,
+            FromPhone = sellerProfile?.PickupContactPhone ?? seller.PhoneNumber ?? _ghnSettings.FromPhone,
+            FromAddress = pickupAddressLine,
+            FromDistrictId = fromDistrict,
+            FromWardCode = fromWard,
+            TokenOverride = string.IsNullOrWhiteSpace(sellerProfile?.GhnToken) ? null : sellerProfile.GhnToken,
+            ShopIdOverride = sellerProfile?.GhnShopId
         };
 
         options.Weight = CalculateTotalWeight(sellerItems, options.ItemWeights, shippingProfiles);
@@ -580,6 +611,20 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         return defaultValue;
+    }
+
+    private Task AddShipmentHistoryEntryAsync(Shipment shipment, string status, string? note)
+    {
+        var history = new ShipmentHistory
+        {
+            Id = $"SHH-{Guid.NewGuid():N}",
+            ShipmentId = shipment.Id,
+            Status = status,
+            Note = note,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return _context.ShipmentHistory.AddAsync(history);
     }
 
     private static string BuildFullAddress(Address address)

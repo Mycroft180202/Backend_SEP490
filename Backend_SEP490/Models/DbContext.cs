@@ -30,6 +30,8 @@ namespace Backend_SEP490.Models
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserOtp> UserOtps { get; set; }
         public DbSet<ProductShippingProfile> ProductShippingProfiles { get; set; }
+        public DbSet<SellerShippingProfile> SellerShippingProfiles { get; set; }
+        public DbSet<ShipmentHistory> ShipmentHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -95,6 +97,12 @@ namespace Backend_SEP490.Models
                 .WithOne(w => w.User)
                 .HasForeignKey(w => w.UserID);
 
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.SellerShippingProfile)
+                .WithOne(p => p.Seller)
+                .HasForeignKey<SellerShippingProfile>(p => p.SellerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // ========== CART ==========
             modelBuilder.Entity<Cart>()
                 .HasMany(c => c.CartItems)
@@ -156,6 +164,11 @@ namespace Backend_SEP490.Models
                 .HasMany(o => o.Shipments)
                 .WithOne(s => s.Order)
                 .HasForeignKey(s => s.OrderID);
+
+            modelBuilder.Entity<Shipment>()
+                .HasMany(s => s.History)
+                .WithOne(h => h.Shipment)
+                .HasForeignKey(h => h.ShipmentId);
 
             // ========== ROLE ==========
             modelBuilder.Entity<Role>()

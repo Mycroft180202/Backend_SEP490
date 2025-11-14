@@ -31,5 +31,7 @@ public interface IUnitOfWork: IDisposable
     IReportRepository Reports { get; }
     IPaymentRepository Payments { get; }
     IProductShippingProfileRepository ProductShippingProfiles { get; }
+    ISellerShippingProfileRepository SellerShippingProfiles { get; }
+    IShipmentHistoryRepository ShipmentHistory { get; }
 
 }

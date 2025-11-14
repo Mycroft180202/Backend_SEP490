@@ -1,4 +1,5 @@
 using Backend_SEP490.DTOs.External.Ghn;
+using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -13,15 +14,18 @@ public class GhnWebhookController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IShipmentRealtimeService _shipmentRealtimeService;
     private readonly ILogger<GhnWebhookController> _logger;
 
     public GhnWebhookController(
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
+        IShipmentRealtimeService shipmentRealtimeService,
         ILogger<GhnWebhookController> logger)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _shipmentRealtimeService = shipmentRealtimeService;
         _logger = logger;
     }
 
@@ -66,7 +70,22 @@ public class GhnWebhookController : ControllerBase
             }
         }
 
+        await _unitOfWork.ShipmentHistory.AddAsync(new ShipmentHistory
+        {
+            Id = $"SHH-{Guid.NewGuid():N}",
+            ShipmentId = shipment.Id,
+            Status = shipment.ShippingStatus,
+            Note = payload.Reason,
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _unitOfWork.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(order?.CustomerId))
+        {
+            await _shipmentRealtimeService.BroadcastAsync(order!.CustomerId!, shipment, payload.Reason);
+        }
+
         return Ok(new { status = "ack" });
     }
 
