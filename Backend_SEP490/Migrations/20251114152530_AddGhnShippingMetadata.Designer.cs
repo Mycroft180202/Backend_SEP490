@@ -4,6 +4,7 @@ using System.Text.Json;
 using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_SEP490.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251114152530_AddGhnShippingMetadata")]
+    partial class AddGhnShippingMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -465,56 +468,6 @@ namespace Backend_SEP490.Migrations
                     b.ToTable("Roles");
                 });
 
-            modelBuilder.Entity("Backend_SEP490.Models.SellerShippingProfile", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("GhnShopId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("GhnToken")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("PickupAddressLine")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PickupContactName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PickupContactPhone")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("PickupDistrictId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PickupProvinceName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PickupWardCode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SellerId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SellerId")
-                        .IsUnique();
-
-                    b.ToTable("SellerShippingProfiles");
-                });
-
             modelBuilder.Entity("Backend_SEP490.Models.Shipment", b =>
                 {
                     b.Property<string>("Id")
@@ -547,32 +500,6 @@ namespace Backend_SEP490.Migrations
                     b.HasIndex("OrderID");
 
                     b.ToTable("Shipments");
-                });
-
-            modelBuilder.Entity("Backend_SEP490.Models.ShipmentHistory", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ShipmentId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShipmentId");
-
-                    b.ToTable("ShipmentHistories");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.UserOtp", b =>
@@ -1054,17 +981,6 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("Reporter");
                 });
 
-            modelBuilder.Entity("Backend_SEP490.Models.SellerShippingProfile", b =>
-                {
-                    b.HasOne("User", "Seller")
-                        .WithOne("SellerShippingProfile")
-                        .HasForeignKey("Backend_SEP490.Models.SellerShippingProfile", "SellerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Seller");
-                });
-
             modelBuilder.Entity("Backend_SEP490.Models.Shipment", b =>
                 {
                     b.HasOne("Backend_SEP490.Models.Order", "Order")
@@ -1074,17 +990,6 @@ namespace Backend_SEP490.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("Backend_SEP490.Models.ShipmentHistory", b =>
-                {
-                    b.HasOne("Backend_SEP490.Models.Shipment", "Shipment")
-                        .WithMany("History")
-                        .HasForeignKey("ShipmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Shipment");
                 });
 
             modelBuilder.Entity("Backend_SEP490.Models.UserRole", b =>
@@ -1210,11 +1115,6 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("Backend_SEP490.Models.Shipment", b =>
-                {
-                    b.Navigation("History");
-                });
-
             modelBuilder.Entity("Product", b =>
                 {
                     b.Navigation("CartItems");
@@ -1249,8 +1149,6 @@ namespace Backend_SEP490.Migrations
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("Reports");
-
-                    b.Navigation("SellerShippingProfile");
 
                     b.Navigation("UserRoles");
 

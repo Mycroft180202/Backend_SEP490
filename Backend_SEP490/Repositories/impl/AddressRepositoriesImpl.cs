@@ -77,6 +77,11 @@ namespace Backend_SEP490.Repositories.impl
                 {
                     defaultAddress.IsDefault = false;
                 }
+                address.ContactName = request.ContactName;
+                address.ContactPhone = request.ContactPhone;
+                address.GhnProvinceId = request.GhnProvinceId;
+                address.GhnDistrictId = request.GhnDistrictId;
+                address.GhnWardCode = request.GhnWardCode;
             }
             catch (Exception ex)
             {

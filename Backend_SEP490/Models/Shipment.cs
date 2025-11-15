@@ -15,4 +15,5 @@ public class Shipment
     public DateTime? DeliveredAt { get; set; }
     [JsonIgnore]
     public Order Order { get; set; }
+    public ICollection<ShipmentHistory>? History { get; set; }
 }

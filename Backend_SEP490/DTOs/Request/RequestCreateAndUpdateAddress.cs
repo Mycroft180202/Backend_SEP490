@@ -23,5 +23,19 @@ namespace Backend_SEP490.DTOs.Request
         public string Country { get; set; }
 
         public bool IsDefault { get; set; }
+
+        [StringLength(100, ErrorMessage = "Tên người liên hệ tối đa 100 ký tự")]
+        public string? ContactName { get; set; }
+
+        [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
+        public string? ContactPhone { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Mã tỉnh/thành GHN phải lớn hơn 0")]
+        public int? GhnProvinceId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Mã quận/huyện GHN phải lớn hơn 0")]
+        public int? GhnDistrictId { get; set; }
+
+        public string? GhnWardCode { get; set; }
     }
 } 

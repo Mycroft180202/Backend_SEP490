@@ -122,6 +122,9 @@ builder.Services.AddScoped<IShipmentRepositories, ShipmentRepositoriesImpl>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepositoryImpl>();
 builder.Services.AddScoped<IReportRepository, ReportRepositoryImpl>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepositoryImpl>();
+builder.Services.AddScoped<IProductShippingProfileRepository, ProductShippingProfileRepository>();
+builder.Services.AddScoped<ISellerShippingProfileRepository, SellerShippingProfileRepository>();
+builder.Services.AddScoped<IShipmentHistoryRepository, ShipmentHistoryRepository>();
 
 // ----------------------
 // Services
@@ -152,6 +155,17 @@ builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, htt
     }
     httpClient.Timeout = TimeSpan.FromSeconds(30);
 });
+builder.Services.AddHttpClient<IGhnMasterDataService, GhnMasterDataService>((sp, httpClient) =>
+{
+    var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        httpClient.BaseAddress = new Uri(options.BaseUrl);
+    }
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<ISellerShippingProfileService, SellerShippingProfileService>();
+builder.Services.AddScoped<IShipmentRealtimeService, ShipmentRealtimeService>();
 
 // ----------------------
 // Đăng ký AutoMapper (quét toàn bộ assemblies để tìm Profile)

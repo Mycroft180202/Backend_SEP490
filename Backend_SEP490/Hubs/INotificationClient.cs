@@ -9,4 +9,5 @@ public interface INotificationClient
     Task NotificationRead(string notificationId);
     Task NotificationsMarkedAsRead(IEnumerable<string> notificationIds);
     Task NotificationDeleted(string notificationId);
+    Task ShipmentStatusUpdated(ShipmentStatusUpdateDto update);
 }
