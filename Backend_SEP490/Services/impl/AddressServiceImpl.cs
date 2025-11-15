@@ -62,7 +62,7 @@ namespace Backend_SEP490.Services.impl
                 if(defaultAddress != null)
                 {
                     var changeDefaultStatus = await _context.Address.UpdateAddressAsync(defaultAddress);
-                    if (changeDefaultStatus) return "Update new default address failed!";
+                    if (!changeDefaultStatus) return "Update new default address failed!";
                 }
                
             }
