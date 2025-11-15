@@ -53,9 +53,9 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.Addresses.Where(a => a.Id.Equals(addressId)).FirstOrDefaultAsync();
         }
 
-        public async Task<Address> GetDefaultAddressAsync()
+        public async Task<Address> GetDefaultAddressAsync(string userId)
         {
-            return await _context.Addresses.Where(a => a.IsDefault == true).FirstOrDefaultAsync();
+            return await _context.Addresses.Where(a => a.IsDefault == true && a.UserID.Equals(userId)).FirstOrDefaultAsync();
         }
         public async Task<IEnumerable<Address>> GetAllAddressByUserIdAsync(string userId)
         {
@@ -70,7 +70,7 @@ namespace Backend_SEP490.Repositories.impl
                 if (defaultAddress != null)
                 {
                     defaultAddress.IsDefault = false;
-                    _context.Addresses.Update(defaultAddress);
+                     _context.Addresses.Update(defaultAddress);
                     var status = await _context.SaveChangesAsync();
 
                 }

@@ -36,7 +36,7 @@ namespace Backend_SEP490.Services.impl
             // Nếu như address mới người dùng để mặc định thì chuyển cả address đang là default thì false
             if (request.IsDefault)
             {
-                var defaultAddress = await _context.Address.GetDefaultAddressAsync();
+                var defaultAddress = await _context.Address.GetDefaultAddressAsync(userId);
                 return await _context.Address.CreateAddressAsync(newAddress, defaultAddress);
 
             }
@@ -64,7 +64,7 @@ namespace Backend_SEP490.Services.impl
             var address = await _context.Address.GetAddressByIdAsync(adressId);
             return _mapper.Map<ResponseDTOAddress>(address);
         }
-        public async Task<string> UpdateUserAddressAsync(string addressId, RequestCreateAndUpdateAddress request)
+        public async Task<string> UpdateUserAddressAsync(string addressId, RequestCreateAndUpdateAddress request, string userId)
         {
             var address = await _context.Address.GetAddressByIdAsync(addressId);
             if (address == null) return "Address not found!";
@@ -74,7 +74,7 @@ namespace Backend_SEP490.Services.impl
             Address defaultAddress = null;
             if (request.IsDefault)
             {
-                 defaultAddress = await _context.Address.GetDefaultAddressAsync();
+                 defaultAddress = await _context.Address.GetDefaultAddressAsync(userId);
                 if (defaultAddress.Id.Equals(addressId))
                 {
                     defaultAddress = null;

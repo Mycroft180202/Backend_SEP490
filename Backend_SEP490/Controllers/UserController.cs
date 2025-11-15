@@ -124,7 +124,8 @@ namespace Backend_SEP490.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var status = await _addressServices.UpdateUserAddressAsync(addressId, request);
+            var userId = User.FindFirstValue("userID");
+            var status = await _addressServices.UpdateUserAddressAsync(addressId, request, userId);
             
             return Ok(status);
         }
