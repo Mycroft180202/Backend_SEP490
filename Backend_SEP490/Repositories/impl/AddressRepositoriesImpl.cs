@@ -21,6 +21,7 @@ namespace Backend_SEP490.Repositories.impl
                 {
                     defaultAddress.IsDefault = false;
                     _context.Addresses.Update(defaultAddress);
+                    _context.SaveChanges();
                 }
 
                 _context.SaveChanges();
@@ -65,23 +66,34 @@ namespace Backend_SEP490.Repositories.impl
         {
             try
             {
+                //Nếu như address mới người dùng để là mặc định thì chuyển isdefault thành false
+                if (defaultAddress != null)
+                {
+                    defaultAddress.IsDefault = false;
+                    _context.Addresses.Update(defaultAddress);
+                    var status = await _context.SaveChangesAsync();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                return "Update Address default information error!";
+            }
+            try
+            {
                 address.Line1 = request.Line1;
                 address.Line2 = request.Line2;
                 address.IsDefault = request.IsDefault;
                 address.City = request.City;
                 address.Country = request.Country;
                 address.PosttalCode = request.PosttalCode;
-
-                //Nếu như address mới người dùng để là mặc định thì chuyển isdefault thành false
-                if (defaultAddress != null)
-                {
-                    defaultAddress.IsDefault = false;
-                }
                 address.ContactName = request.ContactName;
                 address.ContactPhone = request.ContactPhone;
                 address.GhnProvinceId = request.GhnProvinceId;
                 address.GhnDistrictId = request.GhnDistrictId;
                 address.GhnWardCode = request.GhnWardCode;
+
+
             }
             catch (Exception ex)
             {
@@ -90,12 +102,8 @@ namespace Backend_SEP490.Repositories.impl
 
             try
             {
-                if (defaultAddress != null)
-                {
-                    _context.Addresses.Update(defaultAddress);
-                }
                 _context.Addresses.Update(address);
-                _context.SaveChanges();
+                var status = await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {

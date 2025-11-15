@@ -100,6 +100,15 @@ namespace Backend_SEP490.Controllers
             return Ok(address);
         }
 
+        [HttpGet("users/address/{addressId}")]
+        public async Task<IActionResult> GetUsersAddressById([FromRoute] string addressId)
+        {
+            var userId = User.FindFirstValue("userID");
+            var address = await _addressServices.GetAddressByIdAsync(addressId);
+            if (address == null) return NotFound();
+            return Ok(address);
+        }
+
         [HttpPost("users/address")]
         public async Task<IActionResult> CreateUsersAddress([FromBody] RequestCreateAndUpdateAddress request)
         {
@@ -110,8 +119,8 @@ namespace Backend_SEP490.Controllers
             return Ok(status);
         }
 
-        [HttpPut("users/address/{id}")]
-        public async Task<IActionResult> UpdateUsersAddress([FromRoute] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
+        [HttpPut("users/address")]
+        public async Task<IActionResult> UpdateUsersAddress([FromQuery] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -119,8 +128,8 @@ namespace Backend_SEP490.Controllers
             
             return Ok(status);
         }
-        [HttpDelete("users/address/{id}")]
-        public async Task<IActionResult> DeleteUsersAddress([FromRoute] string addressId)
+        [HttpDelete("users/address")]
+        public async Task<IActionResult> DeleteUsersAddress([FromQuery] string addressId)
         {
             var status = await _addressServices.DeleteUserAddressAsync(addressId);
             return Ok(status);
@@ -153,8 +162,8 @@ namespace Backend_SEP490.Controllers
         }
 
 
-        [HttpGet("users/shop/{userId}")]
-        public async Task<IActionResult> GetShopByUserId([FromRoute] string userId)
+        [HttpGet("users/shop")]
+        public async Task<IActionResult> GetShopByUserId([FromQuery] string userId)
         {
             var users = await _userServices.GetUserShopByIDAsync(userId);
             if (users == null)

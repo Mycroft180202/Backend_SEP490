@@ -11,10 +11,10 @@ namespace Backend_SEP490.Services.impl
         public AddressServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
         {
         }
-
+        private string GenerateID(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
         public async Task<string> CreateUserAddressAsync(string userId, RequestCreateAndUpdateAddress request)
         {
-            string AddressId = "ADR-" + userId + "-" + DateTime.Now;
+            string AddressId = "ADR-" + userId + GenerateID("");
 
             var newAddress = new Address 
             {
@@ -59,22 +59,29 @@ namespace Backend_SEP490.Services.impl
             return _mapper.Map<IEnumerable<ResponseDTOAddress>>(address);
         }
 
+        public async Task<ResponseDTOAddress> GetAddressByIdAsync(string adressId)
+        {
+            var address = await _context.Address.GetAddressByIdAsync(adressId);
+            return _mapper.Map<ResponseDTOAddress>(address);
+        }
         public async Task<string> UpdateUserAddressAsync(string addressId, RequestCreateAndUpdateAddress request)
         {
             var address = await _context.Address.GetAddressByIdAsync(addressId);
             if (address == null) return "Address not found!";
 
+
             // Nếu như address này người dùng để thành mặc định thì chuyển cái đang là default thành false
+            Address defaultAddress = null;
             if (request.IsDefault)
             {
-                var defaultAddress = await _context.Address.GetDefaultAddressAsync();
-                if (!defaultAddress.Id.Equals(addressId))
+                 defaultAddress = await _context.Address.GetDefaultAddressAsync();
+                if (defaultAddress.Id.Equals(addressId))
                 {
-                    return await _context.Address.UpdateAddressAsync(address, request, defaultAddress);
+                    defaultAddress = null;
                 }
             }
 
-            return await _context.Address.UpdateAddressAsync(address, request, null);
+            return await _context.Address.UpdateAddressAsync(address, request, defaultAddress);
         }
     }
 }
