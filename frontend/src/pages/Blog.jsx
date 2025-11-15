@@ -64,7 +64,10 @@ const Blog = () => {
           const items = response.items || [];
           fetchedCount += items.length;
           totalCount = raw.totalCount ?? totalCount;
-          collected.push(...items.filter((item) => item.postStatus === 'Active'));
+          collected.push(...items.filter((item) => {
+            const normalizedStatus = (item.postStatus || '').toString().toLowerCase();
+            return normalizedStatus === 'published' || normalizedStatus === 'active';
+          }));
 
           const hasNext = raw.hasNextPage
             ?? (raw.totalPages

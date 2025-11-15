@@ -46,4 +46,15 @@ export const BlogService = {
     );
     return response.data;
   },
+
+  delete: async (id) => {
+    if (!id) {
+      throw new Error('Missing blog id');
+    }
+    const response = await axiosClient.delete(
+      API_ENDPOINTS.BLOGS.ROOT,
+      { params: { id } },
+    );
+    return response.data;
+  },
 };

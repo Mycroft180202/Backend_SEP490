@@ -23,8 +23,32 @@ import { UserService } from '../../services/modules/users/userService';
 import axiosClient from '../../services/api/axiosConfig';
 import Pagination from '../shared/Pagination';
 
+class Base64UploadAdapter {
+  constructor(loader) {
+    this.loader = loader;
+  }
+
+  upload() {
+    return this.loader.file.then(
+      (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve({ default: reader.result });
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      }),
+    );
+  }
+
+  abort() {
+    // Nothing special to clean up for FileReader
+  }
+}
+
+
 const statusOptions = [
-  { value: 'Active', label: 'Published' },
+  { value: 'Published', label: 'Published' },
   { value: 'Draft', label: 'Draft' },
   { value: 'Archived', label: 'Archived' },
 ];
@@ -45,7 +69,7 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const normalizeStatus = (status) => {
   if (!status) return 'Draft';
   const value = status.toString().toLowerCase();
-  if (value === 'active' || value === 'published') return 'Active';
+  if (value === 'active' || value === 'published') return 'Published';
   if (value === 'archived' || value === 'inactive') return 'Archived';
   if (value === 'draft') return 'Draft';
   return status;
@@ -71,6 +95,16 @@ const BlogManagement = ({ isAdmin = true }) => {
   const [authorMap, setAuthorMap] = useState({});
   const pageSizeRef = useRef(DEFAULT_PAGE_SIZE);
   const [previewBlog, setPreviewBlog] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteBlog, setConfirmDeleteBlog] = useState(null);
+  const handleEditorReady = useCallback((editor) => {
+    editor.editing.view.change((writer) => {
+      writer.setStyle('min-height', '420px', editor.editing.view.document.getRoot());
+    });
+    if (editor?.plugins?.get('FileRepository')) {
+      editor.plugins.get('FileRepository').createUploadAdapter = (loader) => new Base64UploadAdapter(loader);
+    }
+  }, []);
   const releasePreviewUrl = useCallback((url) => {
     if (url && url.startsWith('blob:')) {
       URL.revokeObjectURL(url);
@@ -156,17 +190,17 @@ const BlogManagement = ({ isAdmin = true }) => {
     const counts = blogs.reduce(
       (acc, blog) => {
         const normalizedStatus = normalizeStatus(blog.postStatus);
-        if (normalizedStatus === 'Active') acc.active += 1;
+        if (normalizedStatus === 'Published') acc.published += 1;
         if (normalizedStatus === 'Draft') acc.draft += 1;
         if (normalizedStatus === 'Archived') acc.archived += 1;
         return acc;
       },
-      { active: 0, draft: 0, archived: 0 },
+      { published: 0, draft: 0, archived: 0 },
     );
 
     return {
       total: meta.totalCount || blogs.length,
-      active: counts.active,
+      published: counts.published,
       draft: counts.draft,
       archived: counts.archived,
       visible: blogs.length,
@@ -395,8 +429,34 @@ const BlogManagement = ({ isAdmin = true }) => {
     }
   };
 
-  const handleDelete = () => {
-    toast.info('Delete API is not available yet.');
+  const handleDelete = useCallback(async (blogId) => {
+    if (!isAdmin || !blogId) return;
+    try {
+      setDeletingId(blogId);
+      await BlogService.delete(blogId);
+      toast.success('Blog deleted successfully.');
+      await loadBlogs(pageIndex, pageSize);
+    } catch (error) {
+      console.error('Delete blog error:', error);
+      toast.error(
+        error?.response?.data?.message
+        || error?.message
+        || 'Unable to delete blog.',
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }, [isAdmin, loadBlogs, pageIndex, pageSize]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!confirmDeleteBlog) return;
+    await handleDelete(confirmDeleteBlog.id);
+    setConfirmDeleteBlog(null);
+  }, [confirmDeleteBlog, handleDelete]);
+
+  const handleCancelDelete = () => {
+    if (deletingId) return;
+    setConfirmDeleteBlog(null);
   };
 
   const formatDate = (value) => {
@@ -436,7 +496,7 @@ const BlogManagement = ({ isAdmin = true }) => {
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
           <p className="text-sm text-gray-600">Published</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.active}</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.published}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
           <p className="text-sm text-gray-600">Draft posts</p>
@@ -587,11 +647,15 @@ const BlogManagement = ({ isAdmin = true }) => {
                             type="button"
                             className="text-red-600 hover:text-red-800 disabled:opacity-40"
                             title="Delete"
-                            onClick={handleDelete}
-                            disabled={!isAdmin}
-                          >
+                          onClick={() => setConfirmDeleteBlog(blog)}
+                          disabled={!isAdmin || deletingId === blog.id}
+                        >
+                          {deletingId === blog.id ? (
+                            <span className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full inline-block animate-spin" />
+                          ) : (
                             <FaTrash />
-                          </button>
+                          )}
+                        </button>
                         </div>
                       </td>
                     </tr>
@@ -720,6 +784,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                   <CKEditor
                     editor={ClassicEditor}
                     data={formData.content}
+                    onReady={handleEditorReady}
                     onChange={(_, editor) => {
                       const data = editor.getData();
                       handleInputChange('content', data);
@@ -734,11 +799,19 @@ const BlogManagement = ({ isAdmin = true }) => {
                         'bulletedList',
                         'numberedList',
                         'blockQuote',
+                        'imageUpload',
                         '|',
                         'insertTable',
                         'undo',
                         'redo',
                       ],
+                      image: {
+                        toolbar: [
+                          'imageTextAlternative',
+                          'imageStyle:full',
+                          'imageStyle:side',
+                        ],
+                      },
                     }}
                   />
                 </div>
@@ -822,6 +895,59 @@ const BlogManagement = ({ isAdmin = true }) => {
                   </p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmDeleteBlog && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">Delete blog post</h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600"
+                onClick={handleCancelDelete}
+                disabled={Boolean(deletingId)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-gray-700">
+                Are you sure you want to delete{' '}
+                <span className="font-semibold text-[#8B4513]">
+                  {confirmDeleteBlog.title || `#${confirmDeleteBlog.id}`}
+                </span>
+                ? This action cannot be undone.
+              </p>
+              {resolveImage(confirmDeleteBlog) && (
+                <div className="rounded-lg overflow-hidden border border-gray-100">
+                  <img
+                    src={resolveImage(confirmDeleteBlog)}
+                    alt={confirmDeleteBlog.title}
+                    className="w-full h-40 object-cover"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                onClick={handleCancelDelete}
+                disabled={Boolean(deletingId)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition disabled:opacity-60"
+                onClick={handleConfirmDelete}
+                disabled={Boolean(deletingId)}
+              >
+                {deletingId ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>

@@ -1,7 +1,54 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import { AuthService } from '../../services/modules/auth/authService';
-import { FaUserCircle, FaPhoneAlt, FaHeart, FaHistory, FaLock, FaSignOutAlt, FaUserTie, FaEnvelope, FaKey, FaPaperPlane, FaCamera, FaEdit, FaEye } from 'react-icons/fa';
+import { UserService } from '../../services/modules/users/userService';
+import { GHNLocationService } from '../../services/modules/shipping/ghnLocationService';
+import {
+  FaUserCircle,
+  FaPhoneAlt,
+  FaHeart,
+  FaHistory,
+  FaLock,
+  FaSignOutAlt,
+  FaUserTie,
+  FaEnvelope,
+  FaKey,
+  FaPaperPlane,
+  FaCamera,
+  FaEdit,
+  FaEye,
+  FaPlus,
+  FaTimes,
+} from 'react-icons/fa';
 import { toast } from 'react-toastify';
+
+const mapUserProfile = (data) => ({
+  name: data.displayName || data.fullName || '',
+  phone: data.phoneNumber || '',
+  email: data.email || '',
+  username: data.username || '',
+  dob: data.dob || '',
+  userUrlImage: data.userUrlImage || null,
+  addresses: Array.isArray(data.addresses) ? data.addresses : [],
+});
+
+const addressFormDefaults = {
+  name: '',
+  phone: '',
+  province: '',
+  provinceId: '',
+  district: '',
+  ward: '',
+  detailAddress: '',
+  detailAddress2: '',
+  districtId: '',
+  wardCode: '',
+  isDefault: false,
+};
 
 // Component đổi mật khẩu
 function ChangePasswordSection({ email }) {
@@ -133,32 +180,112 @@ function ProfileSection() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedProfile, setEditedProfile] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState(null);
+  const [newAddress, setNewAddress] = useState(addressFormDefaults);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [deleteAddressId, setDeleteAddressId] = useState(null);
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        setLoading(true);
-        const data = await AuthService.getUserInfo();
-        const profileData = {
-          name: data.displayName || data.fullName || '',
-          phone: data.phoneNumber || '',
-          email: data.email || '',
-          username: data.username || '',
-          dob: data.dob || '',
-          userUrlImage: data.userUrlImage || null,
-          addresses: Array.isArray(data.addresses) ? data.addresses : [],
-        };
-        setProfile(profileData);
-        setEditedProfile(profileData);
-        setLoading(false);
-      } catch (err) {
-        setError('Không thể lấy thông tin người dùng');
-        setLoading(false);
-      }
-    };
-    fetchUser();
+  const refreshUserProfile = useCallback(async () => {
+    const data = await AuthService.getUserInfo();
+    const profileData = mapUserProfile(data);
+    setProfile(profileData);
+    setEditedProfile(profileData);
+    return profileData;
   }, []);
+
+  const loadProvinces = useCallback(async () => {
+    try {
+      setLoadingProvinces(true);
+      const data = await GHNLocationService.getProvinces();
+      setProvinces(Array.isArray(data) ? data : []);
+      return data;
+    } catch (err) {
+      console.error('Load provinces error:', err);
+      toast.error('Khong the tai danh sach tinh/ thanh.');
+      setProvinces([]);
+      return [];
+    } finally {
+      setLoadingProvinces(false);
+    }
+  }, []);
+
+  const loadDistricts = useCallback(async (provinceId) => {
+    if (!provinceId) {
+      setDistricts([]);
+      return [];
+    }
+    try {
+      setLoadingDistricts(true);
+      const data = await GHNLocationService.getDistricts(provinceId);
+      setDistricts(Array.isArray(data) ? data : []);
+      return data;
+    } catch (err) {
+      console.error('Load districts error:', err);
+      toast.error('Khong the tai danh sach quan/huyen.');
+      setDistricts([]);
+      return [];
+    } finally {
+      setLoadingDistricts(false);
+    }
+  }, []);
+
+  const loadWards = useCallback(async (districtId) => {
+    if (!districtId) {
+      setWards([]);
+      return [];
+    }
+    try {
+      setLoadingWards(true);
+      const data = await GHNLocationService.getWards(districtId);
+      setWards(Array.isArray(data) ? data : []);
+      return data;
+    } catch (err) {
+      console.error('Load wards error:', err);
+      toast.error('Khong the tai danh sach phuong/xa.');
+      setWards([]);
+      return [];
+    } finally {
+      setLoadingWards(false);
+    }
+  }, []);
+
+  useEffect(() => {
+
+    const fetchUser = async () => {
+
+      try {
+
+        setLoading(true);
+
+        await refreshUserProfile();
+
+      } catch (err) {
+
+        setError('Khong the lay thong tin nguoi dung');
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+    fetchUser();
+
+  }, [refreshUserProfile]);
+
+  useEffect(() => {
+    loadProvinces();
+  }, [loadProvinces]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -189,19 +316,7 @@ function ProfileSection() {
       };
 
       await AuthService.updateProfile(updateData);
-      
-      const updatedData = await AuthService.getUserInfo();
-      const newProfile = {
-        name: updatedData.displayName || updatedData.fullName || '',
-        phone: updatedData.phoneNumber || '',
-        email: updatedData.email || '',
-        username: updatedData.username || '',
-        dob: updatedData.dob || '',
-        userUrlImage: updatedData.userUrlImage || null,
-        addresses: Array.isArray(updatedData.addresses) ? updatedData.addresses : [],
-      };
-      setProfile(newProfile);
-      setEditedProfile(newProfile);
+      await refreshUserProfile();
       toast.success('Cập nhật ảnh đại diện thành công!');
     } catch (err) {
       console.error('Update avatar error:', err);
@@ -237,19 +352,7 @@ function ProfileSection() {
       };
 
       await AuthService.updateProfile(updateData);
-      
-      const updatedData = await AuthService.getUserInfo();
-      const newProfile = {
-        name: updatedData.displayName || updatedData.fullName || '',
-        phone: updatedData.phoneNumber || '',
-        email: updatedData.email || '',
-        username: updatedData.username || '',
-        dob: updatedData.dob || '',                                                               
-        userUrlImage: updatedData.userUrlImage || null,
-        addresses: Array.isArray(updatedData.addresses) ? updatedData.addresses : [],
-      };
-      setProfile(newProfile);
-      setEditedProfile(newProfile);
+      await refreshUserProfile();
       setIsEditMode(false);
       toast.success('Cập nhật thông tin thành công!');
     } catch (err) {
@@ -259,6 +362,158 @@ function ProfileSection() {
       setLoading(false);
     }
   };
+
+  const handleToggleAddressForm = () => {
+    setShowAddressForm((prev) => {
+      if (prev) {
+        setNewAddress(addressFormDefaults);
+        setDistricts([]);
+        setWards([]);
+        setEditingAddressId(null);
+      } else {
+        loadProvinces();
+      }
+      return !prev;
+    });
+  };
+
+  const handleAddressFieldChange = (field, value) => {
+    setNewAddress((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleDefaultToggle = (checked) => {
+    const totalAddresses = Array.isArray(profile?.addresses) ? profile.addresses.length : 0;
+    // If user only has one address, enforce default and show a gentle notice.
+    if (totalAddresses <= 1) {
+      toast.info('Bạn chỉ có một địa chỉ, địa chỉ này sẽ được đặt làm mặc định.');
+      setNewAddress((prev) => ({ ...prev, isDefault: true }));
+      return;
+    }
+    setNewAddress((prev) => ({ ...prev, isDefault: checked }));
+  };
+
+  const handleProvinceSelect = async (provinceId) => {
+    const numericProvinceId = provinceId ? Number(provinceId) : '';
+    const selectedProvince = provinces.find(
+      (province) => province.ProvinceID === numericProvinceId,
+    );
+    setNewAddress((prev) => ({
+      ...prev,
+      provinceId: numericProvinceId || '',
+      province: selectedProvince?.ProvinceName || '',
+      district: '',
+      districtId: '',
+      ward: '',
+      wardCode: '',
+    }));
+    setDistricts([]);
+    setWards([]);
+    if (numericProvinceId) {
+      await loadDistricts(numericProvinceId);
+    }
+  };
+
+  const handleDistrictSelect = async (districtId) => {
+    const numericDistrictId = districtId ? Number(districtId) : '';
+    const selectedDistrict = districts.find(
+      (district) => district.DistrictID === numericDistrictId,
+    );
+    setNewAddress((prev) => ({
+      ...prev,
+      districtId: numericDistrictId || '',
+      district: selectedDistrict?.DistrictName || '',
+      ward: '',
+      wardCode: '',
+    }));
+    setWards([]);
+    if (numericDistrictId) {
+      await loadWards(numericDistrictId);
+    }
+  };
+
+  const handleWardSelect = (wardCode) => {
+    const selectedWard = wards.find((ward) => ward.WardCode === wardCode);
+    setNewAddress((prev) => ({
+      ...prev,
+      wardCode: wardCode || '',
+      ward: selectedWard?.WardName || '',
+    }));
+  };
+
+  const handleAddAddress = async () => {
+    const name = (newAddress.name || '').trim();
+    const phone = (newAddress.phone || '').trim();
+    const detail = (newAddress.detailAddress || '').trim();
+    const provinceIdValue = (newAddress.provinceId || '').toString().trim();
+    const districtIdValue = (newAddress.districtId || '').toString().trim();
+    const wardCodeValue = (newAddress.wardCode || '').trim();
+
+    if (!name || !phone || !detail || !provinceIdValue || !districtIdValue || !wardCodeValue) {
+      toast.error('Vui long chon day du tinh, quan, phuong va nhap dia chi chi tiet.');
+      return;
+    }
+
+    const districtId = Number(districtIdValue);
+    const provinceId = Number(provinceIdValue);
+    if (Number.isNaN(districtId) || Number.isNaN(provinceId)) {
+      toast.error('Ma tinh hoac quan khong hop le.');
+      return;
+    }
+
+    const detailLine2 = (newAddress.detailAddress2 || '').trim();
+
+    const payload = {
+      line1: detail,
+      line2: detailLine2 || null,
+      city: (newAddress.province || newAddress.district || 'Vietnam').trim(),
+      country: 'Vietnam',
+      posttalCode: '',
+      isDefault: Boolean(newAddress.isDefault),
+      contactName: name,
+      contactPhone: phone,
+      ghnProvinceId: provinceId,
+      ghnDistrictId: districtId,
+      ghnWardCode: wardCodeValue,
+    };
+    const existingAddresses = Array.isArray(profile?.addresses) ? profile.addresses : [];
+    const hasOtherDefault = existingAddresses.some(
+      (addr) => addr.isDefault && addr.id !== editingAddressId,
+    );
+    if (!existingAddresses.length) {
+      payload.isDefault = true;
+    } else if (!payload.isDefault && !hasOtherDefault) {
+      payload.isDefault = true;
+    }
+
+    try {
+      setSavingAddress(true);
+      if (editingAddressId) {
+        await UserService.updateAddress(editingAddressId, payload);
+        toast.success('Cap nhat dia chi thanh cong!');
+      } else {
+        await UserService.addAddress(payload);
+        toast.success('Them dia chi thanh cong!');
+      }
+      await refreshUserProfile();
+      setNewAddress(addressFormDefaults);
+      setEditingAddressId(null);
+      setShowAddressForm(false);
+    } catch (err) {
+      console.error('Add/update address error:', err);
+      const message =
+        err?.response?.data?.message
+        || err?.response?.data?.title
+        || err?.message
+        || 'Khong the luu dia chi.';
+      toast.error(message);
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
 
   if (loading) return <div className="p-8 text-center">Đang tải thông tin...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
@@ -348,18 +603,248 @@ function ProfileSection() {
             <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Thông tin tài khoản</h2>
             <form className="grid grid-cols-2 gap-x-12 gap-y-6 max-w-2xl">
               <div className="col-span-2">
-                <label className="block mb-2 font-medium">Địa chỉ</label>
-                {profile.addresses && profile.addresses.length > 0 ? (
-                  <ul className="space-y-2">
-                    {profile.addresses.map((addr, idx) => (
-                      <li key={idx} className="border rounded px-4 py-2 bg-white flex items-center justify-between">
-                        <span>{addr.detail || addr.address || addr}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-gray-500">Chưa có địa chỉ nào</div>
-                )}
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="font-medium">Địa chỉ giao hàng</label>
+                    <button
+                      type="button"
+                      onClick={handleToggleAddressForm}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#9e211f] text-[#9e211f] font-semibold hover:bg-[#9e211f] hover:text-white transition"
+                    >
+                      <FaPlus size={14} /> {showAddressForm ? 'Đóng' : 'Thêm địa chỉ'}
+                    </button>
+                  </div>
+
+                  {profile.addresses && profile.addresses.length > 0 ? (
+                    <ul className="space-y-3">
+                      {profile.addresses.map((addr, idx) => {
+                        const key = addr.id || addr.addressId || addr.shippingAddressId || idx;
+                        const receiverName = addr.contactName || addr.name || profile.name;
+                        const phoneDisplay = addr.contactPhone || addr.phone || profile.phone;
+                        const addressLine = addr.line1 || addr.fullAddress || addr.detailAddress || addr.address || '';
+                        const addressLine2 = addr.line2;
+                        return (
+                          <li
+                            key={key}
+                            className="border rounded px-4 py-3 bg-white flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+                          >
+                            <div>
+                              <p className="font-semibold text-[#9e211f]">{receiverName}</p>
+                              <p className="text-sm text-gray-500">{phoneDisplay}</p>
+                              <p className="text-sm text-gray-700 mt-1">
+                                {addressLine || 'Chưa có địa chỉ chi tiết'}
+                              </p>
+                              {addressLine2 && (
+                                <p className="text-sm text-gray-500">{addressLine2}</p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                {addr.city || addr.province || ''}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-2 items-start md:items-end">
+                              {addr.isDefault && (
+                                <span className="text-xs uppercase bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold self-start md:self-auto">
+                                  Mặc định
+                                </span>
+                              )}
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  className="text-sm font-semibold text-[#9e211f] hover:underline"
+                                  onClick={() => {
+                                    setEditingAddressId(addr.id);
+                                    setShowAddressForm(true);
+                                    setNewAddress({
+                                      ...addressFormDefaults,
+                                      name: addr.contactName || addr.name || '',
+                                      phone: addr.contactPhone || addr.phone || '',
+                                      provinceId: addr.ghnProvinceId || '',
+                                      districtId: addr.ghnDistrictId || '',
+                                      wardCode: addr.ghnWardCode || '',
+                                      province: '',
+                                      district: '',
+                                      ward: '',
+                                      detailAddress: addr.line1 || '',
+                                      detailAddress2: addr.line2 || '',
+                                      isDefault: Boolean(addr.isDefault),
+                                    });
+                                    loadProvinces().then((data) => {
+                                      const provinceName = (data || []).find((p) => p.ProvinceID === addr.ghnProvinceId)?.ProvinceName || '';
+                                      setNewAddress((prev) => ({ ...prev, province: provinceName }));
+                                      if (addr.ghnProvinceId) {
+                                        loadDistricts(addr.ghnProvinceId).then((districtData) => {
+                                          const districtName = (districtData || []).find((d) => d.DistrictID === addr.ghnDistrictId)?.DistrictName || '';
+                                          setNewAddress((prev) => ({ ...prev, district: districtName }));
+                                          if (addr.ghnDistrictId) {
+                                            loadWards(addr.ghnDistrictId).then((wardData) => {
+                                              const wardName = (wardData || []).find((w) => w.WardCode === addr.ghnWardCode)?.WardName || '';
+                                              setNewAddress((prev) => ({ ...prev, ward: wardName }));
+                                            });
+                                          }
+                                        });
+                                      }
+                                    });
+                                  }}
+                                >
+                                  Xem / Sửa
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-sm font-semibold text-red-500 hover:underline disabled:opacity-50"
+                                  onClick={() => {
+                                    if (!addr.id) return;
+                                    setDeleteAddressId(addr.id);
+                                  }}
+                                >
+                                    Xóa
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="text-gray-500">Chưa có địa chỉ nào</div>
+                  )}
+
+                  {showAddressForm && (
+                    <div className="mt-2 p-4 border rounded-lg bg-white shadow-sm space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Họ tên người nhận</label>
+                          <input
+                            type="text"
+                            className="w-full border rounded px-3 py-2"
+                            value={newAddress.name}
+                            onChange={(e) => handleAddressFieldChange('name', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Số điện thoại</label>
+                          <input
+                            type="text"
+                            className="w-full border rounded px-3 py-2"
+                            value={newAddress.phone}
+                            onChange={(e) => handleAddressFieldChange('phone', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Tỉnh/Thành phố</label>
+                          <select
+                            className="w-full border rounded px-3 py-2 bg-white"
+                            value={newAddress.provinceId || ''}
+                            onChange={(e) => handleProvinceSelect(e.target.value)}
+                            disabled={loadingProvinces && provinces.length === 0}
+                          >
+                            <option value="">
+                              {loadingProvinces && provinces.length === 0
+                                ? 'Đang tải tỉnh/thành phố...'
+                                : 'Chọn tỉnh/thành phố'}
+                            </option>
+                            {provinces.map((province) => (
+                              <option key={province.ProvinceID} value={province.ProvinceID}>
+                                {province.ProvinceName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Quận/Huyện</label>
+                          <select
+                            className="w-full border rounded px-3 py-2 bg-white"
+                            value={newAddress.districtId || ''}
+                            onChange={(e) => handleDistrictSelect(e.target.value)}
+                            disabled={!newAddress.provinceId || loadingDistricts}
+                          >
+                            <option value="">
+                              {!newAddress.provinceId
+                                ? 'Vui lòng chọn tỉnh/thành phố trước'
+                                : loadingDistricts
+                                  ? 'Đang tải quận/huyện...'
+                                  : 'Chọn quận/huyện'}
+                            </option>
+                            {districts.map((district) => (
+                              <option key={district.DistrictID} value={district.DistrictID}>
+                                {district.DistrictName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Phường/Xã</label>
+                          <select
+                            className="w-full border rounded px-3 py-2 bg-white"
+                            value={newAddress.wardCode || ''}
+                            onChange={(e) => handleWardSelect(e.target.value)}
+                            disabled={!newAddress.districtId || loadingWards}
+                          >
+                            <option value="">
+                              {!newAddress.districtId
+                                ? 'Vui lòng chọn quận/huyện trước'
+                                : loadingWards
+                                  ? 'Đang tải phường/xã...'
+                                  : 'Chọn phường/xã'}
+                            </option>
+                            {wards.map((ward) => (
+                              <option key={ward.WardCode} value={ward.WardCode}>
+                                {ward.WardName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết</label>
+                          <input
+                            type="text"
+                            className="w-full border rounded px-3 py-2"
+                      value={newAddress.detailAddress}
+                      onChange={(e) => handleAddressFieldChange('detailAddress', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết 2 (nếu có)</label>
+                    <input
+                      type="text"
+                      className="w-full border rounded px-3 py-2"
+                      value={newAddress.detailAddress2}
+                      onChange={(e) => handleAddressFieldChange('detailAddress2', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="address-default"
+                    checked={
+                      Boolean(newAddress.isDefault)
+                      || (!profile?.addresses?.length && !editingAddressId)
+                    }
+                    onChange={(e) => handleDefaultToggle(e.target.checked)}
+                  />
+                  <label htmlFor="address-default" className="text-sm">Đặt làm địa chỉ mặc định</label>
+                </div>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          className="px-4 py-2 rounded border"
+                          onClick={handleToggleAddressForm}
+                          disabled={savingAddress}
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="button"
+                          className="px-4 py-2 rounded bg-[#9e211f] text-white font-semibold"
+                          onClick={handleAddAddress}
+                          disabled={savingAddress}
+                        >
+                          {savingAddress ? 'Đang lưu...' : 'Lưu địa chỉ'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block mb-2 font-medium">Tên</label>
@@ -467,6 +952,59 @@ function ProfileSection() {
               alt="User Avatar Full Size"
               className="max-w-full max-h-[85vh] object-contain rounded"
             />
+          </div>
+        </div>
+      )}
+      {deleteAddressId && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">Xoa dia chi</h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600"
+                onClick={() => setDeleteAddressId(null)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-gray-700">
+                Ban co chac muon xoa dia chi nay? Hanh dong nay khong the hoan tac.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                onClick={() => setDeleteAddressId(null)}
+              >
+                Huy
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                onClick={async () => {
+                  try {
+                    await UserService.deleteAddress(deleteAddressId);
+                    toast.success('Xoa dia chi thanh cong');
+                    await refreshUserProfile();
+                  } catch (err) {
+                    console.error('Delete address error:', err);
+                    const message =
+                      err?.response?.data?.message
+                      || err?.message
+                      || 'Khong the xoa dia chi.';
+                    toast.error(message);
+                  } finally {
+                    setDeleteAddressId(null);
+                  }
+                }}
+                
+              >
+                Xoa
+              </button>
+            </div>
           </div>
         </div>
       )}

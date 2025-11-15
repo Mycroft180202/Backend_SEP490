@@ -18,5 +18,95 @@ export const UserService = {
     userCache.set(id, data);
     return data;
   },
-};
 
+  async getAddresses() {
+    const response = await axiosClient.get(API_ENDPOINTS.USERS.ADDRESSES);
+    return Array.isArray(response.data)
+      ? response.data
+      : response.data?.data
+        ?? [];
+  },
+
+  async addAddress(addressData) {
+    if (!addressData) {
+      throw new Error('Missing address payload');
+    }
+
+    const payload = { ...addressData };
+
+    if (payload.ghnProvinceId !== undefined && payload.ghnProvinceId !== null) {
+      const provinceId = Number(payload.ghnProvinceId);
+      payload.ghnProvinceId = Number.isNaN(provinceId) ? undefined : provinceId;
+    }
+
+    if (payload.ghnDistrictId !== undefined && payload.ghnDistrictId !== null) {
+      const districtId = Number(payload.ghnDistrictId);
+      payload.ghnDistrictId = Number.isNaN(districtId) ? undefined : districtId;
+    }
+
+    if (typeof payload.ghnWardCode === 'string') {
+      payload.ghnWardCode = payload.ghnWardCode.trim();
+    }
+
+    const response = await axiosClient.post(API_ENDPOINTS.USERS.ADDRESSES, payload);
+    userCache.clear();
+    return response.data;
+  },
+
+  async updateAddress(id, addressData) {
+    if (!id) {
+      throw new Error('Missing address id');
+    }
+    if (!addressData) {
+      throw new Error('Missing address payload');
+    }
+
+    const payload = { ...addressData };
+
+    if (payload.ghnProvinceId !== undefined && payload.ghnProvinceId !== null) {
+      const provinceId = Number(payload.ghnProvinceId);
+      payload.ghnProvinceId = Number.isNaN(provinceId) ? undefined : provinceId;
+    }
+
+    if (payload.ghnDistrictId !== undefined && payload.ghnDistrictId !== null) {
+      const districtId = Number(payload.ghnDistrictId);
+      payload.ghnDistrictId = Number.isNaN(districtId) ? undefined : districtId;
+    }
+
+    if (typeof payload.ghnWardCode === 'string') {
+      payload.ghnWardCode = payload.ghnWardCode.trim();
+    }
+
+    const response = await axiosClient.put(
+      API_ENDPOINTS.USERS.ADDRESSES,
+      payload,
+      { params: { addressId: id } },
+    );
+    userCache.clear();
+    return response.data;
+  },
+
+  async getAddressById(id) {
+    if (!id) {
+      throw new Error('Missing address id');
+    }
+    const response = await axiosClient.get(API_ENDPOINTS.USERS.ADDRESS_BY_ID(id));
+    return response.data;
+  },
+
+  async deleteAddress(id) {
+    if (!id) {
+      throw new Error('Missing address id');
+    }
+    const response = await axiosClient.delete(
+      API_ENDPOINTS.USERS.ADDRESSES,
+      { params: { addressId: id } },
+    );
+    userCache.clear();
+    return response.data;
+  },
+
+  clearCache() {
+    userCache.clear();
+  },
+};

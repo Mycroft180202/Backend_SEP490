@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: '/users/me',
     DELETE_ACCOUNT: '/users/profile/delete',
     BY_ID: (id) => `/users/${id}`,
+    ADDRESSES: '/users/address',
+    ADDRESS_BY_ID: (id) => `/users/address/${id}`,
   },
 
   PASSWORD: {
