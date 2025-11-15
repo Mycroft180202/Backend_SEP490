@@ -70,8 +70,8 @@ namespace Backend_SEP490.Repositories.impl
                 if (defaultAddress != null)
                 {
                     defaultAddress.IsDefault = false;
-                     _context.Addresses.Update(defaultAddress);
-                    var status = await _context.SaveChangesAsync();
+                    _context.Addresses.Update(defaultAddress);
+                    await _context.SaveChangesAsync();
 
                 }
             }
@@ -103,13 +103,33 @@ namespace Backend_SEP490.Repositories.impl
             try
             {
                 _context.Addresses.Update(address);
-                var status = await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 return "Update Address failed!";
             }
             return "Update Address successfully!";
+        }
+
+        public async Task<Address> GetNewestAddressByUserIdAsync(string userId)
+        {
+            return await _context.Addresses.Where(a => a.UserID == userId && a.IsDefault == false).FirstOrDefaultAsync();
+        }
+
+        public async Task<bool> UpdateAddressAsync(Address address)
+        {
+            try
+            {
+                address.IsDefault = true;
+                _context.Addresses.Update(address);
+                 await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+            return true;
         }
     }
 }

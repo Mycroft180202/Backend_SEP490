@@ -14,8 +14,8 @@ namespace Backend_SEP490.Services.impl
         private string GenerateID(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
         public async Task<string> CreateUserAddressAsync(string userId, RequestCreateAndUpdateAddress request)
         {
+            
             string AddressId = "ADR-" + userId + GenerateID("");
-
             var newAddress = new Address 
             {
                 Id = AddressId,
@@ -33,8 +33,13 @@ namespace Backend_SEP490.Services.impl
                 GhnWardCode = request.GhnWardCode
             };
 
+            
+            //var addressList = await _context.Address.GetAllAddressByUserIdAsync(userId);
+            //if (!addressList.Any()) newAddress.IsDefault = true;
+            
+            
             // Nếu như address mới người dùng để mặc định thì chuyển cả address đang là default thì false
-            if (request.IsDefault)
+            if (request.IsDefault) 
             {
                 var defaultAddress = await _context.Address.GetDefaultAddressAsync(userId);
                 return await _context.Address.CreateAddressAsync(newAddress, defaultAddress);
@@ -44,13 +49,25 @@ namespace Backend_SEP490.Services.impl
            
         }
 
-        public async Task<string> DeleteUserAddressAsync(string addressId)
+        public async Task<string> DeleteUserAddressAsync(string addressId,string userId)
         {
             var address = await _context.Address.GetAddressByIdAsync(addressId);
             if (address == null) return "Address not found!";
+           
+            //Kiểm tra xem nếu như nó là default address thì phải chuyển nó sang address mới nhất làm default address
+            var defaultAddress = await _context.Address.GetDefaultAddressAsync(userId);
+            if(defaultAddress.Id.Equals(address.Id))
+            {
+                defaultAddress = await _context.Address.GetNewestAddressByUserIdAsync(userId);
+                if(defaultAddress != null)
+                {
+                    var changeDefaultStatus = await _context.Address.UpdateAddressAsync(defaultAddress);
+                    if (changeDefaultStatus) return "Update new default address failed!";
+                }
+               
+            }
 
-            var status = await _context.Address.DeleteAddressAsync(address);
-            return status;
+            return await _context.Address.DeleteAddressAsync(address);
         }
 
         public async Task<IEnumerable<ResponseDTOAddress>> GetAllAddressByUserIdAsync(string userId)

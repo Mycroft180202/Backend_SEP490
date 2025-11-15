@@ -132,7 +132,8 @@ namespace Backend_SEP490.Controllers
         [HttpDelete("users/address")]
         public async Task<IActionResult> DeleteUsersAddress([FromQuery] string addressId)
         {
-            var status = await _addressServices.DeleteUserAddressAsync(addressId);
+            var userId = User.FindFirstValue("userID");
+            var status = await _addressServices.DeleteUserAddressAsync(addressId,userId);
             return Ok(status);
         }
 
