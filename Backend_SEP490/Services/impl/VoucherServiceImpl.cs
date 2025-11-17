@@ -21,24 +21,26 @@ namespace Backend_SEP490.Services.impl
         {
             var isExist = await _context.Voucher.GetVoucherByCodeAsync(request.Code);
             if (isExist != null) return "Voucher Code is already exist!";
+
+
             Voucher voucher = new Voucher 
-            {
+            {   
                 Code = request.Code,
                 Description = request.Description,
                 DiscountType = request.DiscountType,
                 DiscountValue = request.DiscountValue,
                 MinOrderAmount = request.MinOrderAmount,
                 MaxDiscountAmount = request.MaxDiscountAmount,
-                StartDate = request.StartDate,
-                EndDate = request.EndDate,
+                StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
+                EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
                 UsageLimit = request.UsageLimit,
-                UsedCount = request.UsedCount,
+                UsedCount = 0,
                 IsActive = request.IsActive,
                 CreatedDate = DateTime.UtcNow,
                 CreatedById = userId,
                 UpdatedDate = DateTime.UtcNow,
             };
-
+            
             var status = await _context.Voucher.CreateVoucherAsync(voucher);
             if (status.Contains("success", StringComparison.OrdinalIgnoreCase))
             {
@@ -47,7 +49,7 @@ namespace Backend_SEP490.Services.impl
             return status;
         }
 
-        public async Task<string> DeleteVoucherAsync(string voucherId)
+        public async Task<string> DeleteVoucherAsync(int voucherId)
         {
            var voucher = await _context.Voucher.GetVoucherByIdAsync(voucherId);
             if (voucher == null)
@@ -76,13 +78,13 @@ namespace Backend_SEP490.Services.impl
                 };
         }
 
-        public async Task<ResponseDTOVoucher> GetVoucherByIdAsync(string voucherId)
+        public async Task<ResponseDTOVoucher> GetVoucherByIdAsync(int voucherId)
         {
             var voucher = await _context.Voucher.GetVoucherByIdAsync(voucherId);
             return _mapper.Map<ResponseDTOVoucher>(voucher);
         }
 
-        public async Task<string> UpdateVoucherAsync(string voucherId, RequestUpdateVoucher request)
+        public async Task<string> UpdateVoucherAsync(int voucherId, RequestUpdateVoucher request)
         {
             var voucher = await _context.Voucher.GetVoucherByIdAsync(voucherId);
             if (voucher == null) return "Voucher not found!";

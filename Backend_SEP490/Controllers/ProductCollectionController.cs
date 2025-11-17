@@ -38,12 +38,29 @@ public class ProductCollectionController: ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
+        if (dto.ImageFile != null) 
+        {
+            var ext = Path.GetExtension(dto.ImageFile.FileName).ToLower();
+            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+            if (!allowed.Contains(ext))
+            {
+                return BadRequest("Chỉ chấp nhận file ảnh có định dạng jpg, jpeg, png hoặc webp");
+            }
+        }
         var userid= User.FindFirstValue("UserID");
         dto.CreatedById = userid;
-        var result= _productCollectionServices.CreateAsync(dto);
+        var result= await _productCollectionServices.CreateAsync(dto);
+        if(result == null)
+        {
+            return Ok(new
+            {
+                message = "Created ProductCollection failed!"
+            });
+        }
         return Ok(new
         {
-            message = "Created ProductCollection successfully",
+            message = "Created ProductCollection successfully"
         });
     }
     [Authorize(Roles = "Admin,Artisan")] 

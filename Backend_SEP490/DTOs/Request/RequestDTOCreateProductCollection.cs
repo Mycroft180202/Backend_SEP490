@@ -16,7 +16,7 @@ namespace Backend_SEP490.DTOs.Request
         [StringLength(1000, ErrorMessage = "Nội dung mô tả không được vượt quá 1000 ký tự")]
         public string? Content { get; set; }
 
-        [FileExtensions(Extensions = "jpg,jpeg,png,webp", ErrorMessage = "Chỉ chấp nhận file ảnh có định dạng jpg, jpeg, png hoặc webp")]
+        [Required]
         public IFormFile? ImageFile { get; set; }
 
         [MinLength(1, ErrorMessage = "Phải chọn ít nhất 1 sản phẩm trong bộ sưu tập")]

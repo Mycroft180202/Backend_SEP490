@@ -5,6 +5,7 @@ using Backend_SEP490.Repositories;
 using Backend_SEP490.Repositories.impl;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using System;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -34,14 +35,28 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
 
     public async Task<ProductCollection> CreateAsync(RequestDTOCreateProductCollection dto)
     {
-        using var stream = dto.ImageFile.OpenReadStream();
-        var uploadParams = new ImageUploadParams
+        string url = "";
+        try
         {
-            File = new FileDescription(dto.ImageFile.FileName, stream)
-        };
+            if (dto.ImageFile != null)
+            {
+                using var stream = dto.ImageFile.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(dto.ImageFile.FileName, stream)
+                };
 
-        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-        
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                url = uploadResult.SecureUrl.ToString();
+            }
+        }
+       
+        catch (Exception ex)
+        {
+            return null;
+        }
+
+
 
         // Tạo entity mới
         var entity = new ProductCollection
@@ -49,7 +64,7 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
             Title = dto.Title,
             Headline = dto.Headline,
             Content = dto.Content,
-            Image = uploadResult.SecureUrl.ToString(),
+            Image = url,
             CreatedDate = DateTime.UtcNow,
             CreatedById = dto.CreatedById,
             IsActive = true
@@ -57,8 +72,16 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
 
         if (dto.ProductIds != null && dto.ProductIds.Any())
         {
-            var products = await _context.ProductCollections.GetProductsByIdsAsync(dto.ProductIds);
-            entity.ProductCollectionItems = products;
+            try
+            {
+                var products = await _context.ProductCollections.GetProductsByIdsAsync(dto.ProductIds);
+                entity.ProductCollectionItems = products;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+           
         }
 
         await _context.ProductCollections.AddAsync(entity);

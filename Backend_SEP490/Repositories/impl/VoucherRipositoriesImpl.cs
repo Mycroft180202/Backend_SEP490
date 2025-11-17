@@ -50,7 +50,7 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.Vouchers.Where( v => v.Code.Equals(code) ).FirstOrDefaultAsync();
         }
 
-        public async Task<Voucher> GetVoucherByIdAsync(string voucherId)
+        public async Task<Voucher> GetVoucherByIdAsync(int voucherId)
         {
             return await _context.Vouchers.Where( v => v.VoucherId.Equals(voucherId) ).FirstOrDefaultAsync();
         }

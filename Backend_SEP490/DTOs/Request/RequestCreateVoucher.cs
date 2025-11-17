@@ -37,14 +37,8 @@ namespace Backend_SEP490.DTOs.Request
 
         [Range(1, int.MaxValue, ErrorMessage = "Giới hạn sử dụng phải lớn hơn 0")]
         public int? UsageLimit { get; set; }
-
-        [Range(0, int.MaxValue, ErrorMessage = "Số lượng đã sử dụng không hợp lệ")]
-        public int UsedCount { get; set; } = 0;
-
         public bool IsActive { get; set; } = true;
 
-        [StringLength(50, ErrorMessage = "Mã người tạo không được vượt quá 50 ký tự")]
-        public string? CreatedById { get; set; }
     }
     public class DateGreaterThanAttribute : ValidationAttribute
     {

@@ -17,8 +17,8 @@ public class VoucherController : ControllerBase
         _voucherService = voucherService;
     }
 
-    [HttpGet("voucher/{pageIndex}/{pageSize}")]
-    public async Task<IActionResult> GetAllVoucher([FromRoute] int pageIndex, [FromRoute] int pageSize)
+    [HttpGet("voucher")]
+    public async Task<IActionResult> GetAllVoucher([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
     {
         var vouchers = await _voucherService.GetAllVoucherAsync(pageIndex, pageSize);
         if (vouchers == null) return NotFound();
@@ -27,7 +27,7 @@ public class VoucherController : ControllerBase
 
 
     [HttpGet("voucher/{voucherId}")]
-    public async Task<IActionResult> GetVoucherById([FromRoute] string voucherId)
+    public async Task<IActionResult> GetVoucherById([FromRoute] int voucherId)
     {
         var vouchers = await _voucherService.GetVoucherByIdAsync(voucherId);
         if (vouchers == null) return NotFound();
@@ -47,7 +47,7 @@ public class VoucherController : ControllerBase
 
 
     [HttpPut("voucher/{voucherId}")]
-    public async Task<IActionResult> UpdateVoucher([FromRoute] string voucherId, [FromBody] RequestUpdateVoucher request)
+    public async Task<IActionResult> UpdateVoucher([FromRoute] int voucherId, [FromBody] RequestUpdateVoucher request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -57,7 +57,7 @@ public class VoucherController : ControllerBase
 
 
     [HttpDelete("voucher/{voucherId}")]
-    public async Task<IActionResult> CreateVoucher([FromRoute] string voucherId)
+    public async Task<IActionResult> CreateVoucher([FromRoute] int voucherId)
     {
         var status = await _voucherService.DeleteVoucherAsync(voucherId);
         return Ok(status);
