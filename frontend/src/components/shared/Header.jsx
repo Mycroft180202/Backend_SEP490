@@ -1,9 +1,15 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 import { FaBell, FaShoppingCart, FaSearch } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 import { NotificationService } from '../../services/modules/notification/notificationService';
+import { NotificationHub } from '../../services/modules/notification/notificationHub';
 
 const Header = () => {
   const { userInfo } = useContext(UserContext);
@@ -37,7 +43,7 @@ const Header = () => {
       }).format(date);
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!userInfo) return;
     try {
       setNotifLoading(true);
@@ -50,13 +56,57 @@ const Header = () => {
     } finally {
       setNotifLoading(false);
     }
-  };
+  }, [userInfo]);
 
   useEffect(() => {
     if (isNotificationVisible) {
       fetchNotifications();
     }
-  }, [isNotificationVisible]);
+  }, [isNotificationVisible, fetchNotifications]);
+
+  useEffect(() => {
+    let cleanup = () => {};
+    let isMounted = true;
+
+    const setupHub = async () => {
+      if (!userInfo) {
+        await NotificationHub.stop();
+        return;
+      }
+
+      try {
+        const connection = await NotificationHub.ensureConnected();
+        if (!isMounted) return;
+
+        const handleReceive = (payload) => {
+          setNotifications((prev) => [payload, ...prev].slice(0, 20));
+          setUnreadCount((prev) => prev + (payload?.isRead ? 0 : 1));
+        };
+        const handleReconnected = () => fetchNotifications();
+
+        connection.on('ReceiveNotification', handleReceive);
+        connection.onreconnected(handleReconnected);
+
+        if (connection.state === 'Connected') {
+          fetchNotifications();
+        }
+
+        cleanup = () => {
+          connection.off('ReceiveNotification', handleReceive);
+          connection.off('reconnected', handleReconnected);
+        };
+      } catch (err) {
+        console.error('Notification hub init error:', err);
+      }
+    };
+
+    setupHub();
+
+    return () => {
+      isMounted = false;
+      cleanup();
+    };
+  }, [userInfo, fetchNotifications]);
 
   const markAsRead = async (id) => {
     if (!id) return;
