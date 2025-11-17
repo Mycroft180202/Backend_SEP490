@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -18,6 +18,7 @@ import {
 import { LanguageContext } from '../../context/LanguageContext';
 import { UserContext } from '../../context/UserContext';
 import { CartService } from '../../services/modules/cart/cartService';
+import { WishlistService } from '../../services/modules/wishlist/wishlistService';
 
 const ShortDescription = ({ product }) => {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -27,16 +28,7 @@ const ShortDescription = ({ product }) => {
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
   const navigate = useNavigate();
-
-  if (!product) return null;
-
-  const images = product.images && product.images.length > 0
-    ? product.images
-    : ['/images/default-product.png'];
-
-  const mainImage = images[selectedImage] || images[0];
-  const thumbnailsPerPage = 4;
-  const maxThumbnailStart = Math.max(0, images.length - thumbnailsPerPage);
+  const [wishItemId, setWishItemId] = useState(null);
 
   const renderStars = (rating) => {
     const stars = [];
@@ -76,6 +68,34 @@ const ShortDescription = ({ product }) => {
     return false;
   };
 
+  useEffect(() => {
+    const fetchWishlistState = async () => {
+      try {
+        if (!product?.id) return;
+        const res = await WishlistService.getList(1, 100);
+        const items = res?.items || res?.Items || [];
+        const found = items.find((i) => (i.productId || i.product?.id) === product.id);
+        if (found) {
+          setIsFavorite(true);
+          setWishItemId(found.wishListItemId || found.id);
+        }
+      } catch (err) {
+        console.error('Load wishlist state error:', err);
+      }
+    };
+    fetchWishlistState();
+  }, [product]);
+
+  if (!product) return null;
+
+  const images = product.images && product.images.length > 0
+    ? product.images
+    : ['/images/default-product.png'];
+
+  const mainImage = images[selectedImage] || images[0];
+  const thumbnailsPerPage = 4;
+  const maxThumbnailStart = Math.max(0, images.length - thumbnailsPerPage);
+
   const handleAddToCart = async (redirect = false) => {
     if (!ensureAuthenticated()) return;
     try {
@@ -111,8 +131,28 @@ const ShortDescription = ({ product }) => {
     setThumbnailStart((prev) => Math.min(maxThumbnailStart, prev + thumbnailsPerPage));
   };
 
-  const handleToggleFavorite = () => {
-    setIsFavorite((prev) => !prev);
+  const handleToggleFavorite = async () => {
+    if (!ensureAuthenticated()) return;
+    try {
+      if (isFavorite && wishItemId) {
+        await WishlistService.remove(wishItemId);
+        setIsFavorite(false);
+        setWishItemId(null);
+        toast.success(t('productCard.removedFromWishlist') || 'Đã xoá khỏi yêu thích');
+      } else {
+        await WishlistService.add(product.id);
+        setIsFavorite(true);
+        toast.success(t('productCard.addedToWishlist') || 'Đã thêm vào yêu thích');
+        // Reload to capture id
+        const res = await WishlistService.getList(1, 50);
+        const items = res?.items || res?.Items || [];
+        const found = items.find((i) => (i.productId || i.product?.id) === product.id);
+        if (found) setWishItemId(found.wishListItemId || found.id);
+      }
+    } catch (err) {
+      console.error('Toggle favorite error:', err);
+      toast.error(err?.response?.data?.message || 'Không thể cập nhật yêu thích.');
+    }
   };
 
   return (
@@ -202,9 +242,11 @@ const ShortDescription = ({ product }) => {
                   <FaStore />
                   {product?.artisanName || 'Hoa Lac Handicraft'}
                 </div>
-                <h1 className="mt-3 text-2xl md:text-3xl font-bold text-[#8B4513] leading-snug">
-                  {product.name}
-                </h1>
+                <div className="flex items-start gap-3">
+                  <h1 className="mt-3 text-2xl md:text-3xl font-bold text-[#8B4513] leading-snug flex-1">
+                    {product.name}
+                  </h1>
+                </div>
                 <div className="mt-2 flex items-center gap-3">
                   <div className="flex items-center gap-1 text-lg text-yellow-400">
                     {renderStars(product.rating || 0)}
@@ -223,12 +265,15 @@ const ShortDescription = ({ product }) => {
                 <button
                   type="button"
                   onClick={handleToggleFavorite}
-                  className="p-3 hover:bg-[#D4A574]/20 rounded-full transition-all duration-300 border border-[#D4A574]/30"
+                  className={`p-3 relative bg-white rounded-full transition-all duration-300 border border-[#D4A574]/50 shadow hover:bg-[#D4A574]/20 hover:scale-105 ${isFavorite ? 'ring-2 ring-red-200' : ''}`}
                 >
+                  {isFavorite && (
+                    <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+                  )}
                   {isFavorite ? (
-                    <FaHeart className="text-red-500" size={20} />
+                    <FaHeart className="text-red-500 relative" size={20} />
                   ) : (
-                    <FaRegHeart className="text-red-600" size={20} />
+                    <FaRegHeart className="text-red-600 relative" size={20} />
                   )}
                 </button>
                 <button

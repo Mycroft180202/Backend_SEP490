@@ -22,6 +22,7 @@ import ReportManagement from './ReportManagement';
 import BlogManagement from './BlogManagement';
 import SettingsManagement from './SettingsManagement';
 import VoucherManagement from './VoucherManagement';
+import ProductCollectionManagement from './ProductCollectionManagement';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -69,6 +70,7 @@ const menuItems = [
     { id: 'orders', icon: FaClipboardList, label: 'Đơn hàng', path: '/admin/orders' },
     { id: 'customers', icon: FaUsersCog, label: 'Khách hàng', path: '/admin/customers' },
     { id: 'vouchers', icon: FaTicketAlt, label: 'Voucher', path: '/admin/vouchers' },
+    { id: 'collections', icon: FaTicketAlt, label: 'Bộ sưu tập', path: '/admin/collections' },
     { id: 'reports', icon: FaChartBar, label: 'Báo cáo & Khiếu nại', path: '/admin/reports' },
     { id: 'blog', icon: FaBlog, label: 'Blog', path: '/admin/blog' },
     { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/admin/settings' },
@@ -169,6 +171,8 @@ const menuItems = [
           {activeTab === 'customers' && <CustomerManagement />}
           
           {activeTab === 'vouchers' && <VoucherManagement />}
+
+          {activeTab === 'collections' && <ProductCollectionManagement />}
 
           {activeTab === 'sellers' && <SellerManagement />}
 

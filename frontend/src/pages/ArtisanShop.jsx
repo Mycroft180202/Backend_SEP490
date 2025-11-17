@@ -1,10 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
 import Banner from '../components/artisanShop/Banner';
 import { ProductService } from '../services/modules/products/productService';
+import { ShopService } from '../services/modules/shop/shopService';
 import Pagination from '../components/shared/Pagination';
 import ProductCard from '../components/shared/ProductCard';
 import FilterSection from '../components/artisanShop/FilterSection';
@@ -16,6 +17,10 @@ const ArtisanShop = () => {
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const externalArtisanId = searchParams.get('artisanId');
+  const externalState = location.state || {};
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,7 @@ const ArtisanShop = () => {
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize] = useState(12);
   const [totalPages, setTotalPages] = useState(0);
+  const [shopInfo, setShopInfo] = useState(null);
 
   const ensureAuthenticated = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -65,8 +71,13 @@ const ArtisanShop = () => {
     const fetchProducts = async () => {
       try {
         if (!isMounted) return;
+        if (!shopInfo?.artisanId) {
+          // Chưa có thông tin shop => chờ shopInfo
+          return;
+        }
         setLoading(true);
-        const response = await ProductService.getAllProducts({ pageIndex, pageSize });
+        const params = { pageIndex, pageSize, artisanId: shopInfo.artisanId };
+        const response = await ProductService.getAllProducts(params);
         if (!isMounted) return;
         setProducts(response.items || []);
         setTotalPages(
@@ -89,7 +100,44 @@ const ArtisanShop = () => {
     return () => {
       isMounted = false;
     };
-  }, [pageIndex, pageSize]);
+  }, [pageIndex, pageSize, shopInfo?.artisanId]);
+
+  useEffect(() => {
+    const loadShop = async () => {
+      try {
+        if (externalArtisanId) {
+          setShopInfo({
+            title: externalState.shopName || externalState.author || 'Gian hàng',
+            author: externalState.author,
+            subtitle: externalState.subtitle,
+            rating: externalState.rating,
+            phone: externalState.phone,
+            image: externalState.image,
+            address: externalState.address,
+            artisanId: externalArtisanId,
+          });
+          setPageIndex(1);
+          return;
+        }
+        const res = await ShopService.getMyShop();
+        const addr = Array.isArray(res?.addresses) ? res.addresses.find((a) => a.isDefault) : null;
+        setShopInfo({
+          title: res?.shopName,
+          author: res?.displayName,
+          subtitle: res?.bio,
+          rating: res?.rating,
+          phone: res?.phoneNumber,
+          image: res?.shopUrlImage,
+          address: addr?.city || addr?.line1 || '',
+          artisanId: res?.userID || res?.userId,
+        });
+        setPageIndex(1); // reset page when shop changes
+      } catch (err) {
+        console.error('Load my shop error:', err);
+      }
+    };
+    loadShop();
+  }, [externalArtisanId, externalState]);
 
   const handlePageChange = (idx) => {
     setLoading(true);
@@ -103,7 +151,15 @@ const ArtisanShop = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <Banner />
+      <Banner
+        title={shopInfo?.title}
+        author={shopInfo?.author}
+        subtitle={shopInfo?.subtitle || ''}
+        rating={shopInfo?.rating}
+        address={shopInfo?.address}
+        image={shopInfo?.image}
+        phone={shopInfo?.phone}
+      />
       <FilterSection />
       <main className="max-w-screen-xl mx-auto px-6 md:px-8 py-12">
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -114,14 +170,15 @@ const ArtisanShop = () => {
               {t('shop.empty')}
             </div>
           ) : (
-            products.map((product) => (
-              <ProductCard
-                key={product.id}
-                image={product.imageUrl || '/images/default-product.png'}
-                title={product.name}
-                shortDescription={product.shortDescription}
-                price={product.price}
-                rating={product.rating || 0}
+              products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  productId={product.id}
+                  image={product.imageUrl || '/images/default-product.png'}
+                  title={product.name}
+                  shortDescription={product.shortDescription}
+                  price={product.price}
+                  rating={product.rating || 0}
                 onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}
                 onBuyNow={() => handleBuyNow(product.id, product.price ?? 0)}
                 onClick={() => navigate(`/product-detail/${product.id}`)}

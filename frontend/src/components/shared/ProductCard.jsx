@@ -2,8 +2,10 @@ import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { FaStar, FaStarHalfAlt, FaRegStar, FaShoppingCart, FaBolt } from 'react-icons/fa';
+import { FaStar, FaStarHalfAlt, FaRegStar, FaShoppingCart, FaBolt, FaHeart, FaRegHeart } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
+import { WishlistService } from '../../services/modules/wishlist/wishlistService';
+import { toast } from 'react-toastify';
 
 const renderStars = (ratingValue) => {
   const rating = Number(ratingValue) || 0;
@@ -48,6 +50,9 @@ const ProductCard = ({
   onAddToCart,
   onBuyNow,
   onClick,
+  onToggleWishlist,
+  isWished = false,
+  productId,
 }) => {
   const { t } = useContext(LanguageContext);
   const priceSuffix = t('productCard.priceSuffix');
@@ -63,6 +68,26 @@ const ProductCard = ({
     event.stopPropagation();
     if (onBuyNow) {
       onBuyNow();
+    }
+  };
+
+  const handleWishlist = async (event) => {
+    event.stopPropagation();
+    if (onToggleWishlist) {
+      onToggleWishlist();
+      return;
+    }
+    if (!productId) return;
+    try {
+      await WishlistService.add(productId);
+      toast.success(t('productCard.addedToWishlist') || 'Đã thêm vào yêu thích');
+    } catch (err) {
+      console.error('Add wishlist error:', err);
+      toast.error(
+        err?.response?.data?.message
+        || err?.message
+        || 'Không thể thêm vào yêu thích.',
+      );
     }
   };
 
@@ -92,11 +117,25 @@ const ProductCard = ({
           }
         }}
       >
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-[320px] object-cover rounded-xl"
-        />
+        <div className="relative">
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-[320px] object-cover rounded-xl"
+          />
+          {(onToggleWishlist || productId) && (
+            <button
+              type="button"
+              onClick={handleWishlist}
+              className={`absolute top-3 right-3 bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-red-300' : ''}`}
+            >
+              {isWished && (
+                <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+              )}
+              {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
+            </button>
+          )}
+        </div>
         <div className="flex flex-col gap-2">
           <h3 className="font-nunito text-lg font-medium text-black line-clamp-2 min-h-[56px]">
             {title}
@@ -214,6 +253,18 @@ const ProductCard = ({
           alt={title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
+        {(onToggleWishlist || productId) && (
+          <button
+            type="button"
+            onClick={handleWishlist}
+            className={`absolute top-3 right-3 bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-red-300' : ''}`}
+          >
+            {isWished && (
+              <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+            )}
+            {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
+          </button>
+        )}
       </div>
 
       <div className="p-4 bg-gradient-to-b from-white to-[#FFFBF0]">
@@ -280,6 +331,9 @@ ProductCard.propTypes = {
   onAddToCart: PropTypes.func,
   onBuyNow: PropTypes.func,
   onClick: PropTypes.func,
+  onToggleWishlist: PropTypes.func,
+  isWished: PropTypes.bool,
+  productId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 export default ProductCard;

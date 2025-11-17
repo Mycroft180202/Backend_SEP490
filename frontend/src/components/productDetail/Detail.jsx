@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaList, FaComments, FaTag, FaStar, FaBoxOpen } from 'react-icons/fa';
 
 const Detail = ({ product, categoryName }) => {
   const [tab, setTab] = useState('description');
+  const navigate = useNavigate();
 
   if (!product) return null;
 
@@ -26,7 +28,23 @@ const Detail = ({ product, categoryName }) => {
               {product.shopName || product.displayName}
             </p>
           </div>
-          <button className="px-4 py-2 bg-gradient-to-r from-[#D4A574] to-[#8B4513] text-white rounded-lg hover:from-[#8B4513] hover:to-[#D4A574] transition-all font-medium shadow-md text-sm">
+          <button
+            type="button"
+            onClick={() => {
+              if (!product?.artisanId) return;
+              navigate(`/artisan-shop?artisanId=${product.artisanId}`, {
+                state: {
+                  artisanId: product.artisanId,
+                  shopName: product.shopName || product.displayName,
+                  image: product.userUrlImage,
+                  author: product.displayName,
+                  phone: product.phoneNumber,
+                  address: product.address,
+                },
+              });
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-[#D4A574] to-[#8B4513] text-white rounded-lg hover:from-[#8B4513] hover:to-[#D4A574] transition-all font-medium shadow-md text-sm"
+          >
             Xem Shop →
           </button>
         </div>

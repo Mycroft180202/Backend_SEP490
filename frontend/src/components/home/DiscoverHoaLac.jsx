@@ -1,82 +1,84 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Pagination from '../shared/Pagination';
+import { BlogService } from '../../services/modules/blog/blogService';
+
+const PAGE_SIZE = 4;
 
 const NewsCard = ({ image, date, title }) => {
   return (
-    <div className="flex flex-col gap-6 w-full max-w-[368px]">
-      <img 
-        src={image} 
+    <div className="flex flex-col gap-4 w-full bg-white rounded-xl border border-[#D4A574]/30 shadow hover:shadow-lg transition overflow-hidden">
+      <img
+        src={image}
         alt={title}
-        className="w-full h-[240px] object-cover rounded-xl" 
+        className="w-full h-[200px] object-cover"
       />
-      <div className="flex flex-col gap-0.5">
-        <span className="font-nunito text-base text-text-gray">{date}</span>
-        <h3 className="font-nunito text-lg font-medium text-black">{title}</h3>
+      <div className="px-4 pb-4 flex flex-col gap-1">
+        <span className="font-nunito text-xs text-[#9e211f] font-semibold">{date}</span>
+        <h3 className="font-nunito text-lg font-semibold text-gray-800 line-clamp-2">{title}</h3>
       </div>
     </div>
   );
 };
 
 const DiscoverHoaLac = () => {
-  const news = [
-    {
-      image: 'https://api.builder.io/api/v1/image/assets/TEMP/b3a2f72f8d9e8f722f0428b8a8fb2fa9e0780415?width=736',
-      date: '22-09-2025',
-      title: 'Chuồn chuồn tre được tạo ra như thế nào?'
-    },
-    {
-      image: 'https://api.builder.io/api/v1/image/assets/TEMP/f19fbb4692615d2bea7f4e06362315b97565e15c?width=736',
-      date: '22-09-2025',
-      title: 'Chuồn chuồn tre được tạo ra như thế nào?'
-    },
-    {
-      image: 'https://api.builder.io/api/v1/image/assets/TEMP/80256db7d9d5610b6d063ef99a0f760812fa4f54?width=736',
-      date: '22-09-2025',
-      title: 'Chuồn chuồn tre được tạo ra như thế nào?'
-    }
-  ];
+  const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pageIndex, setPageIndex] = useState(1);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await BlogService.getAll({ pageIndex: 1, pageSize: 20 });
+        const items = res?.items || [];
+        const published = items.filter((b) => (b.postStatus || '').toLowerCase() === 'published');
+        setBlogs(published);
+      } catch (err) {
+        console.error('Load blogs error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(blogs.length / PAGE_SIZE));
+  const display = useMemo(
+    () => blogs.slice((pageIndex - 1) * PAGE_SIZE, (pageIndex - 1) * PAGE_SIZE + PAGE_SIZE),
+    [blogs, pageIndex],
+  );
 
   return (
-    <>
-      <section className="w-full py-[60px] px-36 bg-background">
-        <div className="max-w-[1440px] mx-auto">
-          <h2 className="font-alata text-4xl text-primary leading-[56px] mb-10">
-            Khám phá Hòa Lạc
-          </h2>
+    <section className="w-full py-[60px] px-4 md:px-10 lg:px-24 bg-background">
+      <div className="max-w-[1440px] mx-auto">
+        <h2 className="font-alata text-3xl md:text-4xl text-primary leading-[56px] mb-10">
+          Khám phá Hòa Lạc
+        </h2>
 
-          <div className="flex flex-col items-center gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-              {news.map((item, index) => (
-                <NewsCard 
-                  key={index}
-                  {...item}
+        <div className="flex flex-col items-center gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+            {loading
+              ? Array.from({ length: PAGE_SIZE }).map((_, idx) => (
+                <div key={idx} className="h-[260px] bg-white rounded-xl shadow animate-pulse" />
+              ))
+              : display.map((item) => (
+                <NewsCard
+                  key={item.id || item.blogId}
+                  image={item.image || '/images/default-product.png'}
+                  date={new Date(item.updateAt || item.createAt || Date.now()).toLocaleDateString('vi-VN')}
+                  title={item.title}
                 />
               ))}
-            </div>
-            
-            <div className="flex justify-center items-center gap-5 mt-6">
-              <button className="w-6 h-6">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008" stroke="#A0A0A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <div className="flex items-center gap-5">
-                <span className="font-nunito text-lg text-black">1</span>
-                <span className="font-nunito text-lg text-text-light">2</span>
-                <span className="font-nunito text-lg text-text-light">3</span>
-                <span className="font-nunito text-lg text-text-light">...</span>
-                <span className="font-nunito text-lg text-text-light">10</span>
-              </div>
-              <button className="w-6 h-6">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8.91016 19.9201L15.4302 13.4001C16.2002 12.6301 16.2002 11.3701 15.4302 10.6001L8.91016 4.08008" stroke="black" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
           </div>
-        </div>
-      </section>
 
-    </>
+          {blogs.length > PAGE_SIZE && (
+            <div className="mt-4">
+              <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 };
 

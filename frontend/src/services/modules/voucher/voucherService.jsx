@@ -3,7 +3,9 @@ import { API_ENDPOINTS } from '../../api/endpoints';
 
 export const VoucherService = {
   async list(pageIndex = 1, pageSize = 10) {
-    const response = await axiosClient.get(API_ENDPOINTS.VOUCHERS.PAGED(pageIndex, pageSize));
+    const response = await axiosClient.get(API_ENDPOINTS.VOUCHERS.ROOT, {
+      params: { pageIndex, pageSize },
+    });
     return response.data;
   },
 

@@ -20,13 +20,13 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const emptyForm = {
   code: '',
   description: '',
-  discountType: 'percent',
+  discountType: 'Percent',
   discountValue: 0,
   minOrderAmount: 0,
   maxDiscountAmount: 0,
   startDate: '',
   endDate: '',
-  usageLimit: 0,
+  usageLimit: 1,
   usedCount: 0,
   isActive: true,
 };
@@ -61,13 +61,13 @@ const VoucherManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  const voucherIdOf = (item) => item?.id || item?.voucherId || item?.code;
+  const voucherIdOf = (item) => item?.voucherId || item?.id || item?.code;
 
   const loadVouchers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await VoucherService.list(pageIndex, pageSize);
-      const items = response?.items || [];
+      const items = response?.items || response?.Items || [];
       const totalCount = response?.totalCount
         ?? response?.raw?.totalCount
         ?? items.length;
@@ -117,7 +117,7 @@ const VoucherManagement = () => {
     setFormData({
       code: voucher.code || '',
       description: voucher.description || '',
-      discountType: voucher.discountType || 'percent',
+      discountType: voucher.discountType || 'Percent',
       discountValue: voucher.discountValue ?? voucher.value ?? 0,
       minOrderAmount: voucher.minOrderAmount ?? 0,
       maxDiscountAmount: voucher.maxDiscountAmount ?? 0,
@@ -139,13 +139,75 @@ const VoucherManagement = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const normalizeType = (raw) => {
+      if (!raw) return 'Percent';
+      const lower = raw.toString().toLowerCase();
+      if (lower.startsWith('f')) return 'Fixed';
+      if (lower.startsWith('p')) return 'Percent';
+      return raw;
+    };
+
+    const typeNormalized = normalizeType(formData.discountType);
+    const startDateValid = formData.startDate && !Number.isNaN(new Date(formData.startDate).getTime());
+    const endDateValid = formData.endDate && !Number.isNaN(new Date(formData.endDate).getTime());
+
+    if (!formData.code?.trim() || formData.code.trim().length < 4 || formData.code.trim().length > 20) {
+      toast.error('Mã voucher phải từ 4–20 ký tự');
+      return;
+    }
+    if (formData.description && formData.description.length > 200) {
+      toast.error('Mô tả không được vượt quá 200 ký tự');
+      return;
+    }
+    if (!typeNormalized) {
+      toast.error('Loại giảm giá không được để trống');
+      return;
+    }
+    const discountValue = numberOrZero(formData.discountValue);
+    if (discountValue <= 0) {
+      toast.error('Giá trị giảm giá phải lớn hơn 0');
+      return;
+    }
+    const minOrderAmount = numberOrZero(formData.minOrderAmount);
+    if (minOrderAmount < 0) {
+      toast.error('Giá trị đơn hàng tối thiểu không hợp lệ');
+      return;
+    }
+    const maxDiscountAmount = typeNormalized === 'Fixed'
+      ? discountValue
+      : numberOrZero(formData.maxDiscountAmount);
+    if (typeNormalized === 'Percent' && maxDiscountAmount < 0) {
+      toast.error('Giá trị giảm tối đa không hợp lệ');
+      return;
+    }
+    if (!startDateValid) {
+      toast.error('Ngày bắt đầu không được để trống');
+      return;
+    }
+    if (!endDateValid) {
+      toast.error('Ngày kết thúc không được để trống');
+      return;
+    }
+    const startDateObj = new Date(formData.startDate);
+    const endDateObj = new Date(formData.endDate);
+    if (endDateObj <= startDateObj) {
+      toast.error('Ngày kết thúc phải sau ngày bắt đầu');
+      return;
+    }
+    const usageLimit = numberOrZero(formData.usageLimit);
+    if (usageLimit <= 0) {
+      toast.error('Giới hạn sử dụng phải lớn hơn 0');
+      return;
+    }
+
     const payload = {
       ...formData,
-      discountValue: numberOrZero(formData.discountValue),
-      minOrderAmount: numberOrZero(formData.minOrderAmount),
-      maxDiscountAmount: numberOrZero(formData.maxDiscountAmount),
-      usageLimit: numberOrZero(formData.usageLimit),
-      usedCount: numberOrZero(formData.usedCount),
+      discountType: typeNormalized,
+      discountValue,
+      minOrderAmount,
+      maxDiscountAmount,
+      usageLimit,
+      usedCount: 0,
     };
 
     try {
@@ -285,7 +347,8 @@ const VoucherManagement = () => {
             ) : (
               displayedVouchers.map((voucher) => {
                 const id = voucherIdOf(voucher);
-                const isPercent = (voucher.discountType || '').toLowerCase() === 'percent';
+                const typeLower = (voucher.discountType || '').toLowerCase();
+                const isPercent = typeLower === 'percent' || typeLower === 'percentage';
                 return (
                   <tr key={id || voucher.code} className="border-b hover:bg-gray-50 text-sm">
                     <td className="py-3 px-4 font-semibold text-gray-800">{voucher.code || id}</td>
@@ -388,8 +451,8 @@ const VoucherManagement = () => {
                   onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="percent">Percent</option>
                   <option value="Fixed">Fixed</option>
+                  <option value="Percentage">Percentage</option>
                 </select>
               </div>
               <div>
@@ -421,16 +484,18 @@ const VoucherManagement = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Giảm tối đa</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.maxDiscountAmount}
-                  onChange={(e) => setFormData({ ...formData, maxDiscountAmount: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+              {formData.discountType.toLowerCase().startsWith('p') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Giảm tối đa</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.maxDiscountAmount}
+                    onChange={(e) => setFormData({ ...formData, maxDiscountAmount: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu</label>
                 <input
@@ -459,16 +524,7 @@ const VoucherManagement = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Đã dùng</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.usedCount}
-                  onChange={(e) => setFormData({ ...formData, usedCount: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+              {/* usedCount hidden on create, kept in state for update consistency */}
               <div className="flex items-center gap-2 mt-2">
                 <input
                   id="isActive"

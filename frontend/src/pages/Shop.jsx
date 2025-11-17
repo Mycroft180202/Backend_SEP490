@@ -11,6 +11,7 @@ import { ProductService } from '../services/modules/products/productService';
 import { LanguageContext } from '../context/LanguageContext';
 import { CartService } from '../services/modules/cart/cartService';
 import { UserContext } from '../context/UserContext';
+import { WishlistService } from '../services/modules/wishlist/wishlistService';
 
 const Shop = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ const Shop = () => {
   const [searchValue, setSearchValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
+  const [wishlistMap, setWishlistMap] = useState(new Map());
   const ensureAuthenticated = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (token) return true;
@@ -60,6 +62,50 @@ const Shop = () => {
 
   const handleBuyNow = async (productId, price) => {
     await handleAddToCart(productId, price, 1, true);
+  };
+
+  const refreshWishlist = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) {
+      setWishlistMap(new Map());
+      return;
+    }
+    try {
+      const res = await WishlistService.getList(1, 200);
+      const items = res?.items || res?.Items || [];
+      const map = new Map();
+      items.forEach((i) => {
+        const pid = i.productId || i.product?.id;
+        if (pid) {
+          map.set(pid, i.wishListItemId || i.id);
+        }
+      });
+      setWishlistMap(map);
+    } catch (err) {
+      console.error('Load wishlist error:', err);
+    }
+  };
+
+  const toggleWishlist = async (productId) => {
+    try {
+      if (wishlistMap.has(productId)) {
+        const itemId = wishlistMap.get(productId);
+        if (itemId) {
+          await WishlistService.remove(itemId);
+        }
+        const newMap = new Map(wishlistMap);
+        newMap.delete(productId);
+        setWishlistMap(newMap);
+        toast.success('Đã xoá khỏi yêu thích');
+      } else {
+        await WishlistService.add(productId);
+        await refreshWishlist();
+        toast.success('Đã thêm vào yêu thích');
+      }
+    } catch (err) {
+      console.error('Toggle wishlist error:', err);
+      toast.error(err?.response?.data?.message || 'Không thể cập nhật yêu thích.');
+    }
   };
 
   const handleSearchSubmit = () => {
@@ -129,6 +175,14 @@ const Shop = () => {
     };
   }, [pageIndex, pageSize, selectedCategory, searchQuery, sortOption]);
 
+  useEffect(() => {
+    if (userInfo) {
+      refreshWishlist();
+    } else {
+      setWishlistMap(new Map());
+    }
+  }, [userInfo]);
+
   return (
     <div className="bg-gradient-to-b from-[#FFFBF0] to-[#FFF8E7] min-h-screen">
       <Header />
@@ -163,11 +217,14 @@ const Shop = () => {
                 products.map((product) => (
                   <ProductCard
                     key={product.id}
+                    productId={product.id}
                     image={product.imageUrl || '/images/default-product.png'}
                     title={product.name}
                     shortDescription={product.shortDescription}
                     price={product.price}
                     rating={product.rating || 0}
+                    isWished={wishlistMap.has(product.id)}
+                    onToggleWishlist={() => toggleWishlist(product.id)}
                     onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}
                     onBuyNow={() => handleBuyNow(product.id, product.price ?? 0)}
                     onClick={() => navigate(`/product-detail/${product.id}`)}

@@ -18,12 +18,14 @@ import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import OrderHistory from './pages/OrderHistory';
 import OrderTracking from './pages/OrderTracking';
+import CollectionDetail from './pages/CollectionDetail';
 import Blog from './pages/Blog';
 import BlogDetail from './pages/BlogDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
 import Policy from './pages/Policy';
 import CheckOut from './pages/CheckOut';
+import ArtisanDashboard from './components/artisanDashboard/dashboard';
 function App() {
   return (
     <UserProvider>
@@ -49,6 +51,8 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/policy" element={<Policy />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/collections/:id" element={<CollectionDetail />} />
+              <Route path="/artisan-dashboard" element={<ArtisanDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <ToastContainer position="top-right" autoClose={3000} />

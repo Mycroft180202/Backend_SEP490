@@ -26,15 +26,61 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    const errors = [];
+    const usernameTrim = username.trim();
+    if (!usernameTrim || usernameTrim.length < 3 || usernameTrim.length > 30) {
+      errors.push('Tên đăng nhập phải từ 3–30 ký tự');
+    }
+    if (!password || password.length < 6) {
+      errors.push('Mật khẩu phải có ít nhất 6 ký tự');
+    }
     if (password !== confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp', {
-        position: "top-right",
-        autoClose: 3000
-      });
-      setLoading(false);
+      errors.push('Mật khẩu xác nhận không khớp');
+    }
+    const emailTrim = email.trim();
+    if (!emailTrim) {
+      errors.push('Email không hợp lệ');
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrim)) {
+        errors.push('Email không hợp lệ');
+      }
+    }
+
+    if (phoneNumber) {
+      // loại bỏ khoảng trắng và dấu gạch ngang trước khi kiểm tra
+      const phoneTrim = phoneNumber.trim().replace(/[\s-]/g, '');
+      const phoneRegex = /^\+?\d{1,15}$/;
+      if (phoneTrim.length > 15 || !phoneRegex.test(phoneTrim)) {
+        errors.push('Số điện thoại không hợp lệ');
+      }
+    }
+    if (displayName && displayName.length > 50) {
+      errors.push('Tên hiển thị không được dài quá 50 ký tự');
+    }
+    if (dob) {
+      const dobDate = new Date(dob);
+      if (Number.isNaN(dobDate.getTime())) {
+        errors.push('Ngày sinh không hợp lệ');
+      } else {
+        const now = new Date();
+        const oldest = new Date();
+        oldest.setFullYear(oldest.getFullYear() - 120);
+        if (dobDate > now) {
+          errors.push('Ngày sinh không thể ở tương lai');
+        }
+        if (dobDate < oldest) {
+          errors.push('Ngày sinh không hợp lệ');
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      errors.forEach((msg) => toast.error(msg));
       return;
     }
+
+    setLoading(true);
     try {
       // Log để kiểm tra giá trị trước khi gửi
       console.log('Form values:', {

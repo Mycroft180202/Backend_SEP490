@@ -49,7 +49,6 @@ export const API_ENDPOINTS = {
 
   VOUCHERS: {
     ROOT: '/voucher',
-    PAGED: (pageIndex, pageSize) => `/voucher/${pageIndex}/${pageSize}`,
     BY_ID: (id) => `/voucher/${id}`,
   },
 
@@ -59,5 +58,19 @@ export const API_ENDPOINTS = {
     MARK_ALL_READ: '/api/Notification/mark-all-read',
     DELETE: (id) => `/api/Notification/${id}`,
     ADMIN_SEND: '/api/Notification/admin/send',
+  },
+
+  WISHLIST: {
+    ROOT: '/wish-list',
+  },
+
+  PRODUCT_COLLECTION: {
+    ROOT: '/productcollection',
+    BY_ID: (id) => `/productcollection/${id}`,
+  },
+
+  SHOP: {
+    MY_SHOP: '/users/my-shop',
+    UPDATE_MY_SHOP: '/users/my-shop',
   },
 };

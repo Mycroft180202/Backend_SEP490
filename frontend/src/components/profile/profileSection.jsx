@@ -4,6 +4,7 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
+import { useNavigate } from "react-router-dom";
 import { AuthService } from '../../services/modules/auth/authService';
 import { UserService } from '../../services/modules/users/userService';
 import { GHNLocationService } from '../../services/modules/shipping/ghnLocationService';
@@ -24,6 +25,8 @@ import {
   FaPlus,
   FaTimes,
 } from 'react-icons/fa';
+import { WishlistService } from '../../services/modules/wishlist/wishlistService';
+import ProductCard from '../shared/ProductCard';
 import { toast } from 'react-toastify';
 
 const mapUserProfile = (data) => ({
@@ -176,6 +179,9 @@ function ProfileSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('info');
+  const [wishlist, setWishlist] = useState([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [isArtisan, setIsArtisan] = useState(false);
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedProfile, setEditedProfile] = useState(null);
@@ -192,13 +198,30 @@ function ProfileSection() {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
   const fileInputRef = useRef(null);
-
+  const navigate = useNavigate();
   const refreshUserProfile = useCallback(async () => {
     const data = await AuthService.getUserInfo();
     const profileData = mapUserProfile(data);
     setProfile(profileData);
     setEditedProfile(profileData);
+    const roleList = data?.roles || [];
+    const artisan = roleList.some((r) => (r.name || '').toLowerCase() === 'artisan');
+    setIsArtisan(artisan);
     return profileData;
+  }, []);
+
+  const loadWishlist = useCallback(async () => {
+    try {
+      setWishlistLoading(true);
+      const res = await WishlistService.getList(1, 50);
+      const items = res?.items || res?.Items || [];
+      setWishlist(items);
+    } catch (err) {
+      console.error('Load wishlist error:', err);
+      toast.error(err?.response?.data?.message || 'Không thể tải sản phẩm yêu thích.');
+    } finally {
+      setWishlistLoading(false);
+    }
   }, []);
 
   const loadProvinces = useCallback(async () => {
@@ -282,6 +305,12 @@ function ProfileSection() {
     fetchUser();
 
   }, [refreshUserProfile]);
+
+  useEffect(() => {
+    if (activeSection === 'wishlist') {
+      loadWishlist();
+    }
+  }, [activeSection, loadWishlist]);
 
   useEffect(() => {
     loadProvinces();
@@ -577,8 +606,28 @@ function ProfileSection() {
             <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
               <FaHistory /> Lịch sử mua hàng
             </li>
-            <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
+            <li
+              className={`flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f] ${activeSection === 'wishlist' ? 'text-[#9e211f]' : ''}`}
+              onClick={() => {
+                setActiveSection('wishlist');
+                loadWishlist();
+              }}
+            >
               <FaHeart /> Sản phẩm đã thích
+            </li>
+            <li
+              className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]"
+              onClick={() => {
+                if (isArtisan) {
+                  navigate('/artisan-shop');
+                } else {
+                  toast.info('Bạn chưa là người bán, vui lòng đăng ký.');
+                  navigate('/artisan-shop/register');
+                }
+              }}
+            >
+              <FaUserTie />
+              {isArtisan ? 'Cửa hàng của tôi' : 'Đăng ký làm người bán hàng'}
             </li>
             <li
               className={`flex items-center gap-2 cursor-pointer ${activeSection === 'changePassword' ? 'text-[#9e211f]' : 'text-gray-600 hover:text-[#9e211f]'}`}
@@ -929,6 +978,47 @@ function ProfileSection() {
               )}
             </div>
           </>
+        ) : activeSection === 'wishlist' ? (
+          <div>
+            <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Sản phẩm đã thích</h2>
+            {wishlistLoading ? (
+              <p>Đang tải danh sách...</p>
+            ) : wishlist.length === 0 ? (
+              <p className="text-gray-600">Chưa có sản phẩm yêu thích.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {wishlist.map((item, idx) => {
+                  const product = item.product || item;
+                  const id = product.id || product.productId || item.productId || idx;
+                  return (
+                    <ProductCard
+                      key={id}
+                      image={product.imageUrl || product.thumbnail || '/images/default-product.png'}
+                      title={product.name || product.title || 'Sản phẩm'}
+                      shortDescription={product.shortDescription || product.description || ''}
+                      price={Number(product.price) || 0}
+                      rating={product.rating || 0}
+                      shopName={product.shopName || product.displayName || ''}
+                      onClick={() => window.location.assign(`/product-detail/${product.id || product.productId}`)}
+                      onToggleWishlist={async () => {
+                        try {
+                          const wishItemId = item.wishListItemId || item.id;
+                          if (wishItemId) {
+                            await WishlistService.remove(wishItemId);
+                          }
+                          toast.success('Đã xoá khỏi yêu thích');
+                          loadWishlist();
+                        } catch (err) {
+                          toast.error(err?.response?.data?.message || 'Không thể xoá sản phẩm yêu thích.');
+                        }
+                      }}
+                      isWished
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
         ) : (
           <ChangePasswordSection email={profile.email} />
         )}

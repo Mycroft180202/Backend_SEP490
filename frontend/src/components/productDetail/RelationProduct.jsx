@@ -91,6 +91,7 @@ const RelationProduct = ({ categoryId, currentProductId }) => {
             <ProductCard
               key={product.id}
               variant="related"
+              productId={product.id}
               image={product.imageUrl || '/images/default-product.png'}
               title={product.name}
               price={product.price}
