@@ -106,20 +106,50 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
         await _context.ProductCollections.SoftDeleteAsync(collection);
         return true;
     }
+
     public async Task<bool> UpdateProductCollectionAsync(RequestDTOUpdateProductCollection dto, string updatedById)
     {
         var collection = await _context.ProductCollections.GetByIdAsync(dto.ProductCollectionId);
         if (collection == null) return false;
-            
+
+        string url = collection.Image;
+        try
+        {
+            if (dto.Image != null)
+            {
+                using var stream = dto.Image.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(dto.Image.FileName, stream)
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                url = uploadResult.SecureUrl.ToString();
+            }
+        }
+
+        catch (Exception ex)
+        {
+            return false;
+        }
+
         if (!string.IsNullOrEmpty(dto.Title)) collection.Title = dto.Title;
         if (!string.IsNullOrEmpty(dto.Headline)) collection.Headline = dto.Headline;
         if (!string.IsNullOrEmpty(dto.Content)) collection.Content = dto.Content;
-        if (!string.IsNullOrEmpty(dto.Image)) collection.Image = dto.Image;
+        if (!string.IsNullOrEmpty(url)) collection.Image = url;
 
         collection.UpdatedDate = DateTime.UtcNow;
         collection.UpdatedById = updatedById;
 
         await _context.ProductCollections.UpdateAsync(collection, dto.ProductIds);
         return true;
+    }
+
+    public async Task<bool> DeleteProductCollectionAsync(int id)
+    {
+        var collection = await _context.ProductCollections.GetByIdAsync(id);
+        if (collection == null) return false;
+
+        return await _context.ProductCollections.DeleteAsync(collection);
     }
 }

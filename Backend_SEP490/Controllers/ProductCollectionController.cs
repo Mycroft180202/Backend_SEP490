@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend_SEP490.Controllers;
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
-public class ProductCollectionController: ControllerBase
+public class ProductCollectionController : ControllerBase
 {
     private readonly IProductCollectionServices _productCollectionServices;
 
@@ -38,7 +38,7 @@ public class ProductCollectionController: ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-        if (dto.ImageFile != null) 
+        if (dto.ImageFile != null)
         {
             var ext = Path.GetExtension(dto.ImageFile.FileName).ToLower();
             var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
@@ -48,10 +48,10 @@ public class ProductCollectionController: ControllerBase
                 return BadRequest("Chỉ chấp nhận file ảnh có định dạng jpg, jpeg, png hoặc webp");
             }
         }
-        var userid= User.FindFirstValue("UserID");
+        var userid = User.FindFirstValue("UserID");
         dto.CreatedById = userid;
-        var result= await _productCollectionServices.CreateAsync(dto);
-        if(result == null)
+        var result = await _productCollectionServices.CreateAsync(dto);
+        if (result == null)
         {
             return Ok(new
             {
@@ -63,11 +63,11 @@ public class ProductCollectionController: ControllerBase
             message = "Created ProductCollection successfully"
         });
     }
-    [Authorize(Roles = "Admin,Artisan")] 
-    [HttpDelete("productcollection/{id}")]
+    [Authorize(Roles = "Admin,Artisan")]
+    [HttpPut("productcollection/{id}")]
     public async Task<IActionResult> SoftDeleteProductCollection(int id)
     {
-        
+
         var userId = User.FindFirstValue("userId");
         if (userId == null)
             return Unauthorized(new { message = "Không xác định được người dùng." });
@@ -75,13 +75,13 @@ public class ProductCollectionController: ControllerBase
         var success = await _productCollectionServices.SoftDeleteProductCollectionAsync(id, userId);
 
         if (!success)
-            return NotFound(new { message = "ProductCollection không tồn tại hoặc đã bị xóa." });
+            return Ok(new { message = "ProductCollection không tồn tại hoặc đã bị xóa." });
 
         return Ok(new { message = "Xóa mềm ProductCollection thành công." });
     }
     [Authorize(Roles = "Admin,Artisan")]
-    [HttpPut("productcollection/{id}")]
-    public async Task<IActionResult> UpdateProductCollection([FromBody] RequestDTOUpdateProductCollection dto)
+    [HttpPut("productcollection")]
+    public async Task<IActionResult> UpdateProductCollection([FromForm] RequestDTOUpdateProductCollection dto)
     {
         var userId = User.FindFirstValue("userId");
         if (userId == null)
@@ -92,5 +92,22 @@ public class ProductCollectionController: ControllerBase
             return NotFound(new { message = "Không tìm thấy ProductCollection hoặc không hợp lệ." });
 
         return Ok(new { message = "Cập nhật ProductCollection thành công." });
+    }
+
+    [Authorize(Roles = "Admin,Artisan")]
+    [HttpDelete("productcollection/{id}")]
+    public async Task<IActionResult> DeleteProductCollection(int id)
+    {
+
+        var userId = User.FindFirstValue("userId");
+        if (userId == null)
+            return Unauthorized(new { message = "Không xác định được người dùng." });
+
+        var status = await _productCollectionServices.DeleteProductCollectionAsync(id);
+
+        if (!status)
+            return Ok(new { message = "ProductCollection không tồn tại hoặc đã bị xóa." });
+
+        return Ok(new { message = "Xóa mềm ProductCollection thành công." });
     }
 }

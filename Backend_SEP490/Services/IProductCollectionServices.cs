@@ -9,5 +9,6 @@ public interface IProductCollectionServices
     Task<ResponseDTOProductCollectionDetail> GetProductCollectionById(int id);
     public Task<ProductCollection> CreateAsync(RequestDTOCreateProductCollection dto);
     public Task<bool> SoftDeleteProductCollectionAsync(int id, string updatedByUserId);
+    public Task<bool> DeleteProductCollectionAsync(int id);
     Task<bool> UpdateProductCollectionAsync(RequestDTOUpdateProductCollection dto, string updatedById);
 }

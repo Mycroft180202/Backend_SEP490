@@ -42,6 +42,7 @@ namespace Backend_SEP490.Services.impl
             };
             
             var status = await _context.Voucher.CreateVoucherAsync(voucher);
+
             if (status.Contains("success", StringComparison.OrdinalIgnoreCase))
             {
                 await _notificationService.NotifyPromotionAsync(voucher);

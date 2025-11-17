@@ -75,4 +75,19 @@ public class ProductCollectionRepositoriesImpl: GenericRepositoryImpl<ProductCol
         _context.ProductCollections.Update(collection);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<bool> DeleteAsync(ProductCollection collection)
+    {
+        try
+        {
+            _context.ProductCollections.Remove(collection);
+            await _context.SaveChangesAsync();
+
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+        return true;
+    }
 }

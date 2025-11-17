@@ -13,5 +13,6 @@ public interface IProductCollectionRepositories
     Task<List<Product>> GetProductsByIdsAsync(List<string> ids);
     Task SaveChangesAsync();
     Task SoftDeleteAsync(ProductCollection collection);
+    Task<bool> DeleteAsync(ProductCollection collection);
     Task UpdateAsync(ProductCollection collection, List<string> newProductIds);
 }
