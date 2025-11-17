@@ -115,6 +115,15 @@ const Header = () => {
     };
   }, [userInfo, fetchNotifications]);
 
+  // Polling dự phòng để badge luôn cập nhật (3-5s)
+  useEffect(() => {
+    if (!userInfo) return undefined;
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [userInfo, fetchNotifications]);
+
   const markAsRead = async (id) => {
     if (!id) return;
     try {

@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 
-const HUB_URL = `${process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, '')}/api/Notification`;
+const HUB_URL = `${process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, '')}/hubs/notifications`;
 
 let connection = null;
 let startPromise = null;
