@@ -8,7 +8,8 @@ import {
   FaCog,
   FaSearch,
   FaChartBar,
-  FaUsers
+  FaUsers,
+  FaTicketAlt
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -20,6 +21,7 @@ import SellerManagement from './SellerManagement';
 import ReportManagement from './ReportManagement';
 import BlogManagement from './BlogManagement';
 import SettingsManagement from './SettingsManagement';
+import VoucherManagement from './VoucherManagement';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -60,12 +62,13 @@ const AdminDashboard = () => {
     { id: 4, type: 'order', reportedBy: 'Khách hàng D', target: 'Đơn hàng #ORD-123', reason: 'Không nhận được hàng', date: '2025-11-05', status: 'pending' },
   ]);
 
-  const menuItems = [
+const menuItems = [
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/admin' },
     { id: 'sellers', icon: FaUsers, label: 'Người bán', path: '/admin/sellers' },
     { id: 'products', icon: FaProductHunt, label: 'Sản phẩm', path: '/admin/products' },
     { id: 'orders', icon: FaClipboardList, label: 'Đơn hàng', path: '/admin/orders' },
     { id: 'customers', icon: FaUsersCog, label: 'Khách hàng', path: '/admin/customers' },
+    { id: 'vouchers', icon: FaTicketAlt, label: 'Voucher', path: '/admin/vouchers' },
     { id: 'reports', icon: FaChartBar, label: 'Báo cáo & Khiếu nại', path: '/admin/reports' },
     { id: 'blog', icon: FaBlog, label: 'Blog', path: '/admin/blog' },
     { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/admin/settings' },
@@ -164,6 +167,8 @@ const AdminDashboard = () => {
           {activeTab === 'orders' && <OrderManagement />}
 
           {activeTab === 'customers' && <CustomerManagement />}
+          
+          {activeTab === 'vouchers' && <VoucherManagement />}
 
           {activeTab === 'sellers' && <SellerManagement />}
 

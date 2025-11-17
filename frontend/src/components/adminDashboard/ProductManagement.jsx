@@ -1,158 +1,318 @@
-import React, { useState } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaFilter } from 'react-icons/fa';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  FaBan,
+  FaCheck,
+  FaSearch,
+  FaStore,
+  FaBoxOpen,
+} from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import Pagination from '../shared/Pagination';
+import { ProductService } from '../../services/modules/products/productService';
+import { CategoryService } from '../../services/modules/products/categoryService';
+
+const PAGE_SIZE_OPTIONS = [5, 10, 20];
+const DEFAULT_PAGE_SIZE = 10;
+
+const formatCurrency = (value) => {
+  const amount = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+  }).format(amount);
+};
+
+const statusBadge = (isActive) => (
+  isActive
+    ? 'bg-green-100 text-green-700'
+    : 'bg-red-100 text-red-700'
+);
 
 const ProductManagement = () => {
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Đèn gốm sứ thủ công', category: 'Đồ gốm', price: 450000, stock: 45, status: 'Còn hàng', seller: 'Gốm Bát Tràng', image: '/images/products/lamp.jpg' },
-    { id: 2, name: 'Bình hoa gốm Bát Tràng', category: 'Đồ gốm', price: 320000, stock: 32, status: 'Còn hàng', seller: 'Làng nghề Bát Tràng', image: '/images/products/vase.jpg' },
-    { id: 3, name: 'Tượng gỗ phong thủy', category: 'Đồ gỗ', price: 850000, stock: 18, status: 'Còn hàng', seller: 'Thủ công Đông Anh', image: '/images/products/statue.jpg' },
-    { id: 4, name: 'Khay trà gốm sứ', category: 'Đồ gốm', price: 280000, stock: 67, status: 'Còn hàng', seller: 'Gốm Chu Đậu', image: '/images/products/tray.jpg' },
-    { id: 5, name: 'Lọ hoa gốm thủ công', category: 'Đồ gốm', price: 380000, stock: 23, status: 'Còn hàng', seller: 'Gốm Bát Tràng', image: '/images/products/jar.jpg' },
-    { id: 6, name: 'Tranh gỗ chạm khắc', category: 'Đồ gỗ', price: 1200000, stock: 8, status: 'Còn hàng', seller: 'Làng nghề Đông Anh', image: '/images/products/painting.jpg' },
-    { id: 7, name: 'Bộ ấm trà gốm', category: 'Đồ gốm', price: 650000, stock: 15, status: 'Còn hàng', seller: 'Gốm Chu Đậu', image: '/images/products/teapot.jpg' },
-    { id: 8, name: 'Hộp trang sức gỗ', category: 'Đồ gỗ', price: 420000, stock: 0, status: 'Hết hàng', seller: 'Thủ công Đông Anh', image: '/images/products/box.jpg' },
-    { id: 9, name: 'Chén gốm hoa văn', category: 'Đồ gốm', price: 180000, stock: 89, status: 'Còn hàng', seller: 'Gốm Bát Tràng', image: '/images/products/cup.jpg' },
-    { id: 10, name: 'Tượng Phật gỗ', category: 'Đồ gỗ', price: 2500000, stock: 5, status: 'Còn hàng', seller: 'Làng nghề Đông Anh', image: '/images/products/buddha.jpg' },
-  ]);
-
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1 });
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
+  const [categoryMap, setCategoryMap] = useState({});
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  const loadStats = useCallback(async () => {
+    try {
+      const [allRes, activeRes, inactiveRes] = await Promise.all([
+        ProductService.getAllProducts({ pageIndex: 1, pageSize: 1 }),
+        ProductService.getAllProducts({ pageIndex: 1, pageSize: 1, isactive: true }),
+        ProductService.getAllProducts({ pageIndex: 1, pageSize: 1, isactive: false }),
+      ]);
+
+      setStats({
+        total: allRes?.totalCount ?? allRes?.raw?.totalCount ?? 0,
+        active: activeRes?.totalCount ?? activeRes?.raw?.totalCount ?? 0,
+        inactive: inactiveRes?.totalCount ?? inactiveRes?.raw?.totalCount ?? 0,
+      });
+    } catch (error) {
+      console.error('Load product stats error:', error);
+    }
+  }, []);
+
+  const loadProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = {
+        pageIndex,
+        pageSize,
+      };
+
+      const keyword = searchTerm.trim();
+      if (keyword) {
+        params.productName = keyword;
+      }
+      if (statusFilter !== 'all') {
+        params.isactive = statusFilter === 'active';
+      }
+
+      const response = await ProductService.getAllProducts(params);
+      const items = response?.items || [];
+      const totalCount = response?.totalCount
+        ?? response?.raw?.totalCount
+        ?? items.length;
+      const totalPages = response?.totalPages
+        ?? response?.raw?.totalPages
+        ?? Math.max(1, Math.ceil(totalCount / pageSize));
+
+      setProducts(items);
+      setMeta({
+        totalCount,
+        totalPages,
+        pageSize,
+      });
+    } catch (error) {
+      console.error('Load products error:', error);
+      toast.error(
+        error?.response?.data?.message
+        || error?.message
+        || 'Không thể tải danh sách sản phẩm.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [pageIndex, pageSize, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await CategoryService.getAllCategories();
+        const list = res?.items || res || [];
+        const map = {};
+        list.forEach((cat) => {
+          if (cat?.id) {
+            map[cat.id] = cat.name || cat.categoryName || cat.title || cat.id;
+          }
+        });
+        setCategoryMap(map);
+      } catch (error) {
+        console.error('Load categories error:', error);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
+    setPageIndex(1);
+  }, [searchTerm, statusFilter, pageSize]);
+
+  const handleToggleStatus = async (product) => {
+    if (!product?.id) return;
+    const nextState = !product.isActive;
+    try {
+      await ProductService.updateStatus(product.id, nextState);
+      toast.success(nextState ? 'Đã kích hoạt sản phẩm' : 'Đã vô hiệu hóa sản phẩm');
+      await Promise.all([loadProducts(), loadStats()]);
+    } catch (error) {
+      console.error('Toggle product status error:', error);
+      toast.error(
+        error?.response?.data?.message
+        || error?.message
+        || 'Không thể cập nhật trạng thái sản phẩm.',
+      );
+    }
   };
 
-  const getStatusColor = (status) => {
-    return status === 'Còn hàng' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-  };
-
-  const filteredProducts = products.filter(product => {
-    const matchSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       product.seller.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCategory = filterCategory === 'all' || product.category === filterCategory;
-    const matchStatus = filterStatus === 'all' || product.status === filterStatus;
-    return matchSearch && matchCategory && matchStatus;
-  });
+  const filteredProducts = useMemo(() => products, [products]);
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý sản phẩm</h2>
-          <p className="text-sm text-gray-600 mt-1">Tổng {products.length} sản phẩm</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Tổng {meta.totalCount || filteredProducts.length} sản phẩm
+          </p>
         </div>
-        <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
-          <FaPlus /> Thêm sản phẩm mới
-        </button>
+
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+            <FaBoxOpen className="text-gray-500" />
+            <div className="text-sm">
+              <div className="text-gray-700 font-semibold">Hoạt động</div>
+              <div className="text-gray-500">{stats.active}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+            <FaBan className="text-gray-500" />
+            <div className="text-sm">
+              <div className="text-gray-700 font-semibold">Vô hiệu hóa</div>
+              <div className="text-gray-500">{stats.inactive}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+            <FaStore className="text-gray-500" />
+            <div className="text-sm">
+              <div className="text-gray-700 font-semibold">Tổng</div>
+              <div className="text-gray-500">{stats.total}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="relative md:col-span-2">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <div className="relative lg:col-span-2">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Tìm kiếm sản phẩm..."
+            placeholder="Tìm kiếm theo tên, cửa hàng..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
+
         <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="all">Tất cả danh mục</option>
-          <option value="Đồ gốm">Đồ gốm</option>
-          <option value="Đồ gỗ">Đồ gỗ</option>
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="all">Tất cả trạng thái</option>
-          <option value="Còn hàng">Còn hàng</option>
-          <option value="Hết hàng">Hết hàng</option>
+          <option value="active">Đang bán</option>
+          <option value="inactive">Vô hiệu hóa</option>
+        </select>
+
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={size}>
+              {size} / trang
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* Products Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="min-w-full border-collapse">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Sản phẩm</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Danh mục</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Giá</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Tồn kho</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Người bán</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Thao tác</th>
+            <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="py-3 px-4">Sản phẩm</th>
+              <th className="py-3 px-4">Danh mục</th>
+              <th className="py-3 px-4">Giá</th>
+              <th className="py-3 px-4">Tồn kho</th>
+              <th className="py-3 px-4">Cửa hàng</th>
+              <th className="py-3 px-4">Người bán</th>
+              <th className="py-3 px-4">Trạng thái</th>
+              <th className="py-3 px-4 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {filteredProducts.map((product) => (
-              <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <span className="text-xs text-gray-500">IMG</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">{product.name}</p>
-                      <p className="text-xs text-gray-500">ID: #{product.id}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3 px-4 text-sm">{product.category}</td>
-                <td className="py-3 px-4 text-sm font-semibold text-primary">{formatCurrency(product.price)}</td>
-                <td className="py-3 px-4 text-sm">
-                  <span className={`${product.stock === 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                    {product.stock} cái
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-sm">{product.seller}</td>
-                <td className="py-3 px-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(product.status)}`}>
-                    {product.status}
-                  </span>
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex gap-2">
-                    <button className="text-blue-600 hover:text-blue-800" title="Xem chi tiết">
-                      <FaEye />
-                    </button>
-                    <button className="text-green-600 hover:text-green-800" title="Chỉnh sửa">
-                      <FaEdit />
-                    </button>
-                    <button className="text-red-600 hover:text-red-800" title="Xóa">
-                      <FaTrash />
-                    </button>
-                  </div>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="py-6 text-center text-gray-500">
+                  Đang tải dữ liệu...
                 </td>
               </tr>
-            ))}
+            ) : filteredProducts.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-6 text-center text-gray-500">
+                  Không có sản phẩm nào.
+                </td>
+              </tr>
+            ) : (
+              filteredProducts.map((product) => (
+                <tr key={product.id} className="border-b hover:bg-gray-50 text-sm">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg border overflow-hidden bg-gray-100 flex items-center justify-center">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FaBoxOpen className="text-gray-400 text-lg" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">{product.name}</div>
+                        <div className="text-xs text-gray-500 line-clamp-1">
+                          {product.shortDescription}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-gray-700">
+                    {categoryMap[product.category] || product.category || '--'}
+                  </td>
+                  <td className="py-3 px-4 text-gray-700">{formatCurrency(product.price)}</td>
+                  <td className="py-3 px-4 text-gray-700">{product.stock ?? 0}</td>
+                  <td className="py-3 px-4 text-gray-700">{product.shopName || '--'}</td>
+                  <td className="py-3 px-4 text-gray-700">{product.displayName || product.artisanId || '--'}</td>
+                  <td className="py-3 px-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(product.isActive)}`}>
+                      {product.isActive ? 'Đang bán' : 'Vô hiệu hóa'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStatus(product)}
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white text-sm
+                        ${product.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                      {product.isActive ? <FaBan /> : <FaCheck />}
+                      {product.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          Hiển thị {filteredProducts.length} trên tổng {products.length} sản phẩm
-        </p>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Trước</button>
-          <button className="px-4 py-2 bg-primary text-white rounded-lg">1</button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">2</button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">3</button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Sau</button>
-        </div>
-      </div>
+      {!loading && meta.totalPages > 1 && (
+        <Pagination
+          totalPages={meta.totalPages}
+          pageIndex={pageIndex}
+          setPageIndex={setPageIndex}
+        />
+      )}
     </div>
   );
 };

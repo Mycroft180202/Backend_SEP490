@@ -109,4 +109,24 @@ export const UserService = {
   clearCache() {
     userCache.clear();
   },
+
+  async adminList(pageIndex = 1, pageSize = 10) {
+    const response = await axiosClient.get('/users', {
+      params: { pageIndex, pageSize },
+    });
+    return response.data;
+  },
+
+  async adminUpdate(id, payload) {
+    if (!id) {
+      throw new Error('Missing user id');
+    }
+    const body = {
+      isActive: payload?.isActive,
+      rolesId: payload?.rolesId || null,
+    };
+    const response = await axiosClient.put(`/users/${id}`, body);
+    userCache.delete(id);
+    return response.data;
+  },
 };

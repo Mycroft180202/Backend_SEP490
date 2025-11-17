@@ -1,8 +1,9 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 import { FaBell, FaShoppingCart, FaSearch } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
+import { NotificationService } from '../../services/modules/notification/notificationService';
 
 const Header = () => {
   const { userInfo } = useContext(UserContext);
@@ -11,6 +12,82 @@ const Header = () => {
   const [isDropdownVisible, setDropdownVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNotificationVisible, setNotificationVisible] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!userInfo) {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [userInfo]);
+
+  const formatTime = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : new Intl.DateTimeFormat('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(date);
+  };
+
+  const fetchNotifications = async () => {
+    if (!userInfo) return;
+    try {
+      setNotifLoading(true);
+      const response = await NotificationService.getList({ pageIndex: 1, pageSize: 10 });
+      const items = response?.items || response?.Items || [];
+      setNotifications(items);
+      setUnreadCount(items.filter((n) => !n.isRead).length);
+    } catch (error) {
+      console.error('Load notifications error:', error);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isNotificationVisible) {
+      fetchNotifications();
+    }
+  }, [isNotificationVisible]);
+
+  const markAsRead = async (id) => {
+    if (!id) return;
+    try {
+      await NotificationService.markRead(id);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Mark read error:', error);
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await NotificationService.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Mark all read error:', error);
+    }
+  };
+
+  const removeNotification = async (id) => {
+    if (!id) return;
+    try {
+      await NotificationService.remove(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    } catch (error) {
+      console.error('Delete notification error:', error);
+    }
+  };
 
   return (
     <header
@@ -107,12 +184,69 @@ const Header = () => {
             title="Thông báo"
             onClick={() => setNotificationVisible(!isNotificationVisible)}
           />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1 leading-none">
+              {unreadCount}
+            </span>
+          )}
           {isNotificationVisible && (
             <div
-              className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
+              className="absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
               style={{ zIndex: 1000 }}
             >
-              <div className="p-4 text-sm text-gray-700">{t('header.notificationsEmpty')}</div>
+              <div className="flex items-center justify-between px-4 py-2 border-b">
+                <span className="text-sm font-semibold text-gray-800">Thông báo</span>
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:underline disabled:text-gray-400"
+                  onClick={markAllRead}
+                  disabled={notifications.length === 0}
+                >
+                  Đánh dấu đã đọc hết
+                </button>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {notifLoading ? (
+                  <div className="p-4 text-sm text-gray-500">Đang tải...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="p-4 text-sm text-gray-700">{t('header.notificationsEmpty')}</div>
+                ) : (
+                  notifications.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 ${item.isRead ? 'bg-white' : 'bg-red-50'}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-800">{item.message || item.content || 'Thông báo mới'}</p>
+                          <p className="text-xs text-gray-500 mt-1">{formatTime(item.createAt)}</p>
+                        </div>
+                        {!item.isRead && (
+                          <span className="w-2 h-2 bg-red-500 rounded-full mt-1" />
+                        )}
+                      </div>
+                      <div className="flex gap-3 text-xs mt-2">
+                        {!item.isRead && (
+                          <button
+                            type="button"
+                            onClick={() => markAsRead(item.id)}
+                            className="text-blue-600 hover:underline"
+                          >
+                            Đánh dấu đã đọc
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeNotification(item.id)}
+                          className="text-red-600 hover:underline"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

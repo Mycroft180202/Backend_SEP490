@@ -46,4 +46,18 @@ export const API_ENDPOINTS = {
     BY_ID: (orderId) => `/Order/orders/${orderId}`,
     CANCEL: (orderId) => `/Order/orders/${orderId}/cancel`,
   },
+
+  VOUCHERS: {
+    ROOT: '/voucher',
+    PAGED: (pageIndex, pageSize) => `/voucher/${pageIndex}/${pageSize}`,
+    BY_ID: (id) => `/voucher/${id}`,
+  },
+
+  NOTIFICATIONS: {
+    ROOT: '/api/Notification',
+    MARK_READ: (id) => `/api/Notification/${id}/read`,
+    MARK_ALL_READ: '/api/Notification/mark-all-read',
+    DELETE: (id) => `/api/Notification/${id}`,
+    ADMIN_SEND: '/api/Notification/admin/send',
+  },
 };

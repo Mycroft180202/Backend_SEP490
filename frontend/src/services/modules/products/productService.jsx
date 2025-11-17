@@ -3,12 +3,8 @@ import { API_ENDPOINTS } from '../../api/endpoints';
 
 export const ProductService = {
   getAllProducts: async (params = {}) => {
-    try {
-      const response = await axiosClient.get(API_ENDPOINTS.PRODUCTS.GET_ALL, { params });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosClient.get(API_ENDPOINTS.PRODUCTS.GET_ALL, { params });
+    return response.data;
   },
 
   getProductById: async (id) => {
@@ -30,21 +26,18 @@ export const ProductService = {
   },
 
   updateProduct: async (id, productData) => {
-    try {
-      const response = await axiosClient.put(API_ENDPOINTS.PRODUCTS.UPDATE(id), productData);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosClient.put(API_ENDPOINTS.PRODUCTS.UPDATE(id), productData);
+    return response.data;
   },
 
   deleteProduct: async (id) => {
-    try {
-      const response = await axiosClient.delete(API_ENDPOINTS.PRODUCTS.DELETE(id));
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosClient.delete(API_ENDPOINTS.PRODUCTS.DELETE(id));
+    return response.data;
+  },
+
+  updateStatus: async (id, isActive) => {
+    const response = await axiosClient.put(API_ENDPOINTS.PRODUCTS.UPDATE(id), { isActive });
+    return response.data;
   },
 
   getProductsByCategory: async (categoryId, params = {}) => {

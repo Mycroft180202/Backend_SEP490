@@ -116,11 +116,11 @@ const ShortDescription = ({ product }) => {
   };
 
   return (
-    <div className="w-full py-10 bg-gradient-to-b from-[#FFF8E7] to-[#FFFDEB]">
+    <div className="w-full py-8 bg-gradient-to-b from-[#FFF8E7] to-[#FFFDEB]">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
           <div className="space-y-4">
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-white shadow-xl border-4 border-[#D4A574]">
+            <div className="relative aspect-square rounded-2xl overflow-hidden bg-white shadow-xl border-2 border-[#D4A574]">
               <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5" />
               <img
                 src={mainImage}
@@ -195,18 +195,18 @@ const ShortDescription = ({ product }) => {
             )}
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 bg-[#FFF1E5] text-[#8B4513] px-4 py-1 rounded-full text-sm font-semibold border border-[#D4A574]/40">
+                <div className="inline-flex items-center gap-2 bg-[#FFF1E5] text-[#8B4513] px-3 py-1 rounded-full text-xs font-semibold border border-[#D4A574]/40">
                   <FaStore />
                   {product?.artisanName || 'Hoa Lac Handicraft'}
                 </div>
-                <h1 className="mt-3 text-3xl md:text-4xl font-bold text-[#8B4513] leading-snug">
+                <h1 className="mt-3 text-2xl md:text-3xl font-bold text-[#8B4513] leading-snug">
                   {product.name}
                 </h1>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-xl text-yellow-400">
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="flex items-center gap-1 text-lg text-yellow-400">
                     {renderStars(product.rating || 0)}
                   </div>
                   <span className="text-sm text-gray-500">
@@ -240,20 +240,20 @@ const ShortDescription = ({ product }) => {
               </div>
             </div>
 
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 shadow-md border-l-4 border-[#D4A574]">
-              <p className="text-gray-700 leading-relaxed italic">{product.shortDescription}</p>
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-md border-l-4 border-[#D4A574]">
+              <p className="text-gray-700 leading-relaxed text-sm md:text-base">{product.shortDescription}</p>
             </div>
 
-            <div className="bg-gradient-to-r from-[#8B4513] to-[#A0522D] rounded-xl p-6 shadow-lg text-center border-4 border-[#D4A574]">
+            <div className="bg-gradient-to-r from-[#8B4513] to-[#A0522D] rounded-xl p-5 shadow-lg text-center border-2 border-[#D4A574]">
               <p className="text-sm text-white/80 mb-1">Giá bán</p>
-              <div className="text-4xl font-bold text-white">
+              <div className="text-3xl font-bold text-white">
                 {product.price.toLocaleString('vi-VN')} ₫
               </div>
             </div>
 
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 shadow-md border border-[#E2C8A2]">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#D4A574]">
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-md border border-[#E2C8A2]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#D4A574]">
                   <img
                     src={product.artisanAvatar || '/images/default-avatar.png'}
                     alt={product.artisanName || 'artisan'}
@@ -262,7 +262,7 @@ const ShortDescription = ({ product }) => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Người bán</p>
-                  <p className="text-lg font-semibold text-[#8B4513]">{product.artisanName || 'Nghệ nhân làng nghề'}</p>
+                  <p className="text-base md:text-lg font-semibold text-[#8B4513]">{product.artisanName || 'Nghệ nhân làng nghề'}</p>
                 </div>
               </div>
             </div>
@@ -273,15 +273,15 @@ const ShortDescription = ({ product }) => {
                   <button
                     type="button"
                     onClick={() => handleQuantityChange('decrease')}
-                    className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition"
+                    className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition text-sm"
                   >
                     -
                   </button>
-                  <span className="w-10 text-center text-lg font-semibold text-[#8B4513]">{quantity}</span>
+                  <span className="w-10 text-center text-base font-semibold text-[#8B4513]">{quantity}</span>
                   <button
                     type="button"
                     onClick={() => handleQuantityChange('increase')}
-                    className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition"
+                    className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D4A574] text-[#8B4513] hover:bg-[#D4A574] hover:text-white transition text-sm"
                   >
                     +
                   </button>
