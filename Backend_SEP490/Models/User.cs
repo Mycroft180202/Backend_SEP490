@@ -36,6 +36,7 @@ public class User
     public ICollection<Product>? Products { get; set; }
     public ICollection<Report>? Reports { get; set; }
     public ICollection<UserRole>? UserRoles { get; set; }
+    public ICollection<ArtisanApplication>? ArtisanApplications { get; set; }
     public ICollection<WishListItem>? WishListItems { get; set; }
     public SellerShippingProfile? SellerShippingProfile { get; set; }
 }
