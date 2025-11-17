@@ -321,6 +321,61 @@ public class NotificationServicesImpl : GenericServices, INotificationService
         await SendRealtimeAsync(notification);
     }
 
+    public async Task NotifyArtisanApplicationSubmittedAsync(ArtisanApplication application, User applicant)
+    {
+        if (application == null || applicant == null)
+        {
+            return;
+        }
+
+        var admins = await _context.Users.GetUsersByRoleAsync("Admin");
+        if (admins == null || admins.Count == 0)
+        {
+            _logger.LogWarning("No admins found to receive artisan application {ApplicationId}.", application.Id);
+            return;
+        }
+
+        var applicantName = applicant.DisplayName ?? applicant.Username ?? applicant.Email ?? application.FullName ?? "User";
+        var message = $"New artisan application from {applicantName} ({application.Id}) is waiting for review.";
+
+        var notifications = admins
+            .Where(a => !string.IsNullOrWhiteSpace(a.UserID))
+            .Select(a => CreateNotification(a.UserID, NotificationTypes.ArtisanApplicationSubmitted, message))
+            .ToList();
+
+        if (notifications.Count == 0)
+        {
+            return;
+        }
+
+        await _context.Notifications.AddRangeAsync(notifications);
+        await _context.SaveChangesAsync();
+        await SendRealtimeAsync(notifications);
+    }
+
+    public async Task NotifyArtisanApplicationReviewedAsync(ArtisanApplication application, User applicant)
+    {
+        if (application == null || applicant == null || string.IsNullOrWhiteSpace(applicant.UserID))
+        {
+            return;
+        }
+
+        var approved = string.Equals(application.Status, ArtisanApplicationStatus.Done, StringComparison.OrdinalIgnoreCase);
+        var type = approved ? NotificationTypes.ArtisanApplicationApproved : NotificationTypes.ArtisanApplicationRejected;
+        var statusText = approved ? "approved" : "rejected";
+
+        var message = $"Your artisan application {application.Id} was {statusText}.";
+        if (!approved && !string.IsNullOrWhiteSpace(application.RejectReason))
+        {
+            message += $" Reason: {application.RejectReason}.";
+        }
+
+        var notification = CreateNotification(applicant.UserID, type, message);
+        await _context.Notifications.AddAsync(notification);
+        await _context.SaveChangesAsync();
+        await SendRealtimeAsync(notification);
+    }
+
     private Notification CreateNotification(string userId, string type, string message)
     {
         return new Notification

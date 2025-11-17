@@ -1,65 +1,108 @@
-# Backend_SEP490
+Ôªø# Backend_SEP490 ‚Äì Full API Flow & Usage Guide
 
-## GHN Test API Integration
+## 1. Authentication & Accounts
+- `POST /api/Auth/register` ‚Äì body `RequestDTORegister` (includes OTP send + verify).
+- `POST /api/Auth/login` ‚Äì returns `{ accessToken, refreshToken }`.
+- `POST /api/Auth/refresh`, `/logout` for token rotation.
+- Password recovery: `/forgot-password`, `/reset-password`, `/verify-otp`, `/resend-otp`.
+- Always send `Authorization: Bearer <accessToken>` for authenticated routes.
 
-The order workflow now talks to GHN's **test** gateway (`https://dev-online-gateway.ghn.vn`).  
-Set the following variables in your `.env` before running the API:
+## 2. User Profile & Addresses
+- `GET /api/User/me`, `PUT /api/User/me` ‚Äì basic profile CRUD.
+- Admin search/filter: `POST /api/User/search`, `GET /api/User/{id}` etc.
+- Addresses (`/api/Address`):
+  - Body `RequestCreateAndUpdateAddress` MUST include `ContactName`, `ContactPhone`, `GhnProvinceId`, `GhnDistrictId`, `GhnWardCode` so GHN metadata is stored once.
 
-| Key | Description |
-| --- | --- |
-| `GHN_TEST_TOKEN` | API token issued for the GHN sandbox |
-| `GHN_TEST_SHOP_ID` | ShopId mapped to your test store |
-| `GHN_TEST_BASE_URL` *(optional)* | Defaults to `https://dev-online-gateway.ghn.vn` |
-| `GHN_TEST_FROM_NAME` / `GHN_TEST_FROM_PHONE` / `GHN_TEST_FROM_ADDRESS` | Pickup contact info |
-| `GHN_TEST_FROM_DISTRICT_ID` / `GHN_TEST_FROM_WARD_CODE` | Numeric/QH code for the pickup location |
-| `GHN_TEST_TO_DISTRICT_ID` / `GHN_TEST_TO_WARD_CODE` | Default receiver codes when the user's address has no mapping |
-| `GHN_TEST_FALLBACK_PHONE` *(optional)* | Used when the customer phone number is empty |
-| `GHN_TEST_PAYMENT_TYPE_ID` *(optional)* | Defaults to `2` (receiver pays shipping) |
-| `GHN_TEST_SERVICE_TYPE_ID` *(optional)* | Defaults to `2` (standard service) |
-| `GHN_TEST_REQUIRED_NOTE` *(optional)* | Shipping note passed to GHN |
-| `GHN_TEST_DEFAULT_ITEM_WEIGHT`, `GHN_TEST_DEFAULT_PARCEL_LENGTH`, `GHN_TEST_DEFAULT_PARCEL_WIDTH`, `GHN_TEST_DEFAULT_PARCEL_HEIGHT` | Default dimensions/weight (in grams/cm) used when products don't specify them |
+## 3. Catalog Modules
+- Products `/api/Product` (+ `/api/Product/{id}`) with artisan CRUD.
+- Images `/api/ProductImages` (upload/delete).
+- Categories `/api/Category`, Collections `/api/ProductCollection`, Blogs `/api/Blog`.
+- Cart `/api/Cart`, `/api/CartItem`; Wishlist `/api/WishList`.
+- Feedback `/api/Feedback`; Vouchers `/api/Voucher`.
 
-Only GHN's sandbox is called; no production endpoints are touched.  
-When an order is created:
+## 4. Order & Shipment Flow
+1. Client calls `POST /api/Order/orders`:
+   ```jsonc
+   {
+     "shipingAddressId": "ADDR-123",
+     "receiverName": "Nguyen Van A",
+     "receiverPhone": "0912345678",
+     "toDistrictId": 1454,
+     "toWardCode": "21039",
+     "toAddress": "45 Ly Thuong Kiet, P.7, Q.10",
+     "toProvinceName": "TP.HCM",
+     "totalWeight": 1200,
+     "shipmentItems": [
+       { "productId": "PRD001", "weight": 800 },
+       { "productId": "PRD002", "weight": 400 }
+     ]
+   }
+   ```
+2. Backend loads cart, validates address metadata.
+3. Items grouped by seller. Seller pickup profile (token/shop + warehouse) fetched from `/api/seller/shipping-profile/me`; if missing, platform warehouse is used.
+4. For each seller group, `IGhnShippingService` sends GHN create shipment. Each response creates a `Shipment`, `ShipmentHistory`, and a `ShipmentStatusUpdated` SignalR event.
+5. User views orders via:
+   - `POST /api/Order/my-orders` (filtered list).
+   - `GET /api/Order/orders/{orderId}?pageIndex=&pageSize=` (single order with paged items + shipments + history snapshot).
+6. Cancellation: `POST /api/Order/orders/{orderId}/cancel` (body `{ "reason": "optional" }`). Cancels GHN orders, logs history, broadcasts realtime.
 
-1. The shipping address is validated and GHN receives the order lines (name/code/quantity/price) plus user phone/address.
-2. GHN's response (order code, status, ETA) is stored as a `Shipment` record with provider `GHN-TEST`.
-3. Failures are logged but do not stop the order transaction.
+## 5. Shipment Utilities & Seller Config
+- GHN master-data proxies:
+  - `GET /api/ghn/master-data/provinces`
+  - `GET /api/ghn/master-data/districts?provinceId=...`
+  - `GET /api/ghn/master-data/wards?districtId=...`
+- Seller pickup/token profile:
+  - `GET /api/seller/shipping-profile/me`
+  - `PUT /api/seller/shipping-profile/me` with
+    ```jsonc
+    {
+      "pickupContactName": "Le Van B",
+      "pickupContactPhone": "0900000000",
+      "pickupAddressLine": "12 Nguyen Trai, Ha Noi",
+      "pickupProvinceName": "Ha Noi",
+      "pickupDistrictId": 1452,
+      "pickupWardCode": "21057",
+      "ghnToken": "seller-token",
+      "ghnShopId": 2510562,
+      "isActive": true
+    }
+    ```
+  - These settings inject seller-specific GHN credentials during order fulfillment.
 
-Configure the codes/phones above with GHN's test data to avoid rejected requests.
+## 6. GHN Webhook & Realtime Notifications
+- `POST /api/ghn/webhook` (called by GHN) payload `{ OrderCode, ClientOrderCode, CurrentStatus, UpdatedDate, CodCollected, Reason, ... }`.
+  - Updates `Shipment`, appends `ShipmentHistory`, syncs `Order.Status` and `Payment.PaymentStatus`.
+  - Uses `IShipmentRealtimeService` to push `ShipmentStatusUpdated` over SignalR hub `/hubs/notifications` (group `notifications:{userId}`).
+- SignalR clients connect via `/hubs/notifications?access_token=<jwt>` and listen for:
+  - `ReceiveNotification(ResponseNotificationDto)`
+  - `ShipmentStatusUpdated(ShipmentStatusUpdateDto)`
 
-### Creating orders with real test data
+## 7. Payment & COD
+- Manual admin update:`PUT /api/Payment/status` with `{ "paymentId", "status" }`.
+- GHN COD updates propagate automatically from webhook; notifications sent via `INotificationService`.
 
-`POST /api/Order/orders` now expects the payload to include the real shipment metadata so the GHN test gateway can echo your actual products/user info:
+## 8. Notifications & Reports
+- Notifications: `/api/Notification` (list, mark read, delete) + `/api/Notification/admin-send` for broadcasts.
+- Reports (user-generated): `/api/Report` endpoints for create + admin review.
 
-```jsonc
-{
-  "shipingAddressId": "addr-123",
-  "receiverName": "Nguyen Van A",
-  "receiverPhone": "0912345678",
-  "toDistrictId": 1454,
-  "toWardCode": "21039",
-  "toAddress": "45 Ly Thuong Kiet, P.7, Q.10",
-  "toProvinceName": "TP.HCM",
-  "totalWeight": 1200,
-  "shipmentItems": [
-    { "productId": "PRD001", "weight": 800 },
-    { "productId": "PRD002", "weight": 400 }
-  ]
-}
+## 9. Metadata Requirements
+- **Addresses** store GHN codes/contact info once; order creation reuses them automatically.
+- **ProductShippingProfile** (weight/dimensions) optional but recommended so the client doesn‚Äôt need to send parcel sizes.
+- **SellerShippingProfile** required for true multi-seller shipping (token/shop + pickup data). Without it, shipments originate from platform warehouse/token.
+
+## 10. Database & Migrations
+Apply latest schema after pulling:
+```bash
+cd Backend_SEP490
+set DB_PASSWORD=your_password
+ dotnet ef database update
 ```
+Includes migrations:
+- `20251114152530_AddGhnShippingMetadata`
+- `20251114163409_AddShipmentHistoryAndSellerProfile`
 
-Those values are passed unchanged to GHN (only falling back to `GHN_TEST_*` defaults if a field is missing), letting you verify the full payload/response loop without shipping real parcels.
-
-- **Luu y Address/Product**: moi dia chi nguoi dung can khai bao `ContactName`, `ContactPhone`, `GhnProvinceId`, `GhnDistrictId`, `GhnWardCode`. Moi san pham co the gan `ProductShippingProfile` (can nang, kich thuoc) de backend tu tinh toan khi gui GHN.
-- **Tra cuu ma khu vuc**: dung `GET /api/ghn/master-data/provinces`, `GET /api/ghn/master-data/districts?provinceId=...`, `GET /api/ghn/master-data/wards?districtId=...` de hien danh sach cho nguoi dung lua chon thay vi nhap tay.
-- **Cau hinh pick-up theo seller**: seller goi `GET/PUT /api/seller/shipping-profile/me` de dang ky token/shopId GHN va dia chi lay hang rieng. Neu bo trong, he thong tu fallback ve kho mac dinh cua san.
-
-### Shipment lifecycle
-
-- `POST /api/Order/orders/{orderId}/cancel` cho phÈp ngu?i mua h?y v?n don dang ch?; backend g?i GHN cancel v‡ d?i tr?ng th·i `Shipment` + `Order` sang `Cancelled`.
-- GHN g?i status/COD qua `POST /api/ghn/webhook`: controller c?p nh?t `Shipment.ShippingStatus`, d?ng b? `Order.Status`, v‡ d?i `Payment` sang `Paid` khi `CodCollected = true`.
-- M?i l?n tr?ng th·i thay d?i, m?t b?n ghi `ShipmentHistory` m?i du?c t?o v‡ ph·t real-time t?i ngu?i d˘ng qua SignalR (`ShipmentStatusUpdated`), vÏ v?y UI khÙng c?n refresh th? cÙng.
-- `ResponseDTOOrder` tr? thÍm `Shipments[]` (tracking, status, timestamp) d? frontend hi?n th? chi ti?t t?ng v?n don.
-- V?i don nhi?u seller, backend t? nhÛm theo ngu?i b·n v‡ t?o 1 shipment GHN cho t?ng seller d?a trÍn c?u hÏnh pickup/token m‡ seller dang k˝.
-
+## 11. Troubleshooting
+- **GHN 400 (phone/ward)** ‚Üí verify receiver phone and GHN codes using master-data APIs.
+- **‚ÄúSeller has no pickup info‚Äù** ‚Üí seller hasn‚Äôt configured `/api/seller/shipping-profile/me`.
+- **No realtime updates** ‚Üí ensure client joins SignalR hub with valid JWT and listens for `ShipmentStatusUpdated`.
+- **Order saved but no GHN shipment** ‚Üí check logs for GHN error message; order persists even if GHN rejects payload.

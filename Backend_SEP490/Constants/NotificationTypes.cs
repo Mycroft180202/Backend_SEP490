@@ -10,4 +10,7 @@ public static class NotificationTypes
     public const string ArtisanReport = "ARTISAN_REPORT";
     public const string AdminDirect = "ADMIN_DIRECT";
     public const string ReportAlert = "REPORT_ALERT";
+    public const string ArtisanApplicationSubmitted = "ARTISAN_APPLICATION_SUBMITTED";
+    public const string ArtisanApplicationApproved = "ARTISAN_APPLICATION_APPROVED";
+    public const string ArtisanApplicationRejected = "ARTISAN_APPLICATION_REJECTED";
 }

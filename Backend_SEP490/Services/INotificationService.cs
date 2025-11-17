@@ -22,4 +22,6 @@ public interface INotificationService
     Task NotifyPromotionAsync(Voucher voucher);
     Task NotifyAdminsProductReportedAsync(Report report, Product product, User reporter);
     Task NotifyPaymentStatusAsync(Payment payment, string customerId, string? orderNumber);
+    Task NotifyArtisanApplicationSubmittedAsync(ArtisanApplication application, User applicant);
+    Task NotifyArtisanApplicationReviewedAsync(ArtisanApplication application, User applicant);
 }

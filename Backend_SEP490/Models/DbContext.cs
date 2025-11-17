@@ -32,6 +32,7 @@ namespace Backend_SEP490.Models
         public DbSet<ProductShippingProfile> ProductShippingProfiles { get; set; }
         public DbSet<SellerShippingProfile> SellerShippingProfiles { get; set; }
         public DbSet<ShipmentHistory> ShipmentHistories { get; set; }
+        public DbSet<ArtisanApplication> ArtisanApplications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -91,6 +92,12 @@ namespace Backend_SEP490.Models
                 .HasMany(u => u.UserRoles)
                 .WithOne(ur => ur.User)
                 .HasForeignKey(ur => ur.UserID);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.ArtisanApplications)
+                .WithOne(a => a.User)
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<User>()
                 .HasMany(u => u.WishListItems)
@@ -169,6 +176,12 @@ namespace Backend_SEP490.Models
                 .HasMany(s => s.History)
                 .WithOne(h => h.Shipment)
                 .HasForeignKey(h => h.ShipmentId);
+
+            modelBuilder.Entity<ArtisanApplication>()
+                .HasOne(a => a.Reviewer)
+                .WithMany()
+                .HasForeignKey(a => a.ReviewedBy)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // ========== ROLE ==========
             modelBuilder.Entity<Role>()
