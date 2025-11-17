@@ -136,6 +136,7 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
         if (!string.IsNullOrEmpty(dto.Title)) collection.Title = dto.Title;
         if (!string.IsNullOrEmpty(dto.Headline)) collection.Headline = dto.Headline;
         if (!string.IsNullOrEmpty(dto.Content)) collection.Content = dto.Content;
+        if (dto.IsActive != null) collection.IsActive = dto.IsActive;
         if (!string.IsNullOrEmpty(url)) collection.Image = url;
 
         collection.UpdatedDate = DateTime.UtcNow;

@@ -18,6 +18,7 @@ namespace Backend_SEP490.DTOs.Request
         [StringLength(1000, ErrorMessage = "Nội dung mô tả không được vượt quá 1000 ký tự")]
         public string? Content { get; set; }
         public IFormFile? Image { get; set; }
+        public bool IsActive { get; set; }
 
         [MinLength(1, ErrorMessage = "Phải có ít nhất 1 sản phẩm trong bộ sưu tập")]
         public List<string> ProductIds { get; set; } = new List<string>();

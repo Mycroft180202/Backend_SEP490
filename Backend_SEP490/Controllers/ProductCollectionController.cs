@@ -63,22 +63,7 @@ public class ProductCollectionController : ControllerBase
             message = "Created ProductCollection successfully"
         });
     }
-    [Authorize(Roles = "Admin,Artisan")]
-    [HttpPut("productcollection/{id}")]
-    public async Task<IActionResult> SoftDeleteProductCollection(int id)
-    {
-
-        var userId = User.FindFirstValue("userId");
-        if (userId == null)
-            return Unauthorized(new { message = "Không xác định được người dùng." });
-
-        var success = await _productCollectionServices.SoftDeleteProductCollectionAsync(id, userId);
-
-        if (!success)
-            return Ok(new { message = "ProductCollection không tồn tại hoặc đã bị xóa." });
-
-        return Ok(new { message = "Xóa mềm ProductCollection thành công." });
-    }
+   
     [Authorize(Roles = "Admin,Artisan")]
     [HttpPut("productcollection")]
     public async Task<IActionResult> UpdateProductCollection([FromForm] RequestDTOUpdateProductCollection dto)
