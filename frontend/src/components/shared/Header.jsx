@@ -64,6 +64,13 @@ const Header = () => {
     }
   }, [isNotificationVisible, fetchNotifications]);
 
+  // Fetch once on login to keep badge updated without clicking the bell
+  useEffect(() => {
+    if (userInfo) {
+      fetchNotifications();
+    }
+  }, [userInfo, fetchNotifications]);
+
   useEffect(() => {
     let cleanup = () => {};
     let isMounted = true;
@@ -93,7 +100,7 @@ const Header = () => {
 
         cleanup = () => {
           connection.off('ReceiveNotification', handleReceive);
-          connection.off('reconnected', handleReconnected);
+          connection.onreconnected(null);
         };
       } catch (err) {
         console.error('Notification hub init error:', err);
