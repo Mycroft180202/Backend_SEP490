@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace Backend_SEP490.DTOs.Request;
 
@@ -18,9 +19,11 @@ public class RequestCreateArtisanApplication
     [Required]
     public string IdentityNumber { get; set; }
 
-    public string? IdentityFrontImage { get; set; }
-    public string? IdentityBackImage { get; set; }
-    public string? PortfolioUrl { get; set; }
+    [FileExtensions(Extensions = "jpg,jpeg,png,webp", ErrorMessage = "Chỉ chấp nhận jpg/jpeg/png/webp")]
+    public IFormFile? IdentityFrontImageFile { get; set; }
+
+    [FileExtensions(Extensions = "jpg,jpeg,png,webp", ErrorMessage = "Chỉ chấp nhận jpg/jpeg/png/webp")]
+    public IFormFile? IdentityBackImageFile { get; set; }
 
     [Required]
     public string SkillDescription { get; set; }

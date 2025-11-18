@@ -36,7 +36,7 @@ namespace Backend_SEP490.Controllers
                 return Ok(status);    
             }
             
-        }
+       }
         [HttpPut("carts/{id}")]
         public async Task<IActionResult> UpdateCartItems([FromRoute] string cartItemId, int quantity)
         {

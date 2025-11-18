@@ -20,7 +20,7 @@ public class ArtisanApplicationController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] RequestCreateArtisanApplication request)
+    public async Task<IActionResult> Create([FromForm] RequestCreateArtisanApplication request)
     {
         if (!ModelState.IsValid)
         {
