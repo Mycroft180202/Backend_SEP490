@@ -1,4 +1,4 @@
-using System.Text.Json;
+ï»¿using System.Text.Json;
 using AutoMapper;
 using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
@@ -29,84 +29,94 @@ public class ProductServicesImpl: GenericServices, IProductServices
         _embeddingService = embeddingService;
     }
 
+    private async Task<List<DTOs.Request.ResponseDTOProduct>> MapAndEnrichProductsAsync(IEnumerable<Product> products)
+    {
+        var sourceProducts = products?.ToList() ?? new List<Product>();
+        var mapped = _mapper.Map<List<DTOs.Request.ResponseDTOProduct>>(sourceProducts);
+
+        if (mapped.Count == 0)
+        {
+            return mapped;
+        }
+
+        var artisanIds = mapped
+            .Select(p => p.ArtisanId)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+
+        var productIds = mapped
+            .Select(p => p.Id)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+
+        var usersTask = _context.Users.GetUsersByIdsAsync(artisanIds);
+        var feedbacksTask = _context.Feedback.GetFeedbacksByProductIdsAsync(productIds);
+        var imagesTask = _context.ProductImages.GetImagesByProductIdsAsync(productIds);
+
+        await Task.WhenAll(usersTask, feedbacksTask, imagesTask);
+
+        var users = await usersTask;
+        var feedbacks = await feedbacksTask;
+        var images = await imagesTask;
+
+        var userDict = users.ToDictionary(u => u.UserID);
+
+        var ratingDict = feedbacks
+            .GroupBy(f => f.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Average(x => x.Rating)
+            );
+
+        var imageDict = images
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(i => i.Position).FirstOrDefault()
+            );
+
+        foreach (var pro in mapped)
+        {
+            if (!string.IsNullOrEmpty(pro.ArtisanId)
+                && userDict.TryGetValue(pro.ArtisanId, out var user))
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            if (ratingDict.TryGetValue(pro.Id, out var rating))
+            {
+                pro.Rating = (double)rating;
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
+
+            if (imageDict.TryGetValue(pro.Id, out var img) && img != null)
+            {
+                pro.ImageUrl = img.URL;
+            }
+        }
+
+        return mapped;
+    }
+
+
 
     public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAvailableProductsAsync()
     {
         var products = await _context.Products.GetAvailableProductsAsync();
-
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
-
-        foreach (var pro in resultproducts)
-        {
-            // L?y Artisan
-            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
-            if (user != null)
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
-
-            // L?y Feedback (Rating)
-            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
-            if (ratings != null && ratings.Any())
-            {
-                var ratingSum = ratings.Sum(o => o.Rating);
-                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-
-            // L?y Image
-            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // dùng ? d? tránh null
-        }
-
-        return resultproducts;
+        return await MapAndEnrichProductsAsync(products);
     }
-
 
     public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetUnavailableProductsAsync()
     {
-        
         var products = await _context.Products.GetUnavailableProductsAsync();
-
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
-
-        foreach (var pro in resultproducts)
-        {
-            // Artisan info
-            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
-            if (user != null)
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
-
-            // Ratings
-            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
-            if (ratings != null && ratings.Any())
-            {
-                var ratingSum = ratings.Sum(o => o.Rating);
-                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-
-            // Product Images
-            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
-        }
-
-        return resultproducts;
+        return await MapAndEnrichProductsAsync(products);
     }
-
-    
 
     public async Task<ResponseDTOProductDetail> GetProductByIdAsync(string id)
     {
@@ -116,29 +126,26 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         var resultProduct = _mapper.Map<ResponseDTOProductDetail>(product);
 
-        // Artisan Info
-        var user = await _context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId);
+        var userTask = _context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId);
+        var ratingsTask = _context.Feedback.GetFeedbacksByProductIdAsync(resultProduct.Id);
+        var imagesTask = _context.ProductImages.GetImagesByProductIdAsync(resultProduct.Id);
+
+        await Task.WhenAll(userTask, ratingsTask, imagesTask);
+
+        var user = await userTask;
         if (user != null)
         {
             resultProduct.DisplayName = user.DisplayName;
             resultProduct.ShopName = user.ShopName;
         }
 
-        // Feedback (Rating)
-        var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(resultProduct.Id);
-        if (ratings != null && ratings.Any())
-        {
-            var ratingSum = ratings.Sum(o => o.Rating);
-            resultProduct.Rating = (double)ratingSum / ratings.Count();
-        }
-        else
-        {
-            resultProduct.Rating = 0;
-        }
+        var ratings = (await ratingsTask)?.ToList() ?? new List<Feedback>();
+        resultProduct.Rating = (double)(ratings.Count > 0
+            ? ratings.Average(o => o.Rating)
+            : 0);
 
-        // Product Images
-        var listImages = await _context.ProductImages.GetImagesByProductIdAsync(resultProduct.Id);
-        resultProduct.Images = listImages?.Select(o => o.URL).ToList() ?? new List<string>();
+        var listImages = (await imagesTask)?.OrderBy(i => i.Position).Select(o => o.URL).ToList() ?? new List<string>();
+        resultProduct.Images = listImages;
 
         return resultProduct;
     }
@@ -169,14 +176,14 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 throw new Exception("Failed to generate embedding for product text.");
         }
 
-// Chuy?n embedding array thành JsonDocument
+// Chuy?n embedding array thÃ nh JsonDocument
         var embeddingJsonString = JsonSerializer.Serialize(embedding);
         newProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
 
-        // Thêm s?n ph?m
+        // ThÃªm s?n ph?m
         await _context.Products.AddProductAsync(newProduct);
 
-        // Upload hình ?nh
+        // Upload hÃ¬nh ?nh
         if (productDto.Images != null && productDto.Images.Any())
         {
             int position = 0;
@@ -204,175 +211,83 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return true;
     }
 
+
     public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId)
     {
         var products = await _context.Products.GetProductsByArtisanIdAsync(artisanId);
-
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
-
-        foreach (var pro in resultproducts)
-        {
-            // Artisan info
-            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
-            if (user != null)
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
-
-            // Ratings
-            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
-            if (ratings != null && ratings.Any())
-            {
-                var ratingSum = ratings.Sum(o => o.Rating);
-                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-
-            // Product Images
-            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
-        }
-
-        return resultproducts;
+        return await MapAndEnrichProductsAsync(products);
     }
+
 
     public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByCategoryAsync(string categoryId)
     {
         var products = await _context.Products.GetProductsByCategoryAsync(categoryId);
-
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
-
-        foreach (var pro in resultproducts)
-        {
-            // Artisan info
-            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
-            if (user != null)
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
-
-            // Ratings
-            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
-            if (ratings != null && ratings.Any())
-            {
-                var ratingSum = ratings.Sum(o => o.Rating);
-                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-
-            // Product Images
-            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
-        }
-
-        return resultproducts;
+        return await MapAndEnrichProductsAsync(products);
     }
+
 
     public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByNameAsync(string productName)
     {
         var products = await _context.Products.GetProductsByNameAsync(productName);
-
-        var resultproducts = _mapper.Map<IEnumerable<Product>, IEnumerable<DTOs.Request.ResponseDTOProduct>>(products);
-
-        foreach (var pro in resultproducts)
-        {
-            // Artisan info
-            var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
-            if (user != null)
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
-
-            // Ratings
-            var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
-            if (ratings != null && ratings.Any())
-            {
-                var ratingSum = ratings.Sum(o => o.Rating);
-                pro.Rating = (double)ratingSum / ratings.Count(); // chia double
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-
-            // Product Images
-            var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
-            var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
-        }
-
-        return resultproducts;
+        return await MapAndEnrichProductsAsync(products);
     }
 
     public async Task<bool> UpdateProductAsync(string productId, RequestDTOProduct productDto)
-{
-    var existingProduct = await _context.Products.GetProductWithImagesByIdAsync(productId);
-
-    if (existingProduct == null)
-        throw new Exception("Product not found");
-
-    // C?p nh?t thông tin co b?n
-    existingProduct.Name = productDto.Name;
-    existingProduct.ShortDescription = productDto.ShortDescription;
-    existingProduct.LongDescription = productDto.LongDescription;
-    existingProduct.Price = productDto.Price;
-    existingProduct.Category = productDto.Category;
-    existingProduct.Stock = productDto.Stock;
-    existingProduct.UpdateAt = DateTime.UtcNow;
-
-     // C?p nh?t images (xóa cu -> thêm m?i)
-    if (productDto.Images != null && productDto.Images.Any())
     {
-        // Xóa ?nh cu
-        await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
+        var existingProduct = await _context.Products.GetProductWithImagesByIdAsync(productId);
 
-        int position = 0;
-        foreach (var file in productDto.Images)
+        if (existingProduct == null)
+            throw new Exception("Product not found");
+
+        // C?p nh?t th?ng tin co b?n
+        existingProduct.Name = productDto.Name;
+        existingProduct.ShortDescription = productDto.ShortDescription;
+        existingProduct.LongDescription = productDto.LongDescription;
+        existingProduct.Price = productDto.Price;
+        existingProduct.Category = productDto.Category;
+        existingProduct.Stock = productDto.Stock;
+        existingProduct.UpdateAt = DateTime.UtcNow;
+
+        // C?p nh?t images (x?a c? -> th?m m?i)
+        if (productDto.Images != null && productDto.Images.Any())
         {
-            using var stream = file.OpenReadStream();
-            var uploadParams = new ImageUploadParams
+            // X?a ?nh c?
+            await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
+
+            int position = 0;
+            foreach (var file in productDto.Images)
             {
-                File = new FileDescription(file.FileName, stream)
-            };
+                using var stream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream)
+                };
 
-            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-            var productImage = new ProductImage
-            {
-                Id = GenerateID("PIMG"),
-                ProductId = existingProduct.Id,
-                URL = uploadResult.SecureUrl.ToString(),
-                Position = position++
-            };
+                var productImage = new ProductImage
+                {
+                    Id = GenerateID("PIMG"),
+                    ProductId = existingProduct.Id,
+                    URL = uploadResult.SecureUrl.ToString(),
+                    Position = position++
+                };
 
-            await _context.ProductImages.AddProductImageAsync(productImage);
+                await _context.ProductImages.AddProductImageAsync(productImage);
+            }
         }
+
+        var textForEmbedding = $"{existingProduct.Name} {existingProduct.ShortDescription} {existingProduct.LongDescription}";
+        var embeddingVector = await _embeddingService.GenerateEmbeddingAsync(textForEmbedding);
+
+        if (embeddingVector.Length > 0)
+        {
+            var embeddingJsonString = JsonSerializer.Serialize(embeddingVector);
+            existingProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
+        }
+        await _context.Products.UpdateAsync(existingProduct);
+        return true;
     }
-
-   
-    var textForEmbedding = $"{existingProduct.Name} {existingProduct.ShortDescription} {existingProduct.LongDescription}";
-    var embeddingVector = await _embeddingService.GenerateEmbeddingAsync(textForEmbedding);
-
-    if (embeddingVector.Length > 0)
-    {
-        var embeddingJsonString = JsonSerializer.Serialize(embeddingVector);
-        existingProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
-    }
-    await _context.Products.UpdateAsync(existingProduct);
-    return true;
-}
-
 
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
         string? productName,
@@ -395,73 +310,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             pageSize,
             sortOrder);
 
-        var result = _mapper.Map<List<ResponseDTOProduct>>(pagedProducts.Items);
-
-        if (result.Count == 0)
-        {
-            return new PagedResult<ResponseDTOProduct>
-            {
-                TotalCount = pagedProducts.TotalCount,
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                Items = result
-            };
-        }
-
-        var artisanIds = result
-            .Select(p => p.ArtisanId)
-            .Where(id => !string.IsNullOrEmpty(id))
-            .Distinct()
-            .ToList();
-
-        var productIds = result
-            .Select(p => p.Id)
-            .Distinct()
-            .ToList();
-
-        var users = await _context.Users.GetUsersByIdsAsync(artisanIds);
-        var feedbacks = await _context.Feedback.GetFeedbacksByProductIdsAsync(productIds);
-        var images = await _context.ProductImages.GetImagesByProductIdsAsync(productIds);
-
-        var userDict = users.ToDictionary(u => u.UserID);
-
-        var ratingDict = feedbacks
-            .GroupBy(f => f.ProductId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Average(x => x.Rating)
-            );
-
-        var imageDict = images
-            .GroupBy(i => i.ProductId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderBy(i => i.Position).FirstOrDefault()
-            );
-
-        foreach (var pro in result)
-        {
-            if (!string.IsNullOrEmpty(pro.ArtisanId)
-                && userDict.TryGetValue(pro.ArtisanId, out var user))
-            {
-                pro.DisplayName = user.DisplayName;
-                pro.ShopName = user.ShopName;
-            }
-
-            if (ratingDict.TryGetValue(pro.Id, out var rating))
-            {
-                pro.Rating = (double)rating;
-            }
-            else
-            {
-                pro.Rating = 0;
-            }
-
-            if (imageDict.TryGetValue(pro.Id, out var img) && img != null)
-            {
-                pro.ImageUrl = img.URL;
-            }
-        }
+        var result = await MapAndEnrichProductsAsync(pagedProducts.Items);
 
         return new PagedResult<ResponseDTOProduct>
         {

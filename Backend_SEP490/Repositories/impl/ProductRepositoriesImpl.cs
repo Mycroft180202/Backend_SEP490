@@ -14,26 +14,36 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<IEnumerable<Product>> GetAvailableProductsAsync()
     {
-        var prodcutsAvailable = await _context.Products.Where(s => s.IsActive == true).ToListAsync();
+        var prodcutsAvailable = await _context.Products
+            .AsNoTracking()
+            .Where(s => s.IsActive == true)
+            .ToListAsync();
         return prodcutsAvailable;
     }
 
     public async Task<IEnumerable<Product>> GetUnavailableProductsAsync()
     {
-        var prodcutsAvailable = await _context.Products.Where(s => s.IsActive == false).ToListAsync();
+        var prodcutsAvailable = await _context.Products
+            .AsNoTracking()
+            .Where(s => s.IsActive == false)
+            .ToListAsync();
         return prodcutsAvailable;
     }
 
 
     public async Task<Product?> GetProductByIdAsync(string productId)
     {
-        var product = await _context.Products.FindAsync(productId);
+        var product = await _context.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productId);
         return product;
     }
 
     public async Task<IEnumerable<Product>> GetAllProductsAsync()
     {
-        return await _context.Products.ToListAsync();
+        return await _context.Products
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     public async Task AddProductAsync(Product product)
@@ -44,19 +54,28 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<IEnumerable<Product>> GetProductsByArtisanIdAsync(string artisanId)
     {
-        var product = await _context.Products.Where(s => s.ArtisanId == artisanId).ToListAsync();
+        var product = await _context.Products
+            .AsNoTracking()
+            .Where(s => s.ArtisanId == artisanId)
+            .ToListAsync();
         return product;
     }
 
     public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string categoryId)
     {
-        var product = await _context.Products.Where(o => o.Category == categoryId).ToListAsync();
+        var product = await _context.Products
+            .AsNoTracking()
+            .Where(o => o.Category == categoryId)
+            .ToListAsync();
         return product;
     }
 
     public async Task<IEnumerable<Product>> GetProductsByNameAsync(string productName)
     {
-        var product = await _context.Products.Where(o => o.Name == productName).ToListAsync();
+        var product = await _context.Products
+            .AsNoTracking()
+            .Where(o => o.Name == productName)
+            .ToListAsync();
         return product;
     }
 
@@ -134,7 +153,9 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<List<Product>> GetProductsAsync(string? categoryId, bool? isActive)
     {
-        var query = _context.Products.AsQueryable();
+        var query = _context.Products
+            .AsNoTracking()
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(categoryId))
             query = query.Where(p => p.Category == categoryId);
@@ -147,7 +168,9 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<List<Product>> GetAllAsync()
     {
-        return await _context.Products.ToListAsync();
+        return await _context.Products
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     public async Task SaveChangesAsync() => await _context.SaveChangesAsync();

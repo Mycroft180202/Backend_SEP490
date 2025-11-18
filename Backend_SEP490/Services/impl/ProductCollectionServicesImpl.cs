@@ -6,6 +6,7 @@ using Backend_SEP490.Repositories.impl;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using System;
+using System.Linq;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -27,9 +28,35 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
     public async Task<ResponseDTOProductCollectionDetail> GetProductCollectionById(int id)
     {
         var productCollection = await _context.ProductCollections.GetProductCollectionById(id);
-        var product = await _context.ProductCollections.GetAllProductsInCollection(id);
+        var productsInCollection = await _context.ProductCollections.GetAllProductsInCollection(id);
+
         var result = _mapper.Map<ResponseDTOProductCollectionDetail>(productCollection);
-        result.Products = _mapper.Map<ICollection<ResponseDTOProduct>>(product);
+        result.Products = _mapper.Map<ICollection<ResponseDTOProduct>>(productsInCollection);
+
+        var productIds = result.Products?
+            .Select(p => p.Id)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .ToList() ?? new List<string>();
+
+        if (productIds.Any())
+        {
+            var productImages = await _context.ProductImages.GetImagesByProductIdsAsync(productIds);
+            var imageDict = productImages
+                .GroupBy(img => img.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(img => img.Position).FirstOrDefault()
+                );
+
+            foreach (var product in result.Products)
+            {
+                if (imageDict.TryGetValue(product.Id, out var image) && image != null)
+                {
+                    product.ImageUrl = image.URL;
+                }
+            }
+        }
+
         return result;
     }
 
