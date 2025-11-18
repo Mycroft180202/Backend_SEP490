@@ -28,14 +28,13 @@ Env.Load();
 string GetEnvOrThrow(string key) =>
     Environment.GetEnvironmentVariable(key) ?? throw new Exception($"{key} is not set in .env file!");
 
+string? GetEnvOrNull(string key) => Environment.GetEnvironmentVariable(key);
+
 int GetEnvInt(string key, int defaultValue = 0)
 {
     var rawValue = Environment.GetEnvironmentVariable(key);
     return int.TryParse(rawValue, out var parsed) ? parsed : defaultValue;
 }
-
-// Database
-var dbPassword = GetEnvOrThrow("DB_PASSWORD");
 
 // Cloudinary
 var cloudName = GetEnvOrThrow("CLOUDINARY_CLOUD_NAME");
@@ -103,8 +102,25 @@ var vnpaySettings = new VnpaySettings
 // ----------------------
 // DbContext
 // ----------------------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                     ?.Replace("{DB_PASSWORD}", dbPassword);
+var connectionString = GetEnvOrNull("ConnectionStrings__DefaultConnection")
+                     ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+var dbPassword = GetEnvOrNull("DB_PASSWORD");
+if (!string.IsNullOrWhiteSpace(connectionString) &&
+    connectionString.Contains("{DB_PASSWORD}", StringComparison.OrdinalIgnoreCase))
+{
+    if (string.IsNullOrWhiteSpace(dbPassword))
+    {
+        throw new Exception("DB_PASSWORD is required when connection string contains {DB_PASSWORD}");
+    }
+    connectionString = connectionString.Replace("{DB_PASSWORD}", dbPassword);
+}
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new Exception("ConnectionStrings:DefaultConnection is not configured.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // ----------------------
