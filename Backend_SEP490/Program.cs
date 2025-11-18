@@ -12,6 +12,7 @@ using AutoMapper;
 using CloudinaryDotNet;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -281,11 +282,17 @@ builder.Services.AddAuthentication(options =>
 // ----------------------
 // Config Cors
 // ----------------------
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins == null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = new[] { "http://192.168.1.183:3000", "http://localhost:3000" };
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://192.168.1.183:3000", "http://localhost:3000")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -298,6 +305,14 @@ builder.Services.AddAuthorization();
 // Build & run app
 // ----------------------
 var app = builder.Build();
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 if (app.Environment.IsDevelopment())
 {

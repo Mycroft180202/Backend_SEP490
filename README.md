@@ -106,3 +106,18 @@ Includes migrations:
 - **“Seller has no pickup info”** → seller hasn’t configured `/api/seller/shipping-profile/me`.
 - **No realtime updates** → ensure client joins SignalR hub with valid JWT and listens for `ShipmentStatusUpdated`.
 - **Order saved but no GHN shipment** → check logs for GHN error message; order persists even if GHN rejects payload.
+
+## 12. Deployment (Docker & Azure)
+
+### Docker (local)
+1) Sao chép `Backend_SEP490/Backend_SEP490/.env.example` thành `Backend_SEP490/Backend_SEP490/.env` và cập nhật `ConnectionStrings__DefaultConnection`, JWT, Cloudinary, OpenAI, GHN, VNPay, email...
+2) Chạy `docker compose up -d --build` ngay từ thư mục gốc repo (dạng API trên `http://localhost:8080`, Postgres trên `localhost:5432`).
+3) Khi deploy production qua Docker, thay cặp `.env` phù hợp và update `Cors__AllowedOrigins__*` cho domain frontend.
+
+### Azure (App Service/Container Apps)
+- Build/push image: `docker build -t <acr>.azurecr.io/backend-sep490:<tag> -f Backend_SEP490/Backend_SEP490/Dockerfile .` sau đó `docker push <acr>.azurecr.io/backend-sep490:<tag>` (hoặc dùng `az acr build`).
+- Triển khai container: dạng App Service for Containers hoặc Azure Container Apps, chạy hình docker image trên cổng `8080` và khai báo cặp settings:
+  - `ASPNETCORE_URLS=http://+:8080`, `WEBSITES_PORT=8080`
+  - `ConnectionStrings__DefaultConnection=Host=<db-host>;Port=5432;Database=<db>;Username=<user>;Password=<pwd>`
+  - Toàn bộ env cần thiết: `JWT_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CLOUDINARY_*`, `EMAIL_*`, `OPENAI_API_KEY`, `GHN_*`, `VNPAY_*`, `Cors__AllowedOrigins__0=https://<frontend-domain>`
+- Những app setting này phủ thay file `.env`; không nên đẩy thẳng `.env` vào image.
