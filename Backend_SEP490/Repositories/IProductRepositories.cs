@@ -15,11 +15,12 @@ public interface IProductRepositories
     public Task UpdateAsync(Product product);
     public Task<Product> GetProductWithImagesByIdAsync(string productId);
     public Task<PagedResult<Product>> GetProductsAsync(
-        string? productName, 
-        string? categoryId, 
+        string? productName,
+        string? categoryId,
         bool? isAvailable,
-        int pageIndex, 
-        int pageSize);
+        int pageIndex,
+        int pageSize,
+        string? sortOrder);
     Task<List<Product>> GetProductsAsync(string? categoryId, bool? isActive);
     Task<List<Product>> GetAllAsync();
     Task SaveChangesAsync();

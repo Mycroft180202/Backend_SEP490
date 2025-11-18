@@ -84,6 +84,21 @@ var ghnSettings = new GhnSettings
     DefaultParcelHeight = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_HEIGHT", 10)
 };
 
+var vnpaySettings = new VnpaySettings
+{
+    TmnCode = Environment.GetEnvironmentVariable("VNPAY_TMN_CODE") ?? string.Empty,
+    HashSecret = Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET") ?? string.Empty,
+    PaymentUrl = Environment.GetEnvironmentVariable("VNPAY_PAYMENT_URL") ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    ReturnUrl = Environment.GetEnvironmentVariable("VNPAY_RETURN_URL") ?? "https://localhost:5001/api/payment/vnpay/callback",
+    QueryDrUrl = Environment.GetEnvironmentVariable("VNPAY_QUERYDR_URL") ?? string.Empty,
+    Version = Environment.GetEnvironmentVariable("VNPAY_VERSION") ?? "2.1.0",
+    Locale = Environment.GetEnvironmentVariable("VNPAY_LOCALE") ?? "vn",
+    CurrencyCode = Environment.GetEnvironmentVariable("VNPAY_CURRENCY_CODE") ?? "VND",
+    Command = Environment.GetEnvironmentVariable("VNPAY_COMMAND") ?? "pay",
+    DefaultBankCode = Environment.GetEnvironmentVariable("VNPAY_DEFAULT_BANK_CODE") ?? "VNPAYQR",
+    ExpireMinutes = GetEnvInt("VNPAY_EXPIRE_MINUTES", 15)
+};
+
 // ----------------------
 // DbContext
 // ----------------------
@@ -148,6 +163,7 @@ builder.Services.AddScoped<IReportService, ReportServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
+builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
 {
     var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;

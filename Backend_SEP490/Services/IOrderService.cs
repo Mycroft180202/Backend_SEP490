@@ -11,5 +11,6 @@ namespace Backend_SEP490.Services
         Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize);
         Task<string> CreateOrderAsync(string? userId, RequestCreateOrder request);
         Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request);
+        Task<bool> CreateShipmentsAfterPaymentAsync(string orderId);
     }
 }

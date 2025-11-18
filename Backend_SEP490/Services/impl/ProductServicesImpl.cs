@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using AutoMapper;
 using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
@@ -38,7 +38,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         foreach (var pro in resultproducts)
         {
-            // Lấy Artisan
+            // L?y Artisan
             var user = await _context.Users.GetUserByArtisanIDAsync(pro.ArtisanId);
             if (user != null)
             {
@@ -46,7 +46,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 pro.ShopName = user.ShopName;
             }
 
-            // Lấy Feedback (Rating)
+            // L?y Feedback (Rating)
             var ratings = await _context.Feedback.GetFeedbacksByProductIdAsync(pro.Id);
             if (ratings != null && ratings.Any())
             {
@@ -58,10 +58,10 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 pro.Rating = 0;
             }
 
-            // Lấy Image
+            // L?y Image
             var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
             var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // dùng ? để tránh null
+            pro.ImageUrl = imageUrl?.URL; // d�ng ? d? tr�nh null
         }
 
         return resultproducts;
@@ -100,7 +100,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             // Product Images
             var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
             var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
+            pro.ImageUrl = imageUrl?.URL; // tr�nh null
         }
 
         return resultproducts;
@@ -169,14 +169,14 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 throw new Exception("Failed to generate embedding for product text.");
         }
 
-// Chuyển embedding array thành JsonDocument
+// Chuy?n embedding array th�nh JsonDocument
         var embeddingJsonString = JsonSerializer.Serialize(embedding);
         newProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
 
-        // Thêm sản phẩm
+        // Th�m s?n ph?m
         await _context.Products.AddProductAsync(newProduct);
 
-        // Upload hình ảnh
+        // Upload h�nh ?nh
         if (productDto.Images != null && productDto.Images.Any())
         {
             int position = 0;
@@ -235,7 +235,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             // Product Images
             var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
             var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
+            pro.ImageUrl = imageUrl?.URL; // tr�nh null
         }
 
         return resultproducts;
@@ -272,7 +272,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             // Product Images
             var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
             var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
+            pro.ImageUrl = imageUrl?.URL; // tr�nh null
         }
 
         return resultproducts;
@@ -309,7 +309,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             // Product Images
             var productImages = await _context.ProductImages.GetImagesByProductIdAsync(pro.Id);
             var imageUrl = productImages?.FirstOrDefault(o => o.Position == 1);
-            pro.ImageUrl = imageUrl?.URL; // tránh null
+            pro.ImageUrl = imageUrl?.URL; // tr�nh null
         }
 
         return resultproducts;
@@ -322,7 +322,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
     if (existingProduct == null)
         throw new Exception("Product not found");
 
-    // Cập nhật thông tin cơ bản
+    // C?p nh?t th�ng tin co b?n
     existingProduct.Name = productDto.Name;
     existingProduct.ShortDescription = productDto.ShortDescription;
     existingProduct.LongDescription = productDto.LongDescription;
@@ -331,10 +331,10 @@ public class ProductServicesImpl: GenericServices, IProductServices
     existingProduct.Stock = productDto.Stock;
     existingProduct.UpdateAt = DateTime.UtcNow;
 
-     // Cập nhật images (xóa cũ -> thêm mới)
+     // C?p nh?t images (x�a cu -> th�m m?i)
     if (productDto.Images != null && productDto.Images.Any())
     {
-        // Xóa ảnh cũ
+        // X�a ?nh cu
         await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
 
         int position = 0;
@@ -375,156 +375,102 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
 
     public async Task<PagedResult<ResponseDTOProduct>> GetProductsAsync(
-    string? productName,
-    string? categoryId,
-    bool? isActive,
-    int pageIndex,
-    int pageSize,
-    string? sortOrder)
-{
-    if (pageIndex < 1)
-        pageIndex = 1;
-    if (pageSize <= 0)
-        pageSize = 10;
-
-    // Lấy danh sách product đã filter theo category + isActive
-    var products = await _context.Products.GetProductsAsync(categoryId, isActive);
-
-    // ----- 1. Semantic search theo embedding (nếu có productName) -----
-    if (!string.IsNullOrWhiteSpace(productName))
+        string? productName,
+        string? categoryId,
+        bool? isActive,
+        int pageIndex,
+        int pageSize,
+        string? sortOrder)
     {
-        var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(productName);
+        if (pageIndex < 1)
+            pageIndex = 1;
+        if (pageSize <= 0)
+            pageSize = 10;
 
-        products = products
-            .Where(p => p.EmbeddingJson != null)
-            .Select(p =>
-            {
-                var embedding = JsonConvert.DeserializeObject<double[]>(
-                    p.EmbeddingJson!.RootElement.GetRawText()
-                );
+        var pagedProducts = await _context.Products.GetProductsAsync(
+            productName,
+            categoryId,
+            isActive,
+            pageIndex,
+            pageSize,
+            sortOrder);
 
-                var score = CalculateCosineSimilarity(queryEmbedding, embedding);
-                return new { Product = p, Score = score };
-            })
-            .OrderByDescending(x => x.Score)
-            .Select(x => x.Product)
-            .ToList();
-    }
+        var result = _mapper.Map<List<ResponseDTOProduct>>(pagedProducts.Items);
 
-    // ----- 2. Sort theo sortOrder (trên bộ nhớ như cũ) -----
-    if (!string.IsNullOrWhiteSpace(sortOrder))
-    {
-        switch (sortOrder.ToLower())
+        if (result.Count == 0)
         {
-            case "asc":
-            case "lowtohigh":
-                products = products.OrderBy(p => p.Price).ToList();
-                break;
-            case "desc":
-            case "hightolow":
-                products = products.OrderByDescending(p => p.Price).ToList();
-                break;
-            case "atoz":
-                products = products.OrderBy(p => p.Name).ToList();
-                break;
-            case "ztoa":
-                products = products.OrderByDescending(p => p.Name).ToList();
-                break;
+            return new PagedResult<ResponseDTOProduct>
+            {
+                TotalCount = pagedProducts.TotalCount,
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+                Items = result
+            };
         }
-    }
 
-    var totalCount = products.Count;
+        var artisanIds = result
+            .Select(p => p.ArtisanId)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
 
-    // ----- 3. Paging -----
-    var pagedProducts = products
-        .Skip((pageIndex - 1) * pageSize)
-        .Take(pageSize)
-        .ToList();
+        var productIds = result
+            .Select(p => p.Id)
+            .Distinct()
+            .ToList();
 
-    // GIỮ NGUYÊN MAPPER như bạn yêu cầu
-    var result = _mapper.Map<List<ResponseDTOProduct>>(pagedProducts);
+        var users = await _context.Users.GetUsersByIdsAsync(artisanIds);
+        var feedbacks = await _context.Feedback.GetFeedbacksByProductIdsAsync(productIds);
+        var images = await _context.ProductImages.GetImagesByProductIdsAsync(productIds);
 
-    // Không có sản phẩm thì trả luôn
-    if (result.Count == 0)
-    {
+        var userDict = users.ToDictionary(u => u.UserID);
+
+        var ratingDict = feedbacks
+            .GroupBy(f => f.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Average(x => x.Rating)
+            );
+
+        var imageDict = images
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(i => i.Position).FirstOrDefault()
+            );
+
+        foreach (var pro in result)
+        {
+            if (!string.IsNullOrEmpty(pro.ArtisanId)
+                && userDict.TryGetValue(pro.ArtisanId, out var user))
+            {
+                pro.DisplayName = user.DisplayName;
+                pro.ShopName = user.ShopName;
+            }
+
+            if (ratingDict.TryGetValue(pro.Id, out var rating))
+            {
+                pro.Rating = (double)rating;
+            }
+            else
+            {
+                pro.Rating = 0;
+            }
+
+            if (imageDict.TryGetValue(pro.Id, out var img) && img != null)
+            {
+                pro.ImageUrl = img.URL;
+            }
+        }
+
         return new PagedResult<ResponseDTOProduct>
         {
-            TotalCount = totalCount,
+            TotalCount = pagedProducts.TotalCount,
             PageIndex = pageIndex,
             PageSize = pageSize,
             Items = result
         };
     }
-
-    // ----- 4. BATCH QUERY: user, feedback, image -----
-    var artisanIds = result
-        .Select(p => p.ArtisanId)
-        .Where(id => !string.IsNullOrEmpty(id))
-        .Distinct()
-        .ToList();
-
-    var productIds = result
-        .Select(p => p.Id)
-        .Distinct()
-        .ToList();
-
-    
-    var users = await _context.Users.GetUsersByIdsAsync(artisanIds);
-    var feedbacks = await _context.Feedback.GetFeedbacksByProductIdsAsync(productIds);
-    var images = await _context.ProductImages.GetImagesByProductIdsAsync(productIds);
-
-    var userDict = users.ToDictionary(u => u.UserID);
-
-    var ratingDict = feedbacks
-        .GroupBy(f => f.ProductId)
-        .ToDictionary(
-            g => g.Key,
-            g => g.Average(x => x.Rating)
-        );
-
-    var imageDict = images
-        .GroupBy(i => i.ProductId)
-        .ToDictionary(
-            g => g.Key,
-            g => g.OrderBy(i => i.Position).FirstOrDefault()
-        );
-
-    // ----- 5. Gán dữ liệu bổ sung cho DTO -----
-    foreach (var pro in result)
-    {
-        // Artisan info
-        if (!string.IsNullOrEmpty(pro.ArtisanId)
-            && userDict.TryGetValue(pro.ArtisanId, out var user))
-        {
-            pro.DisplayName = user.DisplayName;
-            pro.ShopName = user.ShopName;
-        }
-
-        // Rating
-        if (ratingDict.TryGetValue(pro.Id, out var rating))
-        {
-            pro.Rating = (double)rating;
-        }
-        else
-        {
-            pro.Rating = 0;
-        }
-
-        // Image
-        if (imageDict.TryGetValue(pro.Id, out var img) && img != null)
-        {
-            pro.ImageUrl = img.URL;
-        }
-    }
-
-    return new PagedResult<ResponseDTOProduct>
-    {
-        TotalCount = totalCount,
-        PageIndex = pageIndex,
-        PageSize = pageSize,
-        Items = result
-    };
-}
 
     private double CalculateCosineSimilarity(double[] a, double[] b)
     {
