@@ -51,15 +51,17 @@ public class ProductServicesImpl: GenericServices, IProductServices
             .Distinct()
             .ToList();
 
-        var usersTask = _context.Users.GetUsersByIdsAsync(artisanIds);
-        var feedbacksTask = _context.Feedback.GetFeedbacksByProductIdsAsync(productIds);
-        var imagesTask = _context.ProductImages.GetImagesByProductIdsAsync(productIds);
+        var users = artisanIds.Count > 0
+            ? await _context.Users.GetUsersByIdsAsync(artisanIds)
+            : new List<User>();
 
-        await Task.WhenAll(usersTask, feedbacksTask, imagesTask);
+        var feedbacks = productIds.Count > 0
+            ? await _context.Feedback.GetFeedbacksByProductIdsAsync(productIds)
+            : new List<Feedback>();
 
-        var users = await usersTask;
-        var feedbacks = await feedbacksTask;
-        var images = await imagesTask;
+        var images = productIds.Count > 0
+            ? await _context.ProductImages.GetImagesByProductIdsAsync(productIds)
+            : new List<ProductImage>();
 
         var userDict = users.ToDictionary(u => u.UserID);
 
@@ -126,25 +128,19 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         var resultProduct = _mapper.Map<ResponseDTOProductDetail>(product);
 
-        var userTask = _context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId);
-        var ratingsTask = _context.Feedback.GetFeedbacksByProductIdAsync(resultProduct.Id);
-        var imagesTask = _context.ProductImages.GetImagesByProductIdAsync(resultProduct.Id);
-
-        await Task.WhenAll(userTask, ratingsTask, imagesTask);
-
-        var user = await userTask;
+        var user = await _context.Users.GetUserByArtisanIDAsync(resultProduct.ArtisanId);
         if (user != null)
         {
             resultProduct.DisplayName = user.DisplayName;
             resultProduct.ShopName = user.ShopName;
         }
 
-        var ratings = (await ratingsTask)?.ToList() ?? new List<Feedback>();
+        var ratings = (await _context.Feedback.GetFeedbacksByProductIdAsync(resultProduct.Id))?.ToList() ?? new List<Feedback>();
         resultProduct.Rating = (double)(ratings.Count > 0
             ? ratings.Average(o => o.Rating)
             : 0);
 
-        var listImages = (await imagesTask)?.OrderBy(i => i.Position).Select(o => o.URL).ToList() ?? new List<string>();
+        var listImages = (await _context.ProductImages.GetImagesByProductIdAsync(resultProduct.Id))?.OrderBy(i => i.Position).Select(o => o.URL).ToList() ?? new List<string>();
         resultProduct.Images = listImages;
 
         return resultProduct;
