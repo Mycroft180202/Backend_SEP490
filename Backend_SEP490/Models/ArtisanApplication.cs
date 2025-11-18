@@ -19,9 +19,10 @@ public class ArtisanApplication
 
     [Required]
     public string IdentityNumber { get; set; }
-    public string? IdentityFrontImage { get; set; }
-    public string? IdentityBackImage { get; set; }
-    public string? PortfolioUrl { get; set; }
+    public string? IdentityFrontImagePublicId { get; set; }
+    public string? IdentityFrontImageUrl { get; set; }
+    public string? IdentityBackImagePublicId { get; set; }
+    public string? IdentityBackImageUrl { get; set; }
     public string SkillDescription { get; set; }
     public int? YearsOfExperience { get; set; }
     public string WorkshopAddress { get; set; }

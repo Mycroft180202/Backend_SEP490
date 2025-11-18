@@ -5,6 +5,9 @@ using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Backend_SEP490.Services.impl;
@@ -13,15 +16,18 @@ public class ArtisanApplicationService : GenericServices, IArtisanApplicationSer
 {
     private readonly INotificationService _notificationService;
     private readonly ILogger<ArtisanApplicationService> _logger;
+    private readonly Cloudinary _cloudinary;
 
     public ArtisanApplicationService(
         IMapper mapper,
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
-        ILogger<ArtisanApplicationService> logger) : base(mapper, unitOfWork)
+        ILogger<ArtisanApplicationService> logger,
+        Cloudinary cloudinary) : base(mapper, unitOfWork)
     {
         _notificationService = notificationService;
         _logger = logger;
+        _cloudinary = cloudinary;
     }
 
     private static string GenerateId(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
@@ -50,6 +56,9 @@ public class ArtisanApplicationService : GenericServices, IArtisanApplicationSer
             yearsOfExperience = 0;
         }
 
+        var (frontPublicId, frontUrl) = await UploadIfPresentAsync(request.IdentityFrontImageFile);
+        var (backPublicId, backUrl) = await UploadIfPresentAsync(request.IdentityBackImageFile);
+
         var application = new ArtisanApplication
         {
             Id = GenerateId("ARTAPP"),
@@ -59,9 +68,10 @@ public class ArtisanApplicationService : GenericServices, IArtisanApplicationSer
             PhoneNumber = request.PhoneNumber,
             DateOfBirth = request.DateOfBirth,
             IdentityNumber = request.IdentityNumber,
-            IdentityFrontImage = request.IdentityFrontImage,
-            IdentityBackImage = request.IdentityBackImage,
-            PortfolioUrl = request.PortfolioUrl,
+            IdentityFrontImagePublicId = frontPublicId,
+            IdentityFrontImageUrl = frontUrl,
+            IdentityBackImagePublicId = backPublicId,
+            IdentityBackImageUrl = backUrl,
             SkillDescription = request.SkillDescription,
             YearsOfExperience = yearsOfExperience,
             WorkshopAddress = request.WorkshopAddress,
@@ -222,5 +232,23 @@ public class ArtisanApplicationService : GenericServices, IArtisanApplicationSer
             _logger.LogError(ex, "Failed to review artisan application {ApplicationId}", applicationId);
             return (false, "Review failed, please try again.");
         }
+    }
+
+    private async Task<(string? PublicId, string? Url)> UploadIfPresentAsync(IFormFile? file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return (null, null);
+        }
+
+        using var stream = file.OpenReadStream();
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(file.FileName, stream),
+            Folder = "artisan-identity"
+        };
+
+        var result = await _cloudinary.UploadAsync(uploadParams);
+        return (result.PublicId, result.SecureUrl?.ToString());
     }
 }
