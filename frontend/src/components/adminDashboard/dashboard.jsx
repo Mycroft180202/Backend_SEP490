@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { 
   FaHome,
   FaProductHunt,
@@ -23,9 +23,11 @@ import BlogManagement from './BlogManagement';
 import SettingsManagement from './SettingsManagement';
 import VoucherManagement from './VoucherManagement';
 import ProductCollectionManagement from './ProductCollectionManagement';
+import { UserContext } from '../../context/UserContext';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const { userInfo } = useContext(UserContext);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState({
@@ -139,13 +141,18 @@ const menuItems = [
               </div>
               <div className="flex items-center gap-2">
                 <img 
-                  src="/images/default-avatar.png" 
-                  alt="Admin" 
+                  src={userInfo?.userUrlImage || '/images/default-avatar.png'} 
+                  alt={userInfo?.displayName || userInfo?.username || 'Admin'} 
                   className="w-10 h-10 rounded-full border-2 border-primary"
                 />
                 <div className="text-right">
-                  <p className="font-semibold text-sm">Admin User</p>
-                  <p className="text-xs text-gray-500">Administrator</p>
+                  <p className="font-semibold text-sm">{userInfo?.displayName || userInfo?.username || 'Admin User'}</p>
+                  <p className="text-xs text-gray-500">
+                    {(userInfo?.roles || [])
+                      .map((r) => (typeof r === 'string' ? r : r?.name))
+                      .filter(Boolean)
+                      .join(', ') || 'Administrator'}
+                  </p>
                 </div>
               </div>
             </div>

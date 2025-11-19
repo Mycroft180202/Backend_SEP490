@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+﻿import React, { useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
@@ -76,10 +76,11 @@ const ArtisanShop = () => {
           return;
         }
         setLoading(true);
-        const params = { pageIndex, pageSize, artisanId: shopInfo.artisanId };
-        const response = await ProductService.getAllProducts(params);
+        const response = await ProductService.getAllProducts({ pageIndex, pageSize });
         if (!isMounted) return;
-        setProducts(response.items || []);
+        const items = response.items || [];
+        const filtered = items.filter((p) => (p.artisanId || p.artisanID) === shopInfo.artisanId);
+        setProducts(filtered);
         setTotalPages(
           response.totalPages && response.totalPages > 0
             ? response.totalPages
@@ -160,7 +161,7 @@ const ArtisanShop = () => {
         image={shopInfo?.image}
         phone={shopInfo?.phone}
       />
-      <FilterSection />
+      <FilterSection artisanId={shopInfo?.artisanId} />
       <main className="max-w-screen-xl mx-auto px-6 md:px-8 py-12">
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {loading ? (
@@ -197,3 +198,4 @@ const ArtisanShop = () => {
 };
 
 export default ArtisanShop;
+

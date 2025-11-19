@@ -2,10 +2,11 @@ import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 
-const FilterSection = () => {
+const FilterSection = ({ artisanId }) => {
   const navigate = useNavigate();
   const { userInfo } = useContext(UserContext);
   const isArtisan = userInfo?.roles?.some((role) => (typeof role === 'string' ? role : role.name) === 'Artisan');
+  const isOwner = artisanId && (userInfo?.userID === artisanId || userInfo?.userId === artisanId);
 
   return (
     <section className="bg-white shadow-sm border-b border-gray-100">
@@ -13,7 +14,7 @@ const FilterSection = () => {
         <h2 className="text-lg md:text-xl font-semibold text-[#8B4513]">
           Tất cả sản phẩm của shop
         </h2>
-        {isArtisan && (
+        {isArtisan && isOwner && (
           <button
             type="button"
             onClick={() => navigate('/artisan-dashboard')}

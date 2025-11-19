@@ -19,6 +19,25 @@ const statusBadge = (isActive) => (
     : 'bg-red-100 text-red-700'
 );
 
+const formatRoles = (roles) => {
+  if (Array.isArray(roles)) {
+    const names = roles
+      .map((r) => {
+        if (typeof r === 'string') return r;
+        if (r?.name) return r.name;
+        if (r?.description) return r.description;
+        return '';
+      })
+      .filter(Boolean);
+    return names.length ? names.join(', ') : 'N/A';
+  }
+  if (roles && typeof roles === 'object') {
+    return roles.name || roles.description || 'N/A';
+  }
+  if (typeof roles === 'string') return roles;
+  return 'N/A';
+};
+
 const CustomerManagement = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -129,9 +148,17 @@ const CustomerManagement = () => {
     }
   };
 
-  const handleView = async (userId) => {
+  const handleView = async (user) => {
+    if (!user?.userID && !user?.id) {
+      toast.error('Khong xac dinh duoc nguoi dung.');
+      return;
+    }
+
+    // Show what we already have first
+    setSelectedUser(user);
+
     try {
-      const data = await UserService.getById(userId);
+      const data = await UserService.getById(user.userID || user.id);
       setSelectedUser(data);
     } catch (error) {
       console.error('View user error:', error);
@@ -257,7 +284,7 @@ const CustomerManagement = () => {
                           <button
                             className="text-blue-600 hover:text-blue-800"
                             title="Xem chi tiet"
-                            onClick={() => handleView(user.userID || user.id)}
+                            onClick={() => handleView(user)}
                           >
                             <FaEye />
                           </button>
@@ -339,7 +366,9 @@ const CustomerManagement = () => {
                 </div>
                 <div>
                   <p className="text-gray-500">Vai tro</p>
-                  <p className="font-semibold">{selectedUser.roles || selectedUser.role || 'N/A'}</p>
+                  <p className="font-semibold">
+                    {formatRoles(selectedUser.roles || selectedUser.role)}
+                  </p>
                 </div>
               </div>
               {Array.isArray(selectedUser.addresses) && selectedUser.addresses.length > 0 && (

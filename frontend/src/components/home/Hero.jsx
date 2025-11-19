@@ -60,7 +60,7 @@ const Hero = () => {
             <div className="flex flex-col items-center gap-5 text-center">
               <h2 className="font-malko text-[40px] leading-[1.1em] text-white drop-shadow-lg">
                 Chào mừng đến với<br />
-                Hoa Lac Handicraft Promotion and Sales
+                Website thủ công mỹ nghệ Hòa Lạc
               </h2>
               <p className="font-nunito font-semibold text-2xl leading-[1.36em] text-white drop-shadow-lg">
                 Bạn có thể khám phá các sản phẩm thủ công truyền thống đặc sắc chỉ có tại Hòa Lạc

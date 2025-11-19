@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useState,
   useEffect,
   useRef,
@@ -83,12 +83,13 @@ function ChangePasswordSection({ email }) {
       toast.error('Vui lòng điền đầy đủ mật khẩu.');
       return;
     }
-    if (newPassword !== confirmPassword) {
+        if (newPassword !== confirmPassword) {
       toast.error('Mật khẩu xác nhận không khớp.');
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự.');
+    const strongPassword = /^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{6,}$/;
+    if (!strongPassword.test(newPassword)) {
+      toast.error('Mật khẩu phải có ≥ 6 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.');
       return;
     }
     setLoading(true);
@@ -1103,3 +1104,4 @@ function ProfileSection() {
 }
 
 export default ProfileSection;
+

@@ -11,7 +11,8 @@ import {
   FaCog,
   FaSignOutAlt,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaArrowLeft
 } from 'react-icons/fa';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuItems }) => {
@@ -19,7 +20,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
-    navigate('/');
+    navigate('/login');
   };
 
   return (
@@ -42,6 +43,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
 
       {/* Menu Items */}
       <nav className="flex-1 p-4 space-y-2">
+        <button
+          onClick={() => navigate('/')}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-200 hover:bg-red-800/50"
+        >
+          <FaArrowLeft className="text-xl flex-shrink-0" />
+          {sidebarOpen && <span className="font-nunito">Về trang chủ</span>}
+        </button>
         {menuItems.map((item) => (
           <button
             key={item.id}

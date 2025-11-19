@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Pagination from '../shared/Pagination';
 import { BlogService } from '../../services/modules/blog/blogService';
 
 const PAGE_SIZE = 4;
 
-const NewsCard = ({ image, date, title }) => {
+const NewsCard = ({
+  image, date, title, onClick,
+}) => {
   return (
-    <div className="flex flex-col gap-4 w-full bg-white rounded-xl border border-[#D4A574]/30 shadow hover:shadow-lg transition overflow-hidden">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-4 w-full bg-white rounded-xl border border-[#D4A574]/30 shadow hover:shadow-lg transition overflow-hidden text-left"
+    >
       <img
         src={image}
         alt={title}
@@ -16,11 +23,12 @@ const NewsCard = ({ image, date, title }) => {
         <span className="font-nunito text-xs text-[#9e211f] font-semibold">{date}</span>
         <h3 className="font-nunito text-lg font-semibold text-gray-800 line-clamp-2">{title}</h3>
       </div>
-    </div>
+    </button>
   );
 };
 
 const DiscoverHoaLac = () => {
+  const navigate = useNavigate();
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(1);
@@ -61,14 +69,18 @@ const DiscoverHoaLac = () => {
               ? Array.from({ length: PAGE_SIZE }).map((_, idx) => (
                 <div key={idx} className="h-[260px] bg-white rounded-xl shadow animate-pulse" />
               ))
-              : display.map((item) => (
-                <NewsCard
-                  key={item.id || item.blogId}
-                  image={item.image || '/images/default-product.png'}
-                  date={new Date(item.updateAt || item.createAt || Date.now()).toLocaleDateString('vi-VN')}
-                  title={item.title}
-                />
-              ))}
+              : display.map((item) => {
+                const blogId = item.id || item.blogId;
+                return (
+                  <NewsCard
+                    key={blogId || item.title}
+                    image={item.image || '/images/default-product.png'}
+                    date={new Date(item.updateAt || item.createAt || Date.now()).toLocaleDateString('vi-VN')}
+                    title={item.title}
+                    onClick={() => blogId && navigate(`/blog/${blogId}`)}
+                  />
+                );
+              })}
           </div>
 
           {blogs.length > PAGE_SIZE && (

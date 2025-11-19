@@ -1,20 +1,40 @@
 import React, { useState } from 'react';
 import { FaTimes, FaCloudUploadAlt, FaTrash } from 'react-icons/fa';
 
-const AddProductForm = ({ isOpen, onClose, onSubmit }) => {
+const AddProductForm = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialData = {},
+  artisanId = '',
+  categories = [],
+}) => {
   const [formData, setFormData] = useState({
     name: '',
     shortDescription: '',
     longDescription: '',
     price: '',
     category: '',
-    artisanId: '',
+    artisanId: artisanId || '',
     stock: 0,
-    images: []
+    images: [],
   });
 
   const [errors, setErrors] = useState({});
   const [previewImages, setPreviewImages] = useState([]);
+
+  // Sync initial data when editing
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setFormData((prev) => ({
+      ...prev,
+      ...initialData,
+      artisanId: artisanId || initialData?.artisanId || prev.artisanId,
+      images: [],
+    }));
+    setPreviewImages([]);
+    setErrors({});
+  }, [initialData, isOpen, artisanId]);
 
   // Validate field
   const validateField = (name, value) => {
@@ -229,12 +249,13 @@ const AddProductForm = ({ isOpen, onClose, onSubmit }) => {
 
     // Create FormData object for API submission
     const submitData = new FormData();
+    const effectiveArtisanId = artisanId || formData.artisanId;
     submitData.append('Name', formData.name);
     submitData.append('ShortDescription', formData.shortDescription || '');
     submitData.append('LongDescription', formData.longDescription || '');
     submitData.append('Price', parseFloat(formData.price));
     submitData.append('Category', formData.category);
-    submitData.append('ArtisanId', formData.artisanId);
+    submitData.append('ArtisanId', effectiveArtisanId);
     submitData.append('Stock', parseInt(formData.stock));
     
     // Append all images
@@ -257,7 +278,7 @@ const AddProductForm = ({ isOpen, onClose, onSubmit }) => {
       longDescription: '',
       price: '',
       category: '',
-      artisanId: '',
+      artisanId: artisanId || '',
       stock: 0,
       images: []
     });
@@ -326,12 +347,11 @@ const AddProductForm = ({ isOpen, onClose, onSubmit }) => {
                   }`}
                 >
                   <option value="">Chọn danh mục</option>
-                  <option value="Đồ gốm">Đồ gốm</option>
-                  <option value="Đồ gỗ">Đồ gỗ</option>
-                  <option value="Đồ thêu">Đồ thêu</option>
-                  <option value="Đồ mây tre">Đồ mây tre</option>
-                  <option value="Đồ sơn mài">Đồ sơn mài</option>
-                  <option value="Đồ kim loại">Đồ kim loại</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id || cat.categoryId} value={cat.id || cat.categoryId}>
+                      {cat.name || cat.categoryName || cat.id}
+                    </option>
+                  ))}
                 </select>
                 {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
               </div>

@@ -120,7 +120,7 @@ const Header = () => {
     if (!userInfo) return undefined;
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 4000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [userInfo, fetchNotifications]);
 
@@ -154,6 +154,10 @@ const Header = () => {
       console.error('Delete notification error:', error);
     }
   };
+
+  const roleList = userInfo?.roles || [];
+  const isAdmin = roleList.some((r) => (typeof r === 'string' ? r : r?.name) === 'Admin');
+  const isArtisan = roleList.some((r) => (typeof r === 'string' ? r : r?.name) === 'Artisan');
 
   return (
     <header
@@ -221,6 +225,22 @@ const Header = () => {
                   >
                     {t('header.orders')}
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Admin dashboard
+                    </Link>
+                  )}
+                  {isArtisan && (
+                    <Link
+                      to="/artisan-dashboard"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Shop management
+                    </Link>
+                  )}
                   <button
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onClick={() => {

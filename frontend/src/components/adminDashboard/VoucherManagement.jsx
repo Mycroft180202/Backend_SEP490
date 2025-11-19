@@ -20,7 +20,7 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const emptyForm = {
   code: '',
   description: '',
-  discountType: 'Percent',
+  discountType: 'Fixed',
   discountValue: 0,
   minOrderAmount: 0,
   maxDiscountAmount: 0,
@@ -140,7 +140,7 @@ const VoucherManagement = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     const normalizeType = (raw) => {
-      if (!raw) return 'Percent';
+      if (!raw) return 'Fixed';
       const lower = raw.toString().toLowerCase();
       if (lower.startsWith('f')) return 'Fixed';
       if (lower.startsWith('p')) return 'Percent';
@@ -484,7 +484,7 @@ const VoucherManagement = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
-              {formData.discountType.toLowerCase().startsWith('p') && (
+              {['percentage', 'percent'].includes((formData?.discountType || '').toLowerCase()) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giảm tối đa</label>
                   <input
