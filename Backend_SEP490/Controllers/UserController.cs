@@ -33,31 +33,8 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("users/{id}")]
-        public async Task<IActionResult> GetUsersById([FromRoute] string id)
+        public async Task<IActionResult> GetUsersById([FromRoute] string userId)
         {
-            var users = await _userServices.GetUserByIDAsync(id);
-            if (users == null)
-            {
-                return NotFound();
-            }
-            return Ok(users);
-        }
-
-        [HttpPut("users/{id}")]
-        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromBody] RequestAdminUpdateUser request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var users = await _userServices.UpdateUserAsync(id,request);
-            
-            return Ok(users);
-        }
-
-        [HttpGet("users/me")]
-        public async Task<IActionResult> GetUsersProfile()
-        {
-            var userId = User.FindFirstValue("userID");
             var users = await _userServices.GetUserByIDAsync(userId);
             if (users == null)
             {
@@ -66,13 +43,22 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
-        
-        [HttpPut("users/me")]
-        public async Task<IActionResult> UpdateUsersProfile([FromForm] RequestUpdateUser request)
+        [HttpPut("users")]
+        public async Task<IActionResult> UpdateUsers([FromQuery] string userId, [FromBody] RequestAdminUpdateUser request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue("userID");
+
+            var users = await _userServices.UpdateUserAsync(userId, request);
+            
+            return Ok(users);
+        }
+ 
+        [HttpPut("users/me")]
+        public async Task<IActionResult> UpdateUsersProfile([FromQuery] string userId, [FromForm] RequestUpdateUser request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
 
             var users = await _userServices.UpdateUserAsync(userId, request);
@@ -80,9 +66,8 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
         [HttpPut("users/change-password")]
-        public async Task<IActionResult> UpdateUserPassword([FromBody] RequestUpdateUserHashPassword request)
+        public async Task<IActionResult> UpdateUserPassword([FromQuery] string userId, [FromBody] RequestUpdateUserHashPassword request)
         {
-            var userId = User.FindFirstValue("userID");
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -92,9 +77,8 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("users/address")]
-        public async Task<IActionResult> GetAllUsersAddress()
+        public async Task<IActionResult> GetAllUsersAddress([FromQuery] string userId)
         {
-            var userId = User.FindFirstValue("userID");
             var address = await _addressServices.GetAllAddressByUserIdAsync(userId);
             if(address == null) return NotFound();
             return Ok(address);
@@ -110,38 +94,34 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPost("users/address")]
-        public async Task<IActionResult> CreateUsersAddress([FromBody] RequestCreateAndUpdateAddress request)
+        public async Task<IActionResult> CreateUsersAddress([FromQuery] string userId, [FromBody] RequestCreateAndUpdateAddress request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue("userID");
             var status = await _addressServices.CreateUserAddressAsync(userId, request);
             return Ok(status);
         }
 
         [HttpPut("users/address")]
-        public async Task<IActionResult> UpdateUsersAddress([FromQuery] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
+        public async Task<IActionResult> UpdateUsersAddress([FromQuery] string userId, [FromQuery] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue("userID");
             var status = await _addressServices.UpdateUserAddressAsync(addressId, request, userId);
             
             return Ok(status);
         }
         [HttpDelete("users/address")]
-        public async Task<IActionResult> DeleteUsersAddress([FromQuery] string addressId)
+        public async Task<IActionResult> DeleteUsersAddress([FromQuery] string userId, [FromQuery] string addressId)
         {
-            var userId = User.FindFirstValue("userID");
-            var status = await _addressServices.DeleteUserAddressAsync(addressId,userId);
+            var status = await _addressServices.DeleteUserAddressAsync(addressId, userId);
             return Ok(status);
         }
 
         [Authorize(Roles = "Artisan")]
         [HttpPut("users/my-shop")]
-        public async Task<IActionResult> UpdateShopProfile([FromForm] RequestUpdateUserShop request)
+        public async Task<IActionResult> UpdateShopProfile([FromQuery] string userId, [FromForm] RequestUpdateUserShop request)
         {
-            var userId = User.FindFirstValue("userID");
             var users = await _userServices.UpdateUserShopByIDAsync(userId, request);
             if (users == null)
             {
@@ -149,20 +129,6 @@ namespace Backend_SEP490.Controllers
             }
             return Ok(users);
         }
-
-        [Authorize(Roles = "Artisan")]
-        [HttpGet("users/my-shop")]
-        public async Task<IActionResult> GetShopProfile()
-        {
-            var userId = User.FindFirstValue("userID");
-            var users = await _userServices.GetUserShopByIDAsync(userId);
-            if (users == null)
-            {
-                return NotFound();
-            }
-            return Ok(users);
-        }
-
 
         [HttpGet("users/shop")]
         public async Task<IActionResult> GetShopByUserId([FromQuery] string userId)

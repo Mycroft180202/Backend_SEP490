@@ -50,11 +50,10 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
         [HttpPost("blogs")]
-        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
+        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request, [FromQuery] string userId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            var userId = User.FindFirstValue("userID");
             var status = await _blogPostService.CreateBlogPostAsync(userId, request);
             return Ok(status);
         }

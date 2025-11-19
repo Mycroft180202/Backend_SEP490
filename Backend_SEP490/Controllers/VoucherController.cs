@@ -36,12 +36,11 @@ public class VoucherController : ControllerBase
 
 
     [HttpPost("voucher")]
-    public async Task<IActionResult> CreateVoucher([FromBody] RequestCreateVoucher request)
+    public async Task<IActionResult> CreateVoucher([FromQuery] string userId, [FromBody] RequestCreateVoucher request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-        var userId = User.FindFirstValue("userID");
-        var status = await _voucherService.CreateVoucherAsync(userId,request);
+        var status = await _voucherService.CreateVoucherAsync(userId, request);
         return Ok(status);
     }
 

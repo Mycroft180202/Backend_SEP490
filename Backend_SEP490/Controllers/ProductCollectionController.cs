@@ -66,9 +66,8 @@ public class ProductCollectionController : ControllerBase
    
     [Authorize(Roles = "Admin,Artisan")]
     [HttpPut("productcollection")]
-    public async Task<IActionResult> UpdateProductCollection([FromForm] RequestDTOUpdateProductCollection dto)
+    public async Task<IActionResult> UpdateProductCollection([FromQuery] string userId, [FromForm] RequestDTOUpdateProductCollection dto)
     {
-        var userId = User.FindFirstValue("userId");
         if (userId == null)
             return Unauthorized(new { message = "Không xác định được người dùng." });
 
@@ -80,11 +79,9 @@ public class ProductCollectionController : ControllerBase
     }
 
     [Authorize(Roles = "Admin,Artisan")]
-    [HttpDelete("productcollection/{id}")]
-    public async Task<IActionResult> DeleteProductCollection(int id)
+    [HttpDelete("productcollection")]
+    public async Task<IActionResult> DeleteProductCollection([FromQuery] string userId,[FromQuery] int id)
     {
-
-        var userId = User.FindFirstValue("userId");
         if (userId == null)
             return Unauthorized(new { message = "Không xác định được người dùng." });
 

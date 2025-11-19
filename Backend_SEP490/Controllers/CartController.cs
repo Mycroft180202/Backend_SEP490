@@ -17,21 +17,19 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("carts")]
-        public async Task<IActionResult> GetAllCartItems([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllCartItems([FromQuery] string userId,[FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
-           var userId = User.FindFirst("userId")?.Value;
             var cart = await _cartService.GetCartByUserIdAsync(userId, pageIndex, pageSize);
             return Ok(cart);
         }
 
         [HttpPost("carts")]
-        public async Task<IActionResult> AddCartItems([FromBody] RequestAddCartItem request)
+        public async Task<IActionResult> AddCartItems([FromBody] RequestAddCartItem request, [FromQuery] string userId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
             else
             {   
-                var userId =  User.FindFirst("userId")?.Value;
                 var status = await _cartService.AddCartItemAsync(userId, request);
                 return Ok(status);    
             }   

@@ -18,9 +18,9 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("wish-list")]
-        public async Task<IActionResult> GetAllWishListItem([FromQuery] int pageIndex =1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllWishListItem([FromQuery] string userId, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
-            var userId = User.FindFirstValue("userID");
+
             var wishList = await _wishListItemService.GetAllWishListItemByUserIdAsync(userId,pageIndex,pageSize);
             return Ok(wishList);
         }
