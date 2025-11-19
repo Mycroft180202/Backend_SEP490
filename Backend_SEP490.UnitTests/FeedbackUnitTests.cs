@@ -1,0 +1,336 @@
+﻿using AutoMapper;
+using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Models;
+using Backend_SEP490.Repositories;
+using Backend_SEP490.Services.impl;
+using Moq;
+
+namespace Backend_SEP490.UnitTests
+{
+    public class FeedbackUnitTests
+    {
+        private readonly Mock<IMapper> _mapperMock;
+        private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+        private readonly Mock<IFeedbackRepositories> _feedbackRepoMock;
+        private readonly Mock<IUserRepositories> _userRepoMock;
+        private readonly FeedbackServicesImpl _service;
+
+        public FeedbackUnitTests()
+        {
+            _mapperMock = new Mock<IMapper>();
+            _unitOfWorkMock = new Mock<IUnitOfWork>();
+            _feedbackRepoMock = new Mock<IFeedbackRepositories>();
+            _userRepoMock = new Mock<IUserRepositories>();
+
+            _unitOfWorkMock.Setup(u => u.Feedback).Returns(_feedbackRepoMock.Object);
+            _unitOfWorkMock.Setup(u => u.Users).Returns(_userRepoMock.Object);
+
+            _service = new FeedbackServicesImpl(_mapperMock.Object, _unitOfWorkMock.Object);
+        }
+
+        // --------------------------
+        // CASE 1: GetFeedbacksByProductIdAsync
+        // --------------------------
+
+        [Fact(DisplayName = "GetFeedbacksByProductId - Normal Case - Returns mapped data")]
+        public async Task GetFeedbacksByProductId_ReturnsMappedData()
+        {
+            // Arrange
+            var productId = "PRO-001";
+
+            var fakeEntities = new List<Feedback>
+            {
+                new Feedback { Id="FED-001", CustomerId="USER-1", Comment="Good" },
+                new Feedback { Id="FED-002", CustomerId="USER-2", Comment="Bad" }
+            };
+
+            var fakeDtos = new List<ResponseDTOFeedback>
+            {
+                new ResponseDTOFeedback { Id="FED-001", CustomerId="USER-1" },
+                new ResponseDTOFeedback { Id="FED-002", CustomerId="USER-2" }
+            };
+
+            _feedbackRepoMock.Setup(r => r.CountFeedbacksByProductIdAsync(productId))
+                .ReturnsAsync(2);
+
+            _feedbackRepoMock.Setup(r => r.GetFeedbacksByProductIdAsync(productId, 1, 10))
+                .ReturnsAsync(fakeEntities);
+
+            _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOFeedback>>(fakeEntities))
+                .Returns(fakeDtos);
+
+            _userRepoMock.Setup(r => r.GetUserNameByIdAsync("USER-1")).ReturnsAsync("Alice");
+            _userRepoMock.Setup(r => r.GetUserNameByIdAsync("USER-2")).ReturnsAsync("Bob");
+
+            // Act
+            var result = await _service.GetFeedbacksByProductIdAsync(productId, 1, 10);
+
+            // Assert
+            Assert.Equal(2, result.Items.Count());
+            Assert.Equal("Alice", result.Items.First().CustomerName);
+            Assert.Equal("Bob", result.Items.Last().CustomerName);
+        }
+
+        [Fact(DisplayName = "GetFeedbacksByProductId - Empty List - Returns empty list")]
+        public async Task GetFeedbacksByProductId_EmptyList()
+        {
+            // Arrange
+            _feedbackRepoMock.Setup(r => r.CountFeedbacksByProductIdAsync("P"))
+                .ReturnsAsync(0);
+
+            _feedbackRepoMock.Setup(r => r.GetFeedbacksByProductIdAsync("P", 1, 10))
+                .ReturnsAsync(new List<Feedback>());
+
+            _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOFeedback>>(It.IsAny<IEnumerable<Feedback>>()))
+                .Returns(new List<ResponseDTOFeedback>());
+
+            // Act
+            var result = await _service.GetFeedbacksByProductIdAsync("P", 1, 10);
+
+            // Assert
+            Assert.Empty(result.Items);
+        }
+
+        [Fact(DisplayName = "GetFeedbacksByProductId - Null repository result - Returns empty list")]
+        public async Task GetFeedbacksByProductId_NullRepositoryResult()
+        {
+            // Arrange
+            _feedbackRepoMock.Setup(r => r.CountFeedbacksByProductIdAsync("P"))
+                .ReturnsAsync(0);
+
+            _feedbackRepoMock.Setup(r => r.GetFeedbacksByProductIdAsync("P", 1, 10))
+                .ReturnsAsync((List<Feedback>)null);
+
+            _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOFeedback>>(null))
+                .Returns(new List<ResponseDTOFeedback>());
+
+            // Act
+            var result = await _service.GetFeedbacksByProductIdAsync("P", 1, 10);
+
+            // Assert
+            Assert.Empty(result.Items);
+        }
+
+        // --------------------------
+        // CASE 2: CreateFeedback
+        // --------------------------
+
+        [Fact(DisplayName = "CreateFeedback - Normal Case - Calls repository")]
+        public async Task CreateFeedback_NormalCase()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Nice" };
+
+            _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "P001", "U001"))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.CreateFeedback(req, "P001", "U001");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "P001", "U001"), Times.Once);
+        }
+
+        [Fact(DisplayName = "CreateFeedback - Null input throws")]
+        public async Task CreateFeedback_Throws_WhenNull()
+        {
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                _service.CreateFeedback(null!, "P1", "U1")
+            );
+        }
+        [Fact(DisplayName = "CreateFeedback - Empty productID - Calls repository")]
+        public async Task CreateFeedback_EmptyProductId_CallsRepository()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Test" };
+
+            _feedbackRepoMock
+                .Setup(r => r.CreateFeedback(req, "", "U1"))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.CreateFeedback(req, "", "U1");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "", "U1"), Times.Once);
+        }
+        [Fact(DisplayName = "CreateFeedback - Empty userID - Calls repository")]
+        public async Task CreateFeedback_EmptyUserId_CallsRepository()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Test" };
+
+            _feedbackRepoMock
+                .Setup(r => r.CreateFeedback(req, "P1", ""))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.CreateFeedback(req, "P1", "");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "P1", ""), Times.Once);
+        }
+
+        // --------------------------
+        // CASE 3: UpdateFeedback
+        // --------------------------
+
+        [Fact(DisplayName = "UpdateFeedback - Normal Case")]
+        public async Task UpdateFeedback_Normal()
+        {
+            var req = new RequestDTOFeedback { Comment = "Updated" };
+
+            _feedbackRepoMock.Setup(r =>
+                r.UpdateFeedbackByIdAsynnc(req, "P001", "F001"))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.UpdateFeedbackByIdAsynnc(req, "P001", "F001");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, "P001", "F001"), Times.Once);
+        }
+
+        [Fact(DisplayName = "UpdateFeedback - Null request throws")]
+        public async Task UpdateFeedback_Throws_WhenNull()
+        {
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                _service.UpdateFeedbackByIdAsynnc(null!, "P", "F")
+            );
+        }
+        // Update: bổ sung test cho UpdateFeedbackByIdAsynnc (service không validate, chỉ forward)
+        [Fact(DisplayName = "UpdateFeedback - Null request forwards to repository")]
+        public async Task UpdateFeedback_NullRequest_ForwardsToRepository()
+        {
+            // Arrange
+            RequestDTOFeedback? req = null;
+
+            _feedbackRepoMock.Setup(r => r.UpdateFeedbackByIdAsynnc(req, "P", "F"))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.UpdateFeedbackByIdAsynnc(req, "P", "F");
+
+            // Assert: repo được gọi với request = null
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(null, "P", "F"), Times.Once);
+        }
+
+        [Fact(DisplayName = "UpdateFeedback - Null productID forwards to repository")]
+        public async Task UpdateFeedback_NullProductId_ForwardsToRepository()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Updated" };
+
+            _feedbackRepoMock.Setup(r => r.UpdateFeedbackByIdAsynnc(req, null!, "F1"))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.UpdateFeedbackByIdAsynnc(req, null!, "F1");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, null!, "F1"), Times.Once);
+        }
+
+        [Fact(DisplayName = "UpdateFeedback - Empty productID forwards to repository")]
+        public async Task UpdateFeedback_EmptyProductId_ForwardsToRepository()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Updated" };
+
+            _feedbackRepoMock.Setup(r => r.UpdateFeedbackByIdAsynnc(req, "", "F1"))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.UpdateFeedbackByIdAsynnc(req, "", "F1");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, "", "F1"), Times.Once);
+        }
+
+        [Fact(DisplayName = "UpdateFeedback - Null feedbackID forwards to repository")]
+        public async Task UpdateFeedback_NullFeedbackId_ForwardsToRepository()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Updated" };
+
+            _feedbackRepoMock.Setup(r => r.UpdateFeedbackByIdAsynnc(req, "P1", null!))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.UpdateFeedbackByIdAsynnc(req, "P1", null!);
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, "P1", null!), Times.Once);
+        }
+
+        [Fact(DisplayName = "UpdateFeedback - Empty feedbackID forwards to repository")]
+        public async Task UpdateFeedback_EmptyFeedbackId_ForwardsToRepository()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Updated" };
+
+            _feedbackRepoMock.Setup(r => r.UpdateFeedbackByIdAsynnc(req, "P1", ""))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            await _service.UpdateFeedbackByIdAsynnc(req, "P1", "");
+
+            // Assert
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, "P1", ""), Times.Once);
+        }
+
+        [Fact(DisplayName = "UpdateFeedback - Repository throws exception is propagated")]
+        public async Task UpdateFeedback_RepoThrows_ExceptionPropagates()
+        {
+            // Arrange
+            var req = new RequestDTOFeedback { Comment = "Updated" };
+            var ex = new InvalidOperationException("repo fail");
+
+            _feedbackRepoMock
+                .Setup(r => r.UpdateFeedbackByIdAsynnc(req, "P1", "F1"))
+                .ThrowsAsync(ex);
+
+            var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _service.UpdateFeedbackByIdAsynnc(req, "P1", "F1")
+            );
+
+            Assert.Equal("repo fail", thrown.Message);
+            _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, "P1", "F1"), Times.Once);
+        }
+
+        // --------------------------
+        // CASE 4: DeleteFeedback
+        // --------------------------
+
+        [Fact(DisplayName = "DeleteFeedback - Normal Case")]
+        public async Task DeleteFeedback_Normal()
+        {
+            _feedbackRepoMock.Setup(r => r.DeleteFeedbacksByIdAsync("FED-01"))
+                .Returns(Task.CompletedTask);
+
+            await _service.DeleteFeedbacksByIdAsync("FED-01");
+
+            _feedbackRepoMock.Verify(r => r.DeleteFeedbacksByIdAsync("FED-01"), Times.Once);
+        }
+        [Fact(DisplayName = "DeleteFeedback - Null ID")]
+        public async Task DeleteFeedback_NullId_Forwards()
+        {
+            _feedbackRepoMock.Setup(r => r.DeleteFeedbacksByIdAsync(null!))
+                .Returns(Task.CompletedTask);
+
+            await _service.DeleteFeedbacksByIdAsync(null!);
+
+            _feedbackRepoMock.Verify(r => r.DeleteFeedbacksByIdAsync(null!), Times.Once);
+        }
+        [Fact(DisplayName = "DeleteFeedback - Empty ID")]
+        public async Task DeleteFeedback_EmptyId_Forwards()
+        {
+            _feedbackRepoMock.Setup(r => r.DeleteFeedbacksByIdAsync(""))
+                .Returns(Task.CompletedTask);
+
+            await _service.DeleteFeedbacksByIdAsync("");
+
+            _feedbackRepoMock.Verify(r => r.DeleteFeedbacksByIdAsync(""), Times.Once);
+        }
+    }
+}

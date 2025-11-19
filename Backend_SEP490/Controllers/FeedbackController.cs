@@ -29,7 +29,7 @@ public class FeedbackController: ControllerBase
     [HttpDelete("feedbacks/{ID}")]
     public async Task<ActionResult> DeleteFeedback(Feedback feedback)
     {
-        var userid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userid = User.FindFirstValue("userID");
         if (userid == feedback.CustomerId)
         {
             await _feedbackRepository.DeleteFeedbacksByIdAsync(feedback.Id);
@@ -42,7 +42,7 @@ public class FeedbackController: ControllerBase
     public async Task<ActionResult> UpdateFeedback(RequestDTOFeedback feedback, string productid, string userid,string feedbackid)
     {
         
-        var useridc = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var useridc = User.FindFirstValue("userID");
         if (useridc == userid)
         {
             await _feedbackRepository.UpdateFeedbackByIdAsynnc(feedback, productid, feedbackid);

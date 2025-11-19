@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using System.ComponentModel.DataAnnotations;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -19,6 +20,10 @@ public class AuthController: ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromForm] LoginRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var result = await _userServices.LoginAsync(request.Username, request.Password);
         if (result == null) return Unauthorized("Invalid username or password");
         return Ok(result);
@@ -44,16 +49,26 @@ public class AuthController: ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromForm] RequestDTORegister dto)
     {
-        var result = await _userServices.RegisterAsync(dto);
-        if (!result) return BadRequest("Username or email already exists!");
-        return Ok("OTP sent to email");
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+        else
+        {
+            var result = await _userServices.RegisterAsync(dto);
+            if (!result) return BadRequest("Username or email already exists!");
+            return Ok("OTP sent to email");
+        }
     }
     [HttpPost("verify-otp")]
     public async Task<IActionResult> VerifyOtp([FromBody] RequestDTOVerifyOtp request)
     {
-        var result = await _userServices.VerifyOtpAsync(request.RegisterDto, request.Otp);
-        if (!result) return BadRequest("Invalid or expired OTP!");
-        return Ok("Registration successful");
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+        else
+        {
+            var result = await _userServices.VerifyOtpAsync(request.RegisterDto, request.Otp);
+            if (!result) return BadRequest("Invalid or expired OTP!");
+            return Ok("Registration successful");
+        }
     }
     
     [HttpPost("forgot-password")]
@@ -66,7 +81,9 @@ public class AuthController: ControllerBase
     }
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] RequestDTOResetPassword dto)
-    {
+    {   
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
         var result = await _userServices.ResetPasswordAsync(dto);
         if (!result) return BadRequest("OTP không hợp lệ hoặc đã hết hạn.");
 
@@ -76,6 +93,11 @@ public class AuthController: ControllerBase
 
 public class LoginRequest
 {
+    [Required(ErrorMessage = "Tên đăng nhập không được để trống")]
+    [StringLength(30, MinimumLength = 3, ErrorMessage = "Tên đăng nhập phải từ 3–30 ký tự")]
     public string Username { get; set; }
+
+    [Required(ErrorMessage = "Mật khẩu không được để trống")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu phải từ 6–100 ký tự")]
     public string Password { get; set; }
 }

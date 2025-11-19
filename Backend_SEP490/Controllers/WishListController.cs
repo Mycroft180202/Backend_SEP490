@@ -28,22 +28,22 @@ namespace Backend_SEP490.Controllers
         public async Task<IActionResult> AddWishListItemToCart([FromRoute] string wishListItemId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var wishLit = await _wishListItemService.AddWishListItemToCartAsync(userId,wishListItemId);
-            return Ok(wishLit);
+            var status = await _wishListItemService.AddWishListItemToCartAsync(userId,wishListItemId);
+            return Ok(status);
         }
 
         [HttpPost("wish-list")]
         public async Task<IActionResult> CreateWishListItem([FromRoute]string wishListItemId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var wishLit = await _wishListItemService.CreateWishListItemAsync(userId,wishListItemId);
-            return Ok(wishLit);
+            var status = await _wishListItemService.CreateWishListItemAsync(userId,wishListItemId);
+            return Ok(status);
         }
         [HttpDelete("wish-list")]
         public async Task<IActionResult> DeleteWishListItem(string wishListItemId)
         {
-            var wishLit = await _wishListItemService.DeleteWishListItemAsync(wishListItemId);
-            return Ok(wishLit);
+            var status = await _wishListItemService.DeleteWishListItemAsync(wishListItemId);
+            return Ok(status);
         }
     }
 }

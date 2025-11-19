@@ -38,7 +38,9 @@ public class VoucherController : ControllerBase
     [HttpPost("voucher")]
     public async Task<IActionResult> CreateVoucher([FromBody] RequestCreateVoucher request)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+        var userId = User.FindFirstValue("userID");
         var status = await _voucherService.CreateVoucherAsync(userId,request);
         return Ok(status);
     }
@@ -47,6 +49,8 @@ public class VoucherController : ControllerBase
     [HttpPut("voucher/{voucherId}")]
     public async Task<IActionResult> UpdateVoucher([FromRoute] string voucherId, [FromBody] RequestUpdateVoucher request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
         var status = await _voucherService.UpdateVoucherAsync(voucherId, request);
         return Ok(status);
     }

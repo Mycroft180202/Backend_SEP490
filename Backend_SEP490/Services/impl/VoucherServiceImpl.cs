@@ -13,10 +13,10 @@ namespace Backend_SEP490.Services.impl
         {
         }
 
-        public async Task<bool> CreateVoucherAsync(string userId, RequestCreateVoucher request)
+        public async Task<string> CreateVoucherAsync(string userId, RequestCreateVoucher request)
         {
             var isExist = await _context.Voucher.GetVoucherByCodeAsync(request.Code);
-            if (isExist != null) return false;
+            if (isExist != null) return "Voucher Code is already exist!";
             Voucher voucher = new Voucher 
             {
                 Code = request.Code,
@@ -39,12 +39,12 @@ namespace Backend_SEP490.Services.impl
             return status;
         }
 
-        public async Task<bool> DeleteVoucherAsync(string voucherId)
+        public async Task<string> DeleteVoucherAsync(string voucherId)
         {
            var voucher = await _context.Voucher.GetVoucherByIdAsync(voucherId);
             if (voucher == null)
             {
-                return false;
+                return "Voucher not found!";
             }
 
             return await _context.Voucher.DeleteVoucherAsync(voucher);
@@ -74,9 +74,10 @@ namespace Backend_SEP490.Services.impl
             return _mapper.Map<ResponseDTOVoucher>(voucher);
         }
 
-        public async Task<bool> UpdateVoucherAsync(string voucherId, RequestUpdateVoucher request)
+        public async Task<string> UpdateVoucherAsync(string voucherId, RequestUpdateVoucher request)
         {
             var voucher = await _context.Voucher.GetVoucherByIdAsync(voucherId);
+            if (voucher == null) return "Voucher not found!";
             return await _context.Voucher.UpdateVoucherAsync(voucher, request);
         }
     }
