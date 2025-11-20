@@ -30,11 +30,18 @@ public class RequestCreateOrder
     [StringLength(100)]
     public string? FromProvinceName { get; set; }
 
-    public List<RequestShipmentItemOverride>? ShipmentItems { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Total amount must be zero or greater")]
+    public decimal? TotalAmount { get; set; }
+
+    [MinLength(1, ErrorMessage = "At least one shipment item is required.")]
+    public List<RequestShipmentItem>? ShipmentItems { get; set; }
 }
 
-public class RequestShipmentItemOverride
+public class RequestShipmentItem
 {
     [Required]
     public string ProductId { get; set; } = default!;
+
+    [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than zero")]
+    public int Quantity { get; set; } = 1;
 }

@@ -1,6 +1,7 @@
 
 using Backend_SEP490.Data;
 using AutoMapper;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Backend_SEP490.Config;
@@ -78,19 +79,67 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         try
         {
-            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
-            if (cart == null)
+            var manualShipmentItems = request.ShipmentItems != null && request.ShipmentItems.Any();
+            var orderItemInputs = new List<OrderItemInput>();
+
+            if (manualShipmentItems)
             {
-                await transaction.RollbackAsync();
-                return "Create order failed!(Cart is empty)";
+                var (items, missingProductIds) = await BuildOrderItemsFromRequestAsync(request);
+                if (missingProductIds.Any())
+                {
+                    await transaction.RollbackAsync();
+                    return $"Create order failed!(product(s) not found: {string.Join(", ", missingProductIds)})";
+                }
+
+                if (items.Count == 0)
+                {
+                    await transaction.RollbackAsync();
+                    return "Create order failed!(No shipment items provided)";
+                }
+
+                orderItemInputs = items;
+            }
+            else
+            {
+                var cart = await _context.Cart.GetCartByUserIdAsync(userId);
+                if (cart == null)
+                {
+                    await transaction.RollbackAsync();
+                    return "Create order failed!(Cart is empty)";
+                }
+
+                var cartItems = (await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id)).ToList();
+                if (cartItems.Count == 0)
+                {
+                    await transaction.RollbackAsync();
+                    return "Create order failed!(cartItem is empty)";
+                }
+
+                orderItemInputs = cartItems
+                    .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))
+                    .Select(item => new OrderItemInput(
+                        item.ProductId!.Trim(),
+                        item.Quantity ?? 0,
+                        item.PriceAtAdd ?? 0m))
+                    .Where(info => info.Quantity > 0)
+                    .ToList();
+
+                if (orderItemInputs.Count == 0)
+                {
+                    await transaction.RollbackAsync();
+                    return "Create order failed!(cartItem is empty)";
+                }
             }
 
-            var cartItems = (await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id)).ToList();
-            if (cartItems.Count == 0)
+            if (orderItemInputs.Count == 0)
             {
                 await transaction.RollbackAsync();
-                return "Create order failed!(cartItem is empty)";
+                return "Create order failed!(No order items)";
             }
+
+            var totalAmount = request.TotalAmount.HasValue && request.TotalAmount.Value >= 0
+                ? request.TotalAmount.Value
+                : orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
 
             var shippingAddress = await CreateOrderShippingAddressAsync(userId, request);
             if (shippingAddress == null)
@@ -114,7 +163,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 CustomerId = userId,
                 Status = "Pending",
                 PaymentType = paymentType,
-                TotalAmount = cartItems.Sum(item => (item.PriceAtAdd ?? 0m) * (item.Quantity ?? 0)),
+                TotalAmount = totalAmount,
                 ShipingAddressId = shippingAddress.Id,
                 CreateAt = DateTime.UtcNow,
             };
@@ -126,14 +175,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return "Create order failed!(addOrderStatus)";
             }
 
-            var orderItems = cartItems
-                .Select(item => new OrderItem
+            var orderItems = orderItemInputs
+                .Select(info => new OrderItem
                 {
-                    Id = $"{orderId}-{item.ProductId}",
+                    Id = $"{orderId}-{info.ProductId}",
                     OrderID = orderId,
-                    ProductID = item.ProductId,
-                    Quantity = item.Quantity ?? 0,
-                    UnitPrice = item.PriceAtAdd ?? 0m
+                    ProductID = info.ProductId,
+                    Quantity = info.Quantity,
+                    UnitPrice = info.UnitPrice
                 })
                 .ToList();
 
@@ -155,6 +204,59 @@ public class OrderServiceImpl : GenericServices, IOrderService
             throw;
         }
     }
+
+    private async Task<(List<OrderItemInput> Items, List<string> MissingProductIds)> BuildOrderItemsFromRequestAsync(RequestCreateOrder request)
+    {
+        if (request.ShipmentItems == null || request.ShipmentItems.Count == 0)
+        {
+            return (new List<OrderItemInput>(), new List<string>());
+        }
+
+        var normalizedItems = request.ShipmentItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))
+            .Select(item => new
+            {
+                ProductId = item.ProductId!.Trim(),
+                Quantity = item.Quantity
+            })
+            .GroupBy(item => item.ProductId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .Where(item => item.Quantity > 0)
+            .ToList();
+
+        if (normalizedItems.Count == 0)
+        {
+            return (new List<OrderItemInput>(), new List<string>());
+        }
+
+        var productIds = normalizedItems.Select(item => item.ProductId).ToList();
+        var products = await _context.Products.GetProductsByIdsAsync(productIds);
+        var productLookup = products
+            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+            .ToDictionary(p => p.Id!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+        var missingProductIds = normalizedItems
+            .Where(item => !productLookup.ContainsKey(item.ProductId))
+            .Select(item => item.ProductId)
+            .ToList();
+
+        var items = normalizedItems
+            .Where(item => productLookup.ContainsKey(item.ProductId))
+            .Select(item =>
+            {
+                var product = productLookup[item.ProductId];
+                return new OrderItemInput(product.Id!.Trim(), item.Quantity, Math.Max(product.Price, 0m));
+            })
+            .ToList();
+
+        return (items, missingProductIds);
+    }
+
+    private sealed record OrderItemInput(string ProductId, int Quantity, decimal UnitPrice);
 
     public async Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request)
     {
