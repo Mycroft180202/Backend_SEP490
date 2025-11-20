@@ -88,6 +88,18 @@ namespace Backend_SEP490.Models
                 .WithOne(r => r.Reporter)
                 .HasForeignKey(r => r.ReporterId);
 
+            modelBuilder.Entity<Report>()
+                .HasOne(r => r.TargetUser)
+                .WithMany()
+                .HasForeignKey(r => r.TargetUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Report>()
+                .HasOne(r => r.AssignedAdmin)
+                .WithMany()
+                .HasForeignKey(r => r.AssignedAdminId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<User>()
                 .HasMany(u => u.UserRoles)
                 .WithOne(ur => ur.User)
