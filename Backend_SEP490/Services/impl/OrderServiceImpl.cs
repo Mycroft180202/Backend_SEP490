@@ -143,7 +143,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
             await transaction.CommitAsync();
 
             await NotifyOrderActorsAsync(order, orderItems);
-            await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, request);
             return "Create order successfully!";
         }
         catch
@@ -216,6 +215,53 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         return "Cancel order successfully!";
+    }
+
+    public async Task<bool> CreateShipmentsAfterPaymentAsync(string orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return false;
+        }
+
+        try
+        {
+            var order = await _context.Order.GetAllOrderByIdAsync(orderId);
+            if (order == null)
+            {
+                return false;
+            }
+
+            var existingShipments = await _context.Shipment.GetByOrderIdAsync(order.Id);
+            if (existingShipments != null && existingShipments.Any())
+            {
+                if (!string.Equals(order.Status, "Shipping", StringComparison.OrdinalIgnoreCase))
+                {
+                    order.Status = "Shipping";
+                    await _context.SaveChangesAsync();
+                }
+                return true;
+            }
+
+            var shippingAddress = await _context.Address.GetAddressByIdAsync(order.ShipingAddressId);
+            var customer = await _context.Users.GetByIdAsync(order.CustomerId);
+            var orderItems = await _context.OrderDetail.GetAllOrderItemAsync(order.Id);
+
+            if (shippingAddress == null || customer == null || orderItems == null || orderItems.Count == 0)
+            {
+                _logger.LogWarning("Insufficient data to create shipments for order {OrderId}.", order.Id);
+                return false;
+            }
+
+            var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer);
+            await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create shipments after payment for order {OrderId}.", orderId);
+            return false;
+        }
     }
 
     public async Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize)
@@ -304,10 +350,16 @@ public class OrderServiceImpl : GenericServices, IOrderService
         List<OrderItem> orderItems,
         Address shippingAddress,
         User customer,
-        RequestCreateOrder request)
+        GhnShipmentOptions? baseOptions = null)
     {
         try
         {
+            baseOptions ??= BuildBaseShipmentOptions(shippingAddress, customer);
+            if (baseOptions?.ToDistrictId == null || string.IsNullOrWhiteSpace(baseOptions.ToWardCode))
+            {
+                _logger.LogWarning("Missing GHN destination data for order {OrderId}. Skipping shipment creation.", order.Id);
+                return;
+            }
             var productIds = orderItems
                 .Select(item => item.ProductID)
                 .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -318,8 +370,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
             var productLookup = products
                 .Where(p => !string.IsNullOrWhiteSpace(p.Id))
                 .ToDictionary(p => p.Id!, p => p);
-
-            var baseOptions = BuildBaseShipmentOptions(request, shippingAddress);
             var shippingProfiles = products
                 .Where(p => !string.IsNullOrWhiteSpace(p.Id) && p.ShippingProfile != null)
                 .ToDictionary(p => p.Id!, p => p.ShippingProfile!);
@@ -457,7 +507,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToProvinceName = string.IsNullOrWhiteSpace(request.ToProvinceName)
                 ? shippingAddress.City
                 : request.ToProvinceName,
-            ItemWeights = itemWeights
+            ItemWeights = itemWeights,
+            Weight = request.TotalWeight
+        };
+    }
+
+    private GhnShipmentOptions BuildBaseShipmentOptions(Address shippingAddress, User customer)
+    {
+        return new GhnShipmentOptions
+        {
+            ReceiverName = shippingAddress.ContactName ?? customer.DisplayName ?? customer.Username ?? customer.Email,
+            ReceiverPhone = shippingAddress.ContactPhone ?? customer.PhoneNumber ?? _ghnSettings.FallbackReceiverPhone ?? _ghnSettings.FromPhone,
+            ToDistrictId = shippingAddress.GhnDistrictId ?? _ghnSettings.DefaultToDistrictId,
+            ToWardCode = shippingAddress.GhnWardCode ?? _ghnSettings.DefaultToWardCode,
+            ToAddress = BuildFullAddress(shippingAddress),
+            ToProvinceName = shippingAddress.City
         };
     }
 

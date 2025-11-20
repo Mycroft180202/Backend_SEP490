@@ -12,6 +12,7 @@ using AutoMapper;
 using CloudinaryDotNet;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -27,14 +28,13 @@ Env.Load();
 string GetEnvOrThrow(string key) =>
     Environment.GetEnvironmentVariable(key) ?? throw new Exception($"{key} is not set in .env file!");
 
+string? GetEnvOrNull(string key) => Environment.GetEnvironmentVariable(key);
+
 int GetEnvInt(string key, int defaultValue = 0)
 {
     var rawValue = Environment.GetEnvironmentVariable(key);
     return int.TryParse(rawValue, out var parsed) ? parsed : defaultValue;
 }
-
-// Database
-var dbPassword = GetEnvOrThrow("DB_PASSWORD");
 
 // Cloudinary
 var cloudName = GetEnvOrThrow("CLOUDINARY_CLOUD_NAME");
@@ -84,11 +84,43 @@ var ghnSettings = new GhnSettings
     DefaultParcelHeight = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_HEIGHT", 10)
 };
 
+var vnpaySettings = new VnpaySettings
+{
+    TmnCode = Environment.GetEnvironmentVariable("VNPAY_TMN_CODE") ?? string.Empty,
+    HashSecret = Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET") ?? string.Empty,
+    PaymentUrl = Environment.GetEnvironmentVariable("VNPAY_PAYMENT_URL") ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    ReturnUrl = Environment.GetEnvironmentVariable("VNPAY_RETURN_URL") ?? "https://localhost:5001/api/payment/vnpay/callback",
+    QueryDrUrl = Environment.GetEnvironmentVariable("VNPAY_QUERYDR_URL") ?? string.Empty,
+    Version = Environment.GetEnvironmentVariable("VNPAY_VERSION") ?? "2.1.0",
+    Locale = Environment.GetEnvironmentVariable("VNPAY_LOCALE") ?? "vn",
+    CurrencyCode = Environment.GetEnvironmentVariable("VNPAY_CURRENCY_CODE") ?? "VND",
+    Command = Environment.GetEnvironmentVariable("VNPAY_COMMAND") ?? "pay",
+    DefaultBankCode = Environment.GetEnvironmentVariable("VNPAY_DEFAULT_BANK_CODE") ?? "VNPAYQR",
+    ExpireMinutes = GetEnvInt("VNPAY_EXPIRE_MINUTES", 15)
+};
+
 // ----------------------
 // DbContext
 // ----------------------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                     ?.Replace("{DB_PASSWORD}", dbPassword);
+var connectionString = GetEnvOrNull("ConnectionStrings__DefaultConnection")
+                     ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+var dbPassword = GetEnvOrNull("DB_PASSWORD");
+if (!string.IsNullOrWhiteSpace(connectionString) &&
+    connectionString.Contains("{DB_PASSWORD}", StringComparison.OrdinalIgnoreCase))
+{
+    if (string.IsNullOrWhiteSpace(dbPassword))
+    {
+        throw new Exception("DB_PASSWORD is required when connection string contains {DB_PASSWORD}");
+    }
+    connectionString = connectionString.Replace("{DB_PASSWORD}", dbPassword);
+}
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new Exception("ConnectionStrings:DefaultConnection is not configured.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // ----------------------
@@ -148,6 +180,7 @@ builder.Services.AddScoped<IReportService, ReportServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
+builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
 {
     var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
@@ -265,11 +298,17 @@ builder.Services.AddAuthentication(options =>
 // ----------------------
 // Config Cors
 // ----------------------
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins == null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = new[] { "http://192.168.1.183:3000", "http://localhost:3000" };
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://192.168.1.183:3000", "http://localhost:3000")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -282,6 +321,14 @@ builder.Services.AddAuthorization();
 // Build & run app
 // ----------------------
 var app = builder.Build();
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 if (app.Environment.IsDevelopment())
 {

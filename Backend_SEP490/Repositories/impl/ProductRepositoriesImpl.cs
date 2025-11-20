@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.Data;
+using System;
+using Backend_SEP490.Data;
 using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,26 +14,36 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<IEnumerable<Product>> GetAvailableProductsAsync()
     {
-        var prodcutsAvailable = await _context.Products.Where(s => s.IsActive == true).ToListAsync();
+        var prodcutsAvailable = await _context.Products
+            .AsNoTracking()
+            .Where(s => s.IsActive == true)
+            .ToListAsync();
         return prodcutsAvailable;
     }
 
     public async Task<IEnumerable<Product>> GetUnavailableProductsAsync()
     {
-        var prodcutsAvailable = await _context.Products.Where(s => s.IsActive == false).ToListAsync();
+        var prodcutsAvailable = await _context.Products
+            .AsNoTracking()
+            .Where(s => s.IsActive == false)
+            .ToListAsync();
         return prodcutsAvailable;
     }
 
 
     public async Task<Product?> GetProductByIdAsync(string productId)
     {
-        var product = await _context.Products.FindAsync(productId);
+        var product = await _context.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productId);
         return product;
     }
 
     public async Task<IEnumerable<Product>> GetAllProductsAsync()
     {
-        return await _context.Products.ToListAsync();
+        return await _context.Products
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     public async Task AddProductAsync(Product product)
@@ -43,19 +54,28 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<IEnumerable<Product>> GetProductsByArtisanIdAsync(string artisanId)
     {
-        var product = await _context.Products.Where(s => s.ArtisanId == artisanId).ToListAsync();
+        var product = await _context.Products
+            .AsNoTracking()
+            .Where(s => s.ArtisanId == artisanId)
+            .ToListAsync();
         return product;
     }
 
     public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string categoryId)
     {
-        var product = await _context.Products.Where(o => o.Category == categoryId).ToListAsync();
+        var product = await _context.Products
+            .AsNoTracking()
+            .Where(o => o.Category == categoryId)
+            .ToListAsync();
         return product;
     }
 
     public async Task<IEnumerable<Product>> GetProductsByNameAsync(string productName)
     {
-        var product = await _context.Products.Where(o => o.Name == productName).ToListAsync();
+        var product = await _context.Products
+            .AsNoTracking()
+            .Where(o => o.Name == productName)
+            .ToListAsync();
         return product;
     }
 
@@ -72,10 +92,17 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
             .FirstOrDefaultAsync(p => p.Id == productId);
     }
 
-    public async Task<PagedResult<Product>> GetProductsAsync(string? productName, string? categoryId,bool? isactive, int pageIndex,
-        int pageSize)
+    public async Task<PagedResult<Product>> GetProductsAsync(
+        string? productName,
+        string? categoryId,
+        bool? isActive,
+        int pageIndex,
+        int pageSize,
+        string? sortOrder)
     {
-        IQueryable<Product> query = _context.Products.Where(p=>p.IsActive==isactive);
+        var query = _context.Products
+            .AsNoTracking()
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(productName))
             query = query.Where(p => p.Name.Contains(productName));
@@ -83,10 +110,21 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
         if (!string.IsNullOrEmpty(categoryId))
             query = query.Where(p => p.Category == categoryId);
 
+        if (isActive.HasValue)
+            query = query.Where(p => p.IsActive == isActive.Value);
+
+        query = (sortOrder ?? string.Empty).ToLower() switch
+        {
+            "asc" or "lowtohigh" => query.OrderBy(p => p.Price),
+            "desc" or "hightolow" => query.OrderByDescending(p => p.Price),
+            "atoz" => query.OrderBy(p => p.Name),
+            "ztoa" => query.OrderByDescending(p => p.Name),
+            _ => query.OrderByDescending(p => p.CreateAt ?? DateTime.MinValue)
+        };
+
         var totalCount = await query.CountAsync();
 
         var items = await query
-            .OrderBy(p => p.Name)
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
             .Select(p => new Product
@@ -94,14 +132,13 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
                 Id = p.Id,
                 Name = p.Name,
                 ShortDescription = p.ShortDescription,
-                LongDescription = p.LongDescription,
                 Price = p.Price,
                 Category = p.Category,
                 IsActive = p.IsActive,
                 ArtisanId = p.ArtisanId,
                 CreateAt = p.CreateAt,
                 UpdateAt = p.UpdateAt,
-                Stock = p.Stock,
+                Stock = p.Stock
             })
             .ToListAsync();
 
@@ -116,7 +153,9 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<List<Product>> GetProductsAsync(string? categoryId, bool? isActive)
     {
-        var query = _context.Products.AsQueryable();
+        var query = _context.Products
+            .AsNoTracking()
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(categoryId))
             query = query.Where(p => p.Category == categoryId);
@@ -129,7 +168,9 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<List<Product>> GetAllAsync()
     {
-        return await _context.Products.ToListAsync();
+        return await _context.Products
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
