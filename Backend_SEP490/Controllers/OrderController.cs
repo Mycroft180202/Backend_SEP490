@@ -85,13 +85,13 @@ public class OrderController : ControllerBase
             return Unauthorized();
         }
 
-        var status = await _orderServices.CreateOrderAsync(userId, request);
-        if (!status.StartsWith("Create order successfully", StringComparison.OrdinalIgnoreCase))
+        var result = await _orderServices.CreateOrderAsync(userId, request);
+        if (!result.Success)
         {
-            return BadRequest(status);
+            return BadRequest(result.Message);
         }
 
-        return Ok(status);
+        return Ok(result.OrderId);
     }
 
     [Authorize]

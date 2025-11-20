@@ -46,33 +46,33 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     private static string GenerateId(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
 
-    public async Task<string> CreateOrderAsync(string? userId, RequestCreateOrder request)
+    public async Task<CreateOrderResult> CreateOrderAsync(string? userId, RequestCreateOrder request)
     {
         if (string.IsNullOrWhiteSpace(userId))
         {
-            return "Create order failed!(ID is empty)";
+            return CreateOrderResult.Failure("Create order failed!(ID is empty)");
         }
 
         if (string.IsNullOrWhiteSpace(request.ReceiverName) ||
             string.IsNullOrWhiteSpace(request.ReceiverPhone))
         {
-            return "Receiver information is required!";
+            return CreateOrderResult.Failure("Receiver information is required!");
         }
 
         if (request.ToDistrictId <= 0 || string.IsNullOrWhiteSpace(request.ToWardCode))
         {
-            return "Destination information is required!";
+            return CreateOrderResult.Failure("Destination information is required!");
         }
 
         if (string.IsNullOrWhiteSpace(request.ToAddress))
         {
-            return "Destination address is required!";
+            return CreateOrderResult.Failure("Destination address is required!");
         }
 
         var paymentType = NormalizePaymentType(request.PaymentType);
         if (paymentType == null)
         {
-            return "Payment type must be COD or VNPAY!";
+            return CreateOrderResult.Failure("Payment type must be COD or VNPAY!");
         }
 
         await using var transaction = await _context.BeginTransactionAsync();
@@ -88,13 +88,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 if (missingProductIds.Any())
                 {
                     await transaction.RollbackAsync();
-                    return $"Create order failed!(product(s) not found: {string.Join(", ", missingProductIds)})";
+                    return CreateOrderResult.Failure($"Create order failed!(product(s) not found: {string.Join(", ", missingProductIds)})");
                 }
 
                 if (items.Count == 0)
                 {
                     await transaction.RollbackAsync();
-                    return "Create order failed!(No shipment items provided)";
+                    return CreateOrderResult.Failure("Create order failed!(No shipment items provided)");
                 }
 
                 orderItemInputs = items;
@@ -105,14 +105,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 if (cart == null)
                 {
                     await transaction.RollbackAsync();
-                    return "Create order failed!(Cart is empty)";
+                    return CreateOrderResult.Failure("Create order failed!(Cart is empty)");
                 }
 
                 var cartItems = (await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id)).ToList();
                 if (cartItems.Count == 0)
                 {
                     await transaction.RollbackAsync();
-                    return "Create order failed!(cartItem is empty)";
+                    return CreateOrderResult.Failure("Create order failed!(cartItem is empty)");
                 }
 
                 orderItemInputs = cartItems
@@ -127,14 +127,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 if (orderItemInputs.Count == 0)
                 {
                     await transaction.RollbackAsync();
-                    return "Create order failed!(cartItem is empty)";
+                    return CreateOrderResult.Failure("Create order failed!(cartItem is empty)");
                 }
             }
 
             if (orderItemInputs.Count == 0)
             {
                 await transaction.RollbackAsync();
-                return "Create order failed!(No order items)";
+                return CreateOrderResult.Failure("Create order failed!(No order items)");
             }
 
             var totalAmount = request.TotalAmount.HasValue && request.TotalAmount.Value >= 0
@@ -145,14 +145,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
             if (shippingAddress == null)
             {
                 await transaction.RollbackAsync();
-                return "Unable to save shipping address for this order!";
+                return CreateOrderResult.Failure("Unable to save shipping address for this order!");
             }
 
             var customer = await _context.Users.GetByIdAsync(userId);
             if (customer == null)
             {
                 await transaction.RollbackAsync();
-                return "Customer not found!";
+                return CreateOrderResult.Failure("Customer not found!");
             }
 
             var orderId = $"Order-{userId}-{Guid.NewGuid():N}";
@@ -172,7 +172,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             if (!addOrderStatus)
             {
                 await transaction.RollbackAsync();
-                return "Create order failed!(addOrderStatus)";
+                return CreateOrderResult.Failure("Create order failed!(addOrderStatus)");
             }
 
             var orderItems = orderItemInputs
@@ -190,13 +190,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
             if (!addOrderItemStatus)
             {
                 await transaction.RollbackAsync();
-                return "Create order item failed!(addOrderItemStatus)";
+                return CreateOrderResult.Failure("Create order item failed!(addOrderItemStatus)");
             }
 
             await transaction.CommitAsync();
 
             await NotifyOrderActorsAsync(order, orderItems);
-            return "Create order successfully!";
+            return CreateOrderResult.Succeeded(orderId);
         }
         catch
         {
