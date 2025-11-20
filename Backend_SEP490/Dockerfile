@@ -12,15 +12,15 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Backend_SEP490/Backend_SEP490.csproj", "Backend_SEP490/"]
-RUN dotnet restore "./Backend_SEP490/Backend_SEP490.csproj"
+COPY ["Backend_SEP490.csproj", "./"]
+RUN dotnet restore "./Backend_SEP490.csproj"
 COPY . .
-WORKDIR "/src/Backend_SEP490"
 RUN dotnet build "./Backend_SEP490.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
 RUN dotnet publish "./Backend_SEP490.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
