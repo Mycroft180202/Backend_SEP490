@@ -10,7 +10,7 @@ namespace Backend_SEP490.Mapper
         {
             CreateMap<Cart, ResponseDTOCart>()
                 .ForMember(dest => dest.Customer, opt => opt.MapFrom(src => src.Customer))
-                .ForMember(dest => dest.TotalAmmount,
+                .ForMember(dest => dest.TotalAmount,
                            opt => opt.MapFrom(src => src.CartItems != null
                                ? src.CartItems.Sum(ci => (ci.PriceAtAdd ?? 0) * (ci.Quantity ?? 0))
                                : 0))

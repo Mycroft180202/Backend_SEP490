@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +26,7 @@ public class ReportController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var userId = User.FindFirstValue("userId") ?? User.FindFirstValue("userID");
+        var userId = User.GetUserId();
         if (string.IsNullOrWhiteSpace(userId))
         {
             return Unauthorized();

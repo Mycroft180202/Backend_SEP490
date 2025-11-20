@@ -88,7 +88,8 @@ namespace Backend_SEP490.Services.impl
                 if (item.Product != null)
                 {
                     var images = await _context.ProductImages.GetImagesByProductIdAsync(item.Product.Id);
-                    item.Product.ImageUrl = images.FirstOrDefault().URL;
+                    var primaryImage = images?.FirstOrDefault();
+                    item.Product.ImageUrl = primaryImage?.URL;
                 }
             }
 

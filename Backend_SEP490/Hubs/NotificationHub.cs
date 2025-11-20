@@ -1,6 +1,6 @@
 using System;
-using System.Security.Claims;
 using System.Threading.Tasks;
+using Backend_SEP490.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -33,9 +33,5 @@ public class NotificationHub : Hub<INotificationClient>
 
     internal static string GetUserGroup(string userId) => $"notifications:{userId}";
 
-    private string? GetUserId()
-    {
-        return Context.User?.FindFirstValue("userId") ??
-               Context.User?.FindFirstValue("userID");
-    }
+    private string? GetUserId() => Context.User.GetUserId();
 }

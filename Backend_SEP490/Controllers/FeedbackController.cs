@@ -1,15 +1,16 @@
-﻿using System.Security.Claims;
 using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Extensions;
 using Backend_SEP490.Models;
 using Backend_SEP490.Services.impl;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Controllers;
+
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
-public class FeedbackController: ControllerBase
+public class FeedbackController : ControllerBase
 {
     private readonly IFeedbackServices _feedbackRepository;
 
@@ -25,35 +26,36 @@ public class FeedbackController: ControllerBase
         var feedbacks = await _feedbackRepository.GetFeedbacksByProductIdAsync(productId, pageIndex, pageSize);
         return Ok(feedbacks);
     }
+
     [Authorize]
     [HttpDelete("feedbacks/{ID}")]
     public async Task<ActionResult> DeleteFeedback(Feedback feedback)
     {
-        var userid = User.FindFirstValue("userID");
-        if (userid == feedback.CustomerId)
+        var userId = User.GetUserId();
+        if (!string.IsNullOrWhiteSpace(userId) && userId == feedback.CustomerId)
         {
             await _feedbackRepository.DeleteFeedbacksByIdAsync(feedback.Id);
         }
 
         return NoContent();
     }
+
     [Authorize]
     [HttpPut("feedbacks")]
-    public async Task<ActionResult> UpdateFeedback(RequestDTOFeedback feedback, string productid, string userid,string feedbackid)
+    public async Task<ActionResult> UpdateFeedback(RequestDTOFeedback feedback, string productid, string userid, string feedbackid)
     {
-        
-        var useridc = User.FindFirstValue("userID");
-        if (useridc == userid)
+        var currentUserId = User.GetUserId();
+        if (!string.IsNullOrWhiteSpace(currentUserId) && currentUserId == userid)
         {
             await _feedbackRepository.UpdateFeedbackByIdAsynnc(feedback, productid, feedbackid);
         }
+
         return NoContent();
     }
-    
+
     [HttpPost("feedbacks")]
     public async Task<ActionResult> AddFeedback(RequestDTOFeedback feedback, string productid, string userid)
     {
-        
         await _feedbackRepository.CreateFeedback(feedback, productid, userid);
         return NoContent();
     }

@@ -1,7 +1,8 @@
 using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Backend_SEP490.Controllers;
 
@@ -16,6 +17,7 @@ public class OrderController : ControllerBase
         _orderServices = orderServices;
     }
 
+    [Authorize]
     [HttpPost("my-orders")]
     public async Task<IActionResult> GetAllOrderByUserId([FromBody] RequestFilterOrder? requestFilter)
     {
@@ -24,7 +26,7 @@ public class OrderController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var userId = User.FindFirstValue("userId") ?? User.FindFirstValue("userID");
+        var userId = User.GetUserId();
         if (string.IsNullOrWhiteSpace(userId))
         {
             return Unauthorized();
@@ -51,6 +53,7 @@ public class OrderController : ControllerBase
         return Ok(order);
     }
 
+    [Authorize]
     [HttpPost("orders")]
     public async Task<IActionResult> CreateOrder([FromBody] RequestCreateOrder request)
     {
@@ -59,7 +62,7 @@ public class OrderController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var userId = User.FindFirstValue("userId") ?? User.FindFirstValue("userID");
+        var userId = User.GetUserId();
         if (string.IsNullOrWhiteSpace(userId))
         {
             return Unauthorized();
@@ -74,6 +77,7 @@ public class OrderController : ControllerBase
         return Ok(status);
     }
 
+    [Authorize]
     [HttpPost("orders/{orderId}/cancel")]
     public async Task<IActionResult> CancelOrder([FromRoute] string orderId, [FromBody] RequestCancelOrder? request)
     {
@@ -82,7 +86,7 @@ public class OrderController : ControllerBase
             return BadRequest("Order id is required.");
         }
 
-        var userId = User.FindFirstValue("userId") ?? User.FindFirstValue("userID");
+        var userId = User.GetUserId();
         if (string.IsNullOrWhiteSpace(userId))
         {
             return Unauthorized();
