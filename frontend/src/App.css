@@ -94,3 +94,30 @@ input[type='password']::-ms-clear {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Checkout theme refinements */
+.checkout-shell {
+  background: radial-gradient(circle at 20% 20%, #fdf8ef 0%, #faf5ea 35%, #f7f3e8 65%, #f5f1e6 100%);
+}
+
+.checkout-card {
+  border: 1px solid #efe7db;
+  box-shadow: 0 12px 32px rgba(158, 33, 31, 0.08);
+  animation: fadeInUp 0.45s ease both;
+  backdrop-filter: blur(2px);
+}
+
+.checkout-card:hover {
+  box-shadow: 0 16px 36px rgba(158, 33, 31, 0.15);
+  transform: translateY(-2px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.checkout-shell .checkout-cta {
+  transition: box-shadow 0.3s ease, transform 0.25s ease;
+}
+
+.checkout-shell .checkout-cta:hover {
+  box-shadow: 0 10px 24px rgba(158, 33, 31, 0.25);
+  transform: translateY(-1px);
+}

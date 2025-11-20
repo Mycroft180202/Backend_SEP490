@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const CheckoutBanner = () => {
   return (
-    <div className="w-full bg-[#DBEFE2] py-8">
+    <div className="w-full bg-gradient-to-r from-[#f8d7cf] via-[#fbe6dd] to-[#f8d7cf] py-8">
       <div className="max-w-[1440px] mx-auto px-10">
         <div className="flex flex-col gap-4">
           {/* Breadcrumb */}

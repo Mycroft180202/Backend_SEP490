@@ -91,7 +91,7 @@ const AddressSelector = ({
   );
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm">
+    <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="font-alata text-2xl text-black flex items-center gap-2">
           <FaMapMarkerAlt className="text-primary" />
@@ -116,6 +116,27 @@ const AddressSelector = ({
         <div className="space-y-4">
           {normalizedAddresses.map((address) => {
             const isSelected = address.__internalId === internalSelectedId;
+            const primaryDetail = address.fullAddress
+              || address.line1
+              || address.detailAddress
+              || address.addressLine
+              || address.address;
+            const detailLine = primaryDetail
+              || [
+                address.detailAddress || address.address || address.addressLine,
+                address.ward,
+                address.district,
+                address.province,
+              ]
+                .filter(Boolean)
+                .join(', ');
+            const detailLine2 = address.detailAddress2
+              || address.line2
+              || address.addressLine2;
+            const displayAddress = detailLine
+              || 'Chua co thong tin dia chi chi tiet.';
+
+            const provinceLine = address.city || address.province || address.country || '';
             return (
               <button
                 key={address.__internalId}
@@ -146,22 +167,20 @@ const AddressSelector = ({
                   </div>
 
                   <p className="font-nunito text-base text-gray-700">
-                    {address.fullAddress
-                      || address.detailAddress
-                      || 'Chua co thong tin dia chi chi tiet.'}
+                    {displayAddress}
                   </p>
+                  {detailLine2 && (
+                    <p className="font-nunito text-sm text-gray-600">
+                      {detailLine2}
+                    </p>
+                  )}
+                  {provinceLine && (
+                    <p className="font-nunito text-sm text-gray-500">
+                      {provinceLine}
+                    </p>
+                  )}
 
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                    {address.districtId && (
-                      <span className="px-3 py-1 rounded-full bg-white border border-gray-200">
-                        GHN district: {address.districtId}
-                      </span>
-                    )}
-                    {address.wardCode && (
-                      <span className="px-3 py-1 rounded-full bg-white border border-gray-200">
-                        GHN ward: {address.wardCode}
-                      </span>
-                    )}
                     {address.isDefault && (
                       <span className="px-3 py-1 rounded-full bg-white border border-gray-200 text-primary font-semibold">
                         Mac dinh

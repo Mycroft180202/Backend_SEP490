@@ -28,7 +28,7 @@ const PaymentMethod = ({
   };
 
   return (
-    <div className="bg-white rounded-[20px] p-6 shadow-lg border border-[#efe7db]">
+    <div className="bg-white rounded-[20px] p-6 shadow-lg border border-[#efe7db] checkout-card">
       <h2 className="font-alata text-2xl text-[#331c11] mb-6">
         Phương thức thanh toán
       </h2>

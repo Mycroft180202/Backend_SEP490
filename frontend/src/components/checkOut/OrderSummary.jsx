@@ -42,7 +42,7 @@ const OrderSummary = ({
   };
 
   return (
-    <div className="bg-[#DBEFE2] rounded-xl p-6 shadow-sm sticky top-24">
+    <div className="bg-gradient-to-br from-[#faded5] via-[#f7cfc5] to-[#faded5] rounded-xl p-6 shadow-sm checkout-card sticky top-24">
       <h2 className="font-alata text-2xl text-black text-center mb-6">
         Don hang cua ban
       </h2>
@@ -108,7 +108,7 @@ const OrderSummary = ({
         <button
           type="button"
           onClick={handlePlaceOrder}
-          className={`w-full py-3 rounded-lg font-nunito text-lg font-semibold text-white transition-colors mt-4 ${
+          className={`w-full py-3 rounded-lg font-nunito text-lg font-semibold text-white transition-colors mt-4 checkout-cta ${
             disabled || placingOrder
               ? 'bg-gray-400 cursor-not-allowed'
               : 'bg-primary hover:bg-[#7a1a18]'

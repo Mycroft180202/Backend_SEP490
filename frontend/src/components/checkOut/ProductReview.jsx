@@ -37,7 +37,7 @@ const ProductReview = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm">
+      <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
         <h2 className="font-alata text-2xl text-black mb-6">
           Kiem tra don hang
         </h2>
@@ -48,7 +48,7 @@ const ProductReview = ({
 
   if (!items.length) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm">
+      <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
         <h2 className="font-alata text-2xl text-black mb-2">
           Kiem tra don hang
         </h2>
@@ -60,7 +60,7 @@ const ProductReview = ({
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm">
+    <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
       <h2 className="font-alata text-2xl text-black mb-6">
         Kiem tra don hang
       </h2>
