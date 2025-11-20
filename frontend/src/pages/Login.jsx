@@ -3,6 +3,7 @@ import { UserContext } from '../context/UserContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/modules/auth/authService';
 import { toast } from 'react-toastify';
+import { FaUser, FaLock } from 'react-icons/fa';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -71,99 +72,96 @@ const handleRememberMe = (e) => {
 };
 
   return (
-  <div className="fixed inset-0 flex items-center justify-center p-6" style={{ backgroundColor: '#FBFBEE' }}>
-      {/* top-right close icon that returns to homepage */}
-      <button onClick={() => navigate('/')} aria-label="Close and go home" className="absolute top-6 right-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md hover:opacity-90" style={{ border: 'none' }}>
-        <img src="/images/deco-x.svg" alt="close" className="w-6 h-6" />
-      </button>
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-transparent rounded-lg overflow-hidden relative" style={{ minHeight: 560 }}>
-        {/* left image with overlay and welcome text */}
-        <div className="hidden lg:block relative">
-          <img src="/images/login-illustration.svg" alt="illustration" className="w-full h-full object-cover block rounded-l-lg" style={{ height: '100%' }} />
-          <div className="absolute inset-0 rounded-l-lg" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.06) 50%)' }} />
-          <h1 style={{ fontFamily: 'Alata, sans-serif', fontSize: 40, lineHeight: '56px', color: 'white' }} className="absolute left-12 top-12">Chào mừng quay trở lại!</h1>
-        </div>
-
-        {/* right card */}
-        <div className="flex items-center justify-center relative">
-          <div className="w-full max-w-md bg-[#FBFBEE] rounded-2xl p-8 shadow-md" style={{ border: '1px solid rgba(0,0,0,0.04)' }}>
-            {/* close X positioned absolute in parent */}
-            <button onClick={() => navigate('/')} aria-label="close" className="absolute -right-6 -top-6 w-10 h-10 flex items-center justify-center text-2xl" style={{ background: 'transparent', border: 'none', color: '#000' }}>×</button>
-
-            <div className="flex justify-center mb-2">
-              <img src="/images/OnlyLogo.png" alt="logo" className="w-[100px] h-[100px] rounded-full object-cover" />
-            </div>
-            <h2 style={{ fontFamily: 'Alata, sans-serif', fontSize: 36, lineHeight: '56px', color: '#9e211f', fontWeight: 400 }} className="text-center mb-1">Đăng nhập</h2>
-            <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#7a7a7a' }} className="text-center mb-6">Đăng nhập để tiếp tục sử dụng dịch vụ</p>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div>
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Tên đăng nhập</label>
-                <input
-                    type="text"
-                    placeholder="Tên đăng nhập"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                  />
-              </div>
-
-              <div>
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Mật khẩu</label>
-                <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Mật khẩu"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                    />
-                    <button
-                      type="button"
-                      aria-pressed={showPassword}
-                      onClick={() => setShowPassword((s) => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center p-1"
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-                    >
-                      <img
-                        src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
-                        alt={showPassword ? 'Hide password' : 'Show password'}
-                        className="w-5 h-5 object-contain"
-                      />
-                    </button>
-                  </div>
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 border-[#a0a0a0]"
-                    checked={rememberMe}
-                    onChange={handleRememberMe}
-                  />
-                  <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Ghi nhớ đăng nhập</span>
-                </label>
-                <Link to="/forgot-password" className="text-[#9E211F] hover:underline" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Quên mật khẩu?</Link>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-[#9E211F] text-white rounded-[12px] font-medium hover:opacity-95 transition mt-2"
-                style={{ boxShadow: 'none' }}
-              >
-                {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-              </button>
-
-              <div className="text-center text-sm text-gray-600 mt-4">
-                <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Chưa có tài khoản? </span>
-                <Link to="/register" className="text-[#9E211F] font-medium hover:underline" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Đăng ký</Link>
-              </div>
-            </form>
+    <div className="min-h-screen flex items-center justify-center bg-[#FBFBEE] py-10 px-4">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-white rounded-[32px] shadow-2xl overflow-hidden animate-fadeInUp relative min-h-[620px]">
+        <div className="relative hidden lg:flex flex-col h-full">
+          <img src="/images/login-illustration.svg" alt="illustration" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[rgba(9,8,6,0.25)] via-[rgba(9,6,2,0.45)] to-[rgba(6,4,2,0.75)]" />
+          <div className="absolute inset-x-0 top-10 p-10 text-white space-y-4">
+            <p className="uppercase tracking-[0.3em] text-sm text-[#F9D9A7]">HoaLacHandicraft</p>
+            <h1 className="font-bold text-3xl leading-snug drop-shadow-lg">Chào mừng bạn quay trở lại</h1>
+            <p className="text-sm text-white/80 max-w-xs">
+              Đăng nhập để tiếp tục khám phá những sản phẩm thủ công tinh xảo đến từ Hòa Lạc.
+            </p>
           </div>
+        </div>
+        <div className="relative p-6 sm:p-8 bg-[#FFFDF7] flex flex-col justify-center">
+          <div className="absolute top-4 right-4 hidden lg:flex items-center gap-2 text-sm text-[#746355]">
+            <span>Trở về</span>
+            <Link to="/" className="text-[#9E211F] font-semibold hover:underline">Trang chủ</Link>
+          </div>
+          <div className="mb-8 text-center lg:text-left">
+            <p className="text-xs uppercase tracking-[0.4em] text-[#c29b6c] font-semibold">Chào mừng trở lại</p>
+            <h2 className="text-3xl font-bold text-[#331c11] mt-2">Đăng nhập</h2>
+            <p className="text-sm text-[#746355] mt-2">Nhập thông tin bên dưới để tiếp tục trải nghiệm tại HoaLacHandicraft.</p>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Tên đăng nhập</label>
+              <div className="relative group">
+                <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Tên đăng nhập"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Mật khẩu</label>
+              <div className="relative group">
+                <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Mật khẩu"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full py-3 pl-11 pr-12 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                />
+                <button
+                  type="button"
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f7eee2] transition-colors"
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                >
+                  <img
+                    src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
+                    alt={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    className="w-5 h-5 object-contain"
+                  />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm text-[#746355]">
+              <label className="flex items-center gap-2 text-[#4a3c32]">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-[#9E211F]"
+                  checked={rememberMe}
+                  onChange={handleRememberMe}
+                />
+                <span>Ghi nhớ đăng nhập</span>
+              </label>
+              <Link to="/forgot-password" className="text-[#9E211F] font-semibold hover:underline">Quên mật khẩu?</Link>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0"
+            >
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            </button>
+            <div className="text-center text-sm text-[#746355]">
+              Chưa có tài khoản?
+              {' '}
+              <Link to="/register" className="text-[#9E211F] font-semibold hover:underline">Đăng ký</Link>
+            </div>
+          </form>
         </div>
       </div>
     </div>

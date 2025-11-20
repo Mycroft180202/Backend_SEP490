@@ -7,8 +7,8 @@ export const OrderService = {
     return response.data;
   },
 
-  async getOrders(params = {}) {
-    const response = await axiosClient.get(API_ENDPOINTS.ORDERS.ROOT, { params });
+  async getOrders(filter = {}) {
+    const response = await axiosClient.post(API_ENDPOINTS.ORDERS.MY_ORDERS, filter);
     return response.data;
   },
 

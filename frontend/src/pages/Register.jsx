@@ -1,7 +1,106 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, {
+  useState, useRef, useEffect,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
+import { FaEnvelope, FaUser, FaPhoneAlt, FaIdCard, FaBirthdayCake, FaLock } from 'react-icons/fa';
 import { AuthService } from '../services/modules/auth/authService';
 import { toast } from 'react-toastify';
+
+const DatePartSelect = ({
+  options,
+  value,
+  placeholder,
+  onChange,
+}) => {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const selectedOption = options.find((option) => option.value === value);
+
+  const updateDropdownPosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'absolute',
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+      zIndex: 9999
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    updateDropdownPosition();
+
+    const handleWindowChange = () => updateDropdownPosition();
+    window.addEventListener('resize', handleWindowChange);
+    window.addEventListener('scroll', handleWindowChange, true);
+
+    return () => {
+      window.removeEventListener('resize', handleWindowChange);
+      window.removeEventListener('scroll', handleWindowChange, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleClickOutside = (event) => {
+      if (
+        triggerRef.current?.contains(event.target)
+        || dropdownRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative flex-1 min-w-[96px]">
+      <button
+        type="button"
+        ref={triggerRef}
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-full py-3 px-4 border border-[#efe7db] rounded-[16px] outline-none bg-white text-left flex items-center justify-between transition-all duration-200 focus:border-[#9E211F] focus:shadow-[0_12px_30px_rgba(158,33,31,0.15)]"
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+        <svg width="14" height="8" viewBox="0 0 14 8" className={`transition-transform text-gray-500 ${open ? 'rotate-180' : ''}`}>
+          <path d="M1 1.5L7 7l6-5.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        </svg>
+      </button>
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="max-h-48 overflow-auto bg-white border border-[#efe7db] rounded-[16px] shadow-2xl"
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleSelect(option.value)}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-[#FFF1E5] ${option.value === value ? 'bg-[#FFF6EF]' : ''}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -10,19 +109,90 @@ const Register = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [dob, setDob] = useState('');
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYear, setDobYear] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState(Array(6).fill(''));
   const [showOtpInput, setShowOtpInput] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const navigate = useNavigate();
   const otpRefs = useRef([]);
+  const days = Array.from({ length: 31 }, (_, idx) => idx + 1);
+  const months = Array.from({ length: 12 }, (_, idx) => idx + 1);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, idx) => currentYear - idx);
+  const dayOptions = days.map((day) => ({
+    value: String(day),
+    label: String(day).padStart(2, '0')
+  }));
+  const monthOptions = months.map((month) => ({
+    value: String(month),
+    label: String(month).padStart(2, '0')
+  }));
+  const yearOptions = years.map((year) => ({
+    value: String(year),
+    label: String(year)
+  }));
+
+  const updateDobFromParts = (nextDay, nextMonth, nextYear) => {
+    if (!nextDay || !nextMonth || !nextYear) {
+      setDob('');
+      return;
+    }
+
+    const dayNumber = Number(nextDay);
+    const monthNumber = Number(nextMonth);
+    const yearNumber = Number(nextYear);
+    const day = String(dayNumber).padStart(2, '0');
+    const month = String(monthNumber).padStart(2, '0');
+    const iso = `${yearNumber}-${month}-${day}`;
+
+    const testDate = new Date(`${iso}T00:00:00`);
+    const isValidDate = !Number.isNaN(testDate.getTime())
+      && testDate.getFullYear() === yearNumber
+      && testDate.getMonth() + 1 === monthNumber
+      && testDate.getDate() === dayNumber;
+
+    if (!isValidDate) {
+      setDob('');
+      toast.error('Ngày sinh không tồn tại. Vui lòng chọn lại.');
+      return;
+    }
+
+    const now = new Date();
+    if (testDate > now ) {
+      setDob('');
+      toast.error('Ngày sinh không thể ở tương lai.');
+      return;
+    }
+
+    setDob(iso);
+  };
   
   // Khởi tạo refs cho các ô input OTP
   useEffect(() => {
     otpRefs.current = otpRefs.current.slice(0, 6);
   }, []);
+
+  useEffect(() => {
+    if (showOtpInput) {
+      setResendCountdown(60);
+    } else {
+      setResendCountdown(0);
+    }
+  }, [showOtpInput]);
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return undefined;
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCountdown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,6 +227,9 @@ const Register = () => {
     }
     if (displayName && displayName.length > 50) {
       errors.push('Tên hiển thị không được dài quá 50 ký tự');
+    }
+    if ((dobDay || dobMonth || dobYear) && (!dobDay || !dobMonth || !dobYear)) {
+      errors.push('Vui lòng chọn đầy đủ Ngày/Tháng/Năm');
     }
     if (dob) {
       const dobDate = new Date(dob);
@@ -162,11 +335,11 @@ const Register = () => {
       const response = await AuthService.verifyOTP(verifyOtpData);
       
       if (response.status === 200) {
-        toast.success('Mã OTP đúng, đăng ký thành công!', {
+        toast.success('Mã OTP đúng, đăng ký thành công! Vui lòng đăng nhập để tiếp tục.', {
           position: "top-right",
-          autoClose: 2000,
+          autoClose: 2500,
           onClose: () => {
-            navigate('/');
+            navigate('/login');
           }
         });
       }
@@ -207,6 +380,13 @@ const Register = () => {
   };
 
   const handleResendOtp = async () => {
+    if (resendCountdown > 0) {
+      toast.info(`Vui lòng chờ ${resendCountdown}s trước khi gửi lại mã.`, {
+        position: "top-right",
+        autoClose: 2000
+      });
+      return;
+    }
     try {
       toast.info('Đang gửi lại mã OTP...', {
         position: "top-right",
@@ -227,6 +407,7 @@ const Register = () => {
           position: "top-right",
           autoClose: 3000
         });
+        setResendCountdown(60);
       }
     } catch (error) {
       console.error('Resend OTP failed:', error);
@@ -254,13 +435,11 @@ const Register = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-6" style={{ backgroundColor: '#FBFBEE' }}>
-      
+    <div className="min-h-screen flex items-center justify-center bg-[#FBFBEE] py-10 px-4">
       {/* OTP Modal */}
       {showOtpInput && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-white rounded-2xl p-8 shadow-xl max-w-md w-full mx-4 animate-slideIn relative">
-            {/* Nút đóng */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl max-w-md w-full mx-4 animate-fadeInUp relative z-10">
             <button 
               onClick={() => setShowOtpInput(false)}
               className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -306,10 +485,11 @@ const Register = () => {
               <div className="text-center">
                 <p className="text-gray-500 text-sm mb-2">Không nhận được mã?</p>
                 <button 
-                  className="text-[#9E211F] text-sm font-medium hover:underline"
+                  className={`text-sm font-medium ${resendCountdown > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-[#9E211F] hover:underline'}`}
                   onClick={handleResendOtp}
+                  disabled={resendCountdown > 0}
                 >
-                  Gửi lại mã
+                  {resendCountdown > 0 ? `Gửi lại mã (${resendCountdown}s)` : 'Gửi lại mã'}
                 </button>
               </div>
 
@@ -329,131 +509,188 @@ const Register = () => {
       )}
       
       {/* Main Register Form */}
-        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-transparent rounded-lg overflow-hidden relative" style={{ minHeight: 560 }}>
-          {/* left image with overlay and welcome text */}
-          <div className="hidden lg:block relative">
-            <img src="/images/login-illustration.svg" alt="illustration" className="w-full h-full object-cover block rounded-l-lg" style={{ height: '100%' }} />
-            <div className="absolute inset-0 rounded-l-lg" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.06) 50%)' }} />
-            <h1 style={{ fontFamily: 'Alata, sans-serif', fontSize: 36, lineHeight: '56px', color: 'white' }} className="absolute left-12 top-12">Chào mừng đến với<br/>HoaLacHandicraft!</h1>
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-white rounded-[32px] shadow-2xl overflow-hidden animate-fadeInUp relative min-h-[680px]">
+          <div className="relative hidden lg:flex flex-col h-full">
+            <img src="/images/login-illustration.svg" alt="illustration" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[rgba(9,8,6,0.25)] via-[rgba(9,6,2,0.45)] to-[rgba(6,4,2,0.75)]" />
+            <div className="absolute inset-x-0 top-10 p-10 text-white space-y-4">
+              <p className="uppercase tracking-[0.3em] text-sm text-[#F9D9A7]">HoaLacHandicraft</p>
+              <h1 className="font-bold text-3xl leading-snug drop-shadow-lg">Chào mừng đến với cộng đồng thủ công Việt</h1>
+              <p className="text-sm text-white/80 max-w-xs">
+                Kết nối cùng nghệ nhân Hòa Lạc, khám phá tinh hoa làng nghề và lưu giữ nét đẹp truyền thống.
+              </p>
+            </div>
           </div>
-          <div className="p-6 lg:p-8 flex flex-col justify-center">
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Email</label>
-                <input
-                  type="email"
-                  placeholder="Email của bạn"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                />
-              </div>
-              <div className="mb-4">
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Tên đăng nhập</label>
-                <input
-                  type="text"
-                  placeholder="Tên đăng nhập của bạn"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                />
-              </div>
-              <div className="mb-4">
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Số điện thoại</label>
-                <input
-                  type="tel"
-                  placeholder="Số điện thoại của bạn"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                />
-              </div>
-              <div className="mb-4">
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Họ và tên</label>
-                <input
-                  type="text"
-                  placeholder="Họ và tên của bạn"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  required
-                  className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                />
-              </div>
-              <div className="mb-4">
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Ngày sinh</label>
-                <input
-                  type="date"
-                  placeholder="Ngày sinh"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  required
-                  className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                />
-              </div>
-              <div className="mb-4">
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Mật khẩu</label>
-                <div className="relative">
+        <div className="relative p-6 sm:p-8 bg-[#FFFDF7] flex flex-col justify-center">
+          <div className="absolute top-4 right-4 hidden lg:flex items-center gap-2 text-sm text-[#746355]">
+            <span>Trở về</span>
+            <Link to="/" className="text-[#9E211F] font-semibold hover:underline">Trang chủ</Link>
+          </div>
+            <div className="mb-8 text-center lg:text-left">
+              <p className="text-xs uppercase tracking-[0.4em] text-[#c29b6c] font-semibold">Bắt đầu hành trình</p>
+              <h2 className="text-3xl font-bold text-[#331c11] mt-2">Tạo tài khoản mới</h2>
+              <p className="text-sm text-[#746355] mt-2">Nhập thông tin dưới đây để gia nhập cộng đồng HoaLacHandicraft.</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Email</label>
+                <div className="relative group">
+                  <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Mật khẩu"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    type="email"
+                    placeholder="Email của bạn"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
+                    className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
                   />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Tên đăng nhập</label>
+                <div className="relative group">
+                  <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Tên đăng nhập của bạn"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Số điện thoại</label>
+                <div className="relative group">
+                  <FaPhoneAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                  <input
+                    type="tel"
+                    placeholder="Số điện thoại của bạn"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    required
+                    className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Họ và tên</label>
+                <div className="relative group">
+                  <FaIdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Họ và tên của bạn"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    required
+                    className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] flex items-center gap-2 mb-2">
+                  <FaBirthdayCake className="text-[#c5b29a]" />
+                  Ngày sinh
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <DatePartSelect
+                    options={dayOptions}
+                    value={dobDay}
+                    placeholder="Ngày"
+                    onChange={(value) => {
+                      setDobDay(value);
+                      updateDobFromParts(value, dobMonth, dobYear);
+                    }}
+                  />
+                  <DatePartSelect
+                    options={monthOptions}
+                    value={dobMonth}
+                    placeholder="Tháng"
+                    onChange={(value) => {
+                      setDobMonth(value);
+                      updateDobFromParts(dobDay, value, dobYear);
+                    }}
+                  />
+                  <DatePartSelect
+                    options={yearOptions}
+                    value={dobYear}
+                    placeholder="Năm"
+                    onChange={(value) => {
+                      setDobYear(value);
+                      updateDobFromParts(dobDay, dobMonth, value);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Mật khẩu</label>
+                  <div className="relative group">
+                    <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Mật khẩu"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full py-3 pl-11 pr-12 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                    />
                   <button
                     type="button"
+                    tabIndex={-1}
                     aria-pressed={showPassword}
                     onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f7eee2] transition-colors"
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                   >
-                    <img
-                      src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
-                      alt={showPassword ? 'Hide password' : 'Show password'}
-                      className="w-5 h-5 object-contain"
-                    />
-                  </button>
+                      <img
+                        src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
+                        alt={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        className="w-5 h-5 object-contain"
+                      />
+                    </button>
+                  </div>
                 </div>
-                <label style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '28px', color: '#000' }} className="block mb-2">Xác nhận mật khẩu</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="Xác nhận mật khẩu"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="w-full py-3 px-4 border border-[#e0dfda] rounded-[12px] outline-none bg-transparent"
-                  />
+                <div>
+                  <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Xác nhận mật khẩu</label>
+                  <div className="relative group">
+                    <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Xác nhận mật khẩu"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      className="w-full py-3 pl-11 pr-12 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                    />
                   <button
                     type="button"
+                    tabIndex={-1}
                     aria-pressed={showConfirmPassword}
                     onClick={() => setShowConfirmPassword((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f7eee2] transition-colors"
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                   >
-                    <img
-                      src={showConfirmPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
-                      alt={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      className="w-5 h-5 object-contain"
-                    />
-                  </button>
+                      <img
+                        src={showConfirmPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
+                        alt={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        className="w-5 h-5 object-contain"
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#9E211F] text-white rounded-[12px] font-medium hover:opacity-95 transition mt-2"
-                style={{ boxShadow: 'none' }}
+                className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0"
               >
                 {loading ? 'Đang đăng ký...' : 'Đăng ký'}
               </button>
-              <div className="text-center text-sm text-gray-600 mt-4">
-                <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Đã có tài khoản? </span>
-                <Link to="/login" className="text-[#9E211F] font-medium hover:underline" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, lineHeight: '24px' }}>Đăng nhập</Link>
+              <div className="text-center text-sm text-[#746355]">
+                Đã có tài khoản?{' '}
+                <Link to="/login" className="text-[#9E211F] font-semibold hover:underline">Đăng nhập</Link>
               </div>
             </form>
           </div>

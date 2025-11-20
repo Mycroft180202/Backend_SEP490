@@ -54,8 +54,12 @@ const ProductCard = ({
   isWished = false,
   productId,
 }) => {
-  const { t } = useContext(LanguageContext);
+  const { t, language } = useContext(LanguageContext);
   const priceSuffix = t('productCard.priceSuffix');
+  const priceLabel = t('productCard.priceLabel');
+  const priceLabelText = priceLabel && priceLabel.includes('productCard.priceLabel')
+    ? (language === 'en' ? 'Price' : 'Giá bán')
+    : priceLabel;
 
   const handleAddToCart = (event) => {
     event.stopPropagation();
@@ -86,7 +90,7 @@ const ProductCard = ({
       toast.error(
         err?.response?.data?.message
         || err?.message
-        || 'Không thể thêm vào yêu thích.',
+        || 'Đăng nhập để thêm vào yêu thích.',
       );
     }
   };
@@ -237,7 +241,7 @@ const ProductCard = ({
 
   return (
     <div
-      className={`group bg-white rounded-xl overflow-hidden border border-[#D4A574]/30 hover:border-[#D4A574] transition-all duration-300 hover:shadow-xl ${onClick ? 'cursor-pointer' : ''}`}
+      className={`group bg-white/95 rounded-[28px] overflow-hidden border border-[#F1D2AA] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -267,33 +271,43 @@ const ProductCard = ({
         )}
       </div>
 
-      <div className="p-4 bg-gradient-to-b from-white to-[#FFFBF0]">
-        <h3 className="font-['Nunito'] text-lg font-semibold text-[#8B4513] mb-2 line-clamp-2 group-hover:text-[#D4A574] transition min-h-[56px]">
+      <div className="p-5 bg-gradient-to-b from-white to-[#FFFBF0] flex flex-col gap-3">
+        <h3 className="font-['Nunito'] text-lg font-semibold text-[#5A3310] line-clamp-2 min-h-[48px] group-hover:text-[#9E211F] transition-colors">
           {title}
         </h3>
-        <p className="font-['Nunito'] text-sm text-gray-600 mb-3 line-clamp-2 min-h-[40px]">
+        <p className="font-['Nunito'] text-sm text-gray-600 line-clamp-2 min-h-[36px]">
           {shortDescription || t('productCard.fallbackDescription')}
         </p>
-        <div className="flex items-center gap-1 mb-3">
-          {renderStars(rating || 0)}
-          <span className="text-sm text-gray-600 ml-1">
-            {t('productCard.rating', { count: (Number(rating) || 0).toFixed(1) })}
-          </span>
+        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-[#b58b5d]">
+          <span className="truncate">{priceLabelText}</span>
+          <div className="flex items-center gap-1 text-[#c37c3d]">
+            {renderStars(rating || 0)}
+            <span className="text-xs font-semibold ml-1 text-[#8B4513]">
+              {(Number(rating) || 0).toFixed(1)}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center justify-between pt-2 border-t border-[#D4A574]/20">
-          <span className="text-xl font-bold text-[#8B4513] font-['Nunito']">
-            {formatCurrency(price, priceSuffix)}
-          </span>
+        <div className="flex items-center justify-between pt-1">
+          <div>
+            <p className="text-2xl font-bold text-[#8B4513] font-['Nunito']">
+              {formatCurrency(price, priceSuffix)}
+            </p>
+          </div>
+          {stock !== undefined && (
+            <span className="text-sm text-gray-500 font-['Nunito']">
+              {t('productCard.stock', { stock: stock || 0 })}
+            </span>
+          )}
         </div>
         {(onAddToCart || onBuyNow) && (
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="mt-4 flex gap-2">
             {onAddToCart && (
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#8B4513] text-white px-4 py-3 font-['Nunito'] font-semibold hover:bg-[#D4A574] transition"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#8B4513] text-white px-3 py-2.5 text-sm font-['Nunito'] font-semibold shadow-[0_8px_18px_rgba(139,69,19,0.35)] hover:-translate-y-0.5 hover:bg-[#A8602D] transition-all duration-200"
               >
-                <FaShoppingCart />
+                <FaShoppingCart className="text-sm" />
                 <span>{t('productCard.addToCart')}</span>
               </button>
             )}
@@ -301,9 +315,9 @@ const ProductCard = ({
               <button
                 type="button"
                 onClick={handleBuyNow}
-                className="flex items-center justify-center gap-2 w-full rounded-lg border-2 border-[#8B4513] text-[#8B4513] px-4 py-3 font-['Nunito'] font-semibold hover:bg-[#FFFBF0] transition"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] border-2 border-[#9E211F] text-[#9E211F] px-3 py-2.5 text-sm font-['Nunito'] font-semibold hover:bg-[#FFF6EF] hover:-translate-y-0.5 transition-all duration-200"
               >
-                <FaBolt />
+                <FaBolt className="text-sm" />
                 <span>{t('productCard.buyNow')}</span>
               </button>
             )}

@@ -12,6 +12,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import CartBanner from '../components/cart/CartBanner';
 import ProductList from '../components/cart/ProductList';
+import Pagination from '../components/shared/Pagination';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
 
@@ -22,6 +23,8 @@ const Cart = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({ subtotal: 0, shipping: 0, total: 0 });
+  const [pageIndex, setPageIndex] = useState(1);
+  const pageSize = 6;
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const toastShownRef = useRef(false);
   const redirectTimeoutRef = useRef(null);
@@ -43,9 +46,10 @@ const Cart = () => {
         (total, item) => total + (item.price || 0) * (item.quantity || 0),
         0,
       );
-      const shipping = response.raw?.shippingFee ?? (normalized.length > 0 ? 30000 : 0);
+      const shipping = 0;
       const total = response.totalAmount ?? subtotal + shipping;
       setSummary({ subtotal, shipping, total });
+      setPageIndex(1);
     } catch (error) {
       console.error(error);
       const message =
@@ -147,20 +151,30 @@ const Cart = () => {
     navigate('/checkout');
   };
 
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const paginatedItems = items.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <CartBanner />
       <main className="flex-grow">
         <ProductList
-          items={items}
+          items={paginatedItems}
+          allItems={items}
           loading={loading}
           updatingItemId={updatingItemId}
           summary={summary}
+          totalCount={items.length}
           onQuantityChange={handleQuantityChange}
           onRemove={handleRemoveItem}
           onCheckout={handleCheckout}
         />
+        {!loading && items.length > pageSize && (
+          <div className="flex justify-center mt-8 mb-6">
+            <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
+          </div>
+        )}
       </main>
       <Footer />
     </div>

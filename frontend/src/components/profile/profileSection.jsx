@@ -545,7 +545,19 @@ function ProfileSection() {
   };
 
 
-  if (loading) return <div className="p-8 text-center">Đang tải thông tin...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fdfde9]">
+        <div className="relative w-20 h-20 mb-4">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#BB4B3E] via-[#9E211F] to-[#BB4B3E] animate-[spin_1.8s_linear_infinite] opacity-80" />
+          <div className="absolute inset-3 rounded-full bg-white shadow-inner" />
+          <div className="absolute inset-5 rounded-full border-2 border-dashed border-[#9E211F]/40 animate-pulse" />
+        </div>
+        <p className="text-[#9E211F] font-semibold text-lg font-['Nunito']">Đang tải thông tin...</p>
+        <p className="text-sm text-gray-600 mt-1 font-['Nunito']">Vui lòng chờ trong giây lát</p>
+      </div>
+    );
+  }
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
   if (!profile) return null;
 

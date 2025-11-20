@@ -39,7 +39,10 @@ const DiscoverHoaLac = () => {
         setLoading(true);
         const res = await BlogService.getAll({ pageIndex: 1, pageSize: 20 });
         const items = res?.items || [];
-        const published = items.filter((b) => (b.postStatus || '').toLowerCase() === 'published');
+        const published = items.filter((b) => {
+          const status = (b.postStatus || '').toString().toLowerCase();
+          return status === 'published' || status === 'active';
+        });
         setBlogs(published);
       } catch (err) {
         console.error('Load blogs error:', err);

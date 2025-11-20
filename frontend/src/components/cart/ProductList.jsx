@@ -13,9 +13,11 @@ const formatCurrency = (value, suffix) => {
 
 const ProductList = ({
   items = [],
+  allItems = [],
   loading = false,
   summary = null,
   updatingItemId = null,
+  totalCount = null,
   onQuantityChange = () => {},
   onRemove = () => {},
   onCheckout = () => {},
@@ -23,13 +25,15 @@ const ProductList = ({
   const { t } = useContext(LanguageContext);
   const priceSuffix = t('productCard.priceSuffix');
 
-  const derivedSubtotal = items.reduce(
+  const baseItems = allItems && allItems.length ? allItems : items;
+  const derivedSubtotal = baseItems.reduce(
     (total, item) => total + (item.price || 0) * (item.quantity || 0),
     0,
   );
   const subtotal = summary?.subtotal ?? derivedSubtotal;
-  const shippingFee = summary?.shipping ?? 0;
-  const total = summary?.total ?? subtotal + shippingFee;
+  const shippingFee = 0;
+  const total = summary?.total ?? subtotal;
+  const displayedCount = totalCount ?? baseItems.length;
 
   const renderSkeleton = () => (
     <div className="space-y-5">
@@ -77,8 +81,8 @@ const ProductList = ({
             {t('cart.title')}
           </h1>
           <p className="text-gray-500 mt-1">
-            {items.length > 0
-              ? t('cart.itemsCount', { count: items.length })
+            {displayedCount > 0
+              ? t('cart.itemsCount', { count: displayedCount })
               : t('cart.empty')}
           </p>
         </div>
@@ -210,19 +214,13 @@ const ProductList = ({
             })}
           </div>
 
-          <aside className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 h-fit">
+          <aside className="bg-white border border-[#efe7db] rounded-2xl shadow-xl p-6 h-fit">
             <h2 className="text-xl font-semibold text-[#8B4513] mb-6">{t('cart.summaryTitle')}</h2>
             <div className="space-y-4">
               <div className="flex justify-between text-gray-600">
                 <span>{t('cart.subtotal')}</span>
                 <span className="font-semibold text-[#8B4513]">
                   {formatCurrency(subtotal, priceSuffix)}
-                </span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>{t('cart.shipping')}</span>
-                <span className="font-semibold text-[#8B4513]">
-                  {formatCurrency(shippingFee, priceSuffix)}
                 </span>
               </div>
               <div className="border-t border-gray-200 pt-4 flex justify-between text-lg font-semibold text-[#8B4513]">
@@ -262,6 +260,13 @@ ProductList.propTypes = {
     shipping: PropTypes.number,
     total: PropTypes.number,
   }),
+  allItems: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      price: PropTypes.number,
+      quantity: PropTypes.number,
+    }),
+  ),
   updatingItemId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   onQuantityChange: PropTypes.func,
   onRemove: PropTypes.func,

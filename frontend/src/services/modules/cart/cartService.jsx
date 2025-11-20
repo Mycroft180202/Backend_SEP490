@@ -71,8 +71,8 @@ export const CartService = {
       items,
       subtotal,
       shipping,
-      totalAmount: typeof data.totalAmmount === 'number'
-        ? data.totalAmmount
+      totalAmount: typeof data.totalAmount === 'number'
+        ? data.totalAmount
         : subtotal + shipping,
     };
   },

@@ -111,7 +111,7 @@ export const UserService = {
   },
 
   async adminList(pageIndex = 1, pageSize = 10) {
-    const response = await axiosClient.get('/users', {
+    const response = await axiosClient.get(API_ENDPOINTS.USERS.LIST, {
       params: { pageIndex, pageSize },
     });
     return response.data;
@@ -125,7 +125,11 @@ export const UserService = {
       isActive: payload?.isActive,
       rolesId: payload?.rolesId || null,
     };
-    const response = await axiosClient.put(`/users/${id}`, body);
+    const response = await axiosClient.put(
+      API_ENDPOINTS.USERS.LIST,
+      body,
+      { params: { userId: id } },
+    );
     userCache.delete(id);
     return response.data;
   },

@@ -18,6 +18,7 @@ import OrderSummary from '../components/checkOut/OrderSummary';
 import { CartService } from '../services/modules/cart/cartService';
 import { AuthService } from '../services/modules/auth/authService';
 import { OrderService } from '../services/modules/orders/orderService';
+import { GHNLocationService } from '../services/modules/shipping/ghnLocationService';
 import { LanguageContext } from '../context/LanguageContext';
 
 const normalizeAddress = (address, fallbackName = '') => {
@@ -112,6 +113,7 @@ const CheckOut = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
+  const [shippingFee, setShippingFee] = useState(0);
   const redirectTimeoutRef = useRef(null);
 
   const token = useMemo(
@@ -283,6 +285,8 @@ const CheckOut = () => {
         ? Number(selectedAddress.districtId)
         : undefined,
       toWardCode: selectedAddress.wardCode,
+      toAddress: selectedAddress.fullAddress || selectedAddress.detailAddress || '',
+      toProvinceName: selectedAddress.province,
       totalWeight: totalWeight > 0 ? Math.round(totalWeight) : undefined,
       shipmentItems,
     });

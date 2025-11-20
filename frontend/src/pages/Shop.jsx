@@ -29,11 +29,11 @@ const Shop = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
   const [wishlistMap, setWishlistMap] = useState(new Map());
-  const ensureAuthenticated = () => {
+  const ensureAuthenticated = (customMessage) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (token) return true;
     if (!userInfo) {
-      toast.info(t('messages.loginRequired'));
+      toast.info(customMessage || t('messages.loginRequired'));
       setTimeout(() => {
         navigate('/login', { replace: true });
       }, 500);
@@ -42,7 +42,11 @@ const Shop = () => {
   };
 
   const handleAddToCart = async (productId, price, quantity = 1, redirect = false) => {
-    if (!ensureAuthenticated()) return;
+    const msg = t('messages.loginToAddCart');
+    const fallbackMsg = msg && msg.includes('messages.loginToAddCart')
+      ? 'Đăng nhập để thêm vào giỏ hàng.'
+      : msg;
+    if (!ensureAuthenticated(fallbackMsg)) return;
     try {
       await CartService.addItem(productId, price, quantity);
       toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
@@ -51,6 +55,11 @@ const Shop = () => {
       }
     } catch (err) {
       console.error(err);
+      if (err?.response?.status === 401) {
+        const loginMsg = fallbackMsg || t('messages.loginRequired');
+        toast.error(loginMsg);
+        return;
+      }
       const message =
         err?.response?.data?.message
         || err?.response?.data?.title
@@ -61,6 +70,11 @@ const Shop = () => {
   };
 
   const handleBuyNow = async (productId, price) => {
+    const msg = t('messages.loginToBuyNow');
+    const fallbackMsg = msg && msg.includes('messages.loginToBuyNow')
+      ? 'Đăng nhập để mua ngay.'
+      : msg;
+    if (!ensureAuthenticated(fallbackMsg)) return;
     await handleAddToCart(productId, price, 1, true);
   };
 
@@ -87,6 +101,7 @@ const Shop = () => {
   };
 
   const toggleWishlist = async (productId) => {
+    if (!ensureAuthenticated()) return;
     try {
       if (wishlistMap.has(productId)) {
         const itemId = wishlistMap.get(productId);
@@ -104,7 +119,7 @@ const Shop = () => {
       }
     } catch (err) {
       console.error('Toggle wishlist error:', err);
-      toast.error(err?.response?.data?.message || 'Không thể cập nhật yêu thích.');
+      toast.error(err?.response?.data?.message || 'Đăng nhập để thêm vào yêu thích.');
     }
   };
 

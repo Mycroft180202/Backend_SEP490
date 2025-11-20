@@ -48,7 +48,9 @@ export const ProductCollectionService = {
 
   async remove(id) {
     if (!id) throw new Error('Missing collection id');
-    const response = await axiosClient.delete(API_ENDPOINTS.PRODUCT_COLLECTION.BY_ID(id));
+    const response = await axiosClient.delete(API_ENDPOINTS.PRODUCT_COLLECTION.ROOT, {
+      params: { id },
+    });
     return response.data;
   },
 };

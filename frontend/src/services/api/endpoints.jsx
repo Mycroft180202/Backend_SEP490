@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     CREATE: '/products',
     UPDATE: (id) => `/products/${id}`,
     DELETE: (id) => `/products/${id}`,
+    BY_ARTISAN: (id) => `/products/artisan/${id}`,
   },
 
   Categories: {
@@ -16,24 +17,27 @@ export const API_ENDPOINTS = {
     REGISTER: '/register',
     VERIFY_OTP: '/verify-otp',
   },
-  
-  USERS: {
-    USERS_PROFILE: '/users/me',
-    UPDATE_PROFILE: '/users/me',
-    DELETE_ACCOUNT: '/users/profile/delete',
-    BY_ID: (id) => `/users/${id}`,
-    ADDRESSES: '/users/address',
-    ADDRESS_BY_ID: (id) => `/users/address/${id}`,
-  },
 
   PASSWORD: {
     FORGOT_PASSWORD: '/forgot-password',
     RESET_PASSWORD: '/reset-password',
   },
 
+  USERS: {
+    LIST: '/users',
+    USERS_PROFILE: '/users/me',
+    UPDATE_PROFILE: '/users/me',
+    CHANGE_PASSWORD: '/users/change-password',
+    BY_ID: (id) => `/users/${id}`,
+    ADDRESSES: '/users/address',
+    ADDRESS_BY_ID: (id) => `/users/address/${id}`,
+    MY_SHOP: '/users/my-shop',
+    UPDATE_MY_SHOP: '/users/my-shop',
+    SHOP_BY_QUERY: '/users/shop',
+  },
+
   CART: {
     ROOT: '/carts',
-    ITEM: (id) => `/carts/${id}`,
   },
 
   BLOGS: {
@@ -42,9 +46,10 @@ export const API_ENDPOINTS = {
   },
 
   ORDERS: {
-    ROOT: '/Order/orders',
-    BY_ID: (orderId) => `/Order/orders/${orderId}`,
-    CANCEL: (orderId) => `/Order/orders/${orderId}/cancel`,
+    ROOT: '/api/Order/orders',
+    MY_ORDERS: '/api/Order/my-orders',
+    BY_ID: (orderId) => `/api/Order/orders/${orderId}`,
+    CANCEL: (orderId) => `/api/Order/orders/${orderId}/cancel`,
   },
 
   VOUCHERS: {

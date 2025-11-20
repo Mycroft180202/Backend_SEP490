@@ -48,4 +48,28 @@ export const GHNLocationService = {
     wardCache.set(cacheKey, wards || []);
     return wards;
   },
+
+  async getShippingFee(payload) {
+    if (!payload || !payload.toDistrictId || !payload.toWardCode) {
+      return 0;
+    }
+    const defaultPayload = {
+      service_type_id: 2,
+      weight: 500,
+      height: 10,
+      length: 20,
+      width: 10,
+      insurance_value: 0,
+    };
+    const finalPayload = { ...defaultPayload, ...payload };
+    const response = await axiosClient.post('/api/ghn/shipping/fee', finalPayload);
+    const data = response?.data;
+    const fee = Number(
+      data?.total
+      ?? data?.service_fee
+      ?? data?.fee
+      ?? data,
+    );
+    return Number.isFinite(fee) ? fee : 0;
+  },
 };
