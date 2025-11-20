@@ -21,10 +21,10 @@ services:
   api:
     image: sep490-api:latest
     build:
-      context: .
-      dockerfile: Backend_SEP490/Backend_SEP490/Dockerfile
+      context: Backend_SEP490
+      dockerfile: Dockerfile
     env_file:
-      - Backend_SEP490/Backend_SEP490/.env
+      - Backend_SEP490/.env
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: ${ASPNETCORE_URLS:-http://+:8080}

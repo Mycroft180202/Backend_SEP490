@@ -110,7 +110,7 @@ Includes migrations:
 ## 12. Deployment (Docker & Azure)
 
 ### Docker (local)
-1) Sao chép `Backend_SEP490/Backend_SEP490/.env.example` thành `Backend_SEP490/Backend_SEP490/.env` và cập nhật `ConnectionStrings__DefaultConnection`, JWT, Cloudinary, OpenAI, GHN, VNPay, email...
+1) Sao chép `Backend_SEP490/.env.example` thành `Backend_SEP490/.env` và cập nhật `ConnectionStrings__DefaultConnection`, JWT, Cloudinary, OpenAI, GHN, VNPay, email...
 2) Chạy `docker compose up -d --build` ngay từ thư mục gốc repo (dạng API trên `http://localhost:8080`, Postgres trên `localhost:5432`).
 3) Khi deploy production qua Docker, thay cặp `.env` phù hợp và update `Cors__AllowedOrigins__*` cho domain frontend.
 
@@ -121,3 +121,11 @@ Includes migrations:
   - `ConnectionStrings__DefaultConnection=Host=<db-host>;Port=5432;Database=<db>;Username=<user>;Password=<pwd>`
   - Toàn bộ env cần thiết: `JWT_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CLOUDINARY_*`, `EMAIL_*`, `OPENAI_API_KEY`, `GHN_*`, `VNPAY_*`, `Cors__AllowedOrigins__0=https://<frontend-domain>`
 - Những app setting này phủ thay file `.env`; không nên đẩy thẳng `.env` vào image.
+### Production checklist
+1. **Chuẩn bị secrets**: nhân bản `Backend_SEP490/.env.example` thành `.env` cho môi trường local, còn trên production map toàn bộ biến này vào App Settings/Key Vault (bao gồm `ConnectionStrings__DefaultConnection`, `Cors__AllowedOrigins__*`, JWT, Cloudinary, OpenAI, GHN, VNPay, email...).
+2. **Thiết lập cơ sở dữ liệu**: tạo PostgreSQL managed (Azure Database for PostgreSQL, Supabase, ...), mở firewall cần thiết rồi dùng chuỗi kết nối đó cho container. Không dùng service `db` trong `docker-compose` khi chạy production.
+3. **Build & push image**: `docker build -t <acr>.azurecr.io/backend-sep490:<tag> -f Backend_SEP490/Backend_SEP490/Dockerfile .` và `docker push <acr>.azurecr.io/backend-sep490:<tag>` (hoặc `az acr build`).
+4. **Apply migrations**: chạy `dotnet ef database update` (hoặc bundle migrations) trên database production trước khi nhận traffic để đảm bảo schema mới nhất.
+5. **Lưu trữ Data Protection keys**: mount volume hoặc cấu hình Azure Blob/Key Vault/Redis cho `/home/app/.aspnet/DataProtection-Keys` nhằm tránh mất key khi container restart (nếu không cookie auth/refresh token sẽ invalid).
+6. **Kiểm thử tích hợp**: xác thực email SMTP, Cloudinary, OpenAI, GHN, VNPay callback (`VNPAY_RETURN_URL`) và SignalR `/hubs/notifications`; đảm bảo outbound network rules cho phép kết nối tới các dịch vụ này.
+

@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using Backend_SEP490.Constants;
 using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -110,8 +110,5 @@ public class ArtisanApplicationController : ControllerBase
         });
     }
 
-    private string? GetUserId()
-    {
-        return User.FindFirstValue("userId") ?? User.FindFirstValue("userID");
-    }
+    private string? GetUserId() => User.GetUserId();
 }
