@@ -19,4 +19,8 @@ public interface IGhnShippingService
         string? clientOrderCode,
         string? reason = null,
         CancellationToken cancellationToken = default);
+
+    Task<GhnCalculateFeeResponse?> CalculateShippingFeeAsync(
+        GhnCalculateFeeRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -35,7 +35,7 @@ public class OrderController : ControllerBase
         var orders = await _orderServices.GetAllOrderByUserIdAsync(userId, requestFilter);
         return Ok(orders);
     }
-
+    
     [HttpGet("orders/{orderId}")]
     public async Task<IActionResult> GetOrderById([FromRoute] string orderId, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
     {
@@ -51,6 +51,23 @@ public class OrderController : ControllerBase
         }
 
         return Ok(order);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("orders")]
+    public async Task<IActionResult> GetOrdersPaged([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, [FromQuery] string? paymentStatus = null)
+    {
+        if (!string.IsNullOrWhiteSpace(paymentStatus))
+        {
+            var normalized = paymentStatus.Trim().ToLowerInvariant();
+            if (normalized != "paid" && normalized != "unpaid")
+            {
+                return BadRequest("paymentStatus must be either 'paid' or 'unpaid'.");
+            }
+        }
+
+        var result = await _orderServices.GetOrdersPagedAsync(pageIndex, pageSize, paymentStatus);
+        return Ok(result);
     }
 
     [Authorize]

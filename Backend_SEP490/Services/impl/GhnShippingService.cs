@@ -14,6 +14,7 @@ public class GhnShippingService : IGhnShippingService
 {
     private static readonly Uri CreateOrderEndpoint = new("/shiip/public-api/v2/shipping-order/create", UriKind.Relative);
     private static readonly Uri CancelOrderEndpoint = new("/shiip/public-api/v2/shipping-order/cancel", UriKind.Relative);
+    private static readonly Uri CalculateFeeEndpoint = new("/shiip/public-api/v2/shipping-order/fee", UriKind.Relative);
 
     private readonly HttpClient _httpClient;
     private readonly GhnSettings _settings;
@@ -242,6 +243,68 @@ public class GhnShippingService : IGhnShippingService
         }
 
         return true;
+    }
+
+    public async Task<GhnCalculateFeeResponse?> CalculateShippingFeeAsync(
+        GhnCalculateFeeRequest requestModel,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.Token) || _settings.ShopId <= 0)
+        {
+            _logger.LogWarning("GHN settings are missing Token or ShopId. Unable to calculate shipping fee.");
+            return null;
+        }
+
+        if (requestModel.ToDistrictId <= 0 || string.IsNullOrWhiteSpace(requestModel.ToWardCode))
+        {
+            _logger.LogWarning("Invalid destination data when calculating GHN shipping fee.");
+            return null;
+        }
+
+        var payload = new
+        {
+            from_district_id = requestModel.FromDistrictId ?? _settings.FromDistrictId,
+            from_ward_code = string.IsNullOrWhiteSpace(requestModel.FromWardCode)
+                ? _settings.FromWardCode
+                : requestModel.FromWardCode,
+            service_id = requestModel.ServiceId,
+            service_type_id = requestModel.ServiceTypeId ?? _settings.ServiceTypeId,
+            to_district_id = requestModel.ToDistrictId,
+            to_ward_code = requestModel.ToWardCode,
+            height = requestModel.Height ?? _settings.DefaultParcelHeight,
+            length = requestModel.Length ?? _settings.DefaultParcelLength,
+            weight = requestModel.Weight > 0 ? requestModel.Weight : _settings.DefaultItemWeight,
+            width = requestModel.Width ?? _settings.DefaultParcelWidth,
+            insurance_value = requestModel.InsuranceValue ?? 0,
+            coupon = requestModel.CouponCode
+        };
+
+        var request = BuildJsonRequest(HttpMethod.Post, CalculateFeeEndpoint, payload);
+        var (success, content, statusCode) = await SendAsync(
+            request,
+            $"fee-{requestModel.ToDistrictId}-{requestModel.ToWardCode}",
+            cancellationToken);
+
+        if (!success)
+        {
+            return new GhnCalculateFeeResponse
+            {
+                Code = (int)statusCode,
+                Message = string.IsNullOrWhiteSpace(content) ? "GHN fee request failed." : content
+            };
+        }
+
+        var parsed = JsonSerializer.Deserialize<GhnCalculateFeeResponse>(content, _serializerOptions);
+        if (parsed == null)
+        {
+            parsed = new GhnCalculateFeeResponse
+            {
+                Code = (int)statusCode,
+                Message = content
+            };
+        }
+
+        return parsed;
     }
 
     private HttpRequestMessage BuildJsonRequest(

@@ -328,6 +328,30 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
     }
 
+    public async Task<PagedResult<ResponseDTOOrder>> GetOrdersPagedAsync(int pageIndex, int pageSize, string? paymentStatus)
+    {
+        if (pageIndex < 1)
+        {
+            pageIndex = 1;
+        }
+
+        if (pageSize < 1)
+        {
+            pageSize = 10;
+        }
+
+        var (orders, totalCount) = await _context.Order.GetPagedOrdersAsync(pageIndex, pageSize, paymentStatus);
+        var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
+
+        return new PagedResult<ResponseDTOOrder>
+        {
+            Items = mapped,
+            TotalCount = totalCount,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+    }
+
     private async Task NotifyOrderActorsAsync(Order order, List<OrderItem> orderItems)
     {
         try

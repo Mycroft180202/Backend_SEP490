@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,6 +57,47 @@ namespace Backend_SEP490.Repositories.impl
         public void RemoveRange(IEnumerable<Order> orders)
         {
             _context.Orders.RemoveRange(orders);
+        }
+
+        public async Task<(IEnumerable<Order> Items, int TotalCount)> GetPagedOrdersAsync(int pageIndex, int pageSize, string? paymentStatus)
+        {
+            if (pageIndex < 1)
+            {
+                pageIndex = 1;
+            }
+
+            if (pageSize < 1)
+            {
+                pageSize = 10;
+            }
+
+            var query = _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .Include(o => o.Payments)
+                .OrderByDescending(o => o.CreateAt)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(paymentStatus))
+            {
+                var normalized = paymentStatus.Trim().ToLowerInvariant();
+                if (normalized == "paid")
+                {
+                    query = query.Where(o => o.Payments.Any(p => p.PaymentStatus != null && p.PaymentStatus.ToLower() == "paid"));
+                }
+                else if (normalized == "unpaid")
+                {
+                    query = query.Where(o => !o.Payments.Any(p => p.PaymentStatus != null && p.PaymentStatus.ToLower() == "paid"));
+                }
+            }
+
+            var totalCount = await query.CountAsync();
+            var orders = await query
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (orders, totalCount);
         }
 
     }

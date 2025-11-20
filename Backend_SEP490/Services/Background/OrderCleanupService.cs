@@ -8,8 +8,8 @@ namespace Backend_SEP490.Services.Background;
 
 public class OrderCleanupService : BackgroundService
 {
-    private static readonly TimeSpan CleanupInterval = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan PaymentGracePeriod = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan CleanupInterval = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan PaymentGracePeriod = TimeSpan.FromDays(30);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OrderCleanupService> _logger;
@@ -63,8 +63,7 @@ public class OrderCleanupService : BackgroundService
 
                     return !order.Payments.Any(payment =>
                         !string.IsNullOrWhiteSpace(payment.PaymentStatus) &&
-                        (payment.PaymentStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
-                         payment.PaymentStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase)));
+                        payment.PaymentStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase));
                 })
                 .ToList();
 

@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using Backend_SEP490.Data;
+using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -12,5 +13,6 @@ namespace Backend_SEP490.Services
         Task<string> CreateOrderAsync(string? userId, RequestCreateOrder request);
         Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request);
         Task<bool> CreateShipmentsAfterPaymentAsync(string orderId);
+        Task<PagedResult<ResponseDTOOrder>> GetOrdersPagedAsync(int pageIndex, int pageSize, string? paymentStatus);
     }
 }

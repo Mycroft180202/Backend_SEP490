@@ -13,6 +13,7 @@ using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using QRCoder;
 
 namespace Backend_SEP490.Services.impl;
 
@@ -119,7 +120,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             OrderNumber = order.OrderNumber,
             Amount = order.TotalAmount,
             PaymentUrl = paymentUrl,
-            QrContent = paymentUrl,
+            QrContent = GenerateQrContent(paymentUrl),
             ExpiredAt = expireAtUtc
         };
     }
@@ -344,6 +345,20 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         }
 
         return builder.ToString();
+    }
+
+    private static string GenerateQrContent(string paymentUrl)
+    {
+        if (string.IsNullOrWhiteSpace(paymentUrl))
+        {
+            return string.Empty;
+        }
+
+        using var qrGenerator = new QRCodeGenerator();
+        using var qrData = qrGenerator.CreateQrCode(paymentUrl, QRCodeGenerator.ECCLevel.Q);
+        var qrCode = new PngByteQRCode(qrData);
+        var qrBytes = qrCode.GetGraphic(20);
+        return $"data:image/png;base64,{Convert.ToBase64String(qrBytes)}";
     }
 
     private DateTime GetVietnamTime(DateTime utcNow)

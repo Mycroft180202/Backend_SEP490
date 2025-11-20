@@ -9,5 +9,6 @@ namespace Backend_SEP490.Repositories
         public Task<bool> CreateOrderAsync(Order order);
         public Task<List<Order>> GetPendingOrdersBeforeAsync(DateTime thresholdUtc);
         public void RemoveRange(IEnumerable<Order> orders);
+        public Task<(IEnumerable<Order> Items, int TotalCount)> GetPagedOrdersAsync(int pageIndex, int pageSize, string? paymentStatus);
     }
 }
