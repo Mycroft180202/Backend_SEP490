@@ -70,7 +70,7 @@ public class ProductCollectionController : ControllerBase
 
     [Authorize(Roles = "Admin,Artisan")]
     [HttpPut("productcollection")]
-    public async Task<IActionResult> UpdateProductCollection([FromQuery] string userId, [FromForm] RequestDTOUpdateProductCollection dto)
+    public async Task<IActionResult> UpdateProductCollection([FromForm] RequestDTOUpdateProductCollection dto)
     {
         var userId = User.GetUserId();
         if (string.IsNullOrWhiteSpace(userId))
@@ -89,7 +89,7 @@ public class ProductCollectionController : ControllerBase
 
     [Authorize(Roles = "Admin,Artisan")]
     [HttpDelete("productcollection")]
-    public async Task<IActionResult> DeleteProductCollection([FromQuery] string userId,[FromQuery] int id)
+    public async Task<IActionResult> DeleteProductCollection([FromQuery] int id)
     {
         var userId = User.GetUserId();
         if (string.IsNullOrWhiteSpace(userId))

@@ -70,7 +70,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize]
         [HttpPost("blogs")]
-        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request, [FromQuery] string userId)
+        public async Task<IActionResult> CreateBlogPost([FromForm] RequestCreateBlogPost request)
         {
             if (!ModelState.IsValid)
             {

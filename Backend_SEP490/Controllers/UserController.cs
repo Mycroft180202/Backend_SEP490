@@ -31,10 +31,10 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
-        [HttpGet("users/{id}")]
+        [HttpGet("users/{userId}")]
         public async Task<IActionResult> GetUsersById([FromRoute] string userId)
         {
-            var users = await _userServices.GetUserByIDAsync(id);
+            var users = await _userServices.GetUserByIDAsync(userId);
             if (users == null)
             {
                 return NotFound();
@@ -43,20 +43,6 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
-        [HttpPut("users/{id}")]
-        public async Task<IActionResult> UpdateUsers([FromRoute] string id, [FromBody] RequestAdminUpdateUser request)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var users = await _userServices.UpdateUserAsync(id, request);
-
-            return Ok(users);
-        }
-
-       
         [HttpPut("users")]
         public async Task<IActionResult> UpdateUsers([FromQuery] string userId, [FromBody] RequestAdminUpdateUser request)
         {
@@ -67,7 +53,24 @@ namespace Backend_SEP490.Controllers
             
             return Ok(users);
         }
- 
+
+        [Authorize]
+        [HttpGet("users/me")]
+        public async Task<IActionResult> GetUsersProfile()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _userServices.GetUserByIDAsync(userId);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
 
         [Authorize]
         [HttpPut("users/me")]
@@ -90,7 +93,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize]
         [HttpPut("users/change-password")]
-        public async Task<IActionResult> UpdateUserPassword([FromQuery] string userId, [FromBody] RequestUpdateUserHashPassword request)
+        public async Task<IActionResult> UpdateUserPassword([FromBody] RequestUpdateUserHashPassword request)
         {
             if (!ModelState.IsValid)
             {
@@ -109,7 +112,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize]
         [HttpGet("users/address")]
-        public async Task<IActionResult> GetAllUsersAddress([FromQuery] string userId)
+        public async Task<IActionResult> GetAllUsersAddress()
         {
             if (!TryGetUserId(out var userId))
             {
@@ -145,7 +148,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize]
         [HttpPost("users/address")]
-        public async Task<IActionResult> CreateUsersAddress([FromQuery] string userId, [FromBody] RequestCreateAndUpdateAddress request)
+        public async Task<IActionResult> CreateUsersAddress([FromBody] RequestCreateAndUpdateAddress request)
         {
             if (!ModelState.IsValid)
             {
@@ -163,7 +166,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize]
         [HttpPut("users/address")]
-        public async Task<IActionResult> UpdateUsersAddress([FromQuery] string userId, [FromQuery] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
+        public async Task<IActionResult> UpdateUsersAddress([FromQuery] string addressId, [FromBody] RequestCreateAndUpdateAddress request)
         {
             if (!ModelState.IsValid)
             {
@@ -182,7 +185,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize]
         [HttpDelete("users/address")]
-        public async Task<IActionResult> DeleteUsersAddress([FromQuery] string userId, [FromQuery] string addressId)
+        public async Task<IActionResult> DeleteUsersAddress( [FromQuery] string addressId)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -195,7 +198,7 @@ namespace Backend_SEP490.Controllers
 
         [Authorize(Roles = "Artisan")]
         [HttpPut("users/my-shop")]
-        public async Task<IActionResult> UpdateShopProfile([FromQuery] string userId, [FromForm] RequestUpdateUserShop request)
+        public async Task<IActionResult> UpdateShopProfile( [FromForm] RequestUpdateUserShop request)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -203,6 +206,24 @@ namespace Backend_SEP490.Controllers
             }
 
             var users = await _userServices.UpdateUserShopByIDAsync(userId, request);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("users/my-shop")]
+        public async Task<IActionResult> GetShopProfile()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _userServices.GetUserShopByIDAsync(userId);
             if (users == null)
             {
                 return NotFound();

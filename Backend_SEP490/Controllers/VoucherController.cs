@@ -43,7 +43,7 @@ public class VoucherController : ControllerBase
 
     [Authorize]
     [HttpPost("voucher")]
-    public async Task<IActionResult> CreateVoucher([FromQuery] string userId, [FromBody] RequestCreateVoucher request)
+    public async Task<IActionResult> CreateVoucher([FromBody] RequestCreateVoucher request)
     {
         if (!ModelState.IsValid)
         {

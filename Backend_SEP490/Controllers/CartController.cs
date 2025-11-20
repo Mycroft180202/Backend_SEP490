@@ -20,7 +20,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpGet("carts")]
-        public async Task<IActionResult> GetAllCartItems([FromQuery] string userId,[FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllCartItems([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
             var userId = User.GetUserId();
             if (string.IsNullOrWhiteSpace(userId))
@@ -33,7 +33,7 @@ namespace Backend_SEP490.Controllers
         }
 
         [HttpPost("carts")]
-        public async Task<IActionResult> AddCartItems([FromBody] RequestAddCartItem request, [FromQuery] string userId)
+        public async Task<IActionResult> AddCartItems([FromBody] RequestAddCartItem request)
         {
             if (!ModelState.IsValid)
             {
