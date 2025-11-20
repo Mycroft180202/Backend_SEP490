@@ -7,5 +7,6 @@ namespace Backend_SEP490.Repositories
     {
         public Task<Cart> GetCartByUserIdAsync(string userId);
         public Task<bool> AddCartAsync(Cart cart);
+        public Task DeleteCartAsync(Cart cart);
     }
 }

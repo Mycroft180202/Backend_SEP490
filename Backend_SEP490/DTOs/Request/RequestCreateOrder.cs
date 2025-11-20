@@ -27,7 +27,7 @@ public class RequestCreateOrder
     public string ToAddress { get; set; } = default!;
 
     [StringLength(100)]
-    public string? ToProvinceName { get; set; }
+    public string? FromProvinceName { get; set; }
 
     [Range(1, int.MaxValue, ErrorMessage = "Total weight must be greater than zero")]
     public int TotalWeight { get; set; }

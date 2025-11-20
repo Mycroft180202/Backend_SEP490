@@ -30,5 +30,16 @@ namespace Backend_SEP490.Repositories.impl
                         .ThenInclude(ci => ci.Product).ThenInclude(c => c.ProductImages).Where(c => c.CustomerID == userId).FirstOrDefaultAsync();
             return cart;
         }
+
+        public async Task DeleteCartAsync(Cart cart)
+        {
+            if (cart == null)
+            {
+                return;
+            }
+
+            _context.Carts.Remove(cart);
+            await _context.SaveChangesAsync();
+        }
     }
 }

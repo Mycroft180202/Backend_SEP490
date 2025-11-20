@@ -13,4 +13,5 @@ public class VnpaySettings
     public string Command { get; set; } = "pay";
     public string DefaultBankCode { get; set; } = "VNPAYQR";
     public int ExpireMinutes { get; set; } = 15;
+    public string? FrontendReturnUrl { get; set; }
 }

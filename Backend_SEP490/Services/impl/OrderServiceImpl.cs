@@ -504,9 +504,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToAddress = string.IsNullOrWhiteSpace(request.ToAddress)
                 ? BuildFullAddress(shippingAddress)
                 : request.ToAddress,
-            ToProvinceName = string.IsNullOrWhiteSpace(request.ToProvinceName)
+            ToProvinceName = string.IsNullOrWhiteSpace(request.FromProvinceName)
                 ? shippingAddress.City
-                : request.ToProvinceName,
+                : request.FromProvinceName,
             ItemWeights = itemWeights,
             Weight = request.TotalWeight
         };

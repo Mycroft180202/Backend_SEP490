@@ -22,6 +22,8 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
     private readonly IOrderService _orderService;
     private readonly VnpaySettings _vnpaySettings;
     private readonly ILogger<PaymentServiceImpl> _logger;
+    private static readonly string[] VietnamTimeZoneIds = { "SE Asia Standard Time", "Asia/Ho_Chi_Minh" };
+    private TimeZoneInfo? _vietnamTimeZone;
 
     public PaymentServiceImpl(
         IMapper mapper,
@@ -82,11 +84,13 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             ? _vnpaySettings.DefaultBankCode
             : request.BankCode!;
 
-        var expireAt = DateTime.UtcNow.AddMinutes(Math.Max(_vnpaySettings.ExpireMinutes, 5));
+        var createdAtLocal = GetVietnamTime(DateTime.UtcNow);
+        var expireAtLocal = createdAtLocal.AddMinutes(Math.Max(_vnpaySettings.ExpireMinutes, 5));
+        var expireAtUtc = ConvertVietnamTimeToUtc(expireAtLocal);
         string paymentUrl;
         try
         {
-            paymentUrl = BuildPaymentUrl(paymentId, order.OrderNumber, order.TotalAmount, bankCode, clientIp, expireAt);
+            paymentUrl = BuildPaymentUrl(paymentId, order.OrderNumber, order.TotalAmount, bankCode, clientIp, createdAtLocal, expireAtLocal);
         }
         catch (Exception ex)
         {
@@ -116,7 +120,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             Amount = order.TotalAmount,
             PaymentUrl = paymentUrl,
             QrContent = paymentUrl,
-            ExpiredAt = expireAt
+            ExpiredAt = expireAtUtc
         };
     }
 
@@ -224,6 +228,19 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         var customerId = order?.CustomerId;
         var orderNumber = order?.OrderNumber;
 
+        if (string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+        {
+            if (order != null)
+            {
+                await UpdateOrderStatusToPaidAsync(order);
+            }
+
+            if (!string.IsNullOrWhiteSpace(customerId))
+            {
+                await ClearCartAfterPaymentAsync(customerId!);
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(customerId))
         {
             await _notificationService.NotifyPaymentStatusAsync(payment, customerId!, orderNumber);
@@ -235,7 +252,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         }
     }
 
-    private string BuildPaymentUrl(string txnRef, string? orderNumber, decimal amount, string bankCode, string clientIp, DateTime expireAtUtc)
+    private string BuildPaymentUrl(string txnRef, string? orderNumber, decimal amount, string bankCode, string clientIp, DateTime createdAtLocal, DateTime expireAtLocal)
     {
         if (string.IsNullOrWhiteSpace(_vnpaySettings.PaymentUrl) ||
             string.IsNullOrWhiteSpace(_vnpaySettings.TmnCode) ||
@@ -244,8 +261,8 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             throw new InvalidOperationException("VNPAY settings are missing.");
         }
 
-        var now = DateTime.UtcNow;
-        var expireLocal = expireAtUtc;
+        var now = createdAtLocal;
+        var expireLocal = expireAtLocal;
         var data = new SortedDictionary<string, string>(StringComparer.Ordinal)
         {
             ["vnp_Version"] = _vnpaySettings.Version,
@@ -327,5 +344,94 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         }
 
         return builder.ToString();
+    }
+
+    private DateTime GetVietnamTime(DateTime utcNow)
+    {
+        var timeZone = ResolveVietnamTimeZone();
+        return timeZone != null
+            ? TimeZoneInfo.ConvertTimeFromUtc(utcNow, timeZone)
+            : DateTime.SpecifyKind(utcNow.AddHours(7), DateTimeKind.Unspecified);
+    }
+
+    private DateTime ConvertVietnamTimeToUtc(DateTime localTime)
+    {
+        var timeZone = ResolveVietnamTimeZone();
+        var unspecified = DateTime.SpecifyKind(localTime, DateTimeKind.Unspecified);
+        return timeZone != null
+            ? TimeZoneInfo.ConvertTimeToUtc(unspecified, timeZone)
+            : DateTime.SpecifyKind(localTime.AddHours(-7), DateTimeKind.Utc);
+    }
+
+    private TimeZoneInfo? ResolveVietnamTimeZone()
+    {
+        if (_vietnamTimeZone != null)
+        {
+            return _vietnamTimeZone;
+        }
+
+        foreach (var timeZoneId in VietnamTimeZoneIds)
+        {
+            try
+            {
+                _vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                return _vietnamTimeZone;
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                // Try next time zone id
+            }
+            catch (InvalidTimeZoneException)
+            {
+                // Try next time zone id
+            }
+        }
+
+        _logger.LogWarning("Unable to resolve Vietnam time zone using known identifiers. Falling back to UTC+7 offset.");
+        return null;
+    }
+
+    private async Task UpdateOrderStatusToPaidAsync(Order order)
+    {
+        if (order == null)
+        {
+            return;
+        }
+
+        if (string.Equals(order.Status, "Shipping", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+        {
+            order.Status = "Paid";
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private async Task ClearCartAfterPaymentAsync(string customerId)
+    {
+        if (string.IsNullOrWhiteSpace(customerId))
+        {
+            return;
+        }
+
+        var cart = await _context.Cart.GetCartByUserIdAsync(customerId);
+        if (cart == null)
+        {
+            return;
+        }
+
+        if (cart.CartItems != null)
+        {
+            foreach (var item in cart.CartItems.ToList())
+            {
+                await _context.CartItem.DeleteCartItemAsync(item);
+            }
+        }
+
+        await _context.Cart.DeleteCartAsync(cart);
     }
 }

@@ -7,5 +7,7 @@ namespace Backend_SEP490.Repositories
         public Task<IEnumerable<Order>> GetAllOrderByUserIdAsync(string userId);
         public Task<Order> GetAllOrderByIdAsync(string orderId);
         public Task<bool> CreateOrderAsync(Order order);
+        public Task<List<Order>> GetPendingOrdersBeforeAsync(DateTime thresholdUtc);
+        public void RemoveRange(IEnumerable<Order> orders);
     }
 }

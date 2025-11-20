@@ -1,4 +1,4 @@
-﻿using Backend_SEP490.DTOs.Request;
+﻿using System.Collections.Generic;
 using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,5 +42,21 @@ namespace Backend_SEP490.Repositories.impl
                 .ToListAsync();
             return orders;
         }
+
+        public async Task<List<Order>> GetPendingOrdersBeforeAsync(DateTime thresholdUtc)
+        {
+            return await _context.Orders
+                .Include(o => o.Payments)
+                .Where(o =>
+                    o.Status == "Pending" &&
+                    o.CreateAt <= thresholdUtc)
+                .ToListAsync();
+        }
+
+        public void RemoveRange(IEnumerable<Order> orders)
+        {
+            _context.Orders.RemoveRange(orders);
+        }
+
     }
 }
