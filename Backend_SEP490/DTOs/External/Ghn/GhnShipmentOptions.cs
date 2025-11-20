@@ -15,6 +15,7 @@ public class GhnShipmentOptions
     public int? Width { get; set; }
     public int? Height { get; set; }
     public Dictionary<string, int>? ItemWeights { get; set; }
+    public string? PaymentType { get; set; }
 
     public string? FromName { get; set; }
     public string? FromPhone { get; set; }

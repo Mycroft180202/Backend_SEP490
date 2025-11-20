@@ -18,6 +18,8 @@ namespace Backend_SEP490.Services.impl;
 public class OrderServiceImpl : GenericServices, IOrderService
 {
     private const string PlatformSellerId = "PLATFORM";
+    private const string PaymentTypeCod = "COD";
+    private const string PaymentTypeVnpay = "VNPAY";
 
     private readonly INotificationService _notificationService;
     private readonly IGhnShippingService _ghnShippingService;
@@ -50,11 +52,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return "Create order failed!(ID is empty)";
         }
 
-        if (string.IsNullOrWhiteSpace(request.ShipingAddressId))
-        {
-            return "Shipping address is required!";
-        }
-
         if (string.IsNullOrWhiteSpace(request.ReceiverName) ||
             string.IsNullOrWhiteSpace(request.ReceiverPhone))
         {
@@ -66,9 +63,15 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return "Destination information is required!";
         }
 
-        if (request.TotalWeight <= 0)
+        if (string.IsNullOrWhiteSpace(request.ToAddress))
         {
-            return "Shipment weight must be greater than zero!";
+            return "Destination address is required!";
+        }
+
+        var paymentType = NormalizePaymentType(request.PaymentType);
+        if (paymentType == null)
+        {
+            return "Payment type must be COD or VNPAY!";
         }
 
         await using var transaction = await _context.BeginTransactionAsync();
@@ -89,11 +92,11 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return "Create order failed!(cartItem is empty)";
             }
 
-            var shippingAddress = await _context.Address.GetAddressByIdAsync(request.ShipingAddressId);
-            if (shippingAddress == null || !string.Equals(shippingAddress.UserID, userId, StringComparison.OrdinalIgnoreCase))
+            var shippingAddress = await CreateOrderShippingAddressAsync(userId, request);
+            if (shippingAddress == null)
             {
                 await transaction.RollbackAsync();
-                return "Shipping address is invalid!";
+                return "Unable to save shipping address for this order!";
             }
 
             var customer = await _context.Users.GetByIdAsync(userId);
@@ -110,8 +113,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 OrderNumber = GenerateId("ORDER"),
                 CustomerId = userId,
                 Status = "Pending",
+                PaymentType = paymentType,
                 TotalAmount = cartItems.Sum(item => (item.PriceAtAdd ?? 0m) * (item.Quantity ?? 0)),
-                ShipingAddressId = request.ShipingAddressId,
+                ShipingAddressId = shippingAddress.Id,
                 CreateAt = DateTime.UtcNow,
             };
 
@@ -253,7 +257,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return false;
             }
 
-            var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer);
+            var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer, order);
             await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
             return true;
         }
@@ -378,7 +382,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
     {
         try
         {
-            baseOptions ??= BuildBaseShipmentOptions(shippingAddress, customer);
+            baseOptions ??= BuildBaseShipmentOptions(shippingAddress, customer, order);
             if (baseOptions?.ToDistrictId == null || string.IsNullOrWhiteSpace(baseOptions.ToWardCode))
             {
                 _logger.LogWarning("Missing GHN destination data for order {OrderId}. Skipping shipment creation.", order.Id);
@@ -507,36 +511,52 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
     }
 
-    private GhnShipmentOptions BuildBaseShipmentOptions(RequestCreateOrder request, Address shippingAddress)
+    private async Task<Address?> CreateOrderShippingAddressAsync(string userId, RequestCreateOrder request)
     {
-        var itemWeights = request.ShipmentItems?
-            .Where(item =>
-                !string.IsNullOrWhiteSpace(item.ProductId) &&
-                item.Weight.HasValue &&
-                item.Weight.Value > 0)
-            .GroupBy(item => item.ProductId!)
-            .ToDictionary(
-                group => group.Key,
-                group => group.First().Weight!.Value);
+        var city = !string.IsNullOrWhiteSpace(request.FromProvinceName)
+            ? request.FromProvinceName
+            : "Unknown";
 
-        return new GhnShipmentOptions
+        var address = new Address
         {
-            ReceiverName = request.ReceiverName,
-            ReceiverPhone = request.ReceiverPhone,
-            ToDistrictId = request.ToDistrictId,
-            ToWardCode = request.ToWardCode,
-            ToAddress = string.IsNullOrWhiteSpace(request.ToAddress)
-                ? BuildFullAddress(shippingAddress)
-                : request.ToAddress,
-            ToProvinceName = string.IsNullOrWhiteSpace(request.FromProvinceName)
-                ? shippingAddress.City
-                : request.FromProvinceName,
-            ItemWeights = itemWeights,
-            Weight = request.TotalWeight
+            Id = $"ADDR-ORDER-{Guid.NewGuid():N}",
+            UserID = userId,
+            Line1 = request.ToAddress,
+            City = city,
+            Country = "Vietnam",
+            IsDefault = false,
+            ContactName = request.ReceiverName,
+            ContactPhone = request.ReceiverPhone,
+            GhnDistrictId = request.ToDistrictId,
+            GhnWardCode = request.ToWardCode
         };
+
+        var result = await _context.Address.CreateAddressAsync(address, null);
+        if (!result.Contains("success", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Failed to persist shipping address for user {UserId}: {Message}", userId, result);
+            return null;
+        }
+
+        return address;
     }
 
-    private GhnShipmentOptions BuildBaseShipmentOptions(Address shippingAddress, User customer)
+    private static string? NormalizePaymentType(string? paymentType)
+    {
+        if (string.Equals(paymentType, PaymentTypeVnpay, StringComparison.OrdinalIgnoreCase))
+        {
+            return PaymentTypeVnpay;
+        }
+
+        if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+        {
+            return PaymentTypeCod;
+        }
+
+        return null;
+    }
+
+    private GhnShipmentOptions BuildBaseShipmentOptions(Address shippingAddress, User customer, Order order)
     {
         return new GhnShipmentOptions
         {
@@ -545,7 +565,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToDistrictId = shippingAddress.GhnDistrictId ?? _ghnSettings.DefaultToDistrictId,
             ToWardCode = shippingAddress.GhnWardCode ?? _ghnSettings.DefaultToWardCode,
             ToAddress = BuildFullAddress(shippingAddress),
-            ToProvinceName = shippingAddress.City
+            ToProvinceName = shippingAddress.City,
+            PaymentType = string.IsNullOrWhiteSpace(order.PaymentType) ? PaymentTypeCod : order.PaymentType
         };
     }
 
@@ -578,6 +599,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToAddress = baseOptions.ToAddress,
             ToProvinceName = baseOptions.ToProvinceName,
             ItemWeights = baseOptions.ItemWeights,
+            PaymentType = baseOptions.PaymentType,
             FromName = sellerProfile?.PickupContactName ?? seller.ShopName ?? seller.DisplayName ?? seller.Username,
             FromPhone = sellerProfile?.PickupContactPhone ?? seller.PhoneNumber ?? _ghnSettings.FromPhone,
             FromAddress = pickupAddressLine,
@@ -592,7 +614,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
         options.Width = ResolveDimension(sellerItems, baseOptions.Width, shippingProfiles, p => p.WidthCm, _ghnSettings.DefaultParcelWidth);
         options.Height = ResolveDimension(sellerItems, baseOptions.Height, shippingProfiles, p => p.HeightCm, _ghnSettings.DefaultParcelHeight);
         var sellerSubtotal = CalculateSubtotal(sellerItems);
-        options.CodAmount = sellerSubtotal;
+        var collectCod = !string.Equals(baseOptions.PaymentType, PaymentTypeVnpay, StringComparison.OrdinalIgnoreCase);
+        options.CodAmount = collectCod ? sellerSubtotal : 0m;
         options.InsuranceValue = sellerSubtotal;
         return options;
     }
@@ -614,6 +637,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             Width = baseOptions.Width,
             Height = baseOptions.Height,
             ItemWeights = baseOptions.ItemWeights,
+            PaymentType = baseOptions.PaymentType,
             FromName = _ghnSettings.FromName,
             FromPhone = _ghnSettings.FromPhone,
             FromAddress = _ghnSettings.FromAddress,
@@ -626,7 +650,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
         options.Width = ResolveDimension(sellerItems, baseOptions.Width, shippingProfiles, p => p.WidthCm, _ghnSettings.DefaultParcelWidth);
         options.Height = ResolveDimension(sellerItems, baseOptions.Height, shippingProfiles, p => p.HeightCm, _ghnSettings.DefaultParcelHeight);
         var subtotal = CalculateSubtotal(sellerItems);
-        options.CodAmount = subtotal;
+        var collectCod = !string.Equals(baseOptions.PaymentType, PaymentTypeVnpay, StringComparison.OrdinalIgnoreCase);
+        options.CodAmount = collectCod ? subtotal : 0m;
         options.InsuranceValue = subtotal;
         return options;
     }

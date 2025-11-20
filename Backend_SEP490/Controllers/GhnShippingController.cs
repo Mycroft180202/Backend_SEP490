@@ -33,17 +33,7 @@ public class GhnShippingController : ControllerBase
         var serviceRequest = new GhnCalculateFeeRequest
         {
             ToDistrictId = request.ToDistrictId,
-            ToWardCode = request.ToWardCode,
-            Weight = request.Weight,
-            Length = request.Length,
-            Width = request.Width,
-            Height = request.Height,
-            InsuranceValue = request.InsuranceValue,
-            ServiceId = request.ServiceId,
-            ServiceTypeId = request.ServiceTypeId,
-            CouponCode = request.CouponCode,
-            FromDistrictId = request.FromDistrictId,
-            FromWardCode = request.FromWardCode
+            ToWardCode = request.ToWardCode
         };
 
         var response = await _ghnShippingService.CalculateShippingFeeAsync(serviceRequest, cancellationToken);

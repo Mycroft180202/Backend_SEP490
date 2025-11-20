@@ -49,7 +49,7 @@ public class OderControllerTest
 
         try
         {
-            var payload = new RequestCreateOrder { ShipingAddressId = "ADDR-001" };
+            var payload = BuildValidOrderRequest();
             var response = await _client.PostAsJsonAsync("/api/Order/orders", payload);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -62,10 +62,17 @@ public class OderControllerTest
                 .FirstOrDefaultAsync(o => o.CustomerId == userId);
 
             order.Should().NotBeNull();
-            order!.ShipingAddressId.Should().Be("ADDR-001");
+            order!.ShipingAddressId.Should().NotBeNullOrWhiteSpace();
+            order.PaymentType.Should().Be(payload.PaymentType);
             order.TotalAmount.Should().Be(10m); // 2 items * 5m
             order.OrderItems.Should().ContainSingle();
             order.OrderItems.Single().Quantity.Should().Be(2);
+
+            var address = await db.Addresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == order.ShipingAddressId);
+            address.Should().NotBeNull();
+            address!.Line1.Should().Be(payload.ToAddress);
+            address.ContactName.Should().Be(payload.ReceiverName);
+            address.ContactPhone.Should().Be(payload.ReceiverPhone);
         }
         finally
         {
@@ -86,7 +93,21 @@ public class OderControllerTest
 
         try
         {
-            var payload = JsonContent.Create(new { ShipingAddressId = "ADDR-UNKNOWN", VoucherCode = "INVALID" });
+            var payload = JsonContent.Create(new
+            {
+                PaymentType = "VNPAY",
+                ReceiverName = "Receiver Unknown",
+                ReceiverPhone = "0911111111",
+                ToDistrictId = 999,
+                ToWardCode = "W0001",
+                ToAddress = "123 Unknown St",
+                FromProvinceName = "Hanoi",
+                ShipmentItems = new[]
+                {
+                    new { ProductId = "PROD-RANDOM" }
+                },
+                VoucherCode = "INVALID"
+            });
             var response = await _client.PostAsync("/api/Order/orders", payload);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -112,7 +133,7 @@ public class OderControllerTest
 
         try
         {
-            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", new RequestCreateOrder { ShipingAddressId = "ADDR-USER" });
+            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest());
             createOrderResponse.EnsureSuccessStatusCode();
 
             var filter = new RequestFilterOrder
@@ -148,7 +169,7 @@ public class OderControllerTest
 
         try
         {
-            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", new RequestCreateOrder { ShipingAddressId = "ADDR-DETAIL" });
+            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest());
             createOrderResponse.EnsureSuccessStatusCode();
 
             var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CustomerId == userId);
@@ -160,7 +181,8 @@ public class OderControllerTest
             var dto = await response.Content.ReadFromJsonAsync<ResponseDTOOrder>();
             dto.Should().NotBeNull();
             dto!.CustomerId.Should().Be(userId);
-            dto.ShipingAddressId.Should().Be("ADDR-DETAIL");
+            dto.PaymentType.Should().Be("COD");
+            dto.ShipingAddressId.Should().NotBeNullOrWhiteSpace();
             dto.Items.Should().NotBeNull();
             dto.Items.Should().NotBeEmpty();
         }
@@ -169,6 +191,24 @@ public class OderControllerTest
             await CleanupOrdersByCustomerAsync(db, userId);
             await CleanupCartAsync(db, cart.Id);
         }
+    }
+
+    private static RequestCreateOrder BuildValidOrderRequest()
+    {
+        return new RequestCreateOrder
+        {
+            PaymentType = "COD",
+            ReceiverName = "Test Receiver",
+            ReceiverPhone = "0900000000",
+            ToDistrictId = 1450,
+            ToWardCode = "00001",
+            ToAddress = "123 Test Street",
+            FromProvinceName = "Ho Chi Minh",
+            ShipmentItems = new List<RequestShipmentItemOverride>
+            {
+                new() { ProductId = "PROD-PLACEHOLDER" }
+            }
+        };
     }
 
     private void SetAuthenticatedUser(string userId)
@@ -190,6 +230,8 @@ public class OderControllerTest
         {
             await CleanupOrderAsync(db, orderId);
         }
+
+        await CleanupAddressesAsync(db, customerId);
     }
 
     private static async Task<CartEntity> CreateCartWithItemAsync(AppDbContext db, string customerId, int quantity, decimal price)
@@ -282,6 +324,13 @@ public class OderControllerTest
             db.Orders.Remove(order);
             await db.SaveChangesAsync();
         }
+    }
+
+    private static async Task CleanupAddressesAsync(AppDbContext db, string userId)
+    {
+        var addresses = db.Addresses.Where(a => a.UserID == userId);
+        db.Addresses.RemoveRange(addresses);
+        await db.SaveChangesAsync();
     }
 
     private static async Task EnsureUserAsync(AppDbContext db, string userId)

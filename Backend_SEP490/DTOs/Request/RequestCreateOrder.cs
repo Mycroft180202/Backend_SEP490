@@ -6,7 +6,8 @@ namespace Backend_SEP490.DTOs.Request;
 public class RequestCreateOrder
 {
     [Required]
-    public string ShipingAddressId { get; set; } = default!;
+    [RegularExpression("^(COD|VNPAY)$", ErrorMessage = "Payment type must be COD or VNPAY.")]
+    public string PaymentType { get; set; } = "COD";
 
     [Required]
     [StringLength(100)]
@@ -29,9 +30,6 @@ public class RequestCreateOrder
     [StringLength(100)]
     public string? FromProvinceName { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "Total weight must be greater than zero")]
-    public int TotalWeight { get; set; }
-
     public List<RequestShipmentItemOverride>? ShipmentItems { get; set; }
 }
 
@@ -39,7 +37,4 @@ public class RequestShipmentItemOverride
 {
     [Required]
     public string ProductId { get; set; } = default!;
-
-    [Range(1, int.MaxValue)]
-    public int? Weight { get; set; }
 }

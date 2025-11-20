@@ -9,6 +9,9 @@ public class Order
     public string OrderNumber { get; set; }
     public string CustomerId { get; set; }
     public string Status { get; set; }
+    [Required]
+    [StringLength(20)]
+    public string PaymentType { get; set; } = "COD";
     public decimal TotalAmount { get; set; }
     public string ShipingAddressId { get; set; }
     public DateTime CreateAt { get; set; }
