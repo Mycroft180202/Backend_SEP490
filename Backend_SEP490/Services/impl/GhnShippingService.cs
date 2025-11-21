@@ -126,14 +126,22 @@ public class GhnShippingService : IGhnShippingService
         var codAmount = shipmentOptions?.CodAmount ?? order.TotalAmount;
         var insuranceValue = shipmentOptions?.InsuranceValue ?? order.TotalAmount;
 
+        var paymentTypeId = shipmentOptions?.PaymentTypeId ?? _settings.PaymentTypeId;
+        var serviceTypeId = shipmentOptions?.ServiceTypeId ?? _settings.ServiceTypeId;
+        var serviceId = shipmentOptions?.ServiceId ?? _settings.ServiceId;
+        var requiredNote = string.IsNullOrWhiteSpace(shipmentOptions?.RequiredNote)
+            ? _settings.RequiredNote
+            : shipmentOptions!.RequiredNote!;
+
         var payload = new GhnCreateOrderRequest
         {
-            PaymentTypeId = _settings.PaymentTypeId,
-            ServiceTypeId = _settings.ServiceTypeId,
+            PaymentTypeId = paymentTypeId,
+            ServiceId = serviceId,
+            ServiceTypeId = serviceTypeId,
             ClientOrderCode = order.OrderNumber ?? order.Id,
             CodAmount = Convert.ToInt32(Math.Round(codAmount)),
             InsuranceValue = Convert.ToInt32(Math.Round(insuranceValue)),
-            RequiredNote = _settings.RequiredNote,
+            RequiredNote = requiredNote,
             FromName = shipmentOptions?.FromName ?? _settings.FromName,
             FromPhone = shipmentOptions?.FromPhone ?? _settings.FromPhone,
             FromAddress = shipmentOptions?.FromAddress ?? _settings.FromAddress,

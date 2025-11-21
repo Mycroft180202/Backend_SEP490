@@ -50,110 +50,92 @@ public class OrderServiceImpl : GenericServices, IOrderService
     {
         if (string.IsNullOrWhiteSpace(userId))
         {
-            return CreateOrderResult.Failure("Create order failed!(ID is empty)");
+            return CreateOrderResult.Failure("User id is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.ReceiverName) ||
-            string.IsNullOrWhiteSpace(request.ReceiverPhone))
+        if (request == null)
         {
-            return CreateOrderResult.Failure("Receiver information is required!");
+            return CreateOrderResult.Failure("Request payload is required.");
         }
 
-        if (request.ToDistrictId <= 0 || string.IsNullOrWhiteSpace(request.ToWardCode))
+        if (string.IsNullOrWhiteSpace(request.AddressId))
         {
-            return CreateOrderResult.Failure("Destination information is required!");
+            return CreateOrderResult.Failure("addressId is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.ToAddress))
+        if (request.ShippingServiceId <= 0)
         {
-            return CreateOrderResult.Failure("Destination address is required!");
+            return CreateOrderResult.Failure("shippingServiceId must be greater than zero.");
         }
 
-        var paymentType = NormalizePaymentType(request.PaymentType);
+        var paymentType = NormalizePaymentType(request.PaymentMethod);
         if (paymentType == null)
         {
-            return CreateOrderResult.Failure("Payment type must be COD or VNPAY!");
+            return CreateOrderResult.Failure("Payment method must be COD or VNPAY!");
+        }
+
+        var address = await _context.Address.GetAddressByIdAsync(request.AddressId);
+        if (address == null || !string.Equals(address.UserID, userId, StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateOrderResult.Failure("Shipping address not found.");
+        }
+
+        if (!address.GhnDistrictId.HasValue || string.IsNullOrWhiteSpace(address.GhnWardCode))
+        {
+            return CreateOrderResult.Failure("Shipping address is missing district/ward information.");
+        }
+
+        var customer = await _context.Users.GetByIdAsync(userId);
+        if (customer == null)
+        {
+            return CreateOrderResult.Failure("Customer not found!");
         }
 
         await using var transaction = await _context.BeginTransactionAsync();
 
         try
         {
-            var manualShipmentItems = request.ShipmentItems != null && request.ShipmentItems.Any();
-            var orderItemInputs = new List<OrderItemInput>();
-
-            if (manualShipmentItems)
+            var (itemsResolved, orderItemInputs, itemError) = await ResolveOrderItemsAsync(userId, request);
+            if (!itemsResolved)
             {
-                var (items, missingProductIds) = await BuildOrderItemsFromRequestAsync(request);
-                if (missingProductIds.Any())
-                {
-                    await transaction.RollbackAsync();
-                    return CreateOrderResult.Failure($"Create order failed!(product(s) not found: {string.Join(", ", missingProductIds)})");
-                }
-
-                if (items.Count == 0)
-                {
-                    await transaction.RollbackAsync();
-                    return CreateOrderResult.Failure("Create order failed!(No shipment items provided)");
-                }
-
-                orderItemInputs = items;
-            }
-            else
-            {
-                var cart = await _context.Cart.GetCartByUserIdAsync(userId);
-                if (cart == null)
-                {
-                    await transaction.RollbackAsync();
-                    return CreateOrderResult.Failure("Create order failed!(Cart is empty)");
-                }
-
-                var cartItems = (await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id)).ToList();
-                if (cartItems.Count == 0)
-                {
-                    await transaction.RollbackAsync();
-                    return CreateOrderResult.Failure("Create order failed!(cartItem is empty)");
-                }
-
-                orderItemInputs = cartItems
-                    .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))
-                    .Select(item => new OrderItemInput(
-                        item.ProductId!.Trim(),
-                        item.Quantity ?? 0,
-                        item.PriceAtAdd ?? 0m))
-                    .Where(info => info.Quantity > 0)
-                    .ToList();
-
-                if (orderItemInputs.Count == 0)
-                {
-                    await transaction.RollbackAsync();
-                    return CreateOrderResult.Failure("Create order failed!(cartItem is empty)");
-                }
+                await transaction.RollbackAsync();
+                return CreateOrderResult.Failure(itemError ?? "Unable to resolve order items.");
             }
 
             if (orderItemInputs.Count == 0)
             {
                 await transaction.RollbackAsync();
-                return CreateOrderResult.Failure("Create order failed!(No order items)");
+                return CreateOrderResult.Failure("No order items specified.");
             }
 
-            var totalAmount = request.TotalAmount.HasValue && request.TotalAmount.Value >= 0
-                ? request.TotalAmount.Value
-                : orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
+            var subtotal = orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
 
-            var shippingAddress = await CreateOrderShippingAddressAsync(userId, request);
+            var shippingAddress = await CreateOrderShippingAddressAsync(userId, address);
             if (shippingAddress == null)
             {
                 await transaction.RollbackAsync();
-                return CreateOrderResult.Failure("Unable to save shipping address for this order!");
+                return CreateOrderResult.Failure("Unable to save shipping address for this order.");
             }
 
-            var customer = await _context.Users.GetByIdAsync(userId);
-            if (customer == null)
+            var (feeSuccess, shippingFee, feeError) = await CalculateShippingFeeAsync(
+                request,
+                address,
+                orderItemInputs);
+            if (!feeSuccess)
             {
                 await transaction.RollbackAsync();
-                return CreateOrderResult.Failure("Customer not found!");
+                return CreateOrderResult.Failure(feeError ?? "Unable to calculate shipping fee.");
             }
+
+            var (voucherSuccess, discountAmount, voucher, voucherError) =
+                await ApplyVoucherAsync(request.VoucherCodeId, subtotal);
+            if (!voucherSuccess)
+            {
+                await transaction.RollbackAsync();
+                return CreateOrderResult.Failure(voucherError ?? "Unable to apply voucher.");
+            }
+
+            var totalAmount = Math.Max(0m, subtotal - discountAmount + shippingFee);
 
             var orderId = $"Order-{userId}-{Guid.NewGuid():N}";
             var order = new Order
@@ -164,8 +146,20 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 Status = "Pending",
                 PaymentType = paymentType,
                 TotalAmount = totalAmount,
+                SubtotalAmount = subtotal,
+                DiscountAmount = discountAmount,
+                ShippingFee = shippingFee,
                 ShipingAddressId = shippingAddress.Id,
-                CreateAt = DateTime.UtcNow,
+                ShippingServiceId = request.ShippingServiceId,
+                ShippingServiceTypeId = request.ServiceTypeId,
+                ShippingPaymentTypeId = request.PaymentTypeId,
+                ShippingRequiredNote = request.RequiredNote,
+                ShippingToProvinceId = address.GhnProvinceId,
+                ShippingToDistrictId = address.GhnDistrictId,
+                ShippingToWardCode = address.GhnWardCode,
+                VoucherCode = voucher?.Code ?? request.VoucherCodeId?.Trim(),
+                VoucherId = voucher?.VoucherId,
+                CreateAt = DateTime.UtcNow
             };
 
             var addOrderStatus = await _context.Order.CreateOrderAsync(order);
@@ -193,10 +187,71 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return CreateOrderResult.Failure("Create order item failed!(addOrderItemStatus)");
             }
 
+            await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
+            var response = CreateOrderResult.Succeeded(
+                orderId,
+                paymentType,
+                subtotal,
+                discountAmount,
+                shippingFee,
+                totalAmount,
+                order.Status,
+                order.VoucherCode);
+
+            if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+            {
+                var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer, order);
+                var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
+                if (shipmentResult.AnyShipmentsCreated)
+                {
+                    var providerData = shipmentResult.ProviderResponses
+                        .Select(r => r?.Data)
+                        .FirstOrDefault(d => d != null && !string.IsNullOrWhiteSpace(d.OrderCode));
+
+                    if (providerData != null)
+                    {
+                        response = response with
+                        {
+                            GhnOrderCode = providerData.OrderCode,
+                            ExpectedDelivery = providerData.ExpectedDeliveryTime,
+                            Message = "Order created successfully (COD)",
+                            Status = order.Status
+                        };
+
+                        if (providerData.TotalFee.HasValue)
+                        {
+                            order.ShippingProviderFee = providerData.TotalFee.Value;
+                            order.ExpectedDelivery = providerData.ExpectedDeliveryTime;
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                    else
+                    {
+                        response = response with
+                        {
+                            Message = "Order created successfully (COD)",
+                            Status = order.Status
+                        };
+                    }
+                }
+                else
+                {
+                    response = response with
+                    {
+                        Message = "Order created successfully (COD)",
+                        Status = order.Status
+                    };
+                }
+            }
+            else
+            {
+                response = response with { Message = "Redirect to VNPay", Status = order.Status };
+            }
+
             await NotifyOrderActorsAsync(order, orderItems);
-            return CreateOrderResult.Succeeded(orderId);
+            return response;
         }
         catch
         {
@@ -205,58 +260,244 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
     }
 
-    private async Task<(List<OrderItemInput> Items, List<string> MissingProductIds)> BuildOrderItemsFromRequestAsync(RequestCreateOrder request)
+    private async Task<(bool Success, List<OrderItemInput> Items, string? Message)> ResolveOrderItemsAsync(
+        string userId,
+        RequestCreateOrder request)
     {
-        if (request.ShipmentItems == null || request.ShipmentItems.Count == 0)
+        if (request.CartItems != null && request.CartItems.Count > 0)
         {
-            return (new List<OrderItemInput>(), new List<string>());
+            var normalizedItems = request.CartItems
+                .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))
+                .Select(item => new
+                {
+                    ProductId = item.ProductId!.Trim(),
+                    Quantity = item.Quantity
+                })
+                .GroupBy(item => item.ProductId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new
+                {
+                    ProductId = group.Key,
+                    Quantity = group.Sum(x => x.Quantity)
+                })
+                .Where(x => x.Quantity > 0)
+                .ToList();
+
+            if (normalizedItems.Count == 0)
+            {
+                return (false, new List<OrderItemInput>(), "Cart items cannot be empty.");
+            }
+
+            var productIds = normalizedItems.Select(item => item.ProductId).ToList();
+            var products = await _context.Products.GetProductsByIdsAsync(productIds);
+            var lookup = products
+                .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+                .ToDictionary(p => p.Id!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+            var missingProductIds = normalizedItems
+                .Where(item => !lookup.ContainsKey(item.ProductId))
+                .Select(item => item.ProductId)
+                .ToList();
+
+            if (missingProductIds.Count > 0)
+            {
+                return (false, new List<OrderItemInput>(), $"Product(s) not found: {string.Join(", ", missingProductIds)}");
+            }
+
+            var items = normalizedItems
+                .Select(item =>
+                {
+                    var product = lookup[item.ProductId];
+                    var unitPrice = Math.Max(product.Price, 0m);
+                    return new OrderItemInput(product.Id!, item.Quantity, unitPrice, product);
+                })
+                .ToList();
+
+            return (true, items, null);
         }
 
-        var normalizedItems = request.ShipmentItems
+        var cart = await _context.Cart.GetCartByUserIdAsync(userId);
+        if (cart == null)
+        {
+            return (false, new List<OrderItemInput>(), "Cart is empty.");
+        }
+
+        var cartItems = (await _context.CartItem.GetAllCartitemByCartIdAsync(cart.Id)).ToList();
+        if (cartItems.Count == 0)
+        {
+            return (false, new List<OrderItemInput>(), "Cart is empty.");
+        }
+
+        var cartProductIds = cartItems
             .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))
-            .Select(item => new
-            {
-                ProductId = item.ProductId!.Trim(),
-                Quantity = item.Quantity
-            })
-            .GroupBy(item => item.ProductId, StringComparer.OrdinalIgnoreCase)
-            .Select(group => new
-            {
-                ProductId = group.Key,
-                Quantity = group.Sum(item => item.Quantity)
-            })
-            .Where(item => item.Quantity > 0)
+            .Select(item => item.ProductId!.Trim())
             .ToList();
 
-        if (normalizedItems.Count == 0)
-        {
-            return (new List<OrderItemInput>(), new List<string>());
-        }
-
-        var productIds = normalizedItems.Select(item => item.ProductId).ToList();
-        var products = await _context.Products.GetProductsByIdsAsync(productIds);
-        var productLookup = products
+        var cartProducts = await _context.Products.GetProductsByIdsAsync(cartProductIds);
+        var cartProductLookup = cartProducts
             .Where(p => !string.IsNullOrWhiteSpace(p.Id))
             .ToDictionary(p => p.Id!.Trim(), StringComparer.OrdinalIgnoreCase);
 
-        var missingProductIds = normalizedItems
-            .Where(item => !productLookup.ContainsKey(item.ProductId))
-            .Select(item => item.ProductId)
-            .ToList();
-
-        var items = normalizedItems
-            .Where(item => productLookup.ContainsKey(item.ProductId))
+        var itemsFromCart = cartItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductId) && cartProductLookup.ContainsKey(item.ProductId!.Trim()))
             .Select(item =>
             {
-                var product = productLookup[item.ProductId];
-                return new OrderItemInput(product.Id!.Trim(), item.Quantity, Math.Max(product.Price, 0m));
+                var productId = item.ProductId!.Trim();
+                var product = cartProductLookup[productId];
+                var quantity = item.Quantity ?? 0;
+                var unitPrice = item.PriceAtAdd ?? product.Price;
+                return new OrderItemInput(product.Id!, quantity, Math.Max(unitPrice, 0m), product);
+            })
+            .Where(info => info.Quantity > 0)
+            .ToList();
+
+        if (itemsFromCart.Count == 0)
+        {
+            return (false, new List<OrderItemInput>(), "Cart is empty.");
+        }
+
+        return (true, itemsFromCart, null);
+    }
+
+    private async Task<(bool Success, decimal Fee, string? Message)> CalculateShippingFeeAsync(
+        RequestCreateOrder request,
+        Address destination,
+        IEnumerable<OrderItemInput> orderItems)
+    {
+        if (!destination.GhnDistrictId.HasValue || string.IsNullOrWhiteSpace(destination.GhnWardCode))
+        {
+            return (false, 0m, "Shipping address is missing GHN mapping data.");
+        }
+
+        var mappedItems = orderItems
+            .Select(info => new OrderItem
+            {
+                ProductID = info.ProductId,
+                Quantity = info.Quantity,
+                UnitPrice = info.UnitPrice
             })
             .ToList();
 
-        return (items, missingProductIds);
+        var shippingProfiles = orderItems
+            .Where(info => info.Product.ShippingProfile != null)
+            .ToDictionary(info => info.ProductId, info => info.Product.ShippingProfile!);
+
+        var weight = CalculateTotalWeight(mappedItems, null, shippingProfiles);
+        var length = ResolveDimension(mappedItems, null, shippingProfiles, p => p.LengthCm, _ghnSettings.DefaultParcelLength);
+        var width = ResolveDimension(mappedItems, null, shippingProfiles, p => p.WidthCm, _ghnSettings.DefaultParcelWidth);
+        var height = ResolveDimension(mappedItems, null, shippingProfiles, p => p.HeightCm, _ghnSettings.DefaultParcelHeight);
+
+        var requestModel = new GhnCalculateFeeRequest
+        {
+            ServiceId = request.ShippingServiceId,
+            ServiceTypeId = request.ServiceTypeId,
+            ToDistrictId = destination.GhnDistrictId.Value,
+            ToWardCode = destination.GhnWardCode!,
+            Weight = Math.Max(weight, _ghnSettings.DefaultItemWeight),
+            Length = length,
+            Width = width,
+            Height = height,
+            InsuranceValue = (int)Math.Round(mappedItems.Sum(item => item.UnitPrice * item.Quantity))
+        };
+
+        var response = await _ghnShippingService.CalculateShippingFeeAsync(requestModel);
+        if (response == null)
+        {
+            _logger.LogWarning("GHN fee calculation returned null. Defaulting shipping fee to zero.");
+            return (true, 0m, null);
+        }
+
+        var successCodes = new[] { 0, 200 };
+        if (!successCodes.Contains(response.Code) || response.Data == null)
+        {
+            _logger.LogWarning(
+                "GHN fee calculation failed with code {Code} and message '{Message}'. Using zero fee.",
+                response.Code,
+                response.Message);
+            return (true, 0m, null);
+        }
+
+        var fee = response.Data.Total ?? 0;
+        return (true, fee, null);
     }
 
-    private sealed record OrderItemInput(string ProductId, int Quantity, decimal UnitPrice);
+    private async Task<(bool Success, decimal Discount, Voucher? Voucher, string? Message)> ApplyVoucherAsync(
+        string? voucherCode,
+        decimal orderAmount)
+    {
+        if (string.IsNullOrWhiteSpace(voucherCode))
+        {
+            return (true, 0m, null, null);
+        }
+
+        var voucher = await _context.Voucher.GetVoucherByCodeAsync(voucherCode.Trim());
+        if (voucher == null)
+        {
+            return (false, 0m, null, "Voucher not found.");
+        }
+
+        var now = DateTime.UtcNow;
+        if (now < voucher.StartDate || now > voucher.EndDate)
+        {
+            return (false, 0m, null, "Voucher is not active.");
+        }
+
+        if (!voucher.IsActive)
+        {
+            return (false, 0m, null, "Voucher is inactive.");
+        }
+
+        var remainingUses = voucher.UsageLimit.HasValue
+            ? Math.Max(voucher.UsageLimit.Value - voucher.UsedCount, 0)
+            : voucher.UsedCount;
+
+        if (remainingUses <= 0)
+        {
+            return (false, 0m, null, "Voucher usage limit reached.");
+        }
+
+        if (voucher.MinOrderAmount.HasValue && orderAmount < voucher.MinOrderAmount.Value)
+        {
+            return (false, 0m, null, "Order amount does not meet voucher requirements.");
+        }
+
+        decimal discount;
+        if (string.Equals(voucher.DiscountType, "Percent", StringComparison.OrdinalIgnoreCase))
+        {
+            var percent = voucher.DiscountValue / 100m;
+            if (percent < 0m)
+            {
+                percent = 0m;
+            }
+            else if (percent > 1m)
+            {
+                percent = 1m;
+            }
+            discount = orderAmount * percent;
+            if (voucher.MaxDiscountAmount.HasValue && discount > voucher.MaxDiscountAmount.Value)
+            {
+                discount = voucher.MaxDiscountAmount.Value;
+            }
+        }
+        else
+        {
+            discount = Math.Max(voucher.DiscountValue, 0m);
+        }
+
+        discount = Math.Min(discount, orderAmount);
+
+        if (voucher.UsageLimit.HasValue)
+        {
+            voucher.UsedCount++;
+        }
+        else
+        {
+            voucher.UsedCount = Math.Max(voucher.UsedCount - 1, 0);
+        }
+
+        return (true, discount, voucher, null);
+    }
+
+    private sealed record OrderItemInput(string ProductId, int Quantity, decimal UnitPrice, Product Product);
 
     public async Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request)
     {
@@ -360,8 +601,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
 
             var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer, order);
-            await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
-            return true;
+            var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
+            return shipmentResult.AnyShipmentsCreated;
         }
         catch (Exception ex)
         {
@@ -475,20 +716,24 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
     }
 
-    private async Task TryCreateGhnShipmentsAsync(
+    private async Task<ShipmentCreationResult> TryCreateGhnShipmentsAsync(
         Order order,
         List<OrderItem> orderItems,
         Address shippingAddress,
         User customer,
         GhnShipmentOptions? baseOptions = null)
     {
+        var createdShipments = new List<Shipment>();
+        var responses = new List<GhnCreateOrderResponse?>();
+        var anyShipmentCreated = false;
+
         try
         {
             baseOptions ??= BuildBaseShipmentOptions(shippingAddress, customer, order);
             if (baseOptions?.ToDistrictId == null || string.IsNullOrWhiteSpace(baseOptions.ToWardCode))
             {
                 _logger.LogWarning("Missing GHN destination data for order {OrderId}. Skipping shipment creation.", order.Id);
-                return;
+                return new ShipmentCreationResult(false, createdShipments, responses);
             }
             var productIds = orderItems
                 .Select(item => item.ProductID)
@@ -516,9 +761,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
                     return PlatformSellerId;
                 })
                 .ToList();
-
-            var anyShipmentCreated = false;
-            var createdShipments = new List<Shipment>();
 
             foreach (var group in sellerGroups)
             {
@@ -574,6 +816,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                     customer,
                     sellerOptions,
                     sellerProducts);
+                responses.Add(response);
 
                 if (response?.Data?.OrderCode == null)
                 {
@@ -611,26 +854,31 @@ public class OrderServiceImpl : GenericServices, IOrderService
         {
             _logger.LogError(ex, "Failed to create GHN shipments for order {OrderId}.", order.Id);
         }
+
+        return new ShipmentCreationResult(anyShipmentCreated, createdShipments, responses);
     }
 
-    private async Task<Address?> CreateOrderShippingAddressAsync(string userId, RequestCreateOrder request)
-    {
-        var city = !string.IsNullOrWhiteSpace(request.FromProvinceName)
-            ? request.FromProvinceName
-            : "Unknown";
+    private sealed record ShipmentCreationResult(
+        bool AnyShipmentsCreated,
+        List<Shipment> Shipments,
+        List<GhnCreateOrderResponse?> ProviderResponses);
 
+    private async Task<Address?> CreateOrderShippingAddressAsync(string userId, Address sourceAddress)
+    {
         var address = new Address
         {
             Id = $"ADDR-ORDER-{Guid.NewGuid():N}",
             UserID = userId,
-            Line1 = request.ToAddress,
-            City = city,
-            Country = "Vietnam",
+            Line1 = sourceAddress.Line1,
+            Line2 = sourceAddress.Line2,
+            City = sourceAddress.City ?? "Unknown",
+            Country = string.IsNullOrWhiteSpace(sourceAddress.Country) ? "Vietnam" : sourceAddress.Country!,
             IsDefault = false,
-            ContactName = request.ReceiverName,
-            ContactPhone = request.ReceiverPhone,
-            GhnDistrictId = request.ToDistrictId,
-            GhnWardCode = request.ToWardCode
+            ContactName = sourceAddress.ContactName,
+            ContactPhone = sourceAddress.ContactPhone,
+            GhnProvinceId = sourceAddress.GhnProvinceId,
+            GhnDistrictId = sourceAddress.GhnDistrictId,
+            GhnWardCode = sourceAddress.GhnWardCode
         };
 
         var result = await _context.Address.CreateAddressAsync(address, null);
@@ -668,7 +916,11 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToWardCode = shippingAddress.GhnWardCode ?? _ghnSettings.DefaultToWardCode,
             ToAddress = BuildFullAddress(shippingAddress),
             ToProvinceName = shippingAddress.City,
-            PaymentType = string.IsNullOrWhiteSpace(order.PaymentType) ? PaymentTypeCod : order.PaymentType
+            PaymentType = string.IsNullOrWhiteSpace(order.PaymentType) ? PaymentTypeCod : order.PaymentType,
+            PaymentTypeId = order.ShippingPaymentTypeId > 0 ? order.ShippingPaymentTypeId : _ghnSettings.PaymentTypeId,
+            ServiceId = order.ShippingServiceId > 0 ? order.ShippingServiceId : _ghnSettings.ServiceId,
+            ServiceTypeId = order.ShippingServiceTypeId > 0 ? order.ShippingServiceTypeId : _ghnSettings.ServiceTypeId,
+            RequiredNote = string.IsNullOrWhiteSpace(order.ShippingRequiredNote) ? _ghnSettings.RequiredNote : order.ShippingRequiredNote
         };
     }
 
@@ -702,6 +954,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToProvinceName = baseOptions.ToProvinceName,
             ItemWeights = baseOptions.ItemWeights,
             PaymentType = baseOptions.PaymentType,
+            PaymentTypeId = baseOptions.PaymentTypeId,
+            ServiceId = baseOptions.ServiceId,
+            ServiceTypeId = baseOptions.ServiceTypeId,
+            RequiredNote = baseOptions.RequiredNote,
             FromName = sellerProfile?.PickupContactName ?? seller.ShopName ?? seller.DisplayName ?? seller.Username,
             FromPhone = sellerProfile?.PickupContactPhone ?? seller.PhoneNumber ?? _ghnSettings.FromPhone,
             FromAddress = pickupAddressLine,
@@ -740,6 +996,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
             Height = baseOptions.Height,
             ItemWeights = baseOptions.ItemWeights,
             PaymentType = baseOptions.PaymentType,
+            PaymentTypeId = baseOptions.PaymentTypeId,
+            ServiceId = baseOptions.ServiceId,
+            ServiceTypeId = baseOptions.ServiceTypeId,
+            RequiredNote = baseOptions.RequiredNote,
             FromName = _ghnSettings.FromName,
             FromPhone = _ghnSettings.FromPhone,
             FromAddress = _ghnSettings.FromAddress,

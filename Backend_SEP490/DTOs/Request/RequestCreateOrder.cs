@@ -5,39 +5,37 @@ namespace Backend_SEP490.DTOs.Request;
 
 public class RequestCreateOrder
 {
-    [Required]
-    [RegularExpression("^(COD|VNPAY)$", ErrorMessage = "Payment type must be COD or VNPAY.")]
-    public string PaymentType { get; set; } = "COD";
+    [MinLength(1, ErrorMessage = "At least one cart item is required.")]
+    public List<RequestCreateOrderItem>? CartItems { get; set; }
 
     [Required]
-    [StringLength(100)]
-    public string ReceiverName { get; set; } = default!;
+    public string AddressId { get; set; } = default!;
+
+    [Range(1, int.MaxValue, ErrorMessage = "shippingServiceId must be greater than zero")]
+    public int ShippingServiceId { get; set; }
 
     [Required]
-    [Phone]
-    public string ReceiverPhone { get; set; } = default!;
+    [RegularExpression("^(COD|VNPAY)$", ErrorMessage = "Payment method must be COD or VNPAY.")]
+    public string PaymentMethod { get; set; } = "COD";
 
-    [Range(1, int.MaxValue, ErrorMessage = "DistrictId must be greater than zero")]
-    public int ToDistrictId { get; set; }
-
-    [Required]
-    public string ToWardCode { get; set; } = default!;
+    [StringLength(50)]
+    public string? VoucherCodeId { get; set; }
 
     [Required]
-    [StringLength(150)]
-    public string ToAddress { get; set; } = default!;
+    [RegularExpression("^(CHOTHUHANG|CHOXEMHANGKHONGTHU|KHONGCHOXEMHANG)$", ErrorMessage = "RequiredNote is invalid.")]
+    public string RequiredNote { get; set; } = "KHONGCHOXEMHANG";
 
-    [StringLength(100)]
-    public string? FromProvinceName { get; set; }
+    [Range(1, 2, ErrorMessage = "Payment_type_id must be either 1 (seller) or 2 (buyer).")]
+    public int PaymentTypeId { get; set; } = 2;
 
-    [Range(0, double.MaxValue, ErrorMessage = "Total amount must be zero or greater")]
-    public decimal? TotalAmount { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "service_type_id must be greater than zero.")]
+    public int ServiceTypeId { get; set; } = 2;
 
-    [MinLength(1, ErrorMessage = "At least one shipment item is required.")]
-    public List<RequestShipmentItem>? ShipmentItems { get; set; }
+    [StringLength(50)]
+    public string? BankCode { get; set; }
 }
 
-public class RequestShipmentItem
+public class RequestCreateOrderItem
 {
     [Required]
     public string ProductId { get; set; } = default!;

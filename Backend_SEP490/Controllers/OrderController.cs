@@ -1,3 +1,4 @@
+using System.Linq;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
@@ -11,10 +12,12 @@ namespace Backend_SEP490.Controllers;
 public class OrderController : ControllerBase
 {
     private readonly IOrderService _orderServices;
+    private readonly IPaymentService _paymentService;
 
-    public OrderController(IOrderService orderServices)
+    public OrderController(IOrderService orderServices, IPaymentService paymentService)
     {
         _orderServices = orderServices;
+        _paymentService = paymentService;
     }
 
     [Authorize]
@@ -88,10 +91,33 @@ public class OrderController : ControllerBase
         var result = await _orderServices.CreateOrderAsync(userId, request);
         if (!result.Success)
         {
-            return BadRequest(result.Message);
+            return BadRequest(new { message = result.Message });
         }
 
-        return Ok(result.OrderId);
+        if (string.Equals(result.PaymentMethod, "VNPAY", StringComparison.OrdinalIgnoreCase))
+        {
+            var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            var clientIp = !string.IsNullOrWhiteSpace(forwarded)
+                ? forwarded.Split(',').FirstOrDefault()
+                : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+
+            var paymentRequest = new CreateVnpayPaymentRequest
+            {
+                OrderId = result.OrderId,
+                BankCode = request.BankCode
+            };
+
+            var paymentResponse = await _paymentService.CreateVnpayPaymentAsync(userId, paymentRequest, clientIp);
+            if (paymentResponse == null)
+            {
+                return BadRequest(new { message = "Unable to initiate VNPay payment for this order." });
+            }
+
+            result.PaymentUrl = paymentResponse.PaymentUrl;
+            result.PaymentId = paymentResponse.PaymentId;
+        }
+
+        return Ok(result);
     }
 
     [Authorize]

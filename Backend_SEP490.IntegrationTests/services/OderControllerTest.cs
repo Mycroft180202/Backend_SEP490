@@ -45,16 +45,19 @@ public class OderControllerTest
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, userId, quantity: 2, price: 5m);
+        var (cart, product) = await CreateCartWithItemAsync(db, userId, quantity: 2, price: 5m);
+        var address = await CreateAddressForUserAsync(db, userId);
 
         try
         {
-            var payload = BuildValidOrderRequest();
+            var payload = BuildValidOrderRequest(address.Id, product.Id, quantity: 2);
             var response = await _client.PostAsJsonAsync("/api/Order/orders", payload);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var message = await response.Content.ReadAsStringAsync();
-            message.Should().Contain("Create order successfully!");
+            var result = await response.Content.ReadFromJsonAsync<CreateOrderResult>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.PaymentMethod.Should().Be("COD");
 
             var order = await db.Orders
                 .AsNoTracking()
@@ -63,16 +66,18 @@ public class OderControllerTest
 
             order.Should().NotBeNull();
             order!.ShipingAddressId.Should().NotBeNullOrWhiteSpace();
-            order.PaymentType.Should().Be(payload.PaymentType);
-            order.TotalAmount.Should().Be(10m); // 2 items * 5m
+            order.PaymentType.Should().Be(payload.PaymentMethod);
+            order.SubtotalAmount.Should().Be(10m);
+            order.DiscountAmount.Should().Be(0m);
+            order.TotalAmount.Should().Be(order.SubtotalAmount - order.DiscountAmount + order.ShippingFee);
             order.OrderItems.Should().ContainSingle();
             order.OrderItems.Single().Quantity.Should().Be(2);
 
-            var address = await db.Addresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == order.ShipingAddressId);
-            address.Should().NotBeNull();
-            address!.Line1.Should().Be(payload.ToAddress);
-            address.ContactName.Should().Be(payload.ReceiverName);
-            address.ContactPhone.Should().Be(payload.ReceiverPhone);
+            var storedAddress = await db.Addresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == order.ShipingAddressId);
+            storedAddress.Should().NotBeNull();
+            storedAddress!.Line1.Should().Be(address.Line1);
+            storedAddress.ContactName.Should().Be(address.ContactName);
+            storedAddress.ContactPhone.Should().Be(address.ContactPhone);
         }
         finally
         {
@@ -89,30 +94,32 @@ public class OderControllerTest
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, userId, quantity: 1, price: 10m);
+        var (cart, product) = await CreateCartWithItemAsync(db, userId, quantity: 1, price: 10m);
+        var address = await CreateAddressForUserAsync(db, userId);
 
         try
         {
             var payload = JsonContent.Create(new
             {
-                PaymentType = "VNPAY",
-                ReceiverName = "Receiver Unknown",
-                ReceiverPhone = "0911111111",
-                ToDistrictId = 999,
-                ToWardCode = "W0001",
-                ToAddress = "123 Unknown St",
-                FromProvinceName = "Hanoi",
-                ShipmentItems = new[]
+                addressId = address.Id,
+                paymentMethod = "VNPAY",
+                shippingServiceId = 53320,
+                paymentTypeId = 2,
+                serviceTypeId = 2,
+                requiredNote = "KHONGCHOXEMHANG",
+                voucherCodeId = "INVALID",
+                cartItems = new[]
                 {
-                    new { ProductId = "PROD-RANDOM" }
+                    new { productId = product.Id, quantity = 1 }
                 },
-                VoucherCode = "INVALID"
+                extraField = "ignored"
             });
             var response = await _client.PostAsync("/api/Order/orders", payload);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var message = await response.Content.ReadAsStringAsync();
-            message.Should().Contain("Create order successfully!");
+            var result = await response.Content.ReadFromJsonAsync<CreateOrderResult>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
         }
         finally
         {
@@ -129,11 +136,12 @@ public class OderControllerTest
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, userId, quantity: 1, price: 9m);
+        var (cart, product) = await CreateCartWithItemAsync(db, userId, quantity: 1, price: 9m);
+        var address = await CreateAddressForUserAsync(db, userId);
 
         try
         {
-            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest());
+            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest(address.Id, product.Id));
             createOrderResponse.EnsureSuccessStatusCode();
 
             var filter = new RequestFilterOrder
@@ -165,11 +173,12 @@ public class OderControllerTest
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var cart = await CreateCartWithItemAsync(db, userId, quantity: 3, price: 7m);
+        var (cart, product) = await CreateCartWithItemAsync(db, userId, quantity: 3, price: 7m);
+        var address = await CreateAddressForUserAsync(db, userId);
 
         try
         {
-            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest());
+            var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest(address.Id, product.Id));
             createOrderResponse.EnsureSuccessStatusCode();
 
             var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CustomerId == userId);
@@ -193,20 +202,19 @@ public class OderControllerTest
         }
     }
 
-    private static RequestCreateOrder BuildValidOrderRequest()
+    private static RequestCreateOrder BuildValidOrderRequest(string addressId, string productId, int quantity = 1)
     {
         return new RequestCreateOrder
         {
-            PaymentType = "COD",
-            ReceiverName = "Test Receiver",
-            ReceiverPhone = "0900000000",
-            ToDistrictId = 1450,
-            ToWardCode = "00001",
-            ToAddress = "123 Test Street",
-            FromProvinceName = "Ho Chi Minh",
-            ShipmentItems = new List<RequestShipmentItemOverride>
+            AddressId = addressId,
+            PaymentMethod = "COD",
+            ShippingServiceId = 53320,
+            PaymentTypeId = 2,
+            ServiceTypeId = 2,
+            RequiredNote = "KHONGCHOXEMHANG",
+            CartItems = new List<RequestCreateOrderItem>
             {
-                new() { ProductId = "PROD-PLACEHOLDER" }
+                new() { ProductId = productId, Quantity = quantity }
             }
         };
     }
@@ -234,7 +242,7 @@ public class OderControllerTest
         await CleanupAddressesAsync(db, customerId);
     }
 
-    private static async Task<CartEntity> CreateCartWithItemAsync(AppDbContext db, string customerId, int quantity, decimal price)
+    private static async Task<(CartEntity Cart, ProductEntity Product)> CreateCartWithItemAsync(AppDbContext db, string customerId, int quantity, decimal price)
     {
         var cart = await CreateCartAsync(db, customerId);
         var product = await CreateProductAsync(db);
@@ -250,7 +258,31 @@ public class OderControllerTest
         db.CartItems.Add(item);
 
         await db.SaveChangesAsync();
-        return cart;
+        return (cart, product);
+    }
+
+    private static async Task<Address> CreateAddressForUserAsync(AppDbContext db, string userId)
+    {
+        await EnsureUserAsync(db, userId);
+
+        var address = new Address
+        {
+            Id = $"ADDR-{Guid.NewGuid():N}",
+            UserID = userId,
+            Line1 = "123 Test Street",
+            City = "Ho Chi Minh",
+            Country = "Vietnam",
+            ContactName = "Test Receiver",
+            ContactPhone = "0900000000",
+            GhnProvinceId = 1,
+            GhnDistrictId = 1450,
+            GhnWardCode = "00001",
+            IsDefault = true
+        };
+
+        db.Addresses.Add(address);
+        await db.SaveChangesAsync();
+        return address;
     }
 
     private static async Task<CartEntity> CreateCartAsync(AppDbContext db, string customerId)

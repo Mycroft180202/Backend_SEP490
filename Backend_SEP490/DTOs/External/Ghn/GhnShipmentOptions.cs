@@ -16,6 +16,10 @@ public class GhnShipmentOptions
     public int? Height { get; set; }
     public Dictionary<string, int>? ItemWeights { get; set; }
     public string? PaymentType { get; set; }
+    public int? PaymentTypeId { get; set; }
+    public int? ServiceTypeId { get; set; }
+    public int? ServiceId { get; set; }
+    public string? RequiredNote { get; set; }
 
     public string? FromName { get; set; }
     public string? FromPhone { get; set; }

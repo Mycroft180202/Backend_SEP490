@@ -7,6 +7,9 @@ public class GhnCreateOrderRequest
     [JsonPropertyName("payment_type_id")]
     public int PaymentTypeId { get; set; }
 
+    [JsonPropertyName("service_id")]
+    public int? ServiceId { get; set; }
+
     [JsonPropertyName("service_type_id")]
     public int ServiceTypeId { get; set; }
 

@@ -17,6 +17,7 @@ public class GhnSettings
     public string DefaultToWardCode { get; set; } = string.Empty;
 
     public int PaymentTypeId { get; set; } = 2;
+    public int? ServiceId { get; set; }
     public int ServiceTypeId { get; set; } = 2;
     public string RequiredNote { get; set; } = "KHONGCHOXEMHANG";
 
