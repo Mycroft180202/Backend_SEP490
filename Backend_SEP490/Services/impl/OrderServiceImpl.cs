@@ -202,8 +202,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
             {
-                var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer, order);
-                var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
+                var baseOptions = BuildBaseShipmentOptions(address, customer, order);
+                var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, address, customer, baseOptions);
                 if (shipmentResult.AnyShipmentsCreated)
                 {
                     var providerData = shipmentResult.ProviderResponses
