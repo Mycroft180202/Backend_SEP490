@@ -110,8 +110,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             var subtotal = orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
 
-            var shippingAddress = await CreateOrderShippingAddressAsync(userId, address);
-            if (shippingAddress == null)
+            //var shippingAddress = await CreateOrderShippingAddressAsync(userId, address);
+            if (address == null)
             {
                 await transaction.RollbackAsync();
                 return CreateOrderResult.Failure("Unable to save shipping address for this order.");
@@ -149,7 +149,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 SubtotalAmount = subtotal,
                 DiscountAmount = discountAmount,
                 ShippingFee = shippingFee,
-                ShipingAddressId = shippingAddress.Id,
+                ShipingAddressId = address.Id,
                 ShippingServiceId = request.ShippingServiceId,
                 ShippingServiceTypeId = request.ServiceTypeId,
                 ShippingPaymentTypeId = request.PaymentTypeId,
