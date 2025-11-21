@@ -251,6 +251,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
 
             await NotifyOrderActorsAsync(order, orderItems);
+
+            if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+            {
+                await ClearUserCartAsync(userId);
+            }
+
             return response;
         }
         catch

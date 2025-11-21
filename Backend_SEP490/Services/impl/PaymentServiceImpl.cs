@@ -236,9 +236,9 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
                 await UpdateOrderStatusToPaidAsync(order);
             }
 
-            if (!string.IsNullOrWhiteSpace(customerId))
+            if (!string.IsNullOrWhiteSpace(customerId) && ShouldClearCartAfterPayment(order, normalizedStatus))
             {
-                await ClearCartAfterPaymentAsync(customerId!);
+                await ClearUserCartAsync(customerId!);
             }
         }
 
@@ -251,6 +251,27 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         {
             await _orderService.CreateShipmentsAfterPaymentAsync(payment.OrderID);
         }
+    }
+
+    private static bool ShouldClearCartAfterPayment(Order? order, string normalizedStatus)
+    {
+        if (order == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(order.PaymentType))
+        {
+            return false;
+        }
+
+        return string.Equals(order.PaymentType, "COD", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase);
     }
 
     private string BuildPaymentUrl(string txnRef, string? orderNumber, decimal amount, string bankCode, string clientIp, DateTime createdAtLocal, DateTime expireAtLocal)
@@ -426,27 +447,4 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         }
     }
 
-    private async Task ClearCartAfterPaymentAsync(string customerId)
-    {
-        if (string.IsNullOrWhiteSpace(customerId))
-        {
-            return;
-        }
-
-        var cart = await _context.Cart.GetCartByUserIdAsync(customerId);
-        if (cart == null)
-        {
-            return;
-        }
-
-        if (cart.CartItems != null)
-        {
-            foreach (var item in cart.CartItems.ToList())
-            {
-                await _context.CartItem.DeleteCartItemAsync(item);
-            }
-        }
-
-        await _context.Cart.DeleteCartAsync(cart);
-    }
 }
