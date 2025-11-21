@@ -61,7 +61,8 @@ public class PaymentController : ControllerBase
         }
 
         var queryString = Request.QueryString.HasValue ? Request.QueryString.Value : string.Empty;
-        var redirectUrl = $"http://localhost:3000/payment-result{queryString}";
+        var Cors__AllowedOrigins__0 = Environment.GetEnvironmentVariable("Cors__AllowedOrigins__0");
+        var redirectUrl = $"{Cors__AllowedOrigins__0}/payment-result{queryString}";
         _logger.LogInformation("Redirecting VNPay callback to {RedirectUrl}", redirectUrl);
         return Redirect(redirectUrl);
     }
