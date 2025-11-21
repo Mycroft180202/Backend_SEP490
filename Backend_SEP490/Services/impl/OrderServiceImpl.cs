@@ -179,12 +179,23 @@ public class OrderServiceImpl : GenericServices, IOrderService
                     UnitPrice = info.UnitPrice
                 })
                 .ToList();
+            order.OrderItems = orderItems;
 
             var addOrderItemStatus = await _context.OrderDetail.CreateOrderItemAsync(orderItems);
             if (!addOrderItemStatus)
             {
                 await transaction.RollbackAsync();
                 return CreateOrderResult.Failure("Create order item failed!(addOrderItemStatus)");
+            }
+
+            if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+            {
+                var (reserveSuccess, reserveMessage) = await ReserveOrderStockAsync(order);
+                if (!reserveSuccess)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateOrderResult.Failure(reserveMessage ?? "Insufficient stock available for this order.");
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -561,6 +572,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         order.Status = "Cancelled";
+        await RestoreOrderStockAsync(order);
         await _context.SaveChangesAsync();
         foreach (var shipment in cancelledShipments)
         {
