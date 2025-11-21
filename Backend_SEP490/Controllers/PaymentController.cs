@@ -12,10 +12,11 @@ namespace Backend_SEP490.Controllers;
 public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
-
-    public PaymentController(IPaymentService paymentService)
+    private readonly ILogger<PaymentController> _logger;
+    public PaymentController(IPaymentService paymentService,ILogger<PaymentController> logger)
     {
         _paymentService = paymentService;
+        _logger = logger;
     }
 
     [HttpPost("vnpay")]
@@ -51,13 +52,18 @@ public class PaymentController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> HandleVnpayCallback()
     {
+        _logger.LogInformation("VNPay callback query: {QueryString}", Request.QueryString.Value);
+        _logger.LogInformation("VNPay callback keys: {Keys}", string.Join(",", Request.Query.Keys));
         var result = await _paymentService.HandleVnpayCallbackAsync(Request.Query);
         if (!result.Success)
         {
             return BadRequest(result);
         }
 
-        return Ok(result);
+        var queryString = Request.QueryString.HasValue ? Request.QueryString.Value : string.Empty;
+        var redirectUrl = $"http://localhost:3000/payment-result{queryString}";
+        _logger.LogInformation("Redirecting VNPay callback to {RedirectUrl}", redirectUrl);
+        return Redirect(redirectUrl);
     }
 
     [HttpPut("status")]
