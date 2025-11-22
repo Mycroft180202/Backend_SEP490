@@ -19,13 +19,11 @@ namespace Backend_SEP490.UnitTests
         {
             _mapperMock = new Mock<IMapper>();
             _unitOfWorkMock = new Mock<IUnitOfWork>();
-            _categoryRepoMock = new Mock<ICategoryRepositories>();
-
+            _categoryRepoMock = new Mock<ICategoryRepositories>(); 
             _unitOfWorkMock.Setup(u => u.Categories).Returns(_categoryRepoMock.Object);
-
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1); 
             _service = new CategoryServicesImpl(_mapperMock.Object, _unitOfWorkMock.Object);
         }
-
         // CASE 1: GetAllCategories
         [Fact(DisplayName = "GetAllCategories - Normal Case - Return mapped data")]
         public async Task GetAllCategories_ReturnsMappedData()
