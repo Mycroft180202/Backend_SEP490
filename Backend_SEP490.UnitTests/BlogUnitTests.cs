@@ -5,9 +5,9 @@ using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Services.impl;
 using CloudinaryDotNet;
-using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
 using Moq;
+using System.IO;
 
 namespace Backend_SEP490.UnitTests
 {
@@ -16,7 +16,7 @@ namespace Backend_SEP490.UnitTests
         private readonly Mock<IMapper> _mapperMock;
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
         private readonly Mock<IBlogRepositories> _blogRepoMock;
-        private readonly Mock<Cloudinary> _cloudinaryMock;
+        private readonly Cloudinary _cloudinary;
         private readonly BlogPostServiceImpl _service;
 
         public BlogUnitTests()
@@ -24,11 +24,16 @@ namespace Backend_SEP490.UnitTests
             _mapperMock = new Mock<IMapper>();
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _blogRepoMock = new Mock<IBlogRepositories>();
-            _cloudinaryMock = new Mock<Cloudinary>("cloudinary://test");
-
             _unitOfWorkMock.Setup(u => u.Blog).Returns(_blogRepoMock.Object);
+            // === Sử dụng Cloudinary thật ===
+            var account = new Account(
+                "diyhln2nu",
+                "969151893336946",
+                "1Q5Qn2U1_ErgzkCOo_365GKBawo"
+            );
+            _cloudinary = new Cloudinary(account);
 
-            _service = new BlogPostServiceImpl(_mapperMock.Object, _unitOfWorkMock.Object, _cloudinaryMock.Object);
+            _service = new BlogPostServiceImpl(_mapperMock.Object, _unitOfWorkMock.Object, _cloudinary);
         }
 
         // -------------------------------
@@ -40,7 +45,7 @@ namespace Backend_SEP490.UnitTests
             var userId = "U001";
 
             var fileMock = new Mock<IFormFile>();
-            fileMock.Setup(f => f.OpenReadStream()).Returns(new MemoryStream());
+            fileMock.Setup(f => f.OpenReadStream()).Returns(new MemoryStream(new byte[] { 1, 2, 3 }));
             fileMock.Setup(f => f.FileName).Returns("image.png");
 
             var request = new RequestCreateBlogPost
@@ -50,20 +55,14 @@ namespace Backend_SEP490.UnitTests
                 Image = fileMock.Object
             };
 
-            var uploadResult = new ImageUploadResult { SecureUrl = new Uri("https://cloudinary.com/img.png") };
-            _cloudinaryMock.Setup(c => c.UploadAsync(It.IsAny<ImageUploadParams>(), default))
-                .ReturnsAsync(uploadResult);
-
             _blogRepoMock.Setup(r => r.GetAllBlogPostAsync()).ReturnsAsync(new List<BlogPost>());
             _blogRepoMock.Setup(r => r.CreateBlogPostAsync(It.IsAny<BlogPost>()))
-                .ReturnsAsync("Create Blog successfully!");
-
+                         .ReturnsAsync("Create Blog successfully!");
             var result = await _service.CreateBlogPostAsync(userId, request);
 
             Assert.Equal("Create Blog successfully!", result);
         }
 
-        // Case: Title is null
         [Fact(DisplayName = "CreateBlogPostAsync - Null Title - Throws Exception")]
         public async Task CreateBlogPostAsync_ReturnsError_WhenTitleIsNull()
         {
@@ -78,7 +77,6 @@ namespace Backend_SEP490.UnitTests
                 _service.CreateBlogPostAsync("U001", request));
         }
 
-        // Case: Null Request
         [Fact(DisplayName = "CreateBlogPostAsync - Null Request - Throws Exception")]
         public async Task CreateBlogPostAsync_ThrowsException_WhenRequestIsNull()
         {
@@ -107,7 +105,7 @@ namespace Backend_SEP490.UnitTests
 
             _blogRepoMock.Setup(r => r.GetAllBlogPostAsync()).ReturnsAsync(blogEntities);
             _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOBlogPost>>(It.IsAny<IEnumerable<BlogPost>>()))
-                .Returns(blogDtos);
+                       .Returns(blogDtos);
 
             var result = await _service.GetAllBlogPostAsync(1, 2);
 
@@ -120,7 +118,7 @@ namespace Backend_SEP490.UnitTests
         {
             _blogRepoMock.Setup(r => r.GetAllBlogPostAsync()).ReturnsAsync(new List<BlogPost>());
             _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOBlogPost>>(It.IsAny<IEnumerable<BlogPost>>()))
-                .Returns(new List<ResponseDTOBlogPost>());
+                       .Returns(new List<ResponseDTOBlogPost>());
 
             var result = await _service.GetAllBlogPostAsync(1, 5);
 
@@ -173,7 +171,7 @@ namespace Backend_SEP490.UnitTests
 
             _blogRepoMock.Setup(r => r.GetBlogByIdAsync("B001")).ReturnsAsync(blogEntity);
             _blogRepoMock.Setup(r => r.UpdateBlogPostAsync(blogEntity, request, "old.png"))
-                .ReturnsAsync("Updated");
+                         .ReturnsAsync("Updated");
 
             var result = await _service.UpdateBlogPostAsync("B001", request);
 
@@ -183,8 +181,7 @@ namespace Backend_SEP490.UnitTests
         [Fact(DisplayName = "UpdateBlogPostAsync - Blog not found - Returns error")]
         public async Task UpdateBlogPostAsync_ReturnsError_WhenNotFound()
         {
-            _blogRepoMock.Setup(r => r.GetBlogByIdAsync("INVALID"))
-                .ReturnsAsync((BlogPost)null);
+            _blogRepoMock.Setup(r => r.GetBlogByIdAsync("INVALID")).ReturnsAsync((BlogPost)null);
 
             var result = await _service.UpdateBlogPostAsync("INVALID", new RequestUpdateBlogPost());
 
@@ -195,12 +192,10 @@ namespace Backend_SEP490.UnitTests
         public async Task UpdateBlogPostAsync_RepoReturnsEmptyString_ReturnsEmptyString()
         {
             var blogEntity = new BlogPost { Id = "B001", Image = "old.png" };
-
             var request = new RequestUpdateBlogPost { Title = "New" };
 
             _blogRepoMock.Setup(r => r.GetBlogByIdAsync("B001")).ReturnsAsync(blogEntity);
-            _blogRepoMock.Setup(r => r.UpdateBlogPostAsync(blogEntity, request, "old.png"))
-                .ReturnsAsync("");
+            _blogRepoMock.Setup(r => r.UpdateBlogPostAsync(blogEntity, request, "old.png")).ReturnsAsync("");
 
             var result = await _service.UpdateBlogPostAsync("B001", request);
 
