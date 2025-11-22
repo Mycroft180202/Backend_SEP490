@@ -29,6 +29,7 @@ public class Order
     public int? VoucherId { get; set; }
     public DateTime? ExpectedDelivery { get; set; }
     public DateTime CreateAt { get; set; }
+    public bool IsInventoryReserved { get; set; }
     [JsonIgnore]
     public User Customer { get; set; }
     public ICollection<OrderItem>? OrderItems { get; set; }

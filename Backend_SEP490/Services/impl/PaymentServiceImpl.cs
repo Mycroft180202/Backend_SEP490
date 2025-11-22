@@ -57,6 +57,12 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             return null;
         }
 
+        if (!string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Order {OrderId} is not configured for VNPay payments.", order.Id);
+            return null;
+        }
+
         if (order.TotalAmount <= 0)
         {
             _logger.LogWarning("Order {OrderId} has invalid total amount {Total}.", order.Id, order.TotalAmount);
@@ -70,59 +76,81 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             return null;
         }
 
-        var existingPayments = await _context.Payments.GetByOrderIdAsync(order.Id);
-        foreach (var pending in existingPayments.Where(p =>
-                     string.Equals(p.Method, "VNPAY", StringComparison.OrdinalIgnoreCase) &&
-                     string.Equals(p.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase)))
-        {
-            pending.PaymentStatus = "Cancelled";
-            pending.ProccessedAt = DateTime.UtcNow;
-            pending.ProviderXlnd = null;
-        }
-
-        var paymentId = $"PAY-{Guid.NewGuid():N}";
-        var bankCode = string.IsNullOrWhiteSpace(request.BankCode)
-            ? _vnpaySettings.DefaultBankCode
-            : request.BankCode!;
-
-        var createdAtLocal = GetVietnamTime(DateTime.UtcNow);
-        var expireAtLocal = createdAtLocal.AddMinutes(Math.Max(_vnpaySettings.ExpireMinutes, 5));
-        var expireAtUtc = ConvertVietnamTimeToUtc(expireAtLocal);
-        string paymentUrl;
+        await using var transaction = await _context.BeginTransactionAsync();
         try
         {
-            paymentUrl = BuildPaymentUrl(paymentId, order.OrderNumber, order.TotalAmount, bankCode, clientIp, createdAtLocal, expireAtLocal);
+            var (reserveSuccess, reserveMessage) = await ReserveOrderStockAsync(order);
+            if (!reserveSuccess)
+            {
+                _logger.LogWarning(
+                    "Unable to reserve inventory for order {OrderId}: {Message}",
+                    order.Id,
+                    reserveMessage ?? "Unknown error");
+                await transaction.RollbackAsync();
+                return null;
+            }
+
+            var existingPayments = await _context.Payments.GetByOrderIdAsync(order.Id);
+            foreach (var pending in existingPayments.Where(p =>
+                         string.Equals(p.Method, "VNPAY", StringComparison.OrdinalIgnoreCase) &&
+                         string.Equals(p.PaymentStatus, "Pending", StringComparison.OrdinalIgnoreCase)))
+            {
+                pending.PaymentStatus = "Cancelled";
+                pending.ProccessedAt = DateTime.UtcNow;
+                pending.ProviderXlnd = null;
+            }
+
+            var paymentId = $"PAY-{Guid.NewGuid():N}";
+            var bankCode = string.IsNullOrWhiteSpace(request.BankCode)
+                ? _vnpaySettings.DefaultBankCode
+                : request.BankCode!;
+
+            var createdAtLocal = GetVietnamTime(DateTime.UtcNow);
+            var expireAtLocal = createdAtLocal.AddMinutes(Math.Max(_vnpaySettings.ExpireMinutes, 5));
+            var expireAtUtc = ConvertVietnamTimeToUtc(expireAtLocal);
+            string paymentUrl;
+            try
+            {
+                paymentUrl = BuildPaymentUrl(paymentId, order.OrderNumber, order.TotalAmount, bankCode, clientIp, createdAtLocal, expireAtLocal);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to build VNPay URL for order {OrderId}.", order.Id);
+                await transaction.RollbackAsync();
+                return null;
+            }
+
+            var payment = new Payment
+            {
+                Id = paymentId,
+                OrderID = order.Id,
+                Amount = order.TotalAmount,
+                Method = "VNPAY",
+                ProviderXlnd = bankCode,
+                PaymentStatus = "Pending",
+                ProccessedAt = DateTime.UtcNow
+            };
+
+            await _context.Payments.AddAsync(payment);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return new VnpayPaymentResponse
+            {
+                PaymentId = paymentId,
+                OrderId = order.Id,
+                OrderNumber = order.OrderNumber,
+                Amount = order.TotalAmount,
+                PaymentUrl = paymentUrl,
+                QrContent = GenerateQrContent(paymentUrl),
+                ExpiredAt = expireAtUtc
+            };
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex, "Failed to build VNPay URL for order {OrderId}.", order.Id);
-            return null;
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        var payment = new Payment
-        {
-            Id = paymentId,
-            OrderID = order.Id,
-            Amount = order.TotalAmount,
-            Method = "VNPAY",
-            ProviderXlnd = bankCode,
-            PaymentStatus = "Pending",
-            ProccessedAt = DateTime.UtcNow
-        };
-
-        await _context.Payments.AddAsync(payment);
-        await _context.SaveChangesAsync();
-
-        return new VnpayPaymentResponse
-        {
-            PaymentId = paymentId,
-            OrderId = order.Id,
-            OrderNumber = order.OrderNumber,
-            Amount = order.TotalAmount,
-            PaymentUrl = paymentUrl,
-            QrContent = GenerateQrContent(paymentUrl),
-            ExpiredAt = expireAtUtc
-        };
     }
 
     public async Task<VnpayCallbackResult> HandleVnpayCallbackAsync(IQueryCollection queryCollection)
@@ -209,7 +237,9 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         payment.ProccessedAt = DateTime.UtcNow;
         payment.ProviderXlnd = providerReference;
 
-        if (string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+        var isPaid = string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase);
+
+        if (isPaid)
         {
             var siblings = await _context.Payments.GetByOrderIdAsync(payment.OrderID);
             foreach (var sibling in siblings.Where(p =>
@@ -229,17 +259,23 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         var customerId = order?.CustomerId;
         var orderNumber = order?.OrderNumber;
 
-        if (string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+        if (isPaid)
         {
             if (order != null)
             {
                 await UpdateOrderStatusToPaidAsync(order);
             }
 
-            if (!string.IsNullOrWhiteSpace(customerId))
+            if (!string.IsNullOrWhiteSpace(customerId) && ShouldClearCartAfterPayment(order, normalizedStatus))
             {
-                await ClearCartAfterPaymentAsync(customerId!);
+                await ClearUserCartAsync(customerId!);
             }
+        }
+        else if (order != null &&
+                 string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase))
+        {
+            await RestoreOrderStockAsync(order);
+            await _context.SaveChangesAsync();
         }
 
         if (!string.IsNullOrWhiteSpace(customerId))
@@ -247,10 +283,31 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             await _notificationService.NotifyPaymentStatusAsync(payment, customerId!, orderNumber);
         }
 
-        if (string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+        if (isPaid)
         {
             await _orderService.CreateShipmentsAfterPaymentAsync(payment.OrderID);
         }
+    }
+
+    private static bool ShouldClearCartAfterPayment(Order? order, string normalizedStatus)
+    {
+        if (order == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(order.PaymentType))
+        {
+            return false;
+        }
+
+        return string.Equals(order.PaymentType, "COD", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase);
     }
 
     private string BuildPaymentUrl(string txnRef, string? orderNumber, decimal amount, string bankCode, string clientIp, DateTime createdAtLocal, DateTime expireAtLocal)
@@ -426,27 +483,4 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         }
     }
 
-    private async Task ClearCartAfterPaymentAsync(string customerId)
-    {
-        if (string.IsNullOrWhiteSpace(customerId))
-        {
-            return;
-        }
-
-        var cart = await _context.Cart.GetCartByUserIdAsync(customerId);
-        if (cart == null)
-        {
-            return;
-        }
-
-        if (cart.CartItems != null)
-        {
-            foreach (var item in cart.CartItems.ToList())
-            {
-                await _context.CartItem.DeleteCartItemAsync(item);
-            }
-        }
-
-        await _context.Cart.DeleteCartAsync(cart);
-    }
 }

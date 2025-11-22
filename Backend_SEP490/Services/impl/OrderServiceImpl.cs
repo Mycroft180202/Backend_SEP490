@@ -110,8 +110,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             var subtotal = orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
 
-            var shippingAddress = await CreateOrderShippingAddressAsync(userId, address);
-            if (shippingAddress == null)
+            //var shippingAddress = await CreateOrderShippingAddressAsync(userId, address);
+            if (address == null)
             {
                 await transaction.RollbackAsync();
                 return CreateOrderResult.Failure("Unable to save shipping address for this order.");
@@ -149,7 +149,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 SubtotalAmount = subtotal,
                 DiscountAmount = discountAmount,
                 ShippingFee = shippingFee,
-                ShipingAddressId = shippingAddress.Id,
+                ShipingAddressId = address.Id,
                 ShippingServiceId = request.ShippingServiceId,
                 ShippingServiceTypeId = request.ServiceTypeId,
                 ShippingPaymentTypeId = request.PaymentTypeId,
@@ -179,12 +179,23 @@ public class OrderServiceImpl : GenericServices, IOrderService
                     UnitPrice = info.UnitPrice
                 })
                 .ToList();
+            order.OrderItems = orderItems;
 
             var addOrderItemStatus = await _context.OrderDetail.CreateOrderItemAsync(orderItems);
             if (!addOrderItemStatus)
             {
                 await transaction.RollbackAsync();
                 return CreateOrderResult.Failure("Create order item failed!(addOrderItemStatus)");
+            }
+
+            if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+            {
+                var (reserveSuccess, reserveMessage) = await ReserveOrderStockAsync(order);
+                if (!reserveSuccess)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateOrderResult.Failure(reserveMessage ?? "Insufficient stock available for this order.");
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -202,8 +213,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
             {
-                var baseOptions = BuildBaseShipmentOptions(shippingAddress, customer, order);
-                var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, shippingAddress, customer, baseOptions);
+                var baseOptions = BuildBaseShipmentOptions(address, customer, order);
+                var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, address, customer, baseOptions);
                 if (shipmentResult.AnyShipmentsCreated)
                 {
                     var providerData = shipmentResult.ProviderResponses
@@ -251,6 +262,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
 
             await NotifyOrderActorsAsync(order, orderItems);
+
+            if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+            {
+                await ClearUserCartAsync(userId);
+            }
+
             return response;
         }
         catch
@@ -555,6 +572,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         order.Status = "Cancelled";
+        await RestoreOrderStockAsync(order);
         await _context.SaveChangesAsync();
         foreach (var shipment in cancelledShipments)
         {
