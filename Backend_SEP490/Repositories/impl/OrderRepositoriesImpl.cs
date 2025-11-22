@@ -100,5 +100,26 @@ namespace Backend_SEP490.Repositories.impl
             return (orders, totalCount);
         }
 
+        public async Task<IEnumerable<Order>> GetNewestOrderAsync()
+        {
+            var order = await _context.Orders.OrderByDescending( o=> o.CreateAt).Take(10)
+                 .ToListAsync();
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderAsync()
+        {
+            var order = await _context.Orders.ToListAsync();
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderByArtisanIdAsync(string userId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .ThenInclude(o => o.Product)
+                .Where(o => o.OrderItems.Any(p => p.Product.ArtisanId.Equals(userId))).ToListAsync();
+            return order;
+        }
     }
 }

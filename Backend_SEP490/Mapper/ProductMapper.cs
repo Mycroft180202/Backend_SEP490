@@ -13,5 +13,15 @@ public class ProductMapper: Profile
         CreateMap<Product, DTOs.Request.ResponseDTOProduct>().ReverseMap();
         CreateMap<Product,ResponseDTOProductDetail>().ReverseMap();
         CreateMap<Product,RequestDTOProduct>().ReverseMap();
+        CreateMap<Product, ResponseDTOProductDashboard>()
+             .ForMember(dest => dest.Product, opt => opt.MapFrom(src => src)) 
+             .ForMember(dest => dest.TotalSold, opt => opt.MapFrom(src =>
+                         src.OrderItems != null && src.OrderItems.Any()
+                         ? (int?)src.OrderItems.Sum(oi => oi.Quantity)
+                         : 0))
+             .ForMember(dest => dest.TotalAmmount,
+                 opt => opt.MapFrom(src => src.OrderItems != null && src.OrderItems.Any()
+                         ? (decimal?)src.OrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+                         : 0m));
     }
 }

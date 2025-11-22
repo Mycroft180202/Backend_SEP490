@@ -58,6 +58,40 @@ public class UserServicesImpl : GenericServices, IUserServices
         };
 
     }
+    public async Task<PagedResult<ResponseDTOUserDashboard>> GetAllCustomerAsync(int pageIndex, int pageSize)
+    {
+        var usersList = await _context.Users.GetAllUsersWithRoleCustomerAsync();
+        var users = usersList.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+
+        var userList = _mapper.Map<IEnumerable<ResponseDTOUserDashboard>>(users);
+
+        return new PagedResult<ResponseDTOUserDashboard>
+        {
+            Items = userList,
+            TotalCount = usersList.Count(),
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+
+    }
+
+    public async Task<PagedResult<ResponseDTOUserShopDashboard>> GetAllArtisanAsync(int pageIndex, int pageSize)
+    {
+        var usersList = await _context.Users.GetAllUsersWithRoleArtisanAsync();
+        var users = usersList.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+
+        var userList = _mapper.Map<IEnumerable<ResponseDTOUserShopDashboard>>(users);
+
+        return new PagedResult<ResponseDTOUserShopDashboard>
+        {
+            Items = userList,
+            TotalCount = usersList.Count(),
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+
+    }
+
     public async Task<ResponseDTOUser?> GetUserByIDAsync(string userID)
     {
         var user = await _context.Users.GetUserByIDWithDetailAsync(userID);
@@ -383,5 +417,16 @@ public class UserServicesImpl : GenericServices, IUserServices
         var status = await _context.Users.UpdateUserAsync(user, request, url);
 
         return status;
+    }
+
+    public async Task<int> GetNumberOfArtisanAsync()
+    {
+        var usersList = await _context.Users.GetAllUsersAsync();
+        return usersList.Count();
+    }
+
+    public Task<int> GetNumberOfUserAsync()
+    {
+        throw new NotImplementedException();
     }
 }

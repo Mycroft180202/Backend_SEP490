@@ -11,6 +11,8 @@ public interface IProductServices
     public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetUnavailableProductsAsync();
     public Task<ResponseDTOProductDetail> GetProductByIdAsync(string id);
     public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAllProductsAsync();
+    public Task<PagedResult<ResponseDTOProductDashboard>> GetProductsDashboardByUserIdAsync(string? userId, int pageIndex, int pageSize);
+    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTop10ProductsAsync();
     public Task<bool> CreateProductAsync(RequestDTOProduct productDto);
     public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId);
     public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByCategoryAsync(string categoryId);

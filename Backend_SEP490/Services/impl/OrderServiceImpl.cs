@@ -1137,4 +1137,163 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .ToList();
         return ordered.FirstOrDefault();
     }
+
+    public async Task<IEnumerable<ResponseDTOOrder>> GetNewestOrderAsync()
+    {
+        var order = await _context.Order.GetNewestOrderAsync();
+        var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(order);
+        return mapped;
+    }
+
+    public async Task<IEnumerable<ResponseDTOMonthRevenue>> GetAdminRevenuePerMonthAllOrderAsync(int year)
+    {
+        var orders = await _context.Order.GetAllOrderAsync();
+
+        var ordersInYear = orders
+            .Where(o => o.CreateAt.Year == year)
+            .ToList();
+
+        var grouped = ordersInYear
+            .GroupBy(o => o.CreateAt.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                Total = g.Sum(x => x.TotalAmount)
+            })
+            .ToList();
+
+        var result = Enumerable.Range(1, 12)
+            .Select(month => new ResponseDTOMonthRevenue
+            {
+                Month = month,
+                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0,
+                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0) * 0.05m
+            })
+            .ToList();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOWeeklyRevenue>> GetAdminRevenuePerWeekAllOrderAsync(int year, int month)
+    {
+        var orders = await _context.Order.GetAllOrderAsync();
+
+
+        var ordersInMonth = orders
+        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month)
+        .ToList();
+
+        var weeklyRevenue = new List<ResponseDTOWeeklyRevenue>();
+
+
+        var firstDayOfMonth = new DateTime(year, month, 1);
+        var lastDayOfMonth = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+
+        var currentStart = firstDayOfMonth;
+        int weekNumber = 1;
+
+        while (currentStart <= lastDayOfMonth)
+        {
+
+            var currentEnd = currentStart.AddDays(6 - (int)currentStart.DayOfWeek + 1);
+            if (currentEnd > lastDayOfMonth) currentEnd = lastDayOfMonth;
+
+
+            var ordersInWeek = ordersInMonth
+                .Where(o => o.CreateAt.Date >= currentStart.Date && o.CreateAt.Date <= currentEnd.Date)
+                .ToList();
+
+            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount);
+
+            weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
+            {
+                WeekNumber = weekNumber,
+                StartDate = currentStart,
+                EndDate = currentEnd,
+                TotalOrderAmount = totalAmount,
+                Revenue = totalAmount * 0.05m
+            });
+
+            currentStart = currentEnd.AddDays(1);
+            weekNumber++;
+        }
+
+        return weeklyRevenue;
+    }
+
+    public async Task<IEnumerable<ResponseDTOMonthRevenue>> GetArtisanRevenuePerMonthAllOrderAsync(string? userId, int year)
+    {
+        var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
+
+        var ordersInYear = orders
+            .Where(o => o.CreateAt.Year == year)
+            .ToList();
+
+        var grouped = ordersInYear
+            .GroupBy(o => o.CreateAt.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                Total = g.Sum(x => x.TotalAmount)
+            })
+            .ToList();
+
+        var result = Enumerable.Range(1, 12)
+            .Select(month => new ResponseDTOMonthRevenue
+            {
+                Month = month,
+                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0,
+                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0) * 0.95m
+            })
+            .ToList();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOWeeklyRevenue>> GetArtisanRevenuePerWeekAllOrderAsync(string? userId, int year, int month)
+    {
+        var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
+
+
+        var ordersInMonth = orders
+        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month)
+        .ToList();
+
+        var weeklyRevenue = new List<ResponseDTOWeeklyRevenue>();
+
+
+        var firstDayOfMonth = new DateTime(year, month, 1);
+        var lastDayOfMonth = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+
+        var currentStart = firstDayOfMonth;
+        int weekNumber = 1;
+
+        while (currentStart <= lastDayOfMonth)
+        {
+
+            var currentEnd = currentStart.AddDays(6 - (int)currentStart.DayOfWeek + 1);
+            if (currentEnd > lastDayOfMonth) currentEnd = lastDayOfMonth;
+
+
+            var ordersInWeek = ordersInMonth
+                .Where(o => o.CreateAt.Date >= currentStart.Date && o.CreateAt.Date <= currentEnd.Date)
+                .ToList();
+
+            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount);
+
+            weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
+            {
+                WeekNumber = weekNumber,
+                StartDate = currentStart,
+                EndDate = currentEnd,
+                TotalOrderAmount = totalAmount,
+                Revenue = totalAmount * 0.95m
+            });
+
+            currentStart = currentEnd.AddDays(1);
+            weekNumber++;
+        }
+
+        return weeklyRevenue;
+    }
 }

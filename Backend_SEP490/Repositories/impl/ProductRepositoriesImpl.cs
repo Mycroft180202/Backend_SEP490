@@ -45,6 +45,15 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
             .AsNoTracking()
             .ToListAsync();
     }
+    public async Task<IEnumerable<Product>> GetAllProductsWithOrderItemsAsync()
+    {
+        var products = await _context.Products
+                   .Include( p => p.OrderItems)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+        return products;
+    }
 
     public async Task AddProductAsync(Product product)
     {
