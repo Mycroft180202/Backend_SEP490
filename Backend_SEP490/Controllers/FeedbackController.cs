@@ -28,13 +28,13 @@ public class FeedbackController : ControllerBase
     }
 
     [Authorize]
-    [HttpDelete("feedbacks/{ID}")]
-    public async Task<ActionResult> DeleteFeedback(Feedback feedback)
+    [HttpDelete("feedbacks")]
+    public async Task<ActionResult> DeleteFeedback(String feedbackid,String IdduserId)
     {
         var userId = User.GetUserId();
-        if (!string.IsNullOrWhiteSpace(userId) && userId == feedback.CustomerId)
+        if (!string.IsNullOrWhiteSpace(userId) && userId == IdduserId)
         {
-            await _feedbackRepository.DeleteFeedbacksByIdAsync(feedback.Id);
+            await _feedbackRepository.DeleteFeedbacksByIdAsync(feedbackid);
         }
 
         return NoContent();
