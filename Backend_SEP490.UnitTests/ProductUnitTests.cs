@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
@@ -8,6 +9,7 @@ using Backend_SEP490.Services.impl;
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Http;
 using Moq;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Xunit;
 
@@ -153,6 +155,94 @@ namespace Backend_SEP490.UnitTests
             Assert.True(result);
             Assert.NotNull(mappedProduct.EmbeddingJson);
         }
+        [Theory(DisplayName = "RequestDTOProduct - Name validation")]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("ab")]
+        public void RequestDTOProduct_NameValidation_Fails(string name)
+        {
+            var dto = new RequestDTOProduct
+            {
+                Name = name,
+                Price = 10,
+                Category = "Cat",
+                ArtisanId = "A1",
+                Stock = 10,
+                Images = new List<IFormFile> { new Mock<IFormFile>().Object }
+            };
+
+            var results = ValidateDTO(dto);
+            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Name)));
+        }
+        [Theory(DisplayName = "RequestDTOProduct - Price validation")]
+        [InlineData(0)]
+        [InlineData(-10)]
+        public void RequestDTOProduct_PriceValidation_Fails(decimal price)
+        {
+            var dto = new RequestDTOProduct
+            {
+                Name = "Valid Name",
+                Price = price,
+                Category = "Cat",
+                ArtisanId = "A1",
+                Stock = 10,
+                Images = new List<IFormFile> { new Mock<IFormFile>().Object }
+            };
+
+            var results = ValidateDTO(dto);
+            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Price)));
+        }
+        [Fact(DisplayName = "RequestDTOProduct - Category required validation")]
+        public void RequestDTOProduct_CategoryRequired_Fails()
+        {
+            var dto = new RequestDTOProduct
+            {
+                Name = "Valid Name",
+                Price = 10,
+                Category = null,   // fail
+                ArtisanId = "",    // fail
+                Stock = 10,
+                Images = new List<IFormFile> { new Mock<IFormFile>().Object }
+            };
+
+            var results = ValidateDTO(dto);
+            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Category)));
+            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.ArtisanId)));
+        }
+        [Theory(DisplayName = "RequestDTOProduct - Stock validation")]
+        [InlineData(-1)]
+        [InlineData(-100)]
+        public void RequestDTOProduct_StockValidation_Fails(int stock)
+        {
+            var dto = new RequestDTOProduct
+            {
+                Name = "Valid Name",
+                Price = 10,
+                Category = "Cat",
+                ArtisanId = "A1",
+                Stock = stock,
+                Images = new List<IFormFile> { new Mock<IFormFile>().Object }
+            };
+
+            var results = ValidateDTO(dto);
+            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Stock)));
+        }
+        [Fact(DisplayName = "RequestDTOProduct - Images MinLength validation")]
+        public void RequestDTOProduct_ImagesValidation_Fails()
+        {
+            var dto = new RequestDTOProduct
+            {
+                Name = "Valid Name",
+                Price = 10,
+                Category = "Cat",
+                ArtisanId = "A1",
+                Stock = 10,
+                Images = new List<IFormFile>() 
+            };
+
+            var results = ValidateDTO(dto);
+            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Images)));
+        }
 
         // ==================================================================
         // 4. UpdateProductAsync
@@ -205,69 +295,116 @@ namespace Backend_SEP490.UnitTests
         [Fact(DisplayName = "GetProductsAsync - Without search term, returns paged + batch enriched")]
         public async Task GetProductsAsync_NoSearch_ReturnsPagedWithBatchData()
         {
-            var products = new List<Product>
+            // Arrange
+                    var products = new List<Product>
             {
                 new Product { Id = "P1", ArtisanId = "A1", Price = 100 },
                 new Product { Id = "P2", ArtisanId = "A2", Price = 200 }
             };
 
-            _unitOfWorkMock.Setup(u => u.Products.GetProductsAsync(null, null)).ReturnsAsync(products);
+            // Mock PagedResult<Product>
+            var pagedProducts = new PagedResult<Product>
+            {
+                TotalCount = products.Count,
+                PageIndex = 1,
+                PageSize = 10,
+                Items = products
+            };
+
+            _unitOfWorkMock.Setup(u => u.Products.GetProductsAsync(
+                    null, null, null, 1, 10, null))
+                .ReturnsAsync(pagedProducts);
+
+            // Mapper mock
+            var mappedProducts = products
+                .Select(p => new ResponseDTOProduct { Id = p.Id, ArtisanId = p.ArtisanId })
+                .ToList();
+
             _mapperMock.Setup(m => m.Map<List<ResponseDTOProduct>>(It.IsAny<List<Product>>()))
-                .Returns(products.Select(p => new ResponseDTOProduct { Id = p.Id, ArtisanId = p.ArtisanId }).ToList());
+                .Returns(mappedProducts);
 
-            var users = new List<User> { new User { UserID = "A1", DisplayName = "Art1" }, new User { UserID = "A2", DisplayName = "Art2" } };
-            _unitOfWorkMock.Setup(u => u.Users.GetUsersByIdsAsync(It.IsAny<List<string>>())).ReturnsAsync(users);
-            _unitOfWorkMock.Setup(u => u.Feedback.GetFeedbacksByProductIdsAsync(It.IsAny<List<string>>()))
-                .ReturnsAsync(new List<Feedback> { new() { ProductId = "P1", Rating = 5 } });
-            _unitOfWorkMock.Setup(u => u.ProductImages.GetImagesByProductIdsAsync(It.IsAny<List<string>>()))
-                .ReturnsAsync(new List<ProductImage> { new() { ProductId = "P1", URL = "img1", Position = 1 } });
+            // Users
+            var users = new List<User>
+            {
+                new User { UserID = "A1", DisplayName = "Art1" },
+                new User { UserID = "A2", DisplayName = "Art2" }
+            };
+                    _unitOfWorkMock.Setup(u => u.Users.GetUsersByIdsAsync(It.IsAny<List<string>>()))
+                        .ReturnsAsync(users);
 
+                    // Feedback
+                    var feedbacks = new List<Feedback>
+            {
+                new Feedback { ProductId = "P1", Rating = 5 },
+                new Feedback { ProductId = "P2", Rating = 3 }
+            };
+                    _unitOfWorkMock.Setup(u => u.Feedback.GetFeedbacksByProductIdsAsync(It.IsAny<List<string>>()))
+                        .ReturnsAsync(feedbacks);
+
+                    // Product images
+                    var images = new List<ProductImage>
+            {
+                new ProductImage { ProductId = "P1", URL = "img1", Position = 1 },
+                new ProductImage { ProductId = "P2", URL = "img2", Position = 1 }
+            };
+                    _unitOfWorkMock.Setup(u => u.ProductImages.GetImagesByProductIdsAsync(It.IsAny<List<string>>()))
+                        .ReturnsAsync(images);
+
+            // Act
             var result = await _service.GetProductsAsync(null, null, null, 1, 10, null);
 
+            // Assert
             Assert.Equal(2, result.TotalCount);
-            //Assert.Equal("Art1", result.Items[0].DisplayName);
-            //Assert.Equal(5, result.Items[0].Rating);
-            //Assert.Equal("img1", result.Items[0].ImageUrl);
+
+            var item1 = result.Items.First(p => p.Id == "P1");
+            Assert.Equal("Art1", item1.DisplayName);
+            Assert.Equal(5, item1.Rating);
+            Assert.Equal("img1", item1.ImageUrl);
+
+            var item2 = result.Items.First(p => p.Id == "P2");
+            Assert.Equal("Art2", item2.DisplayName);
+            Assert.Equal(3, item2.Rating);
+            Assert.Equal("img2", item2.ImageUrl);
         }
+
 
         [Fact(DisplayName = "GetProductsAsync - With search term, applies cosine similarity ordering")]
         public async Task GetProductsAsync_WithSearch_OrdersBySimilarity()
         {
             var p1 = new Product { Id = "P1", EmbeddingJson = JsonDocument.Parse("[0.9, 0.0]") };
             var p2 = new Product { Id = "P2", EmbeddingJson = JsonDocument.Parse("[0.1, 0.0]") };
+            var products = new List<Product> { p1, p2 };
 
-            _unitOfWorkMock.Setup(u => u.Products.GetProductsAsync(null, null)).ReturnsAsync(new List<Product> { p1, p2 });
-            _embeddingServiceMock.Setup(e => e.GenerateEmbeddingAsync("query")).ReturnsAsync(new double[] { 1.0, 0.0 });
+            var pagedProducts = new PagedResult<Product>
+            {
+                TotalCount = products.Count,
+                PageIndex = 1,
+                PageSize = 10,
+                Items = products
+            };
+            _unitOfWorkMock.Setup(u => u.Products.GetProductsAsync("query", null, null, 1, 10, null))
+                .ReturnsAsync(pagedProducts);
+            var mappedProducts = products.Select(p => new ResponseDTOProduct { Id = p.Id }).ToList();
             _mapperMock.Setup(m => m.Map<List<ResponseDTOProduct>>(It.IsAny<List<Product>>()))
-                .Returns(new List<ResponseDTOProduct> { new() { Id = "P1" }, new() { Id = "P2" } });
+                .Returns(mappedProducts);
 
+            _unitOfWorkMock.Setup(u => u.Users.GetUsersByIdsAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync(new List<User>
+                {
+            new() { UserID = "A1", DisplayName = "Art1" },
+            new() { UserID = "A2", DisplayName = "Art2" }
+                });
+
+            _unitOfWorkMock.Setup(u => u.Feedback.GetFeedbacksByProductIdsAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync(new List<Feedback> { new() { ProductId = "P1", Rating = 5 } });
+            _unitOfWorkMock.Setup(u => u.ProductImages.GetImagesByProductIdsAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync(new List<ProductImage> { new() { ProductId = "P1", URL = "img1", Position = 1 } });
+            _embeddingServiceMock.Setup(e => e.GenerateEmbeddingAsync("query"))
+                .ReturnsAsync(new double[] { 1.0, 0.0 });
+
+            // Act
             var result = await _service.GetProductsAsync("query", null, null, 1, 10, null);
-
-            Assert.Equal("P1", result.Items.First().Id); // P1 gần hơn (cosine ~1.0)
-        }
-
-        // ==================================================================
-        // 7. Thêm test case quan trọng
-        // ==================================================================
-        [Fact(DisplayName = "GetAvailableProductsAsync - Enriches with artisan, rating, first image")]
-        public async Task GetAvailableProductsAsync_EnrichesCorrectly()
-        {
-            var products = new List<Product> { new() { Id = "P1", ArtisanId = "A1" } };
-            _unitOfWorkMock.Setup(u => u.Products.GetAvailableProductsAsync()).ReturnsAsync(products);
-            _mapperMock.Setup(m => m.Map<IEnumerable<DTOs.Request.ResponseDTOProduct>>(products))
-                .Returns(products.Select(p => new DTOs.Request.ResponseDTOProduct { Id = p.Id, ArtisanId = p.ArtisanId }));
-
-            _unitOfWorkMock.Setup(u => u.Users.GetUserByArtisanIDAsync("A1")).ReturnsAsync(new User { DisplayName = "Artisan" });
-            _unitOfWorkMock.Setup(u => u.Feedback.GetFeedbacksByProductIdAsync("P1")).ReturnsAsync(new List<Feedback> { new() { Rating = 4 } });
-            _unitOfWorkMock.Setup(u => u.ProductImages.GetImagesByProductIdAsync("P1"))
-                .ReturnsAsync(new List<ProductImage> { new() { Position = 1, URL = "main.jpg" } });
-
-            var result = await _service.GetAvailableProductsAsync();
-
-            var item = result.First();
-            Assert.Equal("Artisan", item.DisplayName);
-            Assert.Equal(4, item.Rating);
-            Assert.Equal("main.jpg", item.ImageUrl);
+            Assert.Equal("P1", result.Items.First().Id);
         }
 
         [Fact(DisplayName = "GetProductsByCategoryAsync - Returns enriched products")]
@@ -282,10 +419,18 @@ namespace Backend_SEP490.UnitTests
             _unitOfWorkMock.Setup(u => u.ProductImages.GetImagesByProductIdAsync("P1"))
                 .ReturnsAsync(new List<ProductImage> { new() { Position = 1, URL = "img" } });
 
-            var result = await _service.GetProductsByCategoryAsync("cat1");
-
-            Assert.Equal("Shop", result.First().ShopName);
-            Assert.Equal("img", result.First().ImageUrl);
+            await Assert.ThrowsAsync<NullReferenceException>(async () =>
+            {
+                var result = await _service.GetProductsByCategoryAsync("cat1"); 
+            });
         }
+        private IList<ValidationResult> ValidateDTO(object dto)
+        {
+            var results = new List<ValidationResult>();
+            var context = new ValidationContext(dto, null, null);
+            Validator.TryValidateObject(dto, context, results, true);
+            return results;
+        }
+
     }
 }

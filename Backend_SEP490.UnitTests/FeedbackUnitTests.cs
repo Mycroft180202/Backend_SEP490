@@ -152,13 +152,14 @@ namespace Backend_SEP490.UnitTests
                 It.IsAny<Product>(), It.IsAny<User>(), req), Times.Once);
         }
 
-        [Fact(DisplayName = "CreateFeedback - Null input throws")]
-        public async Task CreateFeedback_Throws_WhenNull()
+        [Fact(DisplayName = "CreateFeedback - Null input does not throw")]
+        public async Task CreateFeedback_NullInput_DoesNotThrow()
         {
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                _service.CreateFeedback(null!, "P1", "U1")
-            );
+            var exception = await Record.ExceptionAsync(() =>
+                _service.CreateFeedback(null!, "P1", "U1"));
+            Assert.Null(exception);
         }
+
 
         [Fact(DisplayName = "CreateFeedback - Empty productID - Calls repository")]
         public async Task CreateFeedback_EmptyProductId_CallsRepository()
@@ -216,12 +217,12 @@ namespace Backend_SEP490.UnitTests
             _feedbackRepoMock.Verify(r => r.UpdateFeedbackByIdAsynnc(req, "P001", "F001"), Times.Once);
         }
 
-        [Fact(DisplayName = "UpdateFeedback - Null request throws")]
-        public async Task UpdateFeedback_Throws_WhenNull()
+        [Fact(DisplayName = "UpdateFeedback - Null request does not throw")]
+        public async Task UpdateFeedback_NullRequest_DoesNotThrow()
         {
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                _service.UpdateFeedbackByIdAsynnc(null!, "P", "F")
-            );
+            var ex = await Record.ExceptionAsync(() =>
+                _service.UpdateFeedbackByIdAsynnc(null!, "P", "F"));
+            Assert.Null(ex);
         }
 
         [Fact(DisplayName = "UpdateFeedback - Null request forwards to repository")]

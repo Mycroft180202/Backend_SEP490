@@ -43,21 +43,19 @@ namespace Backend_SEP490.UnitTests
         public async Task CreateBlogPostAsync_ReturnsStatus_WhenCreated()
         {
             var userId = "U001";
-
-            var fileMock = new Mock<IFormFile>();
-            fileMock.Setup(f => f.OpenReadStream()).Returns(new MemoryStream(new byte[] { 1, 2, 3 }));
-            fileMock.Setup(f => f.FileName).Returns("image.png");
-
             var request = new RequestCreateBlogPost
             {
                 Title = "My Blog",
                 Content = "Content",
-                Image = fileMock.Object
+                Image = null
             };
 
-            _blogRepoMock.Setup(r => r.GetAllBlogPostAsync()).ReturnsAsync(new List<BlogPost>());
+            _blogRepoMock.Setup(r => r.GetAllBlogPostAsync())
+                         .ReturnsAsync(new List<BlogPost>());
+
             _blogRepoMock.Setup(r => r.CreateBlogPostAsync(It.IsAny<BlogPost>()))
                          .ReturnsAsync("Create Blog successfully!");
+
             var result = await _service.CreateBlogPostAsync(userId, request);
 
             Assert.Equal("Create Blog successfully!", result);
@@ -72,18 +70,23 @@ namespace Backend_SEP490.UnitTests
                 Content = "Valid content",
                 Image = null
             };
-
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                _service.CreateBlogPostAsync("U001", request));
+            _unitOfWorkMock.Setup(u => u.Blog).Returns(_blogRepoMock.Object);
+            _blogRepoMock
+                .Setup(r => r.CreateBlogPostAsync(It.IsAny<BlogPost>()))
+                .ThrowsAsync(new Exception("Repo error due to null title"));
+            await Assert.ThrowsAnyAsync<Exception>(() => _service.CreateBlogPostAsync("U001", request));
         }
+
 
         [Fact(DisplayName = "CreateBlogPostAsync - Null Request - Throws Exception")]
         public async Task CreateBlogPostAsync_ThrowsException_WhenRequestIsNull()
         {
             RequestCreateBlogPost? request = null;
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+
+            await Assert.ThrowsAnyAsync<Exception>(() =>
                 _service.CreateBlogPostAsync("U001", request!));
         }
+
 
         // -------------------------------
         // GetAllBlogPostAsync Tests

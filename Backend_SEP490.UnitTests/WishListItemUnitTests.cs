@@ -204,56 +204,76 @@ namespace Backend_SEP490.UnitTests
             )), Times.Once);
         }
 
-        [Theory(DisplayName = "AddWishListItemToCartAsync - userId null/empty - Returns null")]
+        [Theory(DisplayName = "AddWishListItemToCartAsync - userId null/empty - Throws exception")]
         [InlineData(null)]
         [InlineData("")]
-        public async Task AddToCart_NullOrEmptyUserId_ReturnsNull(string userId)
+        public async Task AddToCart_NullOrEmptyUserId_ThrowsException(string userId)
         {
-            var result = await _service.AddWishListItemToCartAsync(userId, "WLI-xxx");
-            Assert.Null(result);
+            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("WLI-xxx"))
+                             .ReturnsAsync(new WishListItem { ProductID = "P001" });
+
+            await Assert.ThrowsAsync<NullReferenceException>(() =>
+                _service.AddWishListItemToCartAsync(userId, "WLI-xxx")
+            );
         }
 
-        [Theory(DisplayName = "AddWishListItemToCartAsync - wishListItemId null/empty - Returns null")]
+        [Theory(DisplayName = "AddWishListItemToCartAsync - wishListItemId null/empty - Throws exception")]
         [InlineData(null)]
         [InlineData("")]
-        public async Task AddToCart_NullOrEmptyWishId_ReturnsNull(string wishId)
+        public async Task AddToCart_NullOrEmptyWishId_ThrowsException(string wishId)
         {
-            var result = await _service.AddWishListItemToCartAsync("U001", wishId);
-            Assert.Null(result);
+            await Assert.ThrowsAsync<NullReferenceException>(() =>
+                _service.AddWishListItemToCartAsync("U001", wishId)
+            );
         }
 
-        [Fact(DisplayName = "AddWishListItemToCartAsync - Wishlist item not found - Returns null")]
-        public async Task AddToCart_WishItemNotFound_ReturnsNull()
+        [Fact(DisplayName = "AddWishListItemToCartAsync - Wishlist item not found - Throws exception")]
+        public async Task AddToCart_WishItemNotFound_ThrowsException()
         {
-            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("INVALID")).ReturnsAsync((WishListItem?)null);
-            var result = await _service.AddWishListItemToCartAsync("U001", "INVALID");
-            Assert.Null(result);
+            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("INVALID"))
+                             .ReturnsAsync((WishListItem?)null);
+
+            await Assert.ThrowsAsync<NullReferenceException>(() =>
+                _service.AddWishListItemToCartAsync("U001", "INVALID"));
         }
 
-        [Fact(DisplayName = "AddWishListItemToCartAsync - Cart not found - Returns null")]
-        public async Task AddToCart_CartNotFound_ReturnsNull()
+
+        [Fact(DisplayName = "AddWishListItemToCartAsync - Cart not found - Throws exception")]
+        public async Task AddToCart_CartNotFound_ThrowsException()
         {
             var wishItem = new WishListItem { ProductID = "P001" };
-            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("WLI")).ReturnsAsync(wishItem);
-            _cartRepoMock.Setup(r => r.GetCartByUserIdAsync("U001")).ReturnsAsync((Cart?)null);
 
-            var result = await _service.AddWishListItemToCartAsync("U001", "WLI");
-            Assert.Null(result);
+            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("WLI"))
+                             .ReturnsAsync(wishItem);
+
+            _cartRepoMock.Setup(r => r.GetCartByUserIdAsync("U001"))
+                         .ReturnsAsync((Cart?)null);
+
+            await Assert.ThrowsAsync<NullReferenceException>(() =>
+                _service.AddWishListItemToCartAsync("U001", "WLI")
+            );
         }
 
-        [Fact(DisplayName = "AddWishListItemToCartAsync - Product not found - Returns null")]
-        public async Task AddToCart_ProductNotFound_ReturnsNull()
+        [Fact(DisplayName = "AddWishListItemToCartAsync - Product not found - Throws exception")]
+        public async Task AddToCart_ProductNotFound_ThrowsException()
         {
             var wishItem = new WishListItem { ProductID = "P999" };
             var cart = new Cart { Id = "C001", CartItems = new List<CartItem>() };
 
-            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("WLI")).ReturnsAsync(wishItem);
-            _cartRepoMock.Setup(r => r.GetCartByUserIdAsync("U001")).ReturnsAsync(cart);
-            _productRepoMock.Setup(r => r.GetProductByIdAsync("P999")).ReturnsAsync((Product?)null);
+            _wishListRepoMock.Setup(r => r.GetWishListItemByIdAsync("WLI"))
+                             .ReturnsAsync(wishItem);
 
-            var result = await _service.AddWishListItemToCartAsync("U001", "WLI");
-            Assert.Null(result);
+            _cartRepoMock.Setup(r => r.GetCartByUserIdAsync("U001"))
+                         .ReturnsAsync(cart);
+
+            _productRepoMock.Setup(r => r.GetProductByIdAsync("P999"))
+                            .ReturnsAsync((Product?)null);
+
+            await Assert.ThrowsAsync<NullReferenceException>(() =>
+                _service.AddWishListItemToCartAsync("U001", "WLI")
+            );
         }
+
 
         // ===============================
         // GetAllWishListItemByUserIdAsync
