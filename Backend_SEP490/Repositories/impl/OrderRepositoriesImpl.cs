@@ -117,6 +117,15 @@ namespace Backend_SEP490.Repositories.impl
             return order;
         }
 
+        public async Task<Order> GetAllOrderByNumberAsync(string orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .FirstOrDefaultAsync(o => o.OrderNumber.Equals(orderId));
+            return order;
+        }
+
         public async Task<IEnumerable<Order>> GetAllOrderByArtisanIdAsync(string userId)
         {
             var order = await _context.Orders

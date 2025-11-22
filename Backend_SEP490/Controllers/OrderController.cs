@@ -42,14 +42,14 @@ public class OrderController : ControllerBase
     }
     
     [HttpGet("orders/{orderId}")]
-    public async Task<IActionResult> GetOrderById([FromRoute] string orderId, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetOrderById([FromRoute] string orderId)
     {
         if (string.IsNullOrWhiteSpace(orderId))
         {
             return BadRequest("Order id is required.");
         }
 
-        var order = await _orderServices.GetOrderByIdAsync(orderId, pageIndex, pageSize);
+        var order = await _orderServices.GetOrderByIdAsync(orderId);
         if (order == null)
         {
             return NotFound();

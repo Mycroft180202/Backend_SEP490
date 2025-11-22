@@ -629,31 +629,16 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
     }
 
-    public async Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize)
+    public async Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId)
     {
-        if (pageIndex < 1)
-        {
-            pageIndex = 1;
-        }
-
-        if (pageSize < 1)
-        {
-            pageSize = 10;
-        }
-
-        var order = await _context.Order.GetAllOrderByIdAsync(orderId);
+      
+        var order = await _context.Order.GetAllOrderByNumberAsync(orderId);
         if (order == null)
         {
             return null;
         }
 
         var orderDetail = _mapper.Map<ResponseDTOOrder>(order);
-        
-        //orderDetail.Items ??= new List<ResponseDTOOrderItem>();
-        //orderDetail.Items = orderDetail.Items
-        //    .Skip((pageIndex - 1) * pageSize)
-        //    .Take(pageSize)
-        //    .ToList();
 
         return orderDetail;
     }
