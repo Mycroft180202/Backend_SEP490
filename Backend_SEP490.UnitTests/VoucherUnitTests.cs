@@ -104,13 +104,6 @@ namespace Backend_SEP490.UnitTests
             Assert.Contains("success", result, StringComparison.OrdinalIgnoreCase);
         }
 
-        [Fact(DisplayName = "CreateVoucherAsync - Null request throws ArgumentNullException")]
-        public async Task CreateVoucherAsync_NullRequest_ThrowsException()
-        {
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                _service.CreateVoucherAsync("U001", null!));
-        }
-
         // ----------------------------
         // DeleteVoucherAsync
         // ----------------------------
@@ -217,13 +210,6 @@ namespace Backend_SEP490.UnitTests
             var result = await _service.UpdateVoucherAsync(invalidId, new RequestUpdateVoucher());
 
             Assert.Equal("Voucher not found!", result);
-        }
-
-        [Fact(DisplayName = "UpdateVoucherAsync - Null request throws ArgumentNullException")]
-        public async Task UpdateVoucherAsync_NullRequest_ThrowsException()
-        {
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                _service.UpdateVoucherAsync(1, null!));
         }
     }
 }

@@ -5,7 +5,6 @@ using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Services.impl;
 using Moq;
-using Xunit;
 
 namespace Backend_SEP490.UnitTests
 {
@@ -134,12 +133,13 @@ namespace Backend_SEP490.UnitTests
         // AddWishListItemToCartAsync
         // ===============================
 
-        [Fact(DisplayName = "AddWishListItemToCartAsync - Item exists in cart, in stock - Updates quantity + deletes wishlist")]
+        [Fact(DisplayName = "AddWishListItemToCartAsync - Item exists in cart, in stock - Updates quantity (wishlist remains)")]
         public async Task AddToCart_UpdatesExistingItem()
         {
             var userId = "U001";
             var wishId = "WLI-U001-P001";
             var productId = "P001";
+
             var existingCartItem = new CartItem { ProductId = productId, Quantity = 2 };
             var cart = new Cart { Id = "C001", CustomerID = userId, CartItems = new List<CartItem> { existingCartItem } };
             var product = new Product { Id = productId, Stock = 10, Price = 100m };
@@ -150,14 +150,10 @@ namespace Backend_SEP490.UnitTests
             _productRepoMock.Setup(r => r.GetProductByIdAsync(productId)).ReturnsAsync(product);
             _cartItemRepoMock.Setup(r => r.UpdateCartItemAsync(existingCartItem, 3))
                 .ReturnsAsync("Quantity updated!");
-            _wishListRepoMock.Setup(r => r.DeleteWishListItemAsync(wishItem))
-                .ReturnsAsync("Deleted from wishlist!");
-
             var result = await _service.AddWishListItemToCartAsync(userId, wishId);
-
-            Assert.Equal("Deleted from wishlist!", result);
+            Assert.Equal("Quantity updated!", result);
             _cartItemRepoMock.Verify(r => r.UpdateCartItemAsync(existingCartItem, 3), Times.Once);
-            _wishListRepoMock.Verify(r => r.DeleteWishListItemAsync(wishItem), Times.Once);
+            _wishListRepoMock.Verify(r => r.DeleteWishListItemAsync(It.IsAny<WishListItem>()), Times.Never);
         }
 
         [Fact(DisplayName = "AddWishListItemToCartAsync - Out of stock - Returns Out of stock!")]
