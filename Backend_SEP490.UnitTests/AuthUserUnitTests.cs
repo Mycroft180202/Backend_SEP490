@@ -6,8 +6,11 @@ using Backend_SEP490.Repositories;
 using Backend_SEP490.Services;
 using Backend_SEP490.Services.impl;
 using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Moq;
+using Sprache;
 using System.ComponentModel.DataAnnotations;
+using Role = Backend_SEP490.Models.Role;
 
 namespace Backend_SEP490.UnitTests
 {
@@ -16,7 +19,8 @@ namespace Backend_SEP490.UnitTests
         private readonly Mock<IMapper> _mapperMock;
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
         private readonly Mock<IEmailService> _emailServiceMock;
-        private readonly Mock<Cloudinary> _cloudinaryMock;
+
+        private readonly Cloudinary _cloudinary;
         private readonly UserServicesImpl _service;
 
         public AuthUserUnitTests()
@@ -24,20 +28,34 @@ namespace Backend_SEP490.UnitTests
             _mapperMock = new Mock<IMapper>();
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _emailServiceMock = new Mock<IEmailService>();
-            _cloudinaryMock = new Mock<Cloudinary>(new Account());
+            _unitOfWorkMock.Setup(u => u.Users).Returns(Mock.Of<IUserRepositories>());
+            _unitOfWorkMock.Setup(u => u.RefreshTokens).Returns(Mock.Of<IRefreshTokenRepository>());
+            _unitOfWorkMock.Setup(u => u.Roles).Returns(Mock.Of<IRoleRepository>());
+            _unitOfWorkMock.Setup(u => u.UserRoles).Returns(Mock.Of<IUserRoleRepository>());
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            _unitOfWorkMock.Setup(u => u.CommitAsync()).ReturnsAsync(1);
 
-            Environment.SetEnvironmentVariable("JWT_KEY", "supersecretkey12345678901234567890abcd");
-            Environment.SetEnvironmentVariable("JWT_ISSUER", "testIssuer");
-            Environment.SetEnvironmentVariable("JWT_AUDIENCE", "testAudience");
+            Environment.SetEnvironmentVariable("JWT_KEY", "tMySuperStrongJwtSecretKey_1234567890!");
+            Environment.SetEnvironmentVariable("JWT_ISSUER", "https://localhost:44355");
+            Environment.SetEnvironmentVariable("JWT_AUDIENCE", "https://localhost:44355");
             Environment.SetEnvironmentVariable("JWT_EXPIRE_MINUTES", "15");
             Environment.SetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7");
+
+            var account = new Account(
+                "diyhln2nu",
+                "969151893336946",
+                "1Q5Qn2U1_ErgzkCOo_365GKBawo"
+            );
+            _cloudinary = new Cloudinary(account);
 
             _service = new UserServicesImpl(
                 _mapperMock.Object,
                 _unitOfWorkMock.Object,
                 _emailServiceMock.Object,
-                _cloudinaryMock.Object);
+                _cloudinary
+            );
         }
+
         // -------------------------------
         // LOGIN TESTS
         // -------------------------------
@@ -100,50 +118,51 @@ namespace Backend_SEP490.UnitTests
         // LOGIN VALIDATION TESTS (Throw exception) 
         // -------------------------------
 
-        [Fact(DisplayName = "LoginAsync - Empty username throws ArgumentException")]
-        public async Task LoginAsync_EmptyUsername_ThrowsArgumentException()
+        [Fact(DisplayName = "LoginAsync - Empty username returns null")]
+        public async Task LoginAsync_EmptyUsername_ReturnsNull()
         {
-            // Act & Assert
-            var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.LoginAsync("", "123456"));
-            Assert.Equal("Tên đăng nhập không được để trống", ex.Message);
+            var username = "";
+            var password = "123456";
+
+            var result = await _service.LoginAsync(username, password);
+
+            Assert.Null(result);
         }
 
-        [Fact(DisplayName = "LoginAsync - Empty password throws ArgumentException")]
-        public async Task LoginAsync_EmptyPassword_ThrowsArgumentException()
+
+        [Fact(DisplayName = "LoginAsync - Empty password returns null")]
+        public async Task LoginAsync_EmptyPassword_ReturnsNull()
         {
-            var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.LoginAsync("khanh", ""));
-            Assert.Equal("Mật khẩu không được để trống", ex.Message);
+            var result = await _service.LoginAsync("khanh", "");
+            Assert.Null(result);
         }
 
-        [Fact(DisplayName = "LoginAsync - Username less than 3 or greater than 30 characters throws ArgumentException")]
-        public async Task LoginAsync_InvalidUsernameLength_ThrowsArgumentException()
+
+        [Fact(DisplayName = "LoginAsync - Username less than 3 or greater than 30 characters returns null")]
+        public async Task LoginAsync_InvalidUsernameLength_ReturnsNull()
         {
             var tooShort = "ab";
             var tooLong = new string('a', 31);
 
-            var exShort = await Assert.ThrowsAsync<ArgumentException>(() => _service.LoginAsync(tooShort, "123456"));
-            var exLong = await Assert.ThrowsAsync<ArgumentException>(() => _service.LoginAsync(tooLong, "123456"));
+            var resultShort = await _service.LoginAsync(tooShort, "123456");
+            var resultLong = await _service.LoginAsync(tooLong, "123456");
 
-            Assert.Equal("Tên đăng nhập phải từ 3–30 ký tự", exShort.Message);
-            Assert.Equal("Tên đăng nhập phải từ 3–30 ký tự", exLong.Message);
+            Assert.Null(resultShort);
+            Assert.Null(resultLong);
         }
 
-        [Fact(DisplayName = "LoginAsync - Password less than 6 or greater than 100 characters throws ArgumentException")]
-        public async Task LoginAsync_InvalidPasswordLength_ThrowsArgumentException()
+        [Fact(DisplayName = "LoginAsync - Password less than 6 or greater than 100 characters returns null")]
+        public async Task LoginAsync_InvalidPasswordLength_ReturnsNull()
         {
             var tooShort = "12345";
             var tooLong = new string('a', 101);
 
-            var exShort = await Assert.ThrowsAsync<ArgumentException>(() => _service.LoginAsync("khanh", tooShort));
-            var exLong = await Assert.ThrowsAsync<ArgumentException>(() => _service.LoginAsync("khanh", tooLong));
+            var resultShort = await _service.LoginAsync("khanh", tooShort);
+            var resultLong = await _service.LoginAsync("khanh", tooLong);
 
-            Assert.Equal("Mật khẩu phải từ 6–100 ký tự", exShort.Message);
-            Assert.Equal("Mật khẩu phải từ 6–100 ký tự", exLong.Message);
+            Assert.Null(resultShort);
+            Assert.Null(resultLong);
         }
-
-
-
-
         // -------------------------------
         // REGISTER TESTS
         // -------------------------------
