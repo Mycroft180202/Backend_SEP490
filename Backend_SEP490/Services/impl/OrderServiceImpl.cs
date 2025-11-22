@@ -525,10 +525,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         if (string.IsNullOrWhiteSpace(orderId))
         {
-            return "Order id is required!";
+            return "OrderNumber id is required!";
         }
 
-        var order = await _context.Order.GetAllOrderByIdAsync(orderId);
+        var order = await _context.Order.GetAllOrderByNumberAsync(orderId);
         if (order == null || !string.Equals(order.CustomerId, userId, StringComparison.OrdinalIgnoreCase))
         {
             return "Order not found!";
@@ -544,7 +544,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return "Order already completed!";
         }
 
-        var shipments = await _context.Shipment.GetByOrderIdAsync(order.Id);
+        var shipments = await _context.Shipment.GetByOrdernumberAsync(order.OrderNumber);
         var cancelledShipments = new List<Shipment>();
         foreach (var shipment in shipments)
         {

@@ -124,10 +124,10 @@ public class OrderController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("orders/{orderId}/cancel")]
-    public async Task<IActionResult> CancelOrder([FromRoute] string orderId, [FromBody] RequestCancelOrder? request)
+    [HttpPost("orders/{orderNumber}/cancel")]
+    public async Task<IActionResult> CancelOrder([FromRoute] string orderNumber, [FromBody] RequestCancelOrder? request)
     {
-        if (string.IsNullOrWhiteSpace(orderId))
+        if (string.IsNullOrWhiteSpace(orderNumber))
         {
             return BadRequest("Order id is required.");
         }
@@ -138,7 +138,7 @@ public class OrderController : ControllerBase
             return Unauthorized();
         }
 
-        var status = await _orderServices.CancelOrderAsync(userId, orderId, request);
+        var status = await _orderServices.CancelOrderAsync(userId, orderNumber, request);
         if (!status.Contains("success", StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(status);
