@@ -8,6 +8,7 @@ public interface IProductRepositories
     public Task<IEnumerable<Product>> GetUnavailableProductsAsync();
     public Task<Product?> GetProductByIdAsync(string productId);
     public Task<IEnumerable<Product>> GetAllProductsAsync();
+    public Task<IEnumerable<Product>> GetAllProductsWithOrderItemsAsync();
     public Task AddProductAsync(Product product);
     public Task<IEnumerable<Product>> GetProductsByArtisanIdAsync(string artisanId);
     public Task<IEnumerable<Product>> GetProductsByCategoryAsync(string categoryId);

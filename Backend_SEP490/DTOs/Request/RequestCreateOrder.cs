@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Backend_SEP490.DTOs.Request;
 
 public class RequestCreateOrder
-{
+{   
     [MinLength(1, ErrorMessage = "At least one cart item is required.")]
     public List<RequestCreateOrderItem>? CartItems { get; set; }
 

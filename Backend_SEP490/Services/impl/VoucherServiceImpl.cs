@@ -88,6 +88,7 @@ namespace Backend_SEP490.Services.impl
         public async Task<string> UpdateVoucherAsync(int voucherId, RequestUpdateVoucher request)
         {
             var voucher = await _context.Voucher.GetVoucherByIdAsync(voucherId);
+
             if (voucher == null) return "Voucher not found!";
             return await _context.Voucher.UpdateVoucherAsync(voucher, request);
         }

@@ -20,8 +20,8 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
 
     public async Task<List<User>> GetAllUsersWithRolesAsync(int pageIndex, int pageSize)
     {
-        var user = await _context.Users.OrderByDescending(u => u.CreateAt)  
-                        .ThenBy(u => u.UserID).Skip((pageIndex -1) * pageSize).Take(pageSize)
+        var user = await _context.Users.OrderByDescending(u => u.CreateAt)
+                        .ThenBy(u => u.UserID).Skip((pageIndex - 1) * pageSize).Take(pageSize)
                         .Include(u => u.UserRoles).ThenInclude(u => u.Role).Include(u => u.Addresses).ToListAsync();
         return user;
     }
@@ -38,10 +38,10 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         //Chỉnh sửa thông tin user
         try
         {
-                user.DisplayName = request.DisplayName;
-                user.PhoneNumber = request.PhoneNumber;
-                user.UserUrlImage = imageURL;
-                user.Dob = DateTime.SpecifyKind(request.Dob.Value, DateTimeKind.Utc);
+            user.DisplayName = request.DisplayName;
+            user.PhoneNumber = request.PhoneNumber;
+            user.UserUrlImage = imageURL;
+            user.Dob = DateTime.SpecifyKind(request.Dob.Value, DateTimeKind.Utc);
         }
         catch (Exception ex)
         {
@@ -102,24 +102,18 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return user.DisplayName;
     }
 
-    public async Task<string?> UpdateUserAsync(User user, RequestAdminUpdateUser request)
+    public async Task<string?> UpdateUserAsync(User user, RequestAdminUpdateUser request, UserRole role)
     {
         //Chỉnh sửa Role của user
         try
         {
-            if (!string.IsNullOrEmpty(request.RolesId))
+            if (role != null)
             {
                 var existRoleId = await _context.UserRoles.Where(ur => ur.UserID.Equals(user.UserID) && ur.RoleID.Equals(request.RolesId)).FirstOrDefaultAsync();
 
                 if (existRoleId == null)
                 {
-                    _context.UserRoles.Add(new UserRole
-                    {
-                        Id = user.UserID + "-" + request.RolesId,
-                        UserID = user.UserID,
-                        RoleID = request.RolesId
-
-                    });
+                    _context.UserRoles.Add(role);
                     _context.SaveChanges();
                 }
             }
@@ -132,7 +126,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         //Chỉnh sửa thông tin user
         try
         {
-           
+
             user.IsActive = request.IsActive;
         }
         catch (Exception ex)
@@ -162,7 +156,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
             user.ShopName = request.ShopName;
             user.PhoneNumber = request.PhoneNumber;
             user.ShopUrlImage = imageURL;
-            
+
         }
         catch (Exception ex)
         {
@@ -218,4 +212,25 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<User>> GetAllUsersWithRoleCustomerAsync()
+    {
+        var users = await _context.Users
+                          .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+                          .Include(u => u.Addresses).Include(u => u.Orders)
+                          .Where(u => u.UserRoles.Any(ur => ur.Role.Name.Equals("Customer")))
+                          .ToListAsync();
+        return users;
+    }
+
+    public async Task<IEnumerable<User>> GetAllUsersWithRoleArtisanAsync()
+    {
+
+        var users = await _context.Users
+                          .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+                          .Include(u => u.Addresses)
+                          .Include(u => u.Products).ThenInclude(p => p.OrderItems).ThenInclude(oi => oi.Order)
+                          .Where(u => u.UserRoles.Any(ur => ur.Role.Name.Equals("Artisan")))
+                          .ToListAsync();
+        return users;
+    }
 }

@@ -347,4 +347,31 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         return $"{prefix}-{timestamp}";
     }
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTop10ProductsAsync()
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+
+        var result = _mapper.Map<IEnumerable<ResponseDTOProductDashboard>>(products)
+         .OrderByDescending(x => x.TotalSold)
+         .Take(10)
+         .ToList();
+
+        return result;
+    }
+
+    public async Task<PagedResult<ResponseDTOProductDashboard>> GetProductsDashboardByUserIdAsync(string? userId, int pageIndex, int pageSize)
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+        var result = _mapper.Map<IEnumerable<ResponseDTOProductDashboard>>(products)
+            .Where( p => p.Product.ArtisanId.Equals(userId)).ToList();
+
+        return new PagedResult<ResponseDTOProductDashboard>
+        {
+            TotalCount = products.Count(),
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Items = result
+        };
+    }
 }

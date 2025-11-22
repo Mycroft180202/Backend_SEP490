@@ -19,18 +19,6 @@ namespace Backend_SEP490.Controllers
             _addressServices = addressServices;
         }
 
-        [HttpGet("users")]
-        public async Task<IActionResult> GetAllUsers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
-        {
-            var users = await _userServices.GetAllUsersAsync(pageIndex, pageSize);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(users);
-        }
-
         [HttpGet("users/{userId}")]
         public async Task<IActionResult> GetUsersById([FromRoute] string userId)
         {
@@ -40,17 +28,6 @@ namespace Backend_SEP490.Controllers
                 return NotFound();
             }
 
-            return Ok(users);
-        }
-
-        [HttpPut("users")]
-        public async Task<IActionResult> UpdateUsers([FromQuery] string userId, [FromBody] RequestAdminUpdateUser request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var users = await _userServices.UpdateUserAsync(userId, request);
-            
             return Ok(users);
         }
 
