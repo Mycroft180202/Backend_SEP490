@@ -8,7 +8,7 @@ namespace Backend_SEP490.Services
 {
     public interface IOrderService
     {
-        Task<IEnumerable<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter);
+        Task<PagedResult<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter);
         Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId, int pageIndex, int pageSize);
         Task<CreateOrderResult> CreateOrderAsync(string? userId, RequestCreateOrder request);
         Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request);

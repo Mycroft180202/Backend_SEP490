@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
@@ -129,7 +130,7 @@ public class OderControllerTest
     }
 
     [Fact]
-    public async Task POST_my_orders_with_filter_returns_user_orders()
+    public async Task GET_my_orders_with_filter_returns_user_orders()
     {
         var userId = $"USER-ORDER-{Guid.NewGuid():N}";
         SetAuthenticatedUser(userId);
@@ -144,19 +145,14 @@ public class OderControllerTest
             var createOrderResponse = await _client.PostAsJsonAsync("/api/Order/orders", BuildValidOrderRequest(address.Id, product.Id));
             createOrderResponse.EnsureSuccessStatusCode();
 
-            var filter = new RequestFilterOrder
-            {
-                search = string.Empty,
-                Status = "Pending",
-                CreateAt = null
-            };
-
-            var response = await _client.PostAsJsonAsync("/api/Order/my-orders", filter);
+            var response = await _client.GetAsync("/api/Order/my-orders?status=Pending&pageIndex=1&pageSize=10");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var orders = await response.Content.ReadFromJsonAsync<List<ResponseDTOOrder>>();
+            var orders = await response.Content.ReadFromJsonAsync<PagedResult<ResponseDTOOrder>>();
             orders.Should().NotBeNull();
-            orders!.Any(o => o.CustomerId == userId).Should().BeTrue();
+            orders!.Items.Should().NotBeNull();
+            orders.Items.Should().NotBeEmpty();
+            orders.Items.Any(o => o.CustomerId == userId).Should().BeTrue();
         }
         finally
         {

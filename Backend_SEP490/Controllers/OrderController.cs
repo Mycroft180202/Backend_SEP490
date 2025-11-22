@@ -21,8 +21,8 @@ public class OrderController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("my-orders")]
-    public async Task<IActionResult> GetAllOrderByUserId([FromBody] RequestFilterOrder? requestFilter)
+    [HttpGet("my-orders")]
+    public async Task<IActionResult> GetAllOrderByUserId([FromQuery] RequestFilterOrder? requestFilter)
     {
         if (!ModelState.IsValid)
         {
@@ -34,6 +34,8 @@ public class OrderController : ControllerBase
         {
             return Unauthorized();
         }
+
+        requestFilter ??= new RequestFilterOrder();
 
         var orders = await _orderServices.GetAllOrderByUserIdAsync(userId, requestFilter);
         return Ok(orders);
