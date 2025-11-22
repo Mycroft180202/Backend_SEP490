@@ -109,7 +109,11 @@ namespace Backend_SEP490.Repositories.impl
 
         public async Task<IEnumerable<Order>> GetAllOrderAsync()
         {
-            var order = await _context.Orders.ToListAsync();
+            var order = await _context.Orders.Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                .ThenInclude(p => p.ShippingProfile)
+                .Include(o => o.Customer)
+                .ToListAsync();
             return order;
         }
 

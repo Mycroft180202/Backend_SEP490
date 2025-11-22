@@ -1,4 +1,4 @@
-
+﻿
 using Backend_SEP490.Data;
 using AutoMapper;
 using System;
@@ -1168,7 +1168,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         var orders = await _context.Order.GetAllOrderAsync();
 
         var ordersInYear = orders
-            .Where(o => o.CreateAt.Year == year)
+            .Where(o => o.CreateAt.Year == year && o.Status.Equals("Paid"))
             .ToList();
 
         var grouped = ordersInYear
@@ -1176,7 +1176,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .Select(g => new
             {
                 Month = g.Key,
-                Total = g.Sum(x => x.TotalAmount)
+                TotalAmmount = g.Sum(x => x.TotalAmount),
+                TotalShippingFee = g.Sum(x => x.ShippingFee),
+                TotalDiscountAmmount = g.Sum(x => x.DiscountAmount)
             })
             .ToList();
 
@@ -1184,8 +1186,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .Select(month => new ResponseDTOMonthRevenue
             {
                 Month = month,
-                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0,
-                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0) * 0.05m
+                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount ?? 0,
+                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount
+                            - grouped.FirstOrDefault(x => x.Month == month)?.TotalShippingFee
+                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0) * 0.05m
             })
             .ToList();
 
@@ -1198,7 +1202,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
 
         var ordersInMonth = orders
-        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month)
+        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month && o.Status.Equals("Paid"))
         .ToList();
 
         var weeklyRevenue = new List<ResponseDTOWeeklyRevenue>();
@@ -1221,7 +1225,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 .Where(o => o.CreateAt.Date >= currentStart.Date && o.CreateAt.Date <= currentEnd.Date)
                 .ToList();
 
-            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount);
+            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount );
+            var TotalShippingFee = ordersInWeek.Sum(o =>  o.ShippingFee );
+            var TotalDiscountAmmount = ordersInWeek.Sum(o =>  o.DiscountAmount);
 
             weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
             {
@@ -1229,7 +1235,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 StartDate = currentStart,
                 EndDate = currentEnd,
                 TotalOrderAmount = totalAmount,
-                Revenue = totalAmount * 0.05m
+                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount) * 0.05m
             });
 
             currentStart = currentEnd.AddDays(1);
@@ -1244,7 +1250,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
 
         var ordersInYear = orders
-            .Where(o => o.CreateAt.Year == year)
+            .Where(o => o.CreateAt.Year == year && o.Status.Equals("Paid"))
             .ToList();
 
         var grouped = ordersInYear
@@ -1252,7 +1258,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .Select(g => new
             {
                 Month = g.Key,
-                Total = g.Sum(x => x.TotalAmount)
+                TotalAmmount = g.Sum(x => x.TotalAmount),
+                TotalShippingFee = g.Sum(x =>x.ShippingFee),
+                TotalDiscountAmmount = g.Sum(x =>  x.DiscountAmount)
             })
             .ToList();
 
@@ -1260,8 +1268,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .Select(month => new ResponseDTOMonthRevenue
             {
                 Month = month,
-                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0,
-                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.Total ?? 0) * 0.95m
+                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount ?? 0,
+                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount 
+                            - grouped.FirstOrDefault(x => x.Month == month)?.TotalShippingFee
+                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0) * 0.95m
             })
             .ToList();
 
@@ -1274,7 +1284,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
 
         var ordersInMonth = orders
-        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month)
+        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month && o.Status.Equals("Paid"))
         .ToList();
 
         var weeklyRevenue = new List<ResponseDTOWeeklyRevenue>();
@@ -1298,6 +1308,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 .ToList();
 
             var totalAmount = ordersInWeek.Sum(o => o.TotalAmount);
+            var TotalShippingFee = ordersInWeek.Sum(o => o.ShippingFee);
+            var TotalDiscountAmmount = ordersInWeek.Sum(o => o.DiscountAmount);
 
             weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
             {
@@ -1305,7 +1317,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 StartDate = currentStart,
                 EndDate = currentEnd,
                 TotalOrderAmount = totalAmount,
-                Revenue = totalAmount * 0.95m
+                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount) * 0.95m
             });
 
             currentStart = currentEnd.AddDays(1);

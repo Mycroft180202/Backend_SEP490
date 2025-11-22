@@ -102,24 +102,18 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         return user.DisplayName;
     }
 
-    public async Task<string?> UpdateUserAsync(User user, RequestAdminUpdateUser request)
+    public async Task<string?> UpdateUserAsync(User user, RequestAdminUpdateUser request, UserRole role)
     {
         //Chỉnh sửa Role của user
         try
         {
-            if (!string.IsNullOrEmpty(request.RolesId))
+            if (role != null)
             {
                 var existRoleId = await _context.UserRoles.Where(ur => ur.UserID.Equals(user.UserID) && ur.RoleID.Equals(request.RolesId)).FirstOrDefaultAsync();
 
                 if (existRoleId == null)
                 {
-                    _context.UserRoles.Add(new UserRole
-                    {
-                        Id = user.UserID + "-" + request.RolesId,
-                        UserID = user.UserID,
-                        RoleID = request.RolesId
-
-                    });
+                    _context.UserRoles.Add(role);
                     _context.SaveChanges();
                 }
             }

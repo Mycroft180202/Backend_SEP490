@@ -379,10 +379,19 @@ public class UserServicesImpl : GenericServices, IUserServices
             return "User not found!";
         }
 
-        var status = await _context.Users.UpdateUserAsync(user, request);
+        if (!string.IsNullOrEmpty(request.RolesId))
+        {
+            UserRole role = new UserRole
+            {
+                Id = GenerateID("URID"),
+                UserID = userID,
+                RoleID = request.RolesId
+            };
+            return await _context.Users.UpdateUserAsync(user, request, role);
+        }
 
+        return await _context.Users.UpdateUserAsync(user, request, null);
 
-        return status;
     }
 
     public async Task<ResponseDTOUserShop?> GetUserShopByIDAsync(string userID)
