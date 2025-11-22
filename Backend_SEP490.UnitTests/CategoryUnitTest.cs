@@ -127,6 +127,11 @@ namespace Backend_SEP490.UnitTests
         {
             // Arrange
             var request = new RequestDTOCategory { Name = "" };
+
+            _mapperMock.Setup(m => m.Map<Category>(It.IsAny<RequestDTOCategory>()))
+                .Returns(new Category { Name = "" });
+            _categoryRepoMock.Setup(r => r.AddCategory(It.IsAny<Category>()))
+                .ReturnsAsync(true);
             // Act
             var result = await _service.AddCategory(request);
 
@@ -163,6 +168,10 @@ namespace Backend_SEP490.UnitTests
 
             _categoryRepoMock.Setup(r => r.GetCategoryById("INVALID-ID"))
                 .ReturnsAsync((Category)null);
+            _mapperMock.Setup(m => m.Map(It.IsAny<RequestDTOCategory>(), It.IsAny<Category>()))
+                .Returns(new Category());
+            _categoryRepoMock.Setup(r => r.UpdateCategory(It.IsAny<Category>()))
+                .ReturnsAsync(true);
 
             // Act
             var result = await _service.UpdateCategory("INVALID-ID", updateRequest);
@@ -171,6 +180,7 @@ namespace Backend_SEP490.UnitTests
             Assert.False(result);
             _categoryRepoMock.Verify(r => r.UpdateCategory(It.IsAny<Category>()), Times.Never);
         }
+
         [Fact(DisplayName = "UpdateCategory - Empty Name - Returns false")]
         public async Task UpdateCategory_ReturnsFalse_WhenNameIsEmpty()
         {
