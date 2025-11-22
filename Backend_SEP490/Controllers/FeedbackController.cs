@@ -29,16 +29,19 @@ public class FeedbackController : ControllerBase
 
     [Authorize]
     [HttpDelete("feedbacks")]
-    public async Task<ActionResult> DeleteFeedback(String feedbackid,String IdduserId)
+    public async Task<ActionResult> DeleteFeedback(string feedbackid, string IdduserId)
     {
         var userId = User.GetUserId();
+
         if (!string.IsNullOrWhiteSpace(userId) && userId == IdduserId)
         {
             await _feedbackRepository.DeleteFeedbacksByIdAsync(feedbackid);
+            return Ok("Delete successfully");
         }
 
-        return NoContent();
+        return BadRequest("You cannot delete this feedback");
     }
+
 
     [Authorize]
     [HttpPut("feedbacks")]
@@ -48,15 +51,16 @@ public class FeedbackController : ControllerBase
         if (!string.IsNullOrWhiteSpace(currentUserId) && currentUserId == userid)
         {
             await _feedbackRepository.UpdateFeedbackByIdAsynnc(feedback, productid, feedbackid);
+            return Ok("Update successfully");
         }
 
-        return NoContent();
+        return BadRequest("You cannot Update this feedback");
     }
     [Authorize]
     [HttpPost("feedbacks")]
     public async Task<ActionResult> AddFeedback(RequestDTOFeedback feedback, string productid, string userid)
     {
         await _feedbackRepository.CreateFeedback(feedback, productid, userid);
-        return NoContent();
+        return Ok("Create successfully");
     }
 }
