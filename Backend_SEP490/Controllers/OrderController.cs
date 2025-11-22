@@ -21,8 +21,8 @@ public class OrderController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("my-orders")]
-    public async Task<IActionResult> GetAllOrderByUserId([FromBody] RequestFilterOrder? requestFilter)
+    [HttpGet("my-orders")]
+    public async Task<IActionResult> GetAllOrderByUserId([FromQuery] RequestFilterOrder? requestFilter)
     {
         if (!ModelState.IsValid)
         {
@@ -34,6 +34,8 @@ public class OrderController : ControllerBase
         {
             return Unauthorized();
         }
+
+        requestFilter ??= new RequestFilterOrder();
 
         var orders = await _orderServices.GetAllOrderByUserIdAsync(userId, requestFilter);
         return Ok(orders);
@@ -58,18 +60,19 @@ public class OrderController : ControllerBase
 
     [Authorize(Roles = "Admin")]
     [HttpGet("orders")]
-    public async Task<IActionResult> GetOrdersPaged([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, [FromQuery] string? paymentStatus = null)
+    public async Task<IActionResult> GetOrdersPaged(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? paymentStatus = null)
     {
-        if (!string.IsNullOrWhiteSpace(paymentStatus))
-        {
-            var normalized = paymentStatus.Trim().ToLowerInvariant();
-            if (normalized != "paid" && normalized != "unpaid")
-            {
-                return BadRequest("paymentStatus must be either 'paid' or 'unpaid'.");
-            }
-        }
+        pageIndex = pageIndex < 1 ? 1 : pageIndex;
+        pageSize = pageSize < 1 ? 10 : pageSize;
 
-        var result = await _orderServices.GetOrdersPagedAsync(pageIndex, pageSize, paymentStatus);
+        var normalizedStatus = string.IsNullOrWhiteSpace(paymentStatus)
+            ? null
+            : paymentStatus.Trim();
+
+        var result = await _orderServices.GetOrdersPagedAsync(pageIndex, pageSize, normalizedStatus);
         return Ok(result);
     }
 

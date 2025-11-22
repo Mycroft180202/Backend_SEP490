@@ -658,39 +658,58 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return orderDetail;
     }
 
-    public async Task<IEnumerable<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter)
+    public async Task<PagedResult<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter)
     {
+        var pageIndex = requestFilter?.PageIndex ?? 1;
+        var pageSize = requestFilter?.PageSize ?? 10;
+        pageIndex = pageIndex < 1 ? 1 : pageIndex;
+        pageSize = pageSize < 1 ? 10 : pageSize;
+
         if (string.IsNullOrWhiteSpace(userId))
         {
-            return Enumerable.Empty<ResponseDTOOrder>();
+            return new PagedResult<ResponseDTOOrder>
+            {
+                Items = Enumerable.Empty<ResponseDTOOrder>(),
+                TotalCount = 0,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
         }
 
         var orders = await _context.Order.GetAllOrderByUserIdAsync(userId);
+        var filteredOrders = orders.AsEnumerable();
 
         if (requestFilter != null)
         {
             if (!string.IsNullOrWhiteSpace(requestFilter.search))
             {
-                orders = orders.Where(o =>
+                filteredOrders = filteredOrders.Where(o =>
                     o.OrderNumber != null &&
                     o.OrderNumber.Contains(requestFilter.search, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(requestFilter.Status))
             {
-                orders = orders.Where(o =>
+                filteredOrders = filteredOrders.Where(o =>
                     o.Status != null &&
                     string.Equals(o.Status, requestFilter.Status, StringComparison.OrdinalIgnoreCase));
             }
-
-            if (requestFilter.CreateAt.HasValue)
-            {
-                var targetDate = requestFilter.CreateAt.Value.Date;
-                orders = orders.Where(o => o.CreateAt.Date == targetDate);
-            }
         }
 
-        return _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
+        filteredOrders = filteredOrders.OrderByDescending(o => o.CreateAt);
+        var totalCount = filteredOrders.Count();
+        var pagedOrders = filteredOrders
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PagedResult<ResponseDTOOrder>
+        {
+            Items = _mapper.Map<IEnumerable<ResponseDTOOrder>>(pagedOrders),
+            TotalCount = totalCount,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
     }
 
     public async Task<PagedResult<ResponseDTOOrder>> GetOrdersPagedAsync(int pageIndex, int pageSize, string? paymentStatus)
