@@ -52,7 +52,7 @@ public class FeedbackController : ControllerBase
 
         return NoContent();
     }
-
+    [Authorize]
     [HttpPost("feedbacks")]
     public async Task<ActionResult> AddFeedback(RequestDTOFeedback feedback, string productid, string userid)
     {
