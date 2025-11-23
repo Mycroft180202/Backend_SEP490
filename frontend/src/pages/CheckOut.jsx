@@ -21,102 +21,6 @@ import { OrderService } from '../services/modules/orders/orderService';
 import { GHNLocationService } from '../services/modules/shipping/ghnLocationService';
 import { LanguageContext } from '../context/LanguageContext';
 
-const normalizeAddress = (address, fallbackName = '') => {
-  if (!address || typeof address !== 'object') {
-    return null;
-  }
-
-  const detail = address.detailAddress
-    || address.addressLine
-    || address.line1
-    || address.street
-    || address.address
-    || '';
-  const detail2 = address.detailAddress2 || address.line2 || address.addressLine2 || '';
-  const wardName = address.ward?.name
-    || address.wardName
-    || address.ward
-    || '';
-  const districtName = address.district?.name
-    || address.districtName
-    || address.district
-    || '';
-  const provinceName = address.province?.name
-    || address.provinceName
-    || address.province
-    || '';
-
-  const fullAddressParts = [detail, wardName, districtName, provinceName].filter(Boolean);
-  const fallbackId =
-    address.id
-    || address.addressId
-    || address.shippingAddressId
-    || address.code
-    || address.guid
-    || fullAddressParts.join('-')
-    || `addr-${Date.now()}`;
-  const fullAddress = address.fullAddress
-    || address.address
-    || (fullAddressParts.length > 0 ? fullAddressParts.join(', ') : detail);
-
-  return {
-    id: fallbackId,
-    name: address.name
-      || address.receiverName
-      || address.fullName
-      || address.contactName
-      || fallbackName,
-    phone: address.phone
-      || address.phoneNumber
-      || address.contactPhone
-      || '',
-    fullAddress,
-    line1: address.line1 || detail,
-    line2: address.line2 || detail2,
-    detailAddress: detail,
-    detailAddress2: detail2,
-    province: provinceName,
-    district: districtName,
-    ward: wardName,
-    country: address.country || 'Vietnam',
-    ghnProvinceId: address.ghnProvinceId
-      ?? address.provinceId
-      ?? address.ProvinceID,
-    districtId: address.districtId
-      ?? address.ghnDistrictId
-      ?? address.DistrictID
-      ?? address.toDistrictId
-      ?? address.districtCode
-      ?? address.district?.code
-      ?? address.district?.id
-      ?? null,
-    wardCode: address.wardCode
-      ?? address.toWardCode
-      ?? address.ward?.code
-      ?? address.ghnWardCode
-      ?? address.WardCode
-      ?? null,
-    city: address.city || provinceName || '',
-    isDefault: Boolean(address.isDefault),
-  };
-};
-
-const sanitizePayload = (payload) => {
-  const sanitized = { ...payload };
-  Object.keys(sanitized).forEach((key) => {
-    const value = sanitized[key];
-    if (
-      value === undefined
-      || value === null
-      || (typeof value === 'number' && Number.isNaN(value))
-      || (Array.isArray(value) && value.length === 0)
-    ) {
-      delete sanitized[key];
-    }
-  });
-  return sanitized;
-};
-
 const CheckOut = () => {
   const { t } = useContext(LanguageContext);
   const navigate = useNavigate();
@@ -133,8 +37,9 @@ const CheckOut = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [userInfo, setUserInfo] = useState(null);
   const [shippingFee, setShippingFee] = useState(0);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const shippingFeeRef = useRef(0);
   const redirectTimeoutRef = useRef(null);
 
   const token = useMemo(
@@ -145,100 +50,42 @@ const CheckOut = () => {
   const priceSuffix = t('productCard.priceSuffix') || '₫';
 
   const calculateShipping = useCallback(async (address, weight) => {
-    if (!address || !address.districtId || !address.wardCode) {
+    if (!address || !address.ghnDistrictId || !address.ghnWardCode) {
       setShippingFee(0);
       return 0;
     }
+    // avoid duplicate requests for same target + weight
+    if (!calculateShipping.lastRequest) calculateShipping.lastRequest = { key: null };
+    const key = `${address.ghnDistrictId}::${address.ghnWardCode}::${Math.round(weight || 500)}`;
+    if (calculateShipping.lastRequest.key === key) {
+      return calculateShipping.lastRequest.fee || 0;
+    }
     try {
+      setShippingLoading(true);
       const fee = await GHNLocationService.getShippingFee({
-        toDistrictId: Number(address.districtId),
-        toWardCode: address.wardCode,
+        toDistrictId: Number(address.ghnDistrictId),
+        toWardCode: address.ghnWardCode,
         weight: weight > 0 ? Math.round(weight) : 500,
       });
       setShippingFee(fee);
+      calculateShipping.lastRequest.key = key;
+      calculateShipping.lastRequest.fee = fee;
+      setShippingLoading(false);
       return fee;
     } catch (err) {
       console.error('Calculate shipping error:', err);
       setShippingFee(0);
+      setShippingLoading(false);
       return 0;
     }
   }, []);
 
+  // keep a ref of latest shippingFee to avoid recreating callbacks that depend on it
+  useEffect(() => { shippingFeeRef.current = shippingFee; }, [shippingFee]);
+
   const resolveAddressNames = useCallback(async (addresses) => {
     if (!Array.isArray(addresses) || addresses.length === 0) return [];
-
-    const provinces = await GHNLocationService.getProvinces();
-    const getProvinceName = (provinceId) => {
-      if (!provinceId) return '';
-      const matched = provinces.find((p) => Number(p.ProvinceID) === Number(provinceId));
-      return matched?.ProvinceName || '';
-    };
-
-    const districtCache = new Map();
-    const wardCache = new Map();
-
-    const resolved = await Promise.all(
-      addresses.map(async (addr) => {
-        const provinceId = addr.ghnProvinceId ?? addr.provinceId ?? addr.ProvinceID;
-        let province = addr.province || getProvinceName(provinceId);
-
-        const districtId = addr.ghnDistrictId ?? addr.districtId ?? addr.DistrictID;
-        let district = addr.district;
-        if (districtId) {
-          const provinceKey = provinceId || 0;
-          if (!districtCache.has(provinceKey)) {
-            const districtsData = await GHNLocationService.getDistricts(provinceKey);
-            districtCache.set(provinceKey, districtsData || []);
-          }
-          const districtsData = districtCache.get(provinceKey) || [];
-          const matchedDistrict = districtsData.find(
-            (d) => Number(d.DistrictID) === Number(districtId),
-          );
-          if (matchedDistrict) {
-            district = matchedDistrict.DistrictName;
-          }
-        }
-
-        const wardCode = addr.ghnWardCode ?? addr.wardCode ?? addr.WardCode;
-        let ward = addr.ward;
-        if (wardCode && districtId) {
-          if (!wardCache.has(districtId)) {
-            const wardsData = await GHNLocationService.getWards(districtId);
-            wardCache.set(districtId, wardsData || []);
-          }
-          const wardsData = wardCache.get(districtId) || [];
-          const matchedWard = wardsData.find(
-            (w) => String(w.WardCode) === String(wardCode),
-          );
-          if (matchedWard) {
-            ward = matchedWard.WardName;
-          }
-        }
-
-        const combinedFull = [
-          addr.detailAddress || addr.addressLine || addr.line1 || addr.address,
-          addr.detailAddress2 || addr.line2 || addr.addressLine2,
-          ward,
-          district,
-          province,
-        ]
-          .filter(Boolean)
-          .join(', ');
-
-        return {
-          ...addr,
-          province,
-          district,
-          ward,
-          city: addr.city || province || '',
-          line1: addr.line1 || combinedFull || addr.detailAddress || '',
-          line2: addr.line2 || addr.detailAddress2 || addr.addressLine2 || '',
-          fullAddress: addr.fullAddress || combinedFull || addr.detailAddress || '',
-        };
-      }),
-    );
-
-    return resolved;
+    return addresses;
   }, []);
 
   const fetchCart = useCallback(async () => {
@@ -253,13 +100,25 @@ const CheckOut = () => {
         (total, item) => total + (item.price || 0) * (item.quantity || 0),
         0,
       );
-      const shipping = response?.shipping ?? 0;
-      const total = response?.totalAmount ?? subtotal + shipping;
+      // Prefer client-calculated shippingFee (from GHN) to avoid flicker/overwrite
+      const serverShipping = response?.shipping ?? 0;
+      const currentShippingFee = shippingFeeRef.current;
+      const shipping = (currentShippingFee && Number.isFinite(currentShippingFee) && currentShippingFee > 0)
+        ? currentShippingFee
+        : serverShipping || 0;
 
-      setCartSummary({
-        subtotal,
-        shipping,
-        total,
+      setCartSummary((prev) => {
+        // If a positive shipping was already set (from GHN calc), preserve it to avoid overwriting
+        const preservedShipping = prev?.shipping && Number.isFinite(prev.shipping) && prev.shipping > 0
+          ? prev.shipping
+          : shipping;
+        const computedTotal = subtotal + (preservedShipping || 0);
+        return {
+          ...prev,
+          subtotal,
+          shipping: preservedShipping,
+          total: response?.totalAmount ?? computedTotal,
+        };
       });
     } catch (error) {
       console.error(error);
@@ -276,31 +135,26 @@ const CheckOut = () => {
     }
   }, [t, token]);
 
- const fetchAddresses = useCallback(async () => {
+  const fetchAddresses = useCallback(async () => {
     if (!token) return;
     try {
       setLoadingAddresses(true);
       const profile = await AuthService.getUserInfo();
-      setUserInfo(profile);
 
       const sourceAddresses = Array.isArray(profile?.addresses) ? profile.addresses : [];
 
-      const prepared = sourceAddresses
-        .map((address) => ({
-          ...address,
-          name: address.name
-            || address.receiverName
-            || address.contactName
-            || profile?.displayName
-            || profile?.fullName
-            || '',
-          phone: address.phone
-            || address.phoneNumber
-            || address.contactPhone
-            || profile?.phoneNumber
-            || '',
-        }))
-        .filter(Boolean);
+      const prepared = sourceAddresses.map((address) => ({
+        ...address,
+        name: address.name
+          || address.contactName
+          || profile?.displayName
+          || profile?.fullName
+          || '',
+        phone: address.phone
+          || address.contactPhone
+          || profile?.phoneNumber
+          || '',
+      }));
 
       const resolved = await resolveAddressNames(prepared);
 
@@ -360,6 +214,65 @@ const CheckOut = () => {
     }, 0)
   ), [cartItems]);
 
+  // First-load: calculate immediately when both cart and addresses finish loading and address is selected
+  useEffect(() => {
+    let mounted = true;
+    const doImmediateCalc = async () => {
+      if (!selectedAddress) {
+        setShippingFee(0);
+        setCartSummary((s) => ({ ...s, shipping: 0, total: (s.subtotal || 0) + 0 }));
+        return;
+      }
+      const fee = await calculateShipping(selectedAddress, totalWeight);
+      if (!mounted) return;
+      console.log('First-load shipping calculated:', fee);
+      setCartSummary((s) => {
+        const newTotal = (s.subtotal || 0) + (fee || 0);
+        console.log('Updated cart summary - subtotal:', s.subtotal, 'shipping:', fee, 'total:', newTotal);
+        return { ...s, shipping: fee, total: newTotal };
+      });
+    };
+
+    if (!loadingCart && !loadingAddresses && selectedAddress) {
+      doImmediateCalc();
+    }
+    return () => { mounted = false; };
+  }, [loadingCart, loadingAddresses, selectedAddress, totalWeight, calculateShipping]);
+
+  // Recalculate shipping when selected address or cart weight changes (with debounce)
+  useEffect(() => {
+    let mounted = true;
+    let timer = null;
+    const scheduleCalc = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        if (!selectedAddress) {
+          setShippingFee(0);
+          setCartSummary((s) => ({ ...s, shipping: 0, total: (s.subtotal || 0) + 0 }));
+          return;
+        }
+        const fee = await calculateShipping(selectedAddress, totalWeight);
+        if (!mounted) return;
+        console.log('Debounced shipping calculated:', fee);
+        setCartSummary((s) => {
+          const newTotal = (s.subtotal || 0) + (fee || 0);
+          console.log('Updated cart summary - subtotal:', s.subtotal, 'shipping:', fee, 'total:', newTotal);
+          return { ...s, shipping: fee, total: newTotal };
+        });
+      }, 200);
+    };
+
+    // Only debounce if we're already done loading (not the initial load)
+    if (!loadingCart && !loadingAddresses) {
+      scheduleCalc();
+    }
+
+    return () => {
+      mounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [selectedAddress, totalWeight, calculateShipping, loadingCart, loadingAddresses]);
+
   const handlePlaceOrder = async () => {
     if (!cartItems.length) {
       toast.info(t('messages.cartEmpty'));
@@ -370,72 +283,88 @@ const CheckOut = () => {
       return;
     }
 
-    const shipmentItems = cartItems
-      .map((item, index) => {
+    const cartItemsPayload = cartItems
+      .map((item) => {
         const productId = item.productId
           || item.product?.id
           || item.product?.productId;
-        if (!productId) {
-          return null;
-        }
-        const baseItem = {
+        const quantity = item.quantity || 1;
+        if (!productId || quantity <= 0) return null;
+        return {
           productId,
-          quantity: item.quantity || 1,
-          price: item.price ?? item.product?.price ?? 0,
-          name: item.name || item.product?.name || `Item ${index + 1}`,
-          code: item.product?.sku || item.product?.productCode || productId,
+          quantity,
         };
-        const weightValue = Number(item?.product?.weight ?? item?.weight);
-        if (!Number.isNaN(weightValue) && weightValue > 0) {
-          baseItem.weight = weightValue;
-        }
-        return baseItem;
       })
       .filter(Boolean);
 
-    if (!shipmentItems.length) {
+    if (!cartItemsPayload.length) {
       toast.error(t('messages.cartEmpty'));
       return;
     }
 
-    const receiverName = selectedAddress.name
-      || selectedAddress.receiverName
-      || userInfo?.displayName
-      || userInfo?.fullName;
-    const receiverPhone = selectedAddress.phone
-      || selectedAddress.phoneNumber
-      || userInfo?.phoneNumber;
+    // Extract addressId from selected address
+    const addressId = selectedAddress?.id
+      || selectedAddress?.addressId
+      || selectedAddress?.shippingAddressId;
+    if (!addressId) {
+      toast.error(t('messages.addressRequired'));
+      return;
+    }
 
-    const payload = sanitizePayload({
-      shipingAddressId: selectedAddress.id
-        || selectedAddress.addressId
-        || selectedAddress.shippingAddressId,
-      receiverName,
-      receiverPhone,
-      toDistrictId: selectedAddress.districtId
-        ? Number(selectedAddress.districtId)
-        : undefined,
-      toWardCode: selectedAddress.wardCode,
-      toAddress: selectedAddress.fullAddress || selectedAddress.detailAddress || '',
-      toProvinceName: selectedAddress.province,
-      totalWeight: totalWeight > 0 ? Math.round(totalWeight) : undefined,
-      shipmentItems,
-    });
+    const paymentMethod = selectedPaymentMethod === 'vnpay' ? 'VNPAY' : 'COD';
+
+    // Build new order payload format
+    const payload = {
+      cartItems: cartItemsPayload,
+      addressId,
+      paymentMethod,
+      // Fixed defaults as per API spec
+      shippingServiceId: 53321,
+      paymentTypeId: 2,
+      serviceTypeId: 2,
+      bankCode: 'NCB',
+      requiredNote: 'KHONGCHOXEMHANG',
+    };
 
     setPlacingOrder(true);
     try {
       const response = await OrderService.createOrder(payload);
-      toast.success(t('messages.orderSuccess'));
-      navigate('/order-tracking', { state: { order: response } });
+
+      // Handle successful response
+      if (response?.data?.success || response?.success) {
+        const orderData = response.data || response;
+
+        // For COD: Show success page
+        if (orderData.paymentMethod === 'COD') {
+          toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
+          navigate('/order-success', { state: { order: orderData } });
+        }
+        // For VNPAY: Redirect to payment URL
+        else if (orderData.paymentMethod === 'VNPAY' && orderData.paymentUrl) {
+          toast.info('Đang chuyển hướng đến VNPAY...');
+          // Store order data in session storage for later retrieval
+          sessionStorage.setItem('vnpayOrderData', JSON.stringify(orderData));
+          // Redirect to payment URL
+          window.location.href = orderData.paymentUrl;
+        } else {
+          // Fallback: show success page anyway
+          toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
+          navigate('/order-success', { state: { order: orderData } });
+        }
+      } else {
+        // Unexpected response format
+        toast.error(t('messages.orderError') || 'Có lỗi xảy ra');
+        setPlacingOrder(false);
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Order creation error:', error);
       const message =
         error?.response?.data?.message
         || error?.response?.data?.title
         || error?.message
-        || t('messages.orderError');
+        || t('messages.orderError')
+        || 'Có lỗi xảy ra khi tạo đơn hàng';
       toast.error(message);
-    } finally {
       setPlacingOrder(false);
     }
   };
@@ -472,7 +401,9 @@ const CheckOut = () => {
                   addresses={addresses}
                   isLoading={loadingAddresses}
                   selectedAddressId={selectedAddress?.id || selectedAddress?.__internalId}
-                  onAddressSelect={(address) => setSelectedAddress(address)}
+                  onAddressSelect={(address) => {
+                    setSelectedAddress(address);
+                  }}
                   onManageClick={() => navigate('/profile', { state: { from: '/checkout' } })}
                   allowManage
                 />
@@ -486,6 +417,7 @@ const CheckOut = () => {
                 <OrderSummary
                   subtotal={cartSummary.subtotal}
                   shipping={cartSummary.shipping}
+                  shippingLoading={shippingLoading}
                   total={cartSummary.total}
                   currencySuffix={priceSuffix}
                   onPlaceOrder={handlePlaceOrder}

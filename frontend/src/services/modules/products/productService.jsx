@@ -55,6 +55,62 @@ export const ProductService = {
     }
   },
 
+  submitFeedback: async (productId, userId, feedbackData) => {
+    try {
+      console.log('Submitting feedback:', { productId, userId, feedbackData });
+      const url = `/feedbacks?productid=${productId}&userid=${userId}`;
+      console.log('API URL:', url);
+      const response = await axiosClient.post(url, feedbackData);
+      console.log('Feedback response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url,
+        data: error.response?.data
+      });
+      throw error;
+    }
+  },
+
+  getFeedbacks: async (productId, pageIndex = 1, pageSize = 5) => {
+    try {
+      const response = await axiosClient.get(
+        `/feedbacks/${productId}?pageIndex=${pageIndex}&pageSize=${pageSize}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching feedbacks:', error);
+      throw error;
+    }
+  },
+
+  updateFeedback: async (productId, userId, feedbackId, feedbackData) => {
+    try {
+      console.log('Updating feedback:', { productId, userId, feedbackId, feedbackData });
+      const url = `/feedbacks?productid=${productId}&userid=${userId}&feedbackid=${feedbackId}`;
+      const response = await axiosClient.put(url, feedbackData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating feedback:', error);
+      throw error;
+    }
+  },
+
+  deleteFeedback: async (feedbackId, userId) => {
+    try {
+      console.log('Deleting feedback:', { feedbackId, userId });
+      const url = `/feedbacks?feedbackid=${feedbackId}&IdduserId=${userId}`;
+      const response = await axiosClient.delete(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting feedback:', error);
+      throw error;
+    }
+  },
+
 };
 
 // helper to map plain object to FormData

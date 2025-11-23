@@ -1,15 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FaBox,
   FaShoppingCart,
   FaUsers,
   FaDollarSign,
-  FaChartLine,
   FaUsersCog,
   FaEye,
   FaEdit
 } from 'react-icons/fa';
+import RevenueChart from './RevenueChart';
 
 const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, getStatusColor }) => {
   return (
@@ -22,9 +21,6 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
             <div>
               <p className="text-gray-600 text-sm font-nunito">Tổng đơn hàng</p>
               <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalOrders}</h3>
-              <p className="text-green-600 text-sm mt-2 flex items-center gap-1">
-                <FaChartLine /> +{stats.orderGrowth}% so với tháng trước
-              </p>
             </div>
             <div className="bg-blue-100 p-4 rounded-full">
               <FaShoppingCart className="text-blue-600 text-2xl" />
@@ -38,9 +34,6 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
             <div>
               <p className="text-gray-600 text-sm font-nunito">Doanh thu</p>
               <h3 className="text-2xl font-bold text-gray-800 mt-2">{formatCurrency(stats.totalRevenue)}</h3>
-              <p className="text-green-600 text-sm mt-2 flex items-center gap-1">
-                <FaChartLine /> +{stats.revenueGrowth}% so với tháng trước
-              </p>
             </div>
             <div className="bg-green-100 p-4 rounded-full">
               <FaDollarSign className="text-green-600 text-2xl" />
@@ -54,9 +47,6 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
             <div>
               <p className="text-gray-600 text-sm font-nunito">Người bán</p>
               <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalSellers}</h3>
-              <p className="text-green-600 text-sm mt-2 flex items-center gap-1">
-                <FaChartLine /> +5 người bán mới
-              </p>
             </div>
             <div className="bg-orange-100 p-4 rounded-full">
               <FaUsers className="text-orange-600 text-2xl" />
@@ -70,9 +60,6 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
             <div>
               <p className="text-gray-600 text-sm font-nunito">Khách hàng</p>
               <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalCustomers}</h3>
-              <p className="text-green-600 text-sm mt-2 flex items-center gap-1">
-                <FaChartLine /> +{stats.customerGrowth}% so với tháng trước
-              </p>
             </div>
             <div className="bg-purple-100 p-4 rounded-full">
               <FaUsersCog className="text-purple-600 text-2xl" />
@@ -95,6 +82,7 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">STT</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Mã đơn</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Khách hàng</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Sản phẩm</th>
@@ -106,9 +94,10 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
               <tbody>
                 {recentOrders.map((order) => (
                   <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-semibold text-sm text-gray-600">{order.rowNumber}</td>
                     <td className="py-3 px-4 font-semibold text-sm">{order.id}</td>
                     <td className="py-3 px-4 text-sm">{order.customer}</td>
-                    <td className="py-3 px-4 text-sm">{order.product}</td>
+                    <td className="py-3 px-4 text-sm">{order.productCount} sản phẩm</td>
                     <td className="py-3 px-4 text-sm font-semibold">{formatCurrency(order.amount)}</td>
                     <td className="py-3 px-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
@@ -156,16 +145,9 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
         </div>
       </div>
 
-      {/* Revenue Chart Placeholder */}
-      <div className="mt-6 bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Biểu đồ doanh thu</h2>
-        <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <div className="text-center">
-            <FaChartLine className="text-6xl text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 font-nunito">Biểu đồ doanh thu theo tháng</p>
-            <p className="text-sm text-gray-500 mt-2">(Tích hợp thư viện chart để hiển thị)</p>
-          </div>
-        </div>
+      {/* Revenue Chart */}
+      <div className="mt-6">
+        <RevenueChart formatCurrency={formatCurrency} />
       </div>
     </>
   );

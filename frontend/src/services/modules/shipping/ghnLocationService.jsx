@@ -66,6 +66,7 @@ export const GHNLocationService = {
     const data = response?.data;
     const fee = Number(
       data?.total
+      ?? data?.totalFee
       ?? data?.service_fee
       ?? data?.fee
       ?? data,

@@ -17,6 +17,7 @@ const OrderSummary = ({
   onPlaceOrder = () => {},
   placingOrder = false,
   disabled = false,
+  shippingLoading = false,
 }) => {
   const [couponCode, setCouponCode] = useState('');
 
@@ -58,7 +59,11 @@ const OrderSummary = ({
         <div className="flex justify-between items-center">
           <span className="font-nunito text-lg text-black">Phi van chuyen</span>
           <span className="font-nunito text-lg text-black">
-            {formatCurrency(shipping, currencySuffix)}
+            {shippingLoading ? (
+              <span className="inline-block h-5 w-20 bg-gray-200 animate-pulse rounded" />
+            ) : (
+              formatCurrency(shipping, currencySuffix)
+            )}
           </span>
         </div>
 
@@ -78,7 +83,11 @@ const OrderSummary = ({
             Tong cong
           </span>
           <span className="font-alata text-2xl font-semibold text-primary">
-            {formatCurrency(computedTotal, currencySuffix)}
+            {shippingLoading ? (
+              <span className="inline-block h-8 w-32 bg-gray-200 animate-pulse rounded" />
+            ) : (
+              formatCurrency(computedTotal, currencySuffix)
+            )}
           </span>
         </div>
 
@@ -139,6 +148,7 @@ OrderSummary.propTypes = {
   onPlaceOrder: PropTypes.func,
   placingOrder: PropTypes.bool,
   disabled: PropTypes.bool,
+  shippingLoading: PropTypes.bool,
 };
 
 export default OrderSummary;

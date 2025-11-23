@@ -9,9 +9,10 @@ import {
   FaSearch,
   FaChartBar,
   FaUsers,
-  FaTicketAlt
+  FaTicketAlt,
+  FaSpinner
 } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import Sidebar from './Sidebar';
 import OverviewSection from './OverviewSection';
 import ProductManagement from './ProductManagement';
@@ -24,46 +25,149 @@ import SettingsManagement from './SettingsManagement';
 import VoucherManagement from './VoucherManagement';
 import ProductCollectionManagement from './ProductCollectionManagement';
 import { UserContext } from '../../context/UserContext';
+import AdminDashboardService from '../../services/modules/admin/adminDashboardService.jsx';
+import { UserService } from '../../services/modules/users/userService';
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
   const { userInfo } = useContext(UserContext);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    totalOrders: 1247,
-    totalRevenue: 458750000,
-    totalProducts: 156,
-    totalCustomers: 892,
-    totalSellers: 45,
-    orderGrowth: 12.5,
-    revenueGrowth: 18.3,
-    productGrowth: 5.2,
-    customerGrowth: 8.7
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalSellers: 0,
+    totalCustomers: 0
   });
 
-  const [recentOrders, setRecentOrders] = useState([
-    { id: 'ORD-001', customer: 'Nguyễn Văn A', product: 'Đèn gốm sứ thủ công', amount: 450000, status: 'Đang giao', date: '2025-11-08' },
-    { id: 'ORD-002', customer: 'Trần Thị B', product: 'Bình hoa gốm', amount: 320000, status: 'Hoàn thành', date: '2025-11-08' },
-    { id: 'ORD-003', customer: 'Lê Văn C', product: 'Tượng gỗ thủ công', amount: 850000, status: 'Đang xử lý', date: '2025-11-07' },
-    { id: 'ORD-004', customer: 'Phạm Thị D', product: 'Khay trà gốm', amount: 280000, status: 'Hoàn thành', date: '2025-11-07' },
-    { id: 'ORD-005', customer: 'Hoàng Văn E', product: 'Lọ hoa gốm sứ', amount: 380000, status: 'Đang giao', date: '2025-11-06' },
-  ]);
-
-  const [topProducts, setTopProducts] = useState([
-    { name: 'Đèn gốm sứ thủ công', sales: 245, revenue: 110250000, stock: 45 },
-    { name: 'Bình hoa gốm Bát Tràng', sales: 189, revenue: 60480000, stock: 32 },
-    { name: 'Tượng gỗ phong thủy', sales: 156, revenue: 132600000, stock: 18 },
-    { name: 'Khay trà gốm sứ', sales: 134, revenue: 37520000, stock: 67 },
-    { name: 'Lọ hoa gốm thủ công', sales: 98, revenue: 37240000, stock: 23 },
-  ]);
-
-  const [reports, setReports] = useState([
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [reports] = useState([
     { id: 1, type: 'product', reportedBy: 'Khách hàng A', target: 'Đèn gốm sứ - Sai mô tả', reason: 'Sản phẩm không đúng với mô tả', date: '2025-11-08', status: 'pending' },
     { id: 2, type: 'seller', reportedBy: 'Khách hàng B', target: 'Gốm Bát Tràng Shop', reason: 'Giao hàng chậm, không phản hồi', date: '2025-11-07', status: 'investigating' },
     { id: 3, type: 'product', reportedBy: 'Khách hàng C', target: 'Tượng gỗ - Hàng giả', reason: 'Nghi vấn hàng giả mạo', date: '2025-11-06', status: 'resolved' },
     { id: 4, type: 'order', reportedBy: 'Khách hàng D', target: 'Đơn hàng #ORD-123', reason: 'Không nhận được hàng', date: '2025-11-05', status: 'pending' },
   ]);
+
+  // Load dashboard data on mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Load all data in parallel
+      const currentYear = new Date().getFullYear();
+      const [ordersData, artisansData, customersData, newestOrdersData, topProductsData, monthlyRevenueData] = await Promise.all([
+        AdminDashboardService.getAllOrders(),
+        AdminDashboardService.getAllArtisans(),
+        AdminDashboardService.getAllCustomers(),
+        AdminDashboardService.getNewestOrders(),
+        AdminDashboardService.getTopProducts(),
+        AdminDashboardService.getMonthlyRevenue(currentYear),
+      ]);
+
+      // Calculate stats
+      const totalOrders = ordersData?.totalCount || 0;
+      // Calculate total revenue from monthly data (sum all months)
+      const totalRevenue = (monthlyRevenueData || []).reduce((sum, month) => sum + (month.revenue || 0), 0);
+      const totalSellers = artisansData?.totalCount || 0;
+      const totalCustomers = customersData?.totalCount || 0;
+
+      // Debug logs
+      console.log('monthlyRevenueData:', monthlyRevenueData);
+      console.log('totalRevenue from monthly:', totalRevenue);
+      console.log('newestOrdersData:', newestOrdersData);
+      console.log('newestOrdersData[0]:', newestOrdersData?.[0]);
+      console.log('customersData:', customersData);
+      console.log('customersData.items[0]:', customersData?.items?.[0]);
+
+      setStats({
+        totalOrders,
+        totalRevenue,
+        totalSellers,
+        totalCustomers
+      });
+
+      // Get detailed info for recent orders
+      const orderDetailsPromises = (newestOrdersData || []).map(order =>
+        AdminDashboardService.getOrderDetail(order.orderNumber)
+      );
+      const orderDetails = await Promise.all(orderDetailsPromises);
+
+      console.log('orderDetails:', orderDetails);
+
+      // Get user info for customers in orders (get customer ID from orders)
+      const customerIds = orderDetails
+        .map(detail => detail?.customerId)
+        .filter(Boolean)
+        .filter((id, index, arr) => arr.indexOf(id) === index); // Remove duplicates
+
+      const userInfoPromises = customerIds.map(customerId =>
+        UserService.getById(customerId).catch(err => {
+          console.error(`Failed to get user ${customerId}:`, err);
+          return null;
+        })
+      );
+      const userInfoMap = new Map();
+      const userInfos = await Promise.all(userInfoPromises);
+      customerIds.forEach((id, index) => {
+        if (userInfos[index]) {
+          userInfoMap.set(id, userInfos[index]);
+        }
+      });
+
+      console.log('userInfoMap:', userInfoMap);
+
+      // Transform recent orders for display with full details
+      const recentOrdersForDisplay = (newestOrdersData || []).map((order, index) => {
+        const orderDetail = orderDetails[index];
+        const customerId = orderDetail?.customerId;
+        const userInfo = customerId ? userInfoMap.get(customerId) : null;
+        
+        // Get customer name from userInfo first, then fallback to orderDetail
+        let customerName = userInfo?.displayName || 
+                          userInfo?.fullName || 
+                          userInfo?.name || 
+                          userInfo?.username ||
+                          orderDetail?.customer?.fullName || 
+                          orderDetail?.customer?.name || 
+                          order.customerName || 
+                          customerId;
+        
+        // Get product count from order detail items
+        const productCount = orderDetail?.items?.length || order.items?.length || 0;
+        
+        console.log(`Order ${order.orderNumber}: customer="${customerName}", products=${productCount}`);
+        
+        return {
+          id: order.orderNumber,
+          customer: customerName,
+          productCount: productCount,
+          amount: orderDetail?.totalAmount || order.totalAmount || 0,
+          status: orderDetail?.status || order.status,
+          date: new Date(orderDetail?.createAt || order.createAt).toLocaleDateString('vi-VN'),
+          rowNumber: index + 1
+        };
+      });
+      setRecentOrders(recentOrdersForDisplay);
+
+      // Transform top products for display
+      const topProductsForDisplay = (topProductsData || []).map(item => ({
+        name: item.product?.name || 'Unknown',
+        sales: item.totalSold || 0,
+        revenue: item.totalAmmount || 0,
+        stock: item.product?.stock || 0
+      }));
+      setTopProducts(topProductsForDisplay);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast.error('Không thể tải dữ liệu dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 const menuItems = [
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/admin' },
@@ -84,12 +188,14 @@ const menuItems = [
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Hoàn thành':
+      case 'Paid':
         return 'bg-green-100 text-green-800';
-      case 'Đang giao':
-        return 'bg-blue-100 text-blue-800';
-      case 'Đang xử lý':
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'Delivered':
+        return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -162,13 +268,20 @@ const menuItems = [
         {/* Dashboard Content */}
         <div className="p-8">
           {activeTab === 'overview' && (
-            <OverviewSection 
-              stats={stats}
-              recentOrders={recentOrders}
-              topProducts={topProducts}
-              formatCurrency={formatCurrency}
-              getStatusColor={getStatusColor}
-            />
+            loading ? (
+              <div className="flex justify-center items-center py-16">
+                <FaSpinner className="animate-spin text-primary text-3xl" />
+                <span className="ml-4 text-gray-600 font-medium">Đang tải dữ liệu...</span>
+              </div>
+            ) : (
+              <OverviewSection 
+                stats={stats}
+                recentOrders={recentOrders}
+                topProducts={topProducts}
+                formatCurrency={formatCurrency}
+                getStatusColor={getStatusColor}
+              />
+            )
           )}
 
           {activeTab === 'products' && <ProductManagement />}

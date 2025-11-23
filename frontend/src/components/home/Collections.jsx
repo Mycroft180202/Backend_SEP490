@@ -77,9 +77,9 @@ const Collections = () => {
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-5 text-left">
-                    <p className="text-sm text-[#FFD7A0] uppercase tracking-wide mb-1">Bộ sưu tập</p>
+                    <p className="text-sm text-[#D32F2F] uppercase tracking-wide mb-1">Bộ sưu tập</p>
                     <h3 className="text-2xl font-bold text-white drop-shadow">{item.title}</h3>
-                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/80 text-[#8B4513] rounded-full text-sm font-semibold shadow">
+                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/80 text-[#D32F2F] rounded-full text-sm font-semibold shadow">
                       Khám phá ngay →
                     </div>
                   </div>

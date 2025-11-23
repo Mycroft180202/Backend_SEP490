@@ -296,22 +296,6 @@ const ShortDescription = ({ product }) => {
               </div>
             </div>
 
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-md border border-[#E2C8A2]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#D4A574]">
-                  <img
-                    src={product.artisanAvatar || '/images/default-avatar.png'}
-                    alt={product.artisanName || 'artisan'}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Người bán</p>
-                  <p className="text-base md:text-lg font-semibold text-[#8B4513]">{product.artisanName || 'Nghệ nhân làng nghề'}</p>
-                </div>
-              </div>
-            </div>
-
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1 bg-[#FFF8E7] px-3 py-2 rounded-full border border-[#E2C8A2]">

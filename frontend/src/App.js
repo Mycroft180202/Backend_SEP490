@@ -25,6 +25,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
 import Policy from './pages/Policy';
 import CheckOut from './pages/CheckOut';
+import OrderSuccess from './pages/OrderSuccess';
+import PaymentResult from './pages/PaymentResult';
 import ArtisanDashboard from './components/artisanDashboard/dashboard';
 function App() {
   return (
@@ -43,6 +45,8 @@ function App() {
               <Route path="/product-detail/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<CheckOut />} />
+              <Route path="/order-success" element={<OrderSuccess />} />
+              <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/order-history" element={<OrderHistory />} />
               <Route path="/order-tracking" element={<OrderTracking />} />
               <Route path="/artisan-shop" element={<ArtisanShop />} />

@@ -136,7 +136,7 @@ const AddressSelector = ({
             const displayAddress = detailLine
               || 'Chua co thong tin dia chi chi tiet.';
 
-            const provinceLine = address.city || address.province || address.country || '';
+            const provinceLine = ''; // tránh lặp lại tỉnh/thành đã có trong dòng địa chỉ chính
             return (
               <button
                 key={address.__internalId}

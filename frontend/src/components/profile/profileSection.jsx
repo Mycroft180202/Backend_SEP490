@@ -24,9 +24,11 @@ import {
   FaEye,
   FaPlus,
   FaTimes,
+  FaCalendarAlt,
 } from 'react-icons/fa';
 import { WishlistService } from '../../services/modules/wishlist/wishlistService';
 import ProductCard from '../shared/ProductCard';
+import ArtisanRegistrationForm from './ArtisanRegistrationForm';
 import { toast } from 'react-toastify';
 
 const mapUserProfile = (data) => ({
@@ -51,6 +53,36 @@ const addressFormDefaults = {
   districtId: '',
   wardCode: '',
   isDefault: false,
+};
+
+const formatDob = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const normalizeDobInput = (value) => {
+  if (!value) return '';
+  const parts = value.split(/[-/]/).map((p) => p.trim());
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // yyyy-mm-dd
+      const [y, m, d] = parts.map(Number);
+      const date = new Date(y, m - 1, d);
+      return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+    }
+    // dd-mm-yyyy
+    const [d, m, y] = parts.map(Number);
+    const date = new Date(y, m - 1, d);
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
 };
 
 // Component đổi mật khẩu
@@ -186,6 +218,7 @@ function ProfileSection() {
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedProfile, setEditedProfile] = useState(null);
+  const [dobInput, setDobInput] = useState('');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
@@ -281,6 +314,7 @@ function ProfileSection() {
     const mergedProfile = { ...profileData, addresses: resolvedAddresses };
     setProfile(mergedProfile);
     setEditedProfile(mergedProfile);
+    setDobInput(formatDob(mergedProfile.dob));
     const roleList = data?.roles || [];
     const artisan = roleList.some((r) => (r.name || '').toLowerCase() === 'artisan');
     setIsArtisan(artisan);
@@ -440,6 +474,7 @@ function ProfileSection() {
     setIsEditMode(!isEditMode);
     if (isEditMode) {
       setEditedProfile(profile);
+      setDobInput(formatDob(profile?.dob));
     }
   };
 
@@ -705,13 +740,12 @@ function ProfileSection() {
               <FaHeart /> Sản phẩm đã thích
             </li>
             <li
-              className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]"
+              className={`flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f] ${activeSection === 'artisanRegistration' ? 'text-[#9e211f]' : ''}`}
               onClick={() => {
                 if (isArtisan) {
                   navigate('/artisan-shop');
                 } else {
-                  toast.info('Bạn chưa là người bán, vui lòng đăng ký.');
-                  navigate('/artisan-shop/register');
+                  setActiveSection('artisanRegistration');
                 }
               }}
             >
@@ -723,9 +757,6 @@ function ProfileSection() {
               onClick={() => setActiveSection('changePassword')}
             >
               <FaLock /> Đổi mật khẩu
-            </li>
-            <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
-              <FaUserTie /> Đăng ký người bán hàng
             </li>
             <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
               <FaSignOutAlt /> Đăng xuất
@@ -779,9 +810,7 @@ function ProfileSection() {
                               {addressLine2 && (
                                 <p className="text-sm text-gray-500">{addressLine2}</p>
                               )}
-                              <p className="text-xs text-gray-500 mt-1">
-                                {addr.city || addr.province || ''}
-                              </p>
+                              {/* Địa chỉ chi tiết đã chứa tỉnh/thành, bỏ dòng province riêng để tránh lặp */}
                             </div>
                             <div className="flex flex-col gap-2 items-start md:items-end">
                               {addr.isDefault && (
@@ -1028,16 +1057,26 @@ function ProfileSection() {
               <div>
                 <label className="block mb-2 font-medium">Ngày tháng năm sinh</label>
                 {isEditMode ? (
-                  <input
-                    type="date"
-                    value={editedProfile.dob ? new Date(editedProfile.dob).toISOString().split('T')[0] : ''}
-                    onChange={(e) => handleInputChange('dob', e.target.value)}
-                    className="w-full border rounded px-4 py-2"
-                  />
+                  <div className="relative">
+                    <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="dd/mm/yyyy"
+                      value={dobInput}
+                      onChange={(e) => setDobInput(e.target.value)}
+                      onBlur={() => {
+                        const normalized = normalizeDobInput(dobInput);
+                        handleInputChange('dob', normalized);
+                        setDobInput(normalized ? formatDob(normalized) : '');
+                      }}
+                      className="w-full border rounded pl-10 pr-4 py-2"
+                    />
+                  </div>
                 ) : (
                   <input
                     type="text"
-                    value={profile.dob ? new Date(profile.dob).toLocaleDateString('vi-VN') : ''}
+                    value={formatDob(profile.dob)}
                     className="w-full border rounded px-4 py-2"
                     readOnly
                   />
@@ -1112,9 +1151,18 @@ function ProfileSection() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeSection === 'changePassword' ? (
           <ChangePasswordSection email={profile.email} />
-        )}
+        ) : activeSection === 'artisanRegistration' ? (
+          <ArtisanRegistrationForm 
+            isOpen={true}
+            onClose={() => setActiveSection('info')}
+            onSuccess={() => {
+              setActiveSection('info');
+              toast.success('Đơn đăng ký được gửi thành công!');
+            }}
+          />
+        ) : null}
       </main>
 
       {/* Image Modal */}
