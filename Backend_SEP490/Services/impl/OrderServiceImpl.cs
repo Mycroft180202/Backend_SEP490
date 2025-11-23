@@ -1160,6 +1160,22 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return ordered.FirstOrDefault();
     }
 
+    public async Task<Order?> GetOrderByNumberForUserAsync(string? userId, string? orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return null;
+        }
+
+        var order = await _context.Order.GetAllOrderByNumberAsync(orderNumber.Trim());
+        if (order == null)
+        {
+            return null;
+        }
+
+        return string.Equals(order.CustomerId, userId, StringComparison.OrdinalIgnoreCase) ? order : null;
+    }
+
     public async Task<IEnumerable<ResponseDTOOrder>> GetNewestOrderAsync()
     {
         var order = await _context.Order.GetNewestOrderAsync();

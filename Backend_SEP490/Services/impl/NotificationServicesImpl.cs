@@ -140,7 +140,7 @@ public class NotificationServicesImpl : GenericServices, INotificationService
             request.TargetUserId,
             string.IsNullOrWhiteSpace(request.Type) ? NotificationTypes.AdminDirect : request.Type,
             request.Message);
-
+        
         await _context.Notifications.AddAsync(notification);
         await _context.SaveChangesAsync();
 

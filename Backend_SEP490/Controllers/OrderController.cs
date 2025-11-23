@@ -124,6 +124,56 @@ public class OrderController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("orders/{orderNumber}/continue-payment")]
+    public async Task<IActionResult> ContinueVnpayPayment([FromRoute] string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return BadRequest("Order number is required.");
+        }
+
+        var userId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var order = await _orderServices.GetOrderByNumberForUserAsync(userId, orderNumber);
+        if (order == null)
+        {
+            return NotFound("Order not found.");
+        }
+
+        if (!string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("This order is not configured for VNPay payments.");
+        }
+
+        if (!string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("Only orders with Pending status can continue VNPay payment.");
+        }
+
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        var clientIp = !string.IsNullOrWhiteSpace(forwarded)
+            ? forwarded.Split(',').FirstOrDefault()
+            : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+
+        var paymentRequest = new CreateVnpayPaymentRequest
+        {
+            OrderId = order.Id
+        };
+
+        var paymentResponse = await _paymentService.CreateVnpayPaymentAsync(userId, paymentRequest, clientIp);
+        if (paymentResponse == null)
+        {
+            return BadRequest(new { message = "Unable to continue VNPay payment for this order." });
+        }
+
+        return Ok(paymentResponse);
+    }
+
+    [Authorize]
     [HttpPost("orders/{orderNumber}/cancel")]
     public async Task<IActionResult> CancelOrder([FromRoute] string orderNumber, [FromBody] RequestCancelOrder? request)
     {
