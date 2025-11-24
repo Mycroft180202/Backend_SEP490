@@ -247,7 +247,7 @@ namespace Backend_SEP490.Services.impl
                 Source = request.Source,
                 CreatedDate = DateTime.UtcNow,
                 AssignedAt = string.IsNullOrWhiteSpace(request.OwnerUserId) ? null : DateTime.UtcNow,
-                CreatedById = request.CreatorUserId ?? "SYSTEM",
+                CreatedById = string.IsNullOrWhiteSpace(request.CreatorUserId) ? null : request.CreatorUserId,
                 UpdatedDate = DateTime.UtcNow
             };
 
