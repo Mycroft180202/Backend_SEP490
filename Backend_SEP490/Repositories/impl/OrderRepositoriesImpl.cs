@@ -134,5 +134,23 @@ namespace Backend_SEP490.Repositories.impl
                 .Where(o => o.OrderItems.Any(p => p.Product.ArtisanId.Equals(userId))).ToListAsync();
             return order;
         }
+
+        public async Task<bool> HasUserPurchasedProductAsync(string userId, string productId)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(productId))
+            {
+                return false;
+            }
+
+            var normalizedProductId = productId.Trim();
+            var normalizedUserId = userId.Trim();
+
+            return await _context.Orders
+                .Include(o => o.OrderItems)
+                .Where(o =>
+                    o.CustomerId == normalizedUserId &&
+                    (o.Status == "Paid" || o.Status == "Completed"))
+                .AnyAsync(o => o.OrderItems.Any(oi => oi.ProductID == normalizedProductId));
+        }
     }
 }

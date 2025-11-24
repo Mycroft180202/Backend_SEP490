@@ -14,5 +14,6 @@ namespace Backend_SEP490.Repositories
         public Task<IEnumerable<Order>> GetNewestOrderAsync();
         public Task<IEnumerable<Order>> GetAllOrderAsync();
         public Task<Order> GetAllOrderByNumberAsync(string orderId);
+        public Task<bool> HasUserPurchasedProductAsync(string userId, string productId);
     }
 }

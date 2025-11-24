@@ -60,7 +60,24 @@ public class FeedbackController : ControllerBase
     [HttpPost("feedbacks")]
     public async Task<ActionResult> AddFeedback(RequestDTOFeedback feedback, string productid, string userid)
     {
-        await _feedbackRepository.CreateFeedback(feedback, productid, userid);
+        var currentUserId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        if (!string.IsNullOrWhiteSpace(userid) &&
+            !string.Equals(currentUserId, userid, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("You cannot create feedback for another user.");
+        }
+
+        var created = await _feedbackRepository.CreateFeedback(feedback, productid, currentUserId);
+        if (!created)
+        {
+            return BadRequest("Bạn chỉ có thể đánh giá sau khi mua sản phẩm thành công.");
+        }
+
         return Ok("Create successfully");
     }
 }

@@ -48,8 +48,14 @@ public class FeedbackServicesImpl: GenericServices, IFeedbackServices
         
     }
 
-    public async Task CreateFeedback(RequestDTOFeedback feedback, string productID, string userID)
+    public async Task<bool> CreateFeedback(RequestDTOFeedback feedback, string productID, string userID)
     {
+        var canReview = await _context.Order.HasUserPurchasedProductAsync(userID, productID);
+        if (!canReview)
+        {
+            return false;
+        }
+
         await _context.Feedback.CreateFeedback(feedback, productID, userID);
 
         var product = await _context.Products.GetProductByIdAsync(productID);
@@ -59,5 +65,7 @@ public class FeedbackServicesImpl: GenericServices, IFeedbackServices
         {
             await _notificationService.NotifyArtisanFeedbackAsync(product, customer, feedback);
         }
+
+        return true;
     }
 }

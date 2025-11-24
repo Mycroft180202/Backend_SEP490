@@ -9,5 +9,5 @@ public interface IFeedbackServices
     Task<PagedResult<ResponseDTOFeedback>> GetFeedbacksByProductIdAsync(string productId, int pageIndex, int pageSize);
     Task DeleteFeedbacksByIdAsync(string Id);
     Task UpdateFeedbackByIdAsynnc(RequestDTOFeedback feedback,string productID,string feedbackID);
-    Task CreateFeedback(RequestDTOFeedback feedback,string productID, string userID);
+    Task<bool> CreateFeedback(RequestDTOFeedback feedback,string productID, string userID);
 }
