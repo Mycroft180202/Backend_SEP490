@@ -727,7 +727,10 @@ function ProfileSection() {
             >
               <FaUserCircle /> Thông tin tài khoản
             </li>
-            <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
+            <li 
+              className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]"
+              onClick={() => navigate('/order-history')}
+            >
               <FaHistory /> Lịch sử mua hàng
             </li>
             <li

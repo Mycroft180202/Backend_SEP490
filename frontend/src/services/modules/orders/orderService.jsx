@@ -78,4 +78,19 @@ export const OrderService = {
       throw error;
     }
   },
+
+  async continuePayment(orderNumber) {
+    try {
+      if (!orderNumber) {
+        throw new Error('Missing order number');
+      }
+      const response = await axiosClient.post(
+        API_ENDPOINTS.ORDERS.CONTINUE_PAYMENT(orderNumber)
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error continuing payment:', error);
+      throw error;
+    }
+  },
 };

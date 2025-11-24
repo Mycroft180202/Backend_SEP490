@@ -50,6 +50,7 @@ export const API_ENDPOINTS = {
     MY_ORDERS: '/api/Order/my-orders',
     BY_ID: (orderId) => `/api/Order/orders/${orderId}`,
     CANCEL: (orderId) => `/api/Order/orders/${orderId}/cancel`,
+    CONTINUE_PAYMENT: (orderNumber) => `/api/Order/orders/${orderNumber}/continue-payment`,
   },
 
   VOUCHERS: {

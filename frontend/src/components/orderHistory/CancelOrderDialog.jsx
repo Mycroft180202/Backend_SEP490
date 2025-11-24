@@ -39,6 +39,7 @@ function CancelOrderDialog({ isOpen, orderNumber, onClose, onSuccess }) {
       toast.success("Hủy đơn hàng thành công");
       onSuccess();
       onClose();
+      window.location.reload();
     } catch (error) {
       console.error("Error cancelling order:", error);
       toast.error(error?.response?.data?.message || "Không thể hủy đơn hàng");

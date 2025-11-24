@@ -315,11 +315,9 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
           orderNumber={orderNumber}
           onClose={() => setShowCancelDialog(false)}
           onSuccess={() => {
-            // Refresh order detail after cancellation
-            fetchOrderDetail();
-            if (onOrderCancelled) {
-              onOrderCancelled();
-            }
+            // Close dialog and reload page after cancellation
+            setShowCancelDialog(false);
+            window.location.reload();
           }}
         />
       </div>

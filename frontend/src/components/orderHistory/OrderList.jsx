@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import OrderDetailModal from "./OrderDetailModal";
 import CancelOrderDialog from "./CancelOrderDialog";
+import { OrderService } from "../../services/modules/orders/orderService";
+import { toast } from "react-toastify";
 
 // Status badge component
 function StatusBadge({ status }) {
@@ -36,6 +38,26 @@ function OrderCard({ order }) {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const handleContinuePayment = async () => {
+    try {
+      toast.info('Đang xử lý thanh toán...');
+      const response = await OrderService.continuePayment(order.orderNumber);
+      
+      if (response && response.paymentUrl) {
+        // Redirect to VNPAY payment page
+        window.location.href = response.paymentUrl;
+      } else {
+        toast.error('Không thể lấy link thanh toán. Vui lòng thử lại.');
+      }
+    } catch (error) {
+      console.error('Error continuing payment:', error);
+      toast.error('Có lỗi xảy ra khi tiếp tục thanh toán. Vui lòng thử lại.');
+    }
+  };
+
+  // Check if order is VNPAY and Pending
+  const showPaymentButton = order.paymentType === 'VNPAY' && order.status === 'Pending';
 
   return (
     <>
@@ -73,6 +95,14 @@ function OrderCard({ order }) {
           >
             Xem chi tiết
           </button>
+          {showPaymentButton && (
+            <button
+              onClick={handleContinuePayment}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-red-700 transition-colors font-nunito text-sm font-medium"
+            >
+              Tiếp tục thanh toán
+            </button>
+          )}
           {order.status === 'Pending' && (
             <button
               onClick={() => setShowCancelDialog(true)}
@@ -80,6 +110,7 @@ function OrderCard({ order }) {
             >
               Hủy đơn
             </button>
+            
           )}
         </div>
       </div>
@@ -103,6 +134,8 @@ function OrderCard({ order }) {
         onSuccess={() => {
           // Close dialog after successful cancellation
           setShowCancelDialog(false);
+          // Reload page to refresh order list
+          window.location.reload();
         }}
       />
     </>

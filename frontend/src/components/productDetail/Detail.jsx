@@ -410,7 +410,13 @@ const Detail = ({ product, categoryName }) => {
                             <div>
                               <p className="font-semibold text-[#8B4513]">{feedback.customerName}</p>
                               <p className="text-xs text-gray-500 mt-1">
-                                {new Date(feedback.createAt).toLocaleDateString('vi-VN')}
+                                {new Date(feedback.createAt).toLocaleString('vi-VN', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
                               </p>
                             </div>
                             <div className="flex gap-1">

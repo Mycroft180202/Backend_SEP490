@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { FaCheck, FaMapMarkerAlt, FaPlus } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaPlus, FaChevronDown } from 'react-icons/fa';
 
 const getAddressId = (address, fallback) => (
   address?.id
@@ -114,83 +114,67 @@ const AddressSelector = ({
 
       {!isLoading && normalizedAddresses.length > 0 && (
         <div className="space-y-4">
-          {normalizedAddresses.map((address) => {
-            const isSelected = address.__internalId === internalSelectedId;
-            const primaryDetail = address.fullAddress
-              || address.line1
-              || address.detailAddress
-              || address.addressLine
-              || address.address;
-            const detailLine = primaryDetail
-              || [
-                address.detailAddress || address.address || address.addressLine,
-                address.ward,
-                address.district,
-                address.province,
-              ]
-                .filter(Boolean)
-                .join(', ');
-            const detailLine2 = address.detailAddress2
-              || address.line2
-              || address.addressLine2;
-            const displayAddress = detailLine
-              || 'Chua co thong tin dia chi chi tiet.';
+          {/* Dropdown */}
+          <div className="relative">
+            <select
+              value={internalSelectedId || ''}
+              onChange={(e) => setInternalSelectedId(e.target.value)}
+              className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-xl font-nunito text-base text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer hover:border-primary/60 transition-colors"
+            >
+              {normalizedAddresses.map((address) => {
+                const displayName = address.name || address.receiverName || 'Nguoi nhan';
+                const displayPhone = address.phone || address.phoneNumber || '';
+                const isDefault = address.isDefault ? ' [Mac dinh]' : '';
+                
+                return (
+                  <option 
+                    key={address.__internalId} 
+                    value={address.__internalId}
+                  >
+                    {displayName} - {displayPhone}{isDefault}
+                  </option>
+                );
+              })}
+            </select>
+            <FaChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
 
-            const provinceLine = ''; // tránh lặp lại tỉnh/thành đã có trong dòng địa chỉ chính
-            return (
-              <button
-                key={address.__internalId}
-                type="button"
-                onClick={() => setInternalSelectedId(address.__internalId)}
-                className={`w-full p-4 rounded-xl border transition text-left ${
-                  isSelected
-                    ? 'border-primary bg-[#FFF5F5]'
-                    : 'border-gray-200 hover:border-primary/60'
-                }`}
-              >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-nunito text-lg font-semibold text-black">
-                        {address.name || address.receiverName || 'Nguoi nhan'}
-                      </p>
-                      <p className="font-nunito text-sm text-gray-500">
-                        {address.phone || address.phoneNumber || 'Chua co so dien thoai'}
-                      </p>
-                    </div>
-                    {isSelected && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary text-white text-sm font-semibold">
-                        <FaCheck size={12} />
-                        Dang chon
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="font-nunito text-base text-gray-700">
-                    {displayAddress}
-                  </p>
-                  {detailLine2 && (
-                    <p className="font-nunito text-sm text-gray-600">
-                      {detailLine2}
-                    </p>
-                  )}
-                  {provinceLine && (
-                    <p className="font-nunito text-sm text-gray-500">
-                      {provinceLine}
-                    </p>
-                  )}
-
-                  <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                    {address.isDefault && (
-                      <span className="px-3 py-1 rounded-full bg-white border border-gray-200 text-primary font-semibold">
-                        Mac dinh
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
+          {/* Selected Address Details - Style like profile page */}
+          {internalSelectedId && (() => {
+            const selectedAddress = normalizedAddresses.find(
+              (addr) => addr.__internalId === internalSelectedId
             );
-          })}
+            if (!selectedAddress) return null;
+
+            const displayName = selectedAddress.name || selectedAddress.receiverName || 'Nguoi nhan';
+            const displayPhone = selectedAddress.phone || selectedAddress.phoneNumber || 'Chua co so dien thoai';
+            
+            const detailAddress = selectedAddress.detailAddress || '';
+            const ward = selectedAddress.ward || '';
+            const district = selectedAddress.district || '';
+            const province = selectedAddress.province || '';
+            
+            const fullAddressLine = [detailAddress, ward, district, province]
+              .filter(Boolean)
+              .join(', ');
+
+            return (
+              <div className="p-4 border rounded-lg bg-gray-50">
+                <div className="mb-2">
+                  <span className="font-bold text-lg">{displayName}</span>
+                </div>
+                <div className="text-gray-700 mb-1">{displayPhone}</div>
+                <div className="text-gray-600">{fullAddressLine || 'Chua co thong tin dia chi chi tiet.'}</div>
+                {selectedAddress.isDefault && (
+                  <div className="mt-2">
+                    <span className="inline-block px-3 py-1 text-xs rounded-full bg-green-100 text-green-800 font-semibold">
+                      MAC DINH
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
