@@ -2,6 +2,80 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Docker workflow
+
+The frontend can be containerized with the provided `Dockerfile`. Build the production image and pass any API overrides as `--build-arg` values:
+
+```bash
+docker build -t g90-frontend 
+  --build-arg REACT_APP_API_BASE_URL=https://hoalachandicraft-fmbmfmfcehdyeqgz.eastasia-01.azurewebsites.net
+  --build-arg REACT_APP_API_TIMEOUT=30000 
+  .
+```
+
+Run the container with Nginx serving the compiled bundle on port 80:
+
+```bash
+docker run --rm -p 8080:80 g90-frontend
+```
+
+> The `.env` file supplies defaults for local development. Only variables prefixed with `REACT_APP_` are baked into the bundle, so they must be provided before `docker build` if you need values other than those committed in `.env`.
+
+### Push to Azure Container Registry (ACR)
+
+1. Login and create the registry if needed:
+   ```bash
+   az login
+   az acr create --resource-group <rg-name> --name <acr-name> --sku Basic
+   az acr login --name <acr-name>
+   ```
+2. Tag and push the image:
+   ```bash
+   docker tag g90-frontend <acr-name>.azurecr.io/g90-frontend:latest
+   docker push <acr-name>.azurecr.io/g90-frontend:latest
+   ```
+
+### Deploy to Azure Web App for Containers
+
+1. Ensure an App Service plan exists (Linux, e.g. `B1`):
+   ```bash
+   az appservice plan create \
+     --name <plan-name> \
+     --resource-group <rg-name> \
+     --is-linux \
+     --sku B1
+   ```
+2. Create or update the Web App to consume the pushed image:
+   ```bash
+   az webapp create \
+     --resource-group <rg-name> \
+     --plan <plan-name> \
+     --name <webapp-name> \
+     --deployment-container-image-name <acr-name>.azurecr.io/g90-frontend:latest
+   ```
+3. Allow the Web App to pull from ACR (managed identity is recommended):
+   ```bash
+   az webapp identity assign --name <webapp-name> --resource-group <rg-name>
+   PRINCIPAL_ID=$(az webapp identity show --name <webapp-name> --resource-group <rg-name> --query principalId -o tsv)
+   az role assignment create \
+     --assignee $PRINCIPAL_ID \
+     --scope $(az acr show --name <acr-name> --resource-group <rg-name> --query id -o tsv) \
+     --role "AcrPull"
+   ```
+4. Configure startup settings or environment variables as needed:
+   ```bash
+   az webapp config appsettings set \
+     --name <webapp-name> \
+     --resource-group <rg-name> \
+     --settings WEBSITES_PORT=80
+   az webapp config container set \
+     --name <webapp-name> \
+     --resource-group <rg-name> \
+     --docker-custom-image-name <acr-name>.azurecr.io/g90-frontend:latest
+   ```
+
+After the container starts, the site is served via the Web App’s public URL on the default HTTP/HTTPS ports while proxying requests to port `80` inside the container.
+
 ## Available Scripts
 
 In the project directory, you can run:
