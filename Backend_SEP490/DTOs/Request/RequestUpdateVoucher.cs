@@ -40,6 +40,12 @@ namespace Backend_SEP490.DTOs.Request
         public int UsedCount { get; set; } = 0;
 
         public bool IsActive { get; set; } = true;
+        public bool IsShared { get; set; } = true;
+        public bool SingleUse { get; set; }
+        [StringLength(450)]
+        public string? OwnerUserId { get; set; }
+        [StringLength(100)]
+        public string? Source { get; set; }
 
         // ✅ Custom validation đảm bảo EndDate sau StartDate
         public static ValidationResult? ValidateEndDate(DateTime endDate, ValidationContext context)

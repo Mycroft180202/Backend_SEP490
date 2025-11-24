@@ -42,6 +42,20 @@ public class VoucherController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("voucher/me")]
+    public async Task<IActionResult> GetMyVouchers()
+    {
+        var userId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _voucherService.GetVoucherByUserIdAsync(userId);
+        return Ok(result);
+    }
+
+    [Authorize]
     [HttpPost("voucher")]
     public async Task<IActionResult> CreateVoucher([FromBody] RequestCreateVoucher request)
     {

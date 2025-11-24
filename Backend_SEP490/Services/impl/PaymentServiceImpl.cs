@@ -21,6 +21,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
 {
     private readonly INotificationService _notificationService;
     private readonly IOrderService _orderService;
+    private readonly IVoucherService _voucherService;
     private readonly VnpaySettings _vnpaySettings;
     private readonly ILogger<PaymentServiceImpl> _logger;
     private static readonly string[] VietnamTimeZoneIds = { "SE Asia Standard Time", "Asia/Ho_Chi_Minh" };
@@ -31,11 +32,13 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
         IOrderService orderService,
+        IVoucherService voucherService,
         IOptions<VnpaySettings> vnpayOptions,
         ILogger<PaymentServiceImpl> logger) : base(mapper, unitOfWork)
     {
         _notificationService = notificationService;
         _orderService = orderService;
+        _voucherService = voucherService;
         _vnpaySettings = vnpayOptions.Value;
         _logger = logger;
     }
@@ -264,6 +267,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             if (order != null)
             {
                 await UpdateOrderStatusToPaidAsync(order);
+                await _voucherService.TryGrantLargeOrderVoucherAsync(order);
             }
 
             if (!string.IsNullOrWhiteSpace(customerId) && ShouldClearCartAfterPayment(order, normalizedStatus))

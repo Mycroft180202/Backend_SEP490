@@ -25,6 +25,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
     private readonly INotificationService _notificationService;
     private readonly IGhnShippingService _ghnShippingService;
     private readonly IShipmentRealtimeService _shipmentRealtimeService;
+    private readonly IVoucherService _voucherService;
     private readonly ILogger<OrderServiceImpl> _logger;
     private readonly GhnSettings _ghnSettings;
 
@@ -34,12 +35,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
         INotificationService notificationService,
         IGhnShippingService ghnShippingService,
         IShipmentRealtimeService shipmentRealtimeService,
+        IVoucherService voucherService,
         IOptions<GhnSettings> ghnOptions,
         ILogger<OrderServiceImpl> logger) : base(mapper, unitOfWork)
     {
         _notificationService = notificationService;
         _ghnShippingService = ghnShippingService;
         _shipmentRealtimeService = shipmentRealtimeService;
+        _voucherService = voucherService;
         _logger = logger;
         _ghnSettings = ghnOptions.Value;
     }
@@ -128,7 +131,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
 
             var (voucherSuccess, discountAmount, voucher, voucherError) =
-                await ApplyVoucherAsync(request.VoucherCodeId, subtotal);
+                await ApplyVoucherAsync(userId, request.VoucherCodeId, subtotal);
             if (!voucherSuccess)
             {
                 await transaction.RollbackAsync();
@@ -438,6 +441,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
     }
 
     private async Task<(bool Success, decimal Discount, Voucher? Voucher, string? Message)> ApplyVoucherAsync(
+        string? userId,
         string? voucherCode,
         decimal orderAmount)
     {
@@ -446,49 +450,52 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return (true, 0m, null, null);
         }
 
+        if (voucherCode.Contains(',', StringComparison.Ordinal))
+        {
+            return (false, 0m, null, "Chi duoc phep su dung mot voucher cho moi don hang.");
+        }
+
         var voucher = await _context.Voucher.GetVoucherByCodeAsync(voucherCode.Trim());
         if (voucher == null)
         {
-            return (false, 0m, null, "Voucher not found.");
+            return (false, 0m, null, "Voucher khong ton tai.");
         }
 
         var now = DateTime.UtcNow;
         if (now < voucher.StartDate || now > voucher.EndDate)
         {
-            return (false, 0m, null, "Voucher is not active.");
+            return (false, 0m, null, "Voucher chua den thoi gian ap dung hoac da het han.");
         }
 
         if (!voucher.IsActive)
         {
-            return (false, 0m, null, "Voucher is inactive.");
+            return (false, 0m, null, "Voucher da bi khoa.");
+        }
+
+        if (!voucher.IsShared &&
+            (!string.Equals(voucher.OwnerUserId, userId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return (false, 0m, null, "Voucher nay chi danh rieng cho tai khoan cua ban.");
         }
 
         var remainingUses = voucher.UsageLimit.HasValue
-            ? Math.Max(voucher.UsageLimit.Value - voucher.UsedCount, 0)
-            : voucher.UsedCount;
+            ? voucher.UsageLimit.Value - voucher.UsedCount
+            : int.MaxValue;
 
         if (remainingUses <= 0)
         {
-            return (false, 0m, null, "Voucher usage limit reached.");
+            return (false, 0m, null, "Voucher da het luot su dung.");
         }
 
         if (voucher.MinOrderAmount.HasValue && orderAmount < voucher.MinOrderAmount.Value)
         {
-            return (false, 0m, null, "Order amount does not meet voucher requirements.");
+            return (false, 0m, null, "Don hang chua dat gia tri toi thieu cua voucher.");
         }
 
         decimal discount;
         if (string.Equals(voucher.DiscountType, "Percent", StringComparison.OrdinalIgnoreCase))
         {
-            var percent = voucher.DiscountValue / 100m;
-            if (percent < 0m)
-            {
-                percent = 0m;
-            }
-            else if (percent > 1m)
-            {
-                percent = 1m;
-            }
+            var percent = Math.Clamp(voucher.DiscountValue, 0m, 100m) / 100m;
             discount = orderAmount * percent;
             if (voucher.MaxDiscountAmount.HasValue && discount > voucher.MaxDiscountAmount.Value)
             {
@@ -505,10 +512,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
         if (voucher.UsageLimit.HasValue)
         {
             voucher.UsedCount++;
-        }
-        else
-        {
-            voucher.UsedCount = Math.Max(voucher.UsedCount - 1, 0);
+            if (voucher.UsedCount >= voucher.UsageLimit.Value)
+            {
+                voucher.IsActive = false;
+            }
         }
 
         return (true, discount, voucher, null);
@@ -542,6 +549,27 @@ public class OrderServiceImpl : GenericServices, IOrderService
         if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))
         {
             return "Order already completed!";
+        }
+
+        var refundEligibility = false;
+        var payments = await _context.Payments.GetByOrderIdAsync(order.Id);
+        if (string.Equals(order.PaymentType, PaymentTypeVnpay, StringComparison.OrdinalIgnoreCase))
+        {
+            var paidPayment = payments?
+                .Where(p => string.Equals(p.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(p => p.ProccessedAt)
+                .FirstOrDefault();
+
+            if (paidPayment != null)
+            {
+                var elapsed = DateTime.UtcNow - paidPayment.ProccessedAt;
+                if (elapsed > TimeSpan.FromDays(2))
+                {
+                    return "Don hang da thanh toan VNPay chi duoc huy trong vong 2 ngay.";
+                }
+
+                refundEligibility = true;
+            }
         }
 
         var shipments = await _context.Shipment.GetByOrdernumberAsync(order.OrderNumber);
@@ -579,7 +607,17 @@ public class OrderServiceImpl : GenericServices, IOrderService
             await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment cancelled");
         }
 
-        return "Cancel order successfully!";
+        var message = "Cancel order successfully!";
+        if (refundEligibility && order.TotalAmount > 0)
+        {
+            var voucher = await _voucherService.CreateRefundVoucherAsync(userId, order, order.TotalAmount, request?.Reason);
+            if (voucher != null)
+            {
+                message += $" Voucher {voucher.Code} da duoc them vao tai khoan ban.";
+            }
+        }
+
+        return message;
     }
 
     public async Task<bool> CreateShipmentsAfterPaymentAsync(string orderId)

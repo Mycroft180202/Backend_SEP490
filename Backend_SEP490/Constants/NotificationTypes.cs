@@ -13,4 +13,6 @@ public static class NotificationTypes
     public const string ArtisanApplicationSubmitted = "ARTISAN_APPLICATION_SUBMITTED";
     public const string ArtisanApplicationApproved = "ARTISAN_APPLICATION_APPROVED";
     public const string ArtisanApplicationRejected = "ARTISAN_APPLICATION_REJECTED";
+    public const string VoucherGift = "VOUCHER_GIFT";
+    public const string VoucherReminder = "VOUCHER_REMINDER";
 }

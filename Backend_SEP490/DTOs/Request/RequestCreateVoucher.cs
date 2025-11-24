@@ -38,7 +38,12 @@ namespace Backend_SEP490.DTOs.Request
         [Range(1, int.MaxValue, ErrorMessage = "Giới hạn sử dụng phải lớn hơn 0")]
         public int? UsageLimit { get; set; }
         public bool IsActive { get; set; } = true;
-
+        public bool IsShared { get; set; } = true;
+        public bool SingleUse { get; set; }
+        [StringLength(450)]
+        public string? OwnerUserId { get; set; }
+        [StringLength(100)]
+        public string? Source { get; set; }
     }
     public class DateGreaterThanAttribute : ValidationAttribute
     {
