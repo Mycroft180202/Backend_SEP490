@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../shared/Pagination';
 import { BlogService } from '../../services/modules/blog/blogService';
+import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS, PRIMARY_BUTTON_CLASS } from '../../utils/homeTheme';
 
 const PAGE_SIZE = 4;
 
@@ -12,16 +13,23 @@ const NewsCard = ({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-4 w-full bg-white rounded-xl border border-[#D4A574]/30 shadow hover:shadow-lg transition overflow-hidden text-left"
+      className="group relative flex flex-col w-full overflow-hidden rounded-3xl border border-[#D4A574]/35 bg-white/85 backdrop-blur-sm shadow-[0_20px_50px_-28px_rgba(97,43,0,0.55)] transition-transform duration-500 hover:-translate-y-1 hover:shadow-[0_24px_55px_-24px_rgba(97,43,0,0.65)] text-left"
     >
-      <img
-        src={image}
-        alt={title}
-        className="w-full h-[200px] object-cover"
-      />
-      <div className="px-4 pb-4 flex flex-col gap-1">
-        <span className="font-nunito text-xs text-[#9e211f] font-semibold">{date}</span>
-        <h3 className="font-nunito text-lg font-semibold text-gray-800 line-clamp-2">{title}</h3>
+      <div className="relative h-[220px] overflow-hidden">
+        <img
+          src={image}
+          alt={title}
+          className="w-full h-full object-cover transition duration-700 ease-out group-hover:scale-105"
+        />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <span className="absolute bottom-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/85 text-[#8B4513] text-xs font-semibold shadow-sm">
+          Khám phá
+          <span aria-hidden className="translate-x-0 group-hover:translate-x-1 transition-transform">→</span>
+        </span>
+      </div>
+      <div className="px-5 pb-5 pt-4 flex flex-col gap-2">
+        <span className="font-nunito text-xs tracking-[0.28em] text-[#9E211F] uppercase">{date}</span>
+        <h3 className="font-nunito text-lg font-semibold text-[#1C355E] leading-snug line-clamp-2">{title}</h3>
       </div>
     </button>
   );
@@ -60,17 +68,49 @@ const DiscoverHoaLac = () => {
   );
 
   return (
-    <section className="w-full py-[60px] px-4 md:px-10 lg:px-24 bg-background">
-      <div className="max-w-[1440px] mx-auto">
-        <h2 className="font-alata text-3xl md:text-4xl text-primary leading-[56px] mb-10">
-          Khám phá Hòa Lạc
-        </h2>
+    <section className="relative overflow-hidden bg-gradient-to-b from-[#FFF3E0] via-[#FFE4C5] to-[#F9D4A6] pt-20 pb-24">
+      <div className="absolute inset-x-0 top-0 -translate-y-full pointer-events-none">
+        <svg className="w-full h-16 md:h-20" viewBox="0 0 1440 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0 120 Q60 0 120 120 T240 120 T360 120 T480 120 T600 120 T720 120 T840 120 T960 120 T1080 120 T1200 120 T1320 120 T1440 120 L1440 0 L0 0 Z" fill="#FFF3E0" />
+        </svg>
+      </div>
+      <div
+        className="absolute inset-0 opacity-[0.06] pointer-events-none"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 15% 25%, #B96C5E 0, transparent 40%), radial-gradient(circle at 80% 20%, #C78C54 0, transparent 45%), radial-gradient(circle at 45% 70%, #8B4513 0, transparent 50%)',
+        }}
+      />
 
-        <div className="flex flex-col items-center gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+      <div className="relative max-w-[1440px] mx-auto px-4 md:px-10 lg:px-20">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+          <div className="space-y-3">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 text-[#8B4513] text-xs font-semibold uppercase tracking-[0.25em]">
+              Góc truyện làng nghề
+            </span>
+            <div>
+              <h2 className={SECTION_TITLE_CLASS}>Khám phá Hòa Lạc</h2>
+              <p className={`mt-3 ${SECTION_SUBTITLE_CLASS} max-w-2xl`}>
+                Những câu chuyện, sự kiện và cảm hứng xoay quanh hành trình gìn giữ và phát triển nghề thủ công truyền thống.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/blog')}
+            className={`${PRIMARY_BUTTON_CLASS} self-start md:self-end`}
+          >
+            Xem tất cả bài viết
+            <span aria-hidden className="text-lg">→</span>
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 w-full">
             {loading
               ? Array.from({ length: PAGE_SIZE }).map((_, idx) => (
-                <div key={idx} className="h-[260px] bg-white rounded-xl shadow animate-pulse" />
+                <div key={idx} className="h-[260px] rounded-3xl bg-white/80 border border-[#D4A574]/30 shadow animate-pulse" />
               ))
               : display.map((item) => {
                 const blogId = item.id || item.blogId;
@@ -87,7 +127,7 @@ const DiscoverHoaLac = () => {
           </div>
 
           {blogs.length > PAGE_SIZE && (
-            <div className="mt-4">
+            <div className="mt-2">
               <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
             </div>
           )}

@@ -10,8 +10,8 @@ import ContactSection from '../components/home/ContactSection';
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <main>
+    <div className="min-h-screen relative overflow-hidden bg-[#FEF7EB]">
+      <main className="relative z-10">
         <Header />
         <Hero />
         <Collections />

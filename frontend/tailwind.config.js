@@ -10,6 +10,7 @@ module.exports = {
       fontFamily: {
         alata: ['Alata', ...fontFamily.sans],
         nunito: ['Nunito', ...fontFamily.sans],
+        hoaico: ['Hoai-co', ...fontFamily.serif],
       },
       colors: {
         primary: '#9E211F',

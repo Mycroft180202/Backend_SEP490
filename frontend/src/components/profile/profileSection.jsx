@@ -774,252 +774,6 @@ function ProfileSection() {
           <>
             <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Thông tin tài khoản</h2>
             <form className="grid grid-cols-2 gap-x-12 gap-y-6 max-w-2xl">
-              <div className="col-span-2">
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <label className="font-medium">Địa chỉ giao hàng</label>
-                    <button
-                      type="button"
-                      onClick={handleToggleAddressForm}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#9e211f] text-[#9e211f] font-semibold hover:bg-[#9e211f] hover:text-white transition"
-                    >
-                      <FaPlus size={14} /> {showAddressForm ? 'Đóng' : 'Thêm địa chỉ'}
-                    </button>
-                  </div>
-
-                  {profile.addresses && profile.addresses.length > 0 ? (
-                    <ul className="space-y-3">
-                      {profile.addresses.map((addr, idx) => {
-                        const key = addr.id || addr.addressId || addr.shippingAddressId || idx;
-                        const receiverName = addr.contactName || addr.name || profile.name;
-                        const phoneDisplay = addr.contactPhone || addr.phone || profile.phone;
-                        const addressLine = addr.fullAddress
-                          || addr.line1
-                          || [addr.detailAddress || addr.address, addr.ward, addr.district, addr.province]
-                            .filter(Boolean)
-                            .join(', ');
-                        const addressLine2 = addr.line2;
-                        return (
-                          <li
-                            key={key}
-                            className="border rounded px-4 py-3 bg-white flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
-                          >
-                            <div>
-                              <p className="font-semibold text-[#9e211f]">{receiverName}</p>
-                              <p className="text-sm text-gray-500">{phoneDisplay}</p>
-                              <p className="text-sm text-gray-700 mt-1">
-                                {addressLine || 'Chưa có địa chỉ chi tiết'}
-                              </p>
-                              {addressLine2 && (
-                                <p className="text-sm text-gray-500">{addressLine2}</p>
-                              )}
-                              {/* Địa chỉ chi tiết đã chứa tỉnh/thành, bỏ dòng province riêng để tránh lặp */}
-                            </div>
-                            <div className="flex flex-col gap-2 items-start md:items-end">
-                              {addr.isDefault && (
-                                <span className="text-xs uppercase bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold self-start md:self-auto">
-                                  Mặc định
-                                </span>
-                              )}
-                              <div className="flex gap-3">
-                                <button
-                                  type="button"
-                                  className="text-sm font-semibold text-[#9e211f] hover:underline"
-                                  onClick={() => {
-                                    setEditingAddressId(addr.id);
-                                    setShowAddressForm(true);
-                                    setNewAddress({
-                                      ...addressFormDefaults,
-                                      name: addr.contactName || addr.name || '',
-                                      phone: addr.contactPhone || addr.phone || '',
-                                      provinceId: addr.ghnProvinceId || '',
-                                      districtId: addr.ghnDistrictId || '',
-                                      wardCode: addr.ghnWardCode || '',
-                                      province: '',
-                                      district: '',
-                                      ward: '',
-                                      detailAddress: addr.line1 || '',
-                                      detailAddress2: addr.line2 || '',
-                                      isDefault: Boolean(addr.isDefault),
-                                    });
-                                    loadProvinces().then((data) => {
-                                      const provinceName = (data || []).find((p) => p.ProvinceID === addr.ghnProvinceId)?.ProvinceName || '';
-                                      setNewAddress((prev) => ({ ...prev, province: provinceName }));
-                                      if (addr.ghnProvinceId) {
-                                        loadDistricts(addr.ghnProvinceId).then((districtData) => {
-                                          const districtName = (districtData || []).find((d) => d.DistrictID === addr.ghnDistrictId)?.DistrictName || '';
-                                          setNewAddress((prev) => ({ ...prev, district: districtName }));
-                                          if (addr.ghnDistrictId) {
-                                            loadWards(addr.ghnDistrictId).then((wardData) => {
-                                              const wardName = (wardData || []).find((w) => w.WardCode === addr.ghnWardCode)?.WardName || '';
-                                              setNewAddress((prev) => ({ ...prev, ward: wardName }));
-                                            });
-                                          }
-                                        });
-                                      }
-                                    });
-                                  }}
-                                >
-                                  Xem / Sửa
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-sm font-semibold text-red-500 hover:underline disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!addr.id) return;
-                                    setDeleteAddressId(addr.id);
-                                  }}
-                                >
-                                    Xóa
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <div className="text-gray-500">Chưa có địa chỉ nào</div>
-                  )}
-
-                  {showAddressForm && (
-                    <div className="mt-2 p-4 border rounded-lg bg-white shadow-sm space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Họ tên người nhận</label>
-                          <input
-                            type="text"
-                            className="w-full border rounded px-3 py-2"
-                            value={newAddress.name}
-                            onChange={(e) => handleAddressFieldChange('name', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Số điện thoại</label>
-                          <input
-                            type="text"
-                            className="w-full border rounded px-3 py-2"
-                            value={newAddress.phone}
-                            onChange={(e) => handleAddressFieldChange('phone', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Tỉnh/Thành phố</label>
-                          <select
-                            className="w-full border rounded px-3 py-2 bg-white"
-                            value={newAddress.provinceId || ''}
-                            onChange={(e) => handleProvinceSelect(e.target.value)}
-                            disabled={loadingProvinces && provinces.length === 0}
-                          >
-                            <option value="">
-                              {loadingProvinces && provinces.length === 0
-                                ? 'Đang tải tỉnh/thành phố...'
-                                : 'Chọn tỉnh/thành phố'}
-                            </option>
-                            {provinces.map((province) => (
-                              <option key={province.ProvinceID} value={province.ProvinceID}>
-                                {province.ProvinceName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Quận/Huyện</label>
-                          <select
-                            className="w-full border rounded px-3 py-2 bg-white"
-                            value={newAddress.districtId || ''}
-                            onChange={(e) => handleDistrictSelect(e.target.value)}
-                            disabled={!newAddress.provinceId || loadingDistricts}
-                          >
-                            <option value="">
-                              {!newAddress.provinceId
-                                ? 'Vui lòng chọn tỉnh/thành phố trước'
-                                : loadingDistricts
-                                  ? 'Đang tải quận/huyện...'
-                                  : 'Chọn quận/huyện'}
-                            </option>
-                            {districts.map((district) => (
-                              <option key={district.DistrictID} value={district.DistrictID}>
-                                {district.DistrictName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Phường/Xã</label>
-                          <select
-                            className="w-full border rounded px-3 py-2 bg-white"
-                            value={newAddress.wardCode || ''}
-                            onChange={(e) => handleWardSelect(e.target.value)}
-                            disabled={!newAddress.districtId || loadingWards}
-                          >
-                            <option value="">
-                              {!newAddress.districtId
-                                ? 'Vui lòng chọn quận/huyện trước'
-                                : loadingWards
-                                  ? 'Đang tải phường/xã...'
-                                  : 'Chọn phường/xã'}
-                            </option>
-                            {wards.map((ward) => (
-                              <option key={ward.WardCode} value={ward.WardCode}>
-                                {ward.WardName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết</label>
-                          <input
-                            type="text"
-                            className="w-full border rounded px-3 py-2"
-                      value={newAddress.detailAddress}
-                      onChange={(e) => handleAddressFieldChange('detailAddress', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết 2 (nếu có)</label>
-                    <input
-                      type="text"
-                      className="w-full border rounded px-3 py-2"
-                      value={newAddress.detailAddress2}
-                      onChange={(e) => handleAddressFieldChange('detailAddress2', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="address-default"
-                    checked={
-                      Boolean(newAddress.isDefault)
-                      || (!profile?.addresses?.length && !editingAddressId)
-                    }
-                    onChange={(e) => handleDefaultToggle(e.target.checked)}
-                  />
-                  <label htmlFor="address-default" className="text-sm">Đặt làm địa chỉ mặc định</label>
-                </div>
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          className="px-4 py-2 rounded border"
-                          onClick={handleToggleAddressForm}
-                          disabled={savingAddress}
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          type="button"
-                          className="px-4 py-2 rounded bg-[#9e211f] text-white font-semibold"
-                          onClick={handleAddAddress}
-                          disabled={savingAddress}
-                        >
-                          {savingAddress ? 'Đang lưu...' : 'Lưu địa chỉ'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
               <div>
                 <label className="block mb-2 font-medium">Tên</label>
                 <input 
@@ -1110,6 +864,250 @@ function ProfileSection() {
                     Hủy
                   </button>
                 </>
+              )}
+            </div>
+            <div className="mt-12 max-w-3xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="text-[#9e211f] text-3xl font-bold mb-8">Địa chỉ giao hàng</label>
+                <button
+                  type="button"
+                  onClick={handleToggleAddressForm}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#9e211f] text-[#9e211f] font-semibold hover:bg-[#9e211f] hover:text-white transition"
+                >
+                  <FaPlus size={14} /> {showAddressForm ? 'Đóng' : 'Thêm địa chỉ'}
+                </button>
+              </div>
+
+              {profile.addresses && profile.addresses.length > 0 ? (
+                <ul className="mt-4 space-y-3">
+                  {profile.addresses.map((addr, idx) => {
+                    const key = addr.id || addr.addressId || addr.shippingAddressId || idx;
+                    const receiverName = addr.contactName || addr.name || profile.name;
+                    const phoneDisplay = addr.contactPhone || addr.phone || profile.phone;
+                    const addressLine = addr.fullAddress
+                      || addr.line1
+                      || [addr.detailAddress || addr.address, addr.ward, addr.district, addr.province]
+                        .filter(Boolean)
+                        .join(', ');
+                    const addressLine2 = addr.line2;
+                    return (
+                      <li
+                        key={key}
+                        className="border rounded px-4 py-3 bg-white flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <p className="font-semibold text-[#9e211f]">{receiverName}</p>
+                          <p className="text-sm text-gray-500">{phoneDisplay}</p>
+                          <p className="text-sm text-gray-700 mt-1">
+                            {addressLine || 'Chưa có địa chỉ chi tiết'}
+                          </p>
+                          {addressLine2 && (
+                            <p className="text-sm text-gray-500">{addressLine2}</p>
+                          )}
+                          {/* Địa chỉ chi tiết đã chứa tỉnh/thành, bỏ dòng province riêng để tránh lặp */}
+                        </div>
+                        <div className="flex flex-col gap-2 items-start md:items-end">
+                          {addr.isDefault && (
+                            <span className="text-xs uppercase bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold self-start md:self-auto">
+                              Mặc định
+                            </span>
+                          )}
+                          <div className="flex gap-3">
+                            <button
+                              type="button"
+                              className="text-sm font-semibold text-[#9e211f] hover:underline"
+                              onClick={() => {
+                                setEditingAddressId(addr.id);
+                                setShowAddressForm(true);
+                                setNewAddress({
+                                  ...addressFormDefaults,
+                                  name: addr.contactName || addr.name || '',
+                                  phone: addr.contactPhone || addr.phone || '',
+                                  provinceId: addr.ghnProvinceId || '',
+                                  districtId: addr.ghnDistrictId || '',
+                                  wardCode: addr.ghnWardCode || '',
+                                  province: '',
+                                  district: '',
+                                  ward: '',
+                                  detailAddress: addr.line1 || '',
+                                  detailAddress2: addr.line2 || '',
+                                  isDefault: Boolean(addr.isDefault),
+                                });
+                                loadProvinces().then((data) => {
+                                  const provinceName = (data || []).find((p) => p.ProvinceID === addr.ghnProvinceId)?.ProvinceName || '';
+                                  setNewAddress((prev) => ({ ...prev, province: provinceName }));
+                                  if (addr.ghnProvinceId) {
+                                    loadDistricts(addr.ghnProvinceId).then((districtData) => {
+                                      const districtName = (districtData || []).find((d) => d.DistrictID === addr.ghnDistrictId)?.DistrictName || '';
+                                      setNewAddress((prev) => ({ ...prev, district: districtName }));
+                                      if (addr.ghnDistrictId) {
+                                        loadWards(addr.ghnDistrictId).then((wardData) => {
+                                          const wardName = (wardData || []).find((w) => w.WardCode === addr.ghnWardCode)?.WardName || '';
+                                          setNewAddress((prev) => ({ ...prev, ward: wardName }));
+                                        });
+                                      }
+                                    });
+                                  }
+                                });
+                              }}
+                            >
+                              Xem / Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="text-sm font-semibold text-red-500 hover:underline disabled:opacity-50"
+                              onClick={() => {
+                                if (!addr.id) return;
+                                setDeleteAddressId(addr.id);
+                              }}
+                            >
+                                Xóa
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="mt-4 text-gray-500">Chưa có địa chỉ nào</div>
+              )}
+
+              {showAddressForm && (
+                <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Họ tên người nhận</label>
+                      <input
+                        type="text"
+                        className="w-full border rounded px-3 py-2"
+                        value={newAddress.name}
+                        onChange={(e) => handleAddressFieldChange('name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Số điện thoại</label>
+                      <input
+                        type="text"
+                        className="w-full border rounded px-3 py-2"
+                        value={newAddress.phone}
+                        onChange={(e) => handleAddressFieldChange('phone', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Tỉnh/Thành phố</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 bg-white"
+                        value={newAddress.provinceId || ''}
+                        onChange={(e) => handleProvinceSelect(e.target.value)}
+                        disabled={loadingProvinces && provinces.length === 0}
+                      >
+                        <option value="">
+                          {loadingProvinces && provinces.length === 0
+                            ? 'Đang tải tỉnh/thành phố...'
+                            : 'Chọn tỉnh/thành phố'}
+                        </option>
+                        {provinces.map((province) => (
+                          <option key={province.ProvinceID} value={province.ProvinceID}>
+                            {province.ProvinceName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Quận/Huyện</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 bg-white"
+                        value={newAddress.districtId || ''}
+                        onChange={(e) => handleDistrictSelect(e.target.value)}
+                        disabled={!newAddress.provinceId || loadingDistricts}
+                      >
+                        <option value="">
+                          {!newAddress.provinceId
+                            ? 'Vui lòng chọn tỉnh/thành phố trước'
+                            : loadingDistricts
+                              ? 'Đang tải quận/huyện...'
+                              : 'Chọn quận/huyện'}
+                        </option>
+                        {districts.map((district) => (
+                          <option key={district.DistrictID} value={district.DistrictID}>
+                            {district.DistrictName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Phường/Xã</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 bg-white"
+                        value={newAddress.wardCode || ''}
+                        onChange={(e) => handleWardSelect(e.target.value)}
+                        disabled={!newAddress.districtId || loadingWards}
+                      >
+                        <option value="">
+                          {!newAddress.districtId
+                            ? 'Vui lòng chọn quận/huyện trước'
+                            : loadingWards
+                              ? 'Đang tải phường/xã...'
+                              : 'Chọn phường/xã'}
+                        </option>
+                        {wards.map((ward) => (
+                          <option key={ward.WardCode} value={ward.WardCode}>
+                            {ward.WardName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết</label>
+                      <input
+                        type="text"
+                        className="w-full border rounded px-3 py-2"
+                        value={newAddress.detailAddress}
+                        onChange={(e) => handleAddressFieldChange('detailAddress', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết 2 (nếu có)</label>
+                      <input
+                        type="text"
+                        className="w-full border rounded px-3 py-2"
+                        value={newAddress.detailAddress2}
+                        onChange={(e) => handleAddressFieldChange('detailAddress2', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="address-default"
+                      checked={
+                        Boolean(newAddress.isDefault)
+                        || (!profile?.addresses?.length && !editingAddressId)
+                      }
+                      onChange={(e) => handleDefaultToggle(e.target.checked)}
+                    />
+                    <label htmlFor="address-default" className="text-sm">Đặt làm địa chỉ mặc định</label>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded border"
+                      onClick={handleToggleAddressForm}
+                      disabled={savingAddress}
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded bg-[#9e211f] text-white font-semibold"
+                      onClick={handleAddAddress}
+                      disabled={savingAddress}
+                    >
+                      {savingAddress ? 'Đang lưu...' : 'Lưu địa chỉ'}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </>

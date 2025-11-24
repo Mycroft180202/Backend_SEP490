@@ -271,7 +271,7 @@ const ProductCard = ({
         )}
       </div>
 
-      <div className="p-5 bg-gradient-to-b from-white to-[#FFFBF0] flex flex-col gap-3">
+      <div className="p-5 bg-gradient-to-b from-white to-[#FFFBF0] flex flex-col gap-3 border-t-2 border-[#D4A574]/40">
         <h3 className="font-['Nunito'] text-lg font-semibold text-[#5A3310] line-clamp-2 min-h-[48px] group-hover:text-[#9E211F] transition-colors">
           {title}
         </h3>

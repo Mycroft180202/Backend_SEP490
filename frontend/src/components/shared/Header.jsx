@@ -21,6 +21,7 @@ const Header = () => {
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!userInfo) {
@@ -159,39 +160,72 @@ const Header = () => {
   const isAdmin = roleList.some((r) => (typeof r === 'string' ? r : r?.name) === 'Admin');
   const isArtisan = roleList.some((r) => (typeof r === 'string' ? r : r?.name) === 'Artisan');
 
+  const navItems = [
+    { path: '/', label: t('nav.home') },
+    { path: '/about', label: t('nav.about') },
+    { path: '/shop', label: t('nav.shop') },
+    { path: '/blog', label: t('nav.blog') },
+    { path: '/contact', label: t('nav.contact') },
+    { path: '/policy', label: t('nav.policy') },
+  ];
+
   return (
     <header
-      className="relative flex items-center justify-between px-[40px] py-[12px] w-full min-h-[68px] z-50"
+      className="relative flex items-center justify-between px-4 sm:px-6 lg:px-[40px] py-3 sm:py-[12px] w-full min-h-[60px] sm:min-h-[68px] z-50"
       style={{ background: 'rgba(122, 9, 9, 0.85)', backdropFilter: 'blur(30px)' }}
     >
-      <div className="flex items-center gap-2 relative z-10">
-        <img src="/images/OnlyLogo.png" alt="logo" className="w-[44px] h-[44px] rounded-full object-cover" />
-        <span style={{ fontFamily: 'Alata, sans-serif', fontSize: 20, lineHeight: '32px', color: '#fff', fontWeight: 400 }}>
+      {/* Logo */}
+      <div className="flex items-center gap-1 sm:gap-2 relative z-10 flex-shrink-0">
+        <img src="/images/OnlyLogo.png" alt="logo" className="w-10 h-10 sm:w-[44px] sm:h-[44px] rounded-full object-cover" />
+        <span style={{ fontFamily: 'Alata, sans-serif', fontSize: 'clamp(14px, 4vw, 20px)', lineHeight: '32px', color: '#fff', fontWeight: 400 }} className="hidden sm:inline">
           Hoa Lac Handicraft
         </span>
       </div>
-      <nav className="flex items-center gap-[24px] relative z-10">
-        <Link to="/" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.home')}</Link>
-        <Link to="/about" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.about')}</Link>
-        <Link to="/shop" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.shop')}</Link>
-        <Link to="/blog" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.blog')}</Link>
-        <Link to="/contact" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.contact')}</Link>
-        <Link to="/policy" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, lineHeight: '32px', color: '#fff' }}>{t('nav.policy')}</Link>
 
+      {/* Desktop Navigation */}
+      <nav className="hidden lg:flex items-center gap-6 relative z-10">
+        {navItems.map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '32px', color: '#fff' }}
+            className="hover:text-yellow-200 transition"
+          >
+            {item.label}
+          </Link>
+        ))}
       </nav>
-      <div className="flex items-center gap-[16px] relative z-10">
-        <div className="relative">
+
+      {/* Right Icons Section */}
+      <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 relative z-10">
+        <button
+          type="button"
+          aria-label="Toggle navigation"
+          className="flex flex-col justify-center items-center gap-[5px] lg:hidden w-9 h-9 rounded-full border border-white/40 text-white"
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+        >
+          <span className={`block w-5 h-[2px] rounded-full transition ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px] bg-yellow-200' : 'bg-white'}`} />
+          <span className={`block w-5 h-[2px] rounded-full transition ${isMobileMenuOpen ? 'opacity-0' : 'bg-white'}`} />
+          <span className={`block w-5 h-[2px] rounded-full transition ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px] bg-yellow-200' : 'bg-white'}`} />
+        </button>
+
+        {/* Search - Hidden on mobile, visible on md+ */}
+        <div className="hidden md:block relative">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
           <input
             type="text"
             placeholder={t('header.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
           />
         </div>
+
+        {/* Mobile Search Icon */}
+        <FaSearch className="md:hidden text-white text-lg cursor-pointer" />
+
         {userInfo ? (
-          <div className="relative flex items-center gap-[16px]">
+          <div className="relative flex items-center gap-2 sm:gap-3 lg:gap-4">
             <div
               className="relative"
               onMouseEnter={() => setDropdownVisible(true)}
@@ -200,15 +234,16 @@ const Header = () => {
               <img
                 src={userInfo.userUrlImage || '/images/default-avatar.png'}
                 alt="User Avatar"
-                className="w-10 h-10 rounded-full object-cover cursor-pointer"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover cursor-pointer"
               />
               {isDropdownVisible && (
                 <div
-                  className="absolute w-56 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
+                  className="absolute w-48 sm:w-56 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
                   style={{ 
                     zIndex: 1000, 
                     top: 'calc(100% + 8px)', 
-                    left: '-300%',
+                    left: 'auto',
+                    right: '0',
                     paddingTop: '8px',
                     marginTop: '-8px'
                   }}
@@ -255,18 +290,22 @@ const Header = () => {
             </div>
           </div>
         ) : (
-          <Link to="/login" className="px-6 py-[6px] border border-white rounded-[12px] flex items-center" style={{ fontFamily: 'Nunito, sans-serif', fontSize: 18, fontWeight: 500, lineHeight: '32px', color: '#fff' }}>
+          <Link to="/login" className="px-3 sm:px-6 py-1.5 sm:py-[6px] border border-white rounded-lg sm:rounded-[12px] flex items-center text-xs sm:text-sm lg:text-base" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 500, lineHeight: '32px', color: '#fff' }}>
             {t('header.login')}
           </Link>
         )}
+
+        {/* Cart Icon */}
         <FaShoppingCart
-          className="text-white text-xl cursor-pointer"
+          className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
           title={t('header.cartTooltip')}
           onClick={() => navigate('/cart')}
         />
+
+        {/* Notifications */}
         <div className="relative">
           <FaBell
-            className="text-white text-xl cursor-pointer"
+            className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
             title="Thông báo"
             onClick={() => setNotificationVisible(!isNotificationVisible)}
           />
@@ -277,7 +316,7 @@ const Header = () => {
           )}
           {isNotificationVisible && (
             <div
-              className="absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
+              className="absolute right-0 mt-2 w-72 sm:w-80 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
               style={{ zIndex: 1000 }}
             >
               <div className="flex items-center justify-between px-4 py-2 border-b">
@@ -308,7 +347,7 @@ const Header = () => {
                           <p className="text-xs text-gray-500 mt-1">{formatTime(item.createAt)}</p>
                         </div>
                         {!item.isRead && (
-                          <span className="w-2 h-2 bg-red-500 rounded-full mt-1" />
+                          <span className="w-2 h-2 bg-red-500 rounded-full mt-1 flex-shrink-0" />
                         )}
                       </div>
                       <div className="flex gap-3 text-xs mt-2">
@@ -336,23 +375,51 @@ const Header = () => {
             </div>
           )}
         </div>
+
+        {/* Language Switchers */}
         <button
           type="button"
           onClick={() => changeLanguage('vi')}
-          className={`w-[36px] h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center transition ${language === 'vi' ? 'ring-2 ring-white ring-offset-2 ring-offset-[#7a0909]' : ''}`}
+          className={`w-6 h-4 sm:w-[36px] sm:h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center transition flex-shrink-0 ${language === 'vi' ? 'ring-2 ring-white ring-offset-2 ring-offset-[#7a0909]' : ''}`}
           aria-pressed={language === 'vi'}
+          title="Tiếng Việt"
         >
           <img src="/images/VNFlag.png" alt="flag" className="w-full h-full object-cover" />
         </button>
         <button
           type="button"
           onClick={() => changeLanguage('en')}
-          className={`w-[36px] h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center transition ${language === 'en' ? 'ring-2 ring-white ring-offset-2 ring-offset-[#7a0909]' : ''}`}
+          className={`w-6 h-4 sm:w-[36px] sm:h-[24px] rounded-full bg-white overflow-hidden flex items-center justify-center transition flex-shrink-0 ${language === 'en' ? 'ring-2 ring-white ring-offset-2 ring-offset-[#7a0909]' : ''}`}
           aria-pressed={language === 'en'}
+          title="English"
         >
           <img src="/images/Engflag.png" alt="Eflag" className="w-full h-full object-cover" />
         </button>
       </div>
+
+      {isMobileMenuOpen && (
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-[rgba(122,9,9,0.98)] backdrop-blur-xl border-t border-white/10">
+          <nav className="flex flex-col px-6 py-6 gap-3">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-white text-base font-nunito py-2 border-b border-white/10 last:border-b-0 hover:text-yellow-200 transition"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="self-end text-sm text-white/80 hover:text-yellow-200"
+            >
+              Đóng
+            </button>
+          </nav>
+        </div>
+      )}
     </header>
   );
 };
