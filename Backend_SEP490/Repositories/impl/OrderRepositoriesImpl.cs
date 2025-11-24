@@ -152,5 +152,32 @@ namespace Backend_SEP490.Repositories.impl
                     (o.Status == "Paid" || o.Status == "Completed"))
                 .AnyAsync(o => o.OrderItems.Any(oi => oi.ProductID == normalizedProductId));
         }
+
+        public async Task<decimal> GetTotalPaidOrderAmountAsync()
+        {
+            return await _context.Orders
+                .Where(o => o.Status == "Paid")
+                .Select(o => (decimal?)o.TotalAmount)
+                .SumAsync() ?? 0m;
+        }
+
+        public async Task<bool> HasUserUsedVoucherSourceAsync(string userId, string source)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(source))
+            {
+                return false;
+            }
+
+            var normalizedUserId = userId.Trim();
+            var normalizedSource = source.Trim();
+
+            return await (from order in _context.Orders
+                          join voucher in _context.Vouchers
+                              on order.VoucherId equals voucher.VoucherId
+                          where order.CustomerId == normalizedUserId
+                                && voucher.Source != null
+                                && voucher.Source == normalizedSource
+                          select order.Id).AnyAsync();
+        }
     }
 }

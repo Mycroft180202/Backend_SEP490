@@ -23,5 +23,5 @@ public interface IUserRepositories
     Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> userIds);
     Task<List<User>> GetUsersByRoleAsync(string roleName);
     Task<List<User>> GetActiveUsersAsync();
-
+    Task<int> CountActiveUsersAsync();
 }

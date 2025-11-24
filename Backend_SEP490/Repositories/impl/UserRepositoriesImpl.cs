@@ -212,6 +212,11 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
             .ToListAsync();
     }
 
+    public async Task<int> CountActiveUsersAsync()
+    {
+        return await _context.Users.CountAsync(u => u.IsActive);
+    }
+
     public async Task<IEnumerable<User>> GetAllUsersWithRoleCustomerAsync()
     {
         var users = await _context.Users

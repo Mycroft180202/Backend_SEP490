@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Backend_SEP490.Config;
+using Backend_SEP490.Constants;
 using Backend_SEP490.DTOs.External.Ghn;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
@@ -476,6 +477,25 @@ public class OrderServiceImpl : GenericServices, IOrderService
             (!string.Equals(voucher.OwnerUserId, userId, StringComparison.OrdinalIgnoreCase)))
         {
             return (false, 0m, null, "Voucher nay chi danh rieng cho tai khoan cua ban.");
+        }
+
+        var source = voucher.Source;
+        var isFestivalVoucher = !string.IsNullOrWhiteSpace(source) &&
+            source.StartsWith($"{VoucherSources.Festival}:", StringComparison.OrdinalIgnoreCase);
+
+        if (isFestivalVoucher)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return (false, 0m, null, "Ban can dang nhap de su dung voucher su kien.");
+            }
+
+            var festivalSource = source!;
+            var hasUsedFestival = await _context.Order.HasUserUsedVoucherSourceAsync(userId, festivalSource);
+            if (hasUsedFestival)
+            {
+                return (false, 0m, null, "Ban da su dung voucher su kien nay. Moi nguoi chi duoc dung 1 lan.");
+            }
         }
 
         var remainingUses = voucher.UsageLimit.HasValue

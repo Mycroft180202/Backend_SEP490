@@ -5,8 +5,6 @@ namespace Backend_SEP490.Constants;
 public record FestivalVoucherDefinition(
     string Code,
     string Name,
-    decimal DiscountPercent,
-    int UsageLimit,
     Func<int, (DateTime StartUtc, DateTime EndUtc)> RangeResolver);
 
 public static class VietnameseHolidayDefinitions
@@ -14,12 +12,12 @@ public static class VietnameseHolidayDefinitions
     private static readonly ChineseLunisolarCalendar LunarCalendar = new();
     public static IReadOnlyList<FestivalVoucherDefinition> Festivals { get; } = new List<FestivalVoucherDefinition>
     {
-        new("TET_DUONG", "Tet Duong lich", 12m, 300, year => FixedRange(year, 1, 1, 1)),
-        new("TET_NGUYEN_DAN", "Tet Nguyen dan", 18m, 500, ResolveTetNguyenDan),
-        new("HUNG_VUONG", "Gio to Hung Vuong", 10m, 250, ResolveHungVuong),
-        new("REUNIFICATION", "30/4 Giai phong", 15m, 300, year => FixedRange(year, 4, 30, 1)),
-        new("LABOR_DAY", "Quoc te Lao dong 1/5", 10m, 300, year => FixedRange(year, 5, 1, 1)),
-        new("INDEPENDENCE", "Quoc khanh 2/9", 15m, 400, year => FixedRange(year, 9, 2, 2))
+        new("TET_DUONG", "Tet Duong lich", year => FixedRange(year, 1, 1, 1)),
+        new("TET_NGUYEN_DAN", "Tet Nguyen dan", ResolveTetNguyenDan),
+        new("HUNG_VUONG", "Gio to Hung Vuong", ResolveHungVuong),
+        new("REUNIFICATION", "30/4 Giai phong", year => FixedRange(year, 4, 30, 1)),
+        new("LABOR_DAY", "Quoc te Lao dong 1/5", year => FixedRange(year, 5, 1, 1)),
+        new("INDEPENDENCE", "Quoc khanh 2/9", year => FixedRange(year, 9, 2, 2))
     };
 
     private static (DateTime StartUtc, DateTime EndUtc) FixedRange(int year, int month, int day, int durationDays)
