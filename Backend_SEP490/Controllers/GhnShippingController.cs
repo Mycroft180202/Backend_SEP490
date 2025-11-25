@@ -10,6 +10,7 @@ namespace Backend_SEP490.Controllers;
 
 [Route("api/ghn/shipping")]
 [ApiController]
+[Authorize]
 public class GhnShippingController : ControllerBase
 {
     private readonly IGhnShippingService _ghnShippingService;
@@ -19,8 +20,8 @@ public class GhnShippingController : ControllerBase
         _ghnShippingService = ghnShippingService;
     }
 
-    [HttpPost("fee")]
     [AllowAnonymous]
+    [HttpPost("fee")]
     public async Task<IActionResult> CalculateFee(
         [FromBody] CalculateShippingFeeRequest request,
         CancellationToken cancellationToken)

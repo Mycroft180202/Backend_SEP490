@@ -17,6 +17,7 @@ public class AuthController: ControllerBase
     {
         _userServices = userServices;
     }
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromForm] LoginRequest request)
     {
@@ -29,6 +30,7 @@ public class AuthController: ControllerBase
         return Ok(result);
     }
 
+    [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RequestDTORefresh request)
     {
@@ -46,6 +48,7 @@ public class AuthController: ControllerBase
         return Ok("Logged out successfully");
     }
 
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromForm] RequestDTORegister dto)
     {
@@ -58,6 +61,7 @@ public class AuthController: ControllerBase
             return Ok("OTP sent to email");
         }
     }
+    [AllowAnonymous]
     [HttpPost("verify-otp")]
     public async Task<IActionResult> VerifyOtp([FromBody] RequestDTOVerifyOtp request)
     {
@@ -71,6 +75,7 @@ public class AuthController: ControllerBase
         }
     }
     
+    [AllowAnonymous]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] string email)
     {
@@ -79,6 +84,7 @@ public class AuthController: ControllerBase
 
         return Ok("OTP đã được gửi tới email của bạn.");
     }
+    [AllowAnonymous]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] RequestDTOResetPassword dto)
     {   

@@ -9,6 +9,7 @@ namespace Backend_SEP490.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class OrderController : ControllerBase
 {
     private readonly IOrderService _orderServices;
@@ -41,6 +42,7 @@ public class OrderController : ControllerBase
         return Ok(orders);
     }
     
+    [Authorize]
     [HttpGet("orders/{orderId}")]
     public async Task<IActionResult> GetOrderById([FromRoute] string orderId)
     {

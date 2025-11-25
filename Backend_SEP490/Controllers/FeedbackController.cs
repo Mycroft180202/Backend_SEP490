@@ -10,6 +10,7 @@ namespace Backend_SEP490.Controllers;
 
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class FeedbackController : ControllerBase
 {
     private readonly IFeedbackServices _feedbackRepository;
@@ -19,6 +20,7 @@ public class FeedbackController : ControllerBase
         _feedbackRepository = feedbackRepository;
     }
 
+    [AllowAnonymous]
     [HttpGet("feedbacks/{productId}")]
     public async Task<ActionResult<PagedResult<ResponseDTOFeedback>>> GetFeedbacks(
         string productId, int pageIndex = 1, int pageSize = 5)

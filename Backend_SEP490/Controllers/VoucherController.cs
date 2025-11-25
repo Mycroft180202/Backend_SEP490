@@ -8,6 +8,7 @@ namespace Backend_SEP490.Controllers;
 
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class VoucherController : ControllerBase
 {
     private readonly IVoucherService _voucherService;
