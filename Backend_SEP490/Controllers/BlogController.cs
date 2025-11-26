@@ -9,6 +9,7 @@ namespace Backend_SEP490.Controllers
 {
     [Microsoft.AspNetCore.Components.Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BlogController : ControllerBase
     {
         private readonly IBlogPostService _blogPostService;
@@ -18,6 +19,7 @@ namespace Backend_SEP490.Controllers
             _blogPostService = blogPostService;
         }
 
+        [AllowAnonymous]
         [HttpGet("blogs")]
         public async Task<IActionResult> GetAllBlogPost([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 3)
         {
@@ -30,6 +32,7 @@ namespace Backend_SEP490.Controllers
             return Ok(blog);
         }
 
+        [AllowAnonymous]
         [HttpGet("blogs/{id}")]
         public async Task<IActionResult> GetBlogPostById([FromRoute] string id)
         {

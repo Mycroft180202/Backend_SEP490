@@ -9,6 +9,7 @@ namespace Backend_SEP490.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
@@ -48,8 +49,8 @@ public class PaymentController : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("vnpay/callback")]
     [AllowAnonymous]
+    [HttpGet("vnpay/callback")]
     public async Task<IActionResult> HandleVnpayCallback()
     {
         _logger.LogInformation("VNPay callback query: {QueryString}", Request.QueryString.Value);

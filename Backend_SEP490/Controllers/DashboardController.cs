@@ -1,6 +1,7 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Controllers
@@ -8,6 +9,7 @@ namespace Backend_SEP490.Controllers
     // Bỏ "api/[controller]" để các path bên dưới map trực tiếp từ root
     [ApiController]
     [Route("")]
+    [Authorize]
     public class DashBoardController : ControllerBase
     {
         private readonly IUserServices _userServices;
@@ -25,6 +27,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /users
+        [Authorize(Roles = "Admin")]
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
@@ -38,6 +41,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /users/customers
+        [Authorize(Roles = "Admin")]
         [HttpGet("users/customers")]
         public async Task<IActionResult> GetAllCustomers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
@@ -51,6 +55,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /users/artisans
+        [Authorize(Roles = "Admin")]
         [HttpGet("users/artisans")]
         public async Task<IActionResult> GetAllArtisans([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
@@ -64,6 +69,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // PUT /users?userId=xxx
+        [Authorize(Roles = "Admin")]
         [HttpPut("users")]
         public async Task<IActionResult> UpdateUsers([FromQuery] string userId, [FromBody] RequestAdminUpdateUser request)
         {
@@ -76,6 +82,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /newest-orders
+        [Authorize(Roles = "Admin")]
         [HttpGet("newest-orders")]
         public async Task<IActionResult> GetNewestOrders()
         {
@@ -89,6 +96,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /products-dashboard
+        [Authorize(Roles = "Artisan")]
         [HttpGet("products-dashboard")]
         public async Task<IActionResult> GetAllProductsByUserId([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
@@ -107,6 +115,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /top-products
+        [Authorize(Roles = "Admin")]
         [HttpGet("top-products")]
         public async Task<IActionResult> GetTopProductsOrders()
         {
@@ -120,6 +129,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /admin/monthly-revenue?year=2025
+        [Authorize(Roles = "Admin")]
         [HttpGet("admin/monthly-revenue")]
         public async Task<IActionResult> GetAdminMonthlyRevenue([FromQuery] int year)
         {
@@ -133,6 +143,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /admin/weekly-revenue?year=2025&month=11
+        [Authorize(Roles = "Admin")]
         [HttpGet("admin/weekly-revenue")]
         public async Task<IActionResult> GetAdminWeeklyRevenue([FromQuery] int year, [FromQuery] int month)
         {
@@ -146,6 +157,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /artisan/monthly-revenue?year=2025
+        [Authorize(Roles = "Artisan")]
         [HttpGet("artisan/monthly-revenue")]
         public async Task<IActionResult> GetArtisanMonthlyRevenue([FromQuery] int year)
         {
@@ -164,6 +176,7 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /artisan/weekly-revenue?year=2025&month=11
+        [Authorize(Roles = "Artisan")]
         [HttpGet("artisan/weekly-revenue")]
         public async Task<IActionResult> GetArtisanWeeklyRevenue([FromQuery] int year, [FromQuery] int month)
         {

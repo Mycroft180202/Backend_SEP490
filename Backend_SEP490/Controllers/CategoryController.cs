@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend_SEP490.Controllers;
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class CategoryController: ControllerBase
 {
     private readonly ICategoryServices _categoryServices;
@@ -17,6 +18,7 @@ public class CategoryController: ControllerBase
         _categoryServices = categoryServices;
     }
 
+    [AllowAnonymous]
     [HttpGet("categories")]
     public async Task<IActionResult> GetCategories()
     {

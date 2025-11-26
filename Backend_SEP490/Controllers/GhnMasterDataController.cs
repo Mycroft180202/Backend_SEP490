@@ -1,10 +1,12 @@
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_SEP490.Controllers;
 
 [Route("api/ghn/master-data")]
 [ApiController]
+[Authorize]
 public class GhnMasterDataController : ControllerBase
 {
     private readonly IGhnMasterDataService _masterDataService;
@@ -14,6 +16,7 @@ public class GhnMasterDataController : ControllerBase
         _masterDataService = masterDataService;
     }
 
+    [AllowAnonymous]
     [HttpGet("provinces")]
     public async Task<IActionResult> GetProvinces(CancellationToken cancellationToken)
     {
@@ -21,6 +24,7 @@ public class GhnMasterDataController : ControllerBase
         return Ok(provinces);
     }
 
+    [AllowAnonymous]
     [HttpGet("districts")]
     public async Task<IActionResult> GetDistricts([FromQuery] int provinceId, CancellationToken cancellationToken)
     {
@@ -33,6 +37,7 @@ public class GhnMasterDataController : ControllerBase
         return Ok(districts);
     }
 
+    [AllowAnonymous]
     [HttpGet("wards")]
     public async Task<IActionResult> GetWards([FromQuery] int districtId, CancellationToken cancellationToken)
     {

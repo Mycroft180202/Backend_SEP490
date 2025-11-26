@@ -9,6 +9,7 @@ namespace Backend_SEP490.Controllers;
 
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class ProductCollectionController : ControllerBase
 {
     private readonly IProductCollectionServices _productCollectionServices;
@@ -18,6 +19,7 @@ public class ProductCollectionController : ControllerBase
         _productCollectionServices = productCollectionServices;
     }
 
+    [AllowAnonymous]
     [HttpGet("productcollection")]
     public async Task<IActionResult> GetProductCollection()
     {
@@ -25,6 +27,7 @@ public class ProductCollectionController : ControllerBase
         return Ok(productCollection);
     }
 
+    [AllowAnonymous]
     [HttpGet("productcollection/{id}")]
     public async Task<IActionResult> GetProductCollection(int id)
     {

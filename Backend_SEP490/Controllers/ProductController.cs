@@ -10,6 +10,7 @@ using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 namespace Backend_SEP490.Controllers;
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class ProductController:ControllerBase
 {
     private readonly IProductServices _productServices;
@@ -20,6 +21,7 @@ public class ProductController:ControllerBase
         _productImagesServices = productImagesServices;
     }
 
+    [AllowAnonymous]
     [HttpGet("products/{id}")]
     public async Task<IActionResult> GetProductById(string id)
     {
@@ -36,6 +38,7 @@ public class ProductController:ControllerBase
         var product = await _productServices.CreateProductAsync(productDto);
         return Ok(product);
     }
+    [AllowAnonymous]
     [HttpGet("products/artisan/{artisanId}")]
     public async Task<IActionResult> GetProductsByArtisanId([FromRoute] string artisanId)
     {
@@ -58,6 +61,7 @@ public class ProductController:ControllerBase
 
         return Ok(updatedProduct);
     }
+    [AllowAnonymous]
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? productName,
@@ -83,6 +87,7 @@ public class ProductController:ControllerBase
 
         return NoContent(); 
     }
+    [Authorize(Roles = "Artisan")]
     [HttpPost("image/add")]
     public async Task<IActionResult> AddProductImage([FromForm] RequestDTOAddProductImage dto)
     {
