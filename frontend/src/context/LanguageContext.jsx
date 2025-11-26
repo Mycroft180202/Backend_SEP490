@@ -152,6 +152,9 @@ const translations = {
       retryCheckout: 'Quay lại thanh toán',
       backHome: 'Về trang chủ',
     },
+    checkout: {
+      title: 'Thanh toán đơn hàng',
+    },
     general: {
       errorPrefix: 'Lỗi: ',
     },
@@ -299,6 +302,9 @@ const translations = {
       failed: 'Order Failed',
       retryCheckout: 'Return to Checkout',
       backHome: 'Back to Home',
+    },
+    checkout: {
+      title: 'Checkout',
     },
     general: {
       errorPrefix: 'Error: ',

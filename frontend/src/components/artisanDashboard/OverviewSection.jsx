@@ -7,10 +7,10 @@ import {
   FaChartLine,
   FaEye,
   FaEdit,
-  FaStar
+  FaStar,
 } from 'react-icons/fa';
 
-const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, getStatusColor }) => {
+const OverviewSection = ({ stats, performanceRows, topProducts, formatCurrency }) => {
   return (
     <>
       {/* Stats Cards */}
@@ -85,7 +85,7 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
         {/* Recent Orders */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-800 font-alata">Đơn hàng gần đây</h2>
+            <h2 className="text-xl font-bold text-gray-800 font-alata">Hiệu suất sản phẩm</h2>
             <Link to="#" className="text-primary hover:text-red-700 font-nunito text-sm">
               Xem tất cả →
             </Link>
@@ -94,38 +94,43 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Mã đơn</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Khách hàng</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Sản phẩm</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Giá trị</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Đã bán</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Doanh thu</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Tồn kho</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-semibold text-sm">{order.id}</td>
-                    <td className="py-3 px-4 text-sm">{order.customer}</td>
-                    <td className="py-3 px-4 text-sm">{order.product}</td>
-                    <td className="py-3 px-4 text-sm font-semibold">{formatCurrency(order.amount)}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button className="text-blue-600 hover:text-blue-800" title="Xem chi tiết">
-                          <FaEye />
-                        </button>
-                        <button className="text-green-600 hover:text-green-800" title="Cập nhật">
-                          <FaEdit />
-                        </button>
-                      </div>
+                {performanceRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-4 text-center text-gray-500">
+                      Chưa có dữ liệu bán hàng.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  performanceRows.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <p className="font-semibold text-sm text-gray-800">{row.product}</p>
+                        <p className="text-xs text-gray-500">#{row.id}</p>
+                      </td>
+                      <td className="py-3 px-4 text-sm font-semibold">{row.sold}</td>
+                      <td className="py-3 px-4 text-sm font-semibold">{formatCurrency(row.revenue)}</td>
+                      <td className="py-3 px-4 text-sm">{row.stock}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <button className="text-blue-600 hover:text-blue-800" title="Xem chi tiết">
+                            <FaEye />
+                          </button>
+                          <button className="text-green-600 hover:text-green-800" title="Chỉnh sửa">
+                            <FaEdit />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -135,19 +140,23 @@ const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, get
         <div className="bg-white rounded-xl shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Sản phẩm bán chạy</h2>
           <div className="space-y-4">
-            {topProducts.map((product, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex-1">
-                  <p className="font-semibold text-sm text-gray-800">{product.name}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Đã bán: {product.sales} | Tồn kho: {product.stock}
-                  </p>
+            {topProducts.length === 0 ? (
+              <p className="text-sm text-gray-500">Chưa có dữ liệu sản phẩm.</p>
+            ) : (
+              topProducts.map((product, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm text-gray-800">{product.name}</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Đã bán: {product.sales} | Tồn kho: {product.stock}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-primary">{formatCurrency(product.revenue)}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary">{formatCurrency(product.revenue)}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <button className="w-full mt-4 py-2 border-2 border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors font-semibold">
             Xem tất cả sản phẩm

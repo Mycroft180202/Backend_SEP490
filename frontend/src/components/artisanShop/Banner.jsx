@@ -1,7 +1,17 @@
 import React from 'react';
-import CustomBreadcrumbs from '../shared/CustomBreadcrumbs';
+import PropTypes from 'prop-types';
+import Breadcrumb from '../shared/Breadcrumb';
 
-const Banner = ({ title, author, subtitle, rating, address, phone, image }) => {
+const Banner = ({
+  title,
+  author,
+  subtitle,
+  rating,
+  address,
+  phone,
+  image,
+  breadcrumbItems = [],
+}) => {
   const displayTitle = title || 'Cửa hàng thủ công';
   const displayAuthor = author || '';
   const displaySubtitle = subtitle || 'Ngôi nhà của những sản phẩm thủ công tinh tế.';
@@ -20,16 +30,11 @@ const Banner = ({ title, author, subtitle, rating, address, phone, image }) => {
         />
       </div>
 
-      <div className="absolute top-4 left-4 md:left-8 z-20">
-        <div className="bg-white/95 backdrop-blur-sm py-2 px-4 rounded-lg shadow-md">
-          <CustomBreadcrumbs
-            breadcrumbs={[
-              { label: 'Trang chủ', href: '/' },
-              { label: 'Cửa hàng', href: '/artisan-shop' },
-            ]}
-          />
+      {breadcrumbItems.length > 0 && (
+        <div className="absolute top-4 left-4 md:left-8 z-20">
+          <Breadcrumb items={breadcrumbItems} floating />
         </div>
-      </div>
+      )}
 
       <div className="relative z-10 h-full flex items-center">
         <div className="max-w-screen-xl mx-auto px-4 md:px-8 lg:px-12 w-full">
@@ -102,6 +107,20 @@ const Banner = ({ title, author, subtitle, rating, address, phone, image }) => {
       </div>
     </section>
   );
+};
+
+Banner.propTypes = {
+  title: PropTypes.string,
+  author: PropTypes.string,
+  subtitle: PropTypes.string,
+  rating: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  address: PropTypes.string,
+  phone: PropTypes.string,
+  image: PropTypes.string,
+  breadcrumbItems: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    href: PropTypes.string,
+  })),
 };
 
 export default Banner;

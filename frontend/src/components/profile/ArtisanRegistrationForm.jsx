@@ -10,6 +10,9 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
     email: "",
     phoneNumber: "",
     dateOfBirth: "",
+    dobDay: "",
+    dobMonth: "",
+    dobYear: "",
     identityNumber: "",
     identityFrontImageFile: null,
     identityBackImageFile: null,
@@ -99,6 +102,9 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
         email: "",
         phoneNumber: "",
         dateOfBirth: "",
+        dobDay: "",
+        dobMonth: "",
+        dobYear: "",
         identityNumber: "",
         identityFrontImageFile: null,
         identityBackImageFile: null,
@@ -187,14 +193,56 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
               <label className="block text-sm font-nunito font-semibold text-gray-700 mb-1">
                 Ngày sinh
               </label>
-              <input
-                type="datetime-local"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleInputChange}
-                disabled={loading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
-              />
+              <div className="grid grid-cols-3 gap-2">
+                <select
+                  name="dobDay"
+                  value={formData.dobDay || ''}
+                  onChange={(e) => setFormData((prev) => ({
+                    ...prev,
+                    dobDay: e.target.value,
+                    dateOfBirth: buildDateString(e.target.value, prev.dobMonth, prev.dobYear),
+                  }))}
+                  disabled={loading}
+                  className="px-2 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
+                >
+                  <option value="">Ngày</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <option key={`day-${day}`} value={day}>{day}</option>
+                  ))}
+                </select>
+                <select
+                  name="dobMonth"
+                  value={formData.dobMonth || ''}
+                  onChange={(e) => setFormData((prev) => ({
+                    ...prev,
+                    dobMonth: e.target.value,
+                    dateOfBirth: buildDateString(prev.dobDay, e.target.value, prev.dobYear),
+                  }))}
+                  disabled={loading}
+                  className="px-2 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
+                >
+                  <option value="">Tháng</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={`month-${month}`} value={month}>{month}</option>
+                  ))}
+                </select>
+                <select
+                  name="dobYear"
+                  value={formData.dobYear || ''}
+                  onChange={(e) => setFormData((prev) => ({
+                    ...prev,
+                    dobYear: e.target.value,
+                    dateOfBirth: buildDateString(prev.dobDay, prev.dobMonth, e.target.value),
+                  }))}
+                  disabled={loading}
+                  className="px-2 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
+                >
+                  <option value="">Năm</option>
+                  {Array.from({ length: 70 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                    <option key={`year-${year}`} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Identity Number */}
@@ -288,16 +336,18 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
               <label className="block text-sm font-nunito font-semibold text-gray-700 mb-1">
                 Năm kinh nghiệm
               </label>
-              <input
-                type="number"
+              <select
                 name="yearsOfExperience"
                 value={formData.yearsOfExperience}
                 onChange={handleInputChange}
                 disabled={loading}
-                min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
-                placeholder="0"
-              />
+              >
+                <option value="0">0 năm</option>
+                {Array.from({ length: 40 }, (_, i) => i + 1).map((year) => (
+                  <option key={`exp-${year}`} value={year}>{year} năm</option>
+                ))}
+              </select>
             </div>
 
             {/* Workshop Address */}
@@ -368,3 +418,9 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
 }
 
 export default ArtisanRegistrationForm;
+  const buildDateString = (day, month, year) => {
+    if (!day || !month || !year) return "";
+    const paddedDay = String(day).padStart(2, "0");
+    const paddedMonth = String(month).padStart(2, "0");
+    return `${year}-${paddedMonth}-${paddedDay}T00:00`;
+  };

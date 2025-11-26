@@ -1,4 +1,4 @@
-﻿import React, { useContext, useEffect, useState } from 'react';
+﻿import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
@@ -20,8 +20,9 @@ const ArtisanShop = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const externalArtisanId = searchParams.get('artisanId');
-  const externalState = location.state || {};
+  const externalState = useMemo(() => location.state || {}, [location.state]);
 
+  const [allProducts, setAllProducts] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,6 +30,37 @@ const ArtisanShop = () => {
   const [pageSize] = useState(12);
   const [totalPages, setTotalPages] = useState(0);
   const [shopInfo, setShopInfo] = useState(null);
+  const currentUserId = userInfo?.userID || userInfo?.userId;
+
+  const extractAddress = (addresses, fallbackAddress) => {
+    if (fallbackAddress) return fallbackAddress;
+    if (Array.isArray(addresses) && addresses.length) {
+      const primary = addresses.find((addr) => addr?.isDefault) || addresses[0];
+      return (
+        primary?.city
+        || primary?.district
+        || primary?.line1
+        || primary?.addressLine
+        || primary?.fullAddress
+        || ''
+      );
+    }
+    return '';
+  };
+
+  const normalizeShopInfo = (data, fallback = {}) => {
+    if (!data && !fallback) return null;
+    return {
+      title: data?.shopName || data?.displayName || fallback.title || 'Gian hàng',
+      author: data?.displayName || fallback.author || '',
+      subtitle: data?.bio || fallback.subtitle || '',
+      rating: data?.rating ?? fallback.rating ?? null,
+      phone: data?.phoneNumber || fallback.phone || '',
+      image: data?.shopUrlImage || fallback.image || '',
+      address: extractAddress(data?.addresses, fallback.address),
+      artisanId: data?.userID || data?.userId || fallback.artisanId || null,
+    };
+  };
 
   const ensureAuthenticated = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -72,20 +104,31 @@ const ArtisanShop = () => {
       try {
         if (!isMounted) return;
         if (!shopInfo?.artisanId) {
-          // Chưa có thông tin shop => chờ shopInfo
           return;
         }
         setLoading(true);
-        const response = await ProductService.getAllProducts({ pageIndex, pageSize });
-        if (!isMounted) return;
-        const items = response.items || [];
-        const filtered = items.filter((p) => (p.artisanId || p.artisanID) === shopInfo.artisanId);
-        setProducts(filtered);
-        setTotalPages(
-          response.totalPages && response.totalPages > 0
-            ? response.totalPages
-            : Math.ceil((response.totalCount || 0) / pageSize),
-        );
+        const aggregated = [];
+        let page = 1;
+        let hasNext = true;
+        while (hasNext) {
+          const response = await ProductService.getAllProducts({ pageIndex: page, pageSize: 50 });
+          if (!isMounted) return;
+          const items = response.items || [];
+          aggregated.push(
+            ...items.filter((p) => (p.artisanId || p.artisanID) === shopInfo.artisanId),
+          );
+          const totalPagesFromResponse = response?.totalPages;
+          if (typeof response?.hasNextPage === 'boolean') {
+            hasNext = response.hasNextPage;
+          } else if (totalPagesFromResponse && totalPagesFromResponse > 0) {
+            hasNext = page < totalPagesFromResponse;
+          } else {
+            hasNext = items.length === 50;
+          }
+          page += 1;
+        }
+        setAllProducts(aggregated);
+        setPageIndex(1);
       } catch (err) {
         if (!isMounted) return;
         setError(err?.message || 'Unknown error');
@@ -101,47 +144,71 @@ const ArtisanShop = () => {
     return () => {
       isMounted = false;
     };
-  }, [pageIndex, pageSize, shopInfo?.artisanId]);
+  }, [shopInfo?.artisanId]);
+
+  useEffect(() => {
+    const start = (pageIndex - 1) * pageSize;
+    const paginated = allProducts.slice(start, start + pageSize);
+    setProducts(paginated);
+    setTotalPages(Math.max(1, Math.ceil(allProducts.length / pageSize)));
+  }, [allProducts, pageIndex, pageSize]);
 
   useEffect(() => {
     const loadShop = async () => {
+      setAllProducts([]);
+      setProducts([]);
+      setTotalPages(1);
+      setPageIndex(1);
       try {
         if (externalArtisanId) {
-          setShopInfo({
-            title: externalState.shopName || externalState.author || 'Gian hàng',
-            author: externalState.author,
-            subtitle: externalState.subtitle,
-            rating: externalState.rating,
-            phone: externalState.phone,
-            image: externalState.image,
-            address: externalState.address,
-            artisanId: externalArtisanId,
-          });
-          setPageIndex(1);
-          return;
+          if (currentUserId && externalArtisanId === currentUserId) {
+            const res = await ShopService.getMyShop();
+            setShopInfo(normalizeShopInfo(res));
+          } else {
+            const res = await ShopService.getShopByUserId(externalArtisanId);
+            if (!res) {
+              const message = 'Không tìm thấy thông tin cửa hàng';
+              toast.error(message);
+              setError(message);
+              setShopInfo(null);
+              return;
+            }
+            setShopInfo(
+              normalizeShopInfo(res, {
+                title: externalState.shopName,
+                author: externalState.author,
+                subtitle: externalState.subtitle,
+                rating: externalState.rating,
+                phone: externalState.phone,
+                image: externalState.image,
+                address: externalState.address,
+                artisanId: externalArtisanId,
+              }),
+            );
+          }
+        } else if (currentUserId) {
+          const res = await ShopService.getMyShop();
+          setShopInfo(normalizeShopInfo(res));
+          setError(null);
+        } else {
+          setShopInfo(null);
+          setError(null);
         }
-        const res = await ShopService.getMyShop();
-        const addr = Array.isArray(res?.addresses) ? res.addresses.find((a) => a.isDefault) : null;
-        setShopInfo({
-          title: res?.shopName,
-          author: res?.displayName,
-          subtitle: res?.bio,
-          rating: res?.rating,
-          phone: res?.phoneNumber,
-          image: res?.shopUrlImage,
-          address: addr?.city || addr?.line1 || '',
-          artisanId: res?.userID || res?.userId,
-        });
-        setPageIndex(1); // reset page when shop changes
       } catch (err) {
-        console.error('Load my shop error:', err);
+        console.error('Load shop error:', err);
+        const message =
+          err?.response?.data?.message
+          || err?.message
+          || 'Không thể tải thông tin cửa hàng';
+        toast.error(message);
+        setError(message);
+        setShopInfo(null);
       }
     };
     loadShop();
-  }, [externalArtisanId, externalState]);
+  }, [externalArtisanId, currentUserId]);
 
   const handlePageChange = (idx) => {
-    setLoading(true);
     setPageIndex(idx);
   };
 
@@ -160,6 +227,11 @@ const ArtisanShop = () => {
         address={shopInfo?.address}
         image={shopInfo?.image}
         phone={shopInfo?.phone}
+        breadcrumbItems={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Cửa hàng', href: '/shop' },
+          { label: shopInfo?.title || 'Gian hàng' },
+        ]}
       />
       <FilterSection artisanId={shopInfo?.artisanId} />
       <main className="max-w-screen-xl mx-auto px-6 md:px-8 py-12">
@@ -180,6 +252,7 @@ const ArtisanShop = () => {
                   shortDescription={product.shortDescription}
                   price={product.price}
                   rating={product.rating || 0}
+                  stock={product.stock}
                 onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}
                 onBuyNow={() => handleBuyNow(product.id, product.price ?? 0)}
                 onClick={() => navigate(`/product-detail/${product.id}`)}

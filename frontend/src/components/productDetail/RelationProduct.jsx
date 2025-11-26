@@ -77,7 +77,7 @@ const RelationProduct = ({ categoryId, currentProductId }) => {
         {/* Header với style truyền thống */}
         <div className="text-center mb-12">
           <div className="inline-block">
-            <h2 className="text-4xl font-bold text-[#8B4513] mb-3" style={{ fontFamily: 'Georgia, serif' }}>
+            <h2 className="text-4xl font-bold text-[#8B4513] mb-3">
               {t('relation.title')}
             </h2>
             <div className="h-1 bg-gradient-to-r from-transparent via-[#D4A574] to-transparent rounded"></div>

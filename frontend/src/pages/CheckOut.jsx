@@ -19,6 +19,7 @@ import { CartService } from '../services/modules/cart/cartService';
 import { AuthService } from '../services/modules/auth/authService';
 import { OrderService } from '../services/modules/orders/orderService';
 import { GHNLocationService } from '../services/modules/shipping/ghnLocationService';
+import { VoucherService } from '../services/modules/voucher/voucherService';
 import { LanguageContext } from '../context/LanguageContext';
 
 const CheckOut = () => {
@@ -39,6 +40,9 @@ const CheckOut = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [shippingFee, setShippingFee] = useState(0);
   const [shippingLoading, setShippingLoading] = useState(false);
+  const [voucherData, setVoucherData] = useState({ shared: [], personal: [] });
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [selectedVoucherCode, setSelectedVoucherCode] = useState('');
   const shippingFeeRef = useRef(0);
   const redirectTimeoutRef = useRef(null);
 
@@ -243,10 +247,34 @@ const CheckOut = () => {
     }
   }, [resolveAddressNames, t, token]);
 
+  const fetchVouchers = useCallback(async () => {
+    if (!token) return;
+    try {
+      setVoucherLoading(true);
+      const response = await VoucherService.getMine();
+      const shared = Array.isArray(response?.shared) ? response.shared : [];
+      const personal = Array.isArray(response?.personal) ? response.personal : [];
+      setVoucherData({ shared, personal });
+    } catch (error) {
+      console.error('Fetch vouchers error:', error);
+      const message =
+        error?.response?.data?.message
+        || error?.response?.data?.title
+        || error?.message
+        || 'Khong the tai danh sach voucher.';
+      toast.error(message);
+      setVoucherData({ shared: [], personal: [] });
+    } finally {
+      setVoucherLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) {
       setCartItems([]);
       setCartSummary({ subtotal: 0, shipping: 0, total: 0 });
+      setVoucherData({ shared: [], personal: [] });
+      setSelectedVoucherCode('');
       if (!redirectTimeoutRef.current) {
         toast.info(t('messages.loginRequired'));
         redirectTimeoutRef.current = setTimeout(() => {
@@ -263,6 +291,7 @@ const CheckOut = () => {
 
     fetchCart();
     fetchAddresses();
+    fetchVouchers();
 
     return () => {
       if (redirectTimeoutRef.current) {
@@ -270,7 +299,64 @@ const CheckOut = () => {
         redirectTimeoutRef.current = null;
       }
     };
-  }, [fetchAddresses, fetchCart, navigate, t, token]);
+  }, [fetchAddresses, fetchCart, fetchVouchers, navigate, t, token]);
+
+  const allVouchers = useMemo(
+    () => [...(voucherData.personal || []), ...(voucherData.shared || [])],
+    [voucherData.personal, voucherData.shared],
+  );
+  const cartSubtotal = cartSummary.subtotal;
+  const cartShipping = cartSummary.shipping;
+
+  useEffect(() => {
+    if (!selectedVoucherCode) return;
+    const matched = allVouchers.find((voucher) => voucher?.code === selectedVoucherCode);
+    if (!matched) {
+      setSelectedVoucherCode('');
+      return;
+    }
+    const subtotalValue = Number(cartSubtotal) || 0;
+    const minAmount = Number(matched.minOrderAmount) || 0;
+    if (minAmount > 0 && subtotalValue < minAmount) {
+      setSelectedVoucherCode('');
+    }
+  }, [selectedVoucherCode, allVouchers, cartSubtotal]);
+
+  const appliedVoucher = useMemo(() => {
+    if (!selectedVoucherCode) return null;
+    return allVouchers.find((voucher) => voucher?.code === selectedVoucherCode) || null;
+  }, [allVouchers, selectedVoucherCode]);
+
+  const voucherDiscount = useMemo(() => {
+    if (!appliedVoucher) return 0;
+    const subtotalValue = Number(cartSubtotal) || 0;
+    if (subtotalValue <= 0) return 0;
+    const minAmount = Number(appliedVoucher.minOrderAmount) || 0;
+    if (minAmount > 0 && subtotalValue < minAmount) {
+      return 0;
+    }
+
+    const type = (appliedVoucher.discountType || '').toLowerCase();
+    let computedDiscount = 0;
+
+    if (type === 'percent') {
+      const percent = Number(appliedVoucher.discountValue) || 0;
+      computedDiscount = (percent / 100) * subtotalValue;
+      const maxDiscountAmount = Number(appliedVoucher.maxDiscountAmount) || 0;
+      if (maxDiscountAmount > 0) {
+        computedDiscount = Math.min(computedDiscount, maxDiscountAmount);
+      }
+    } else {
+      computedDiscount = Number(appliedVoucher.discountValue) || 0;
+    }
+
+    const maxAllowable = subtotalValue + (Number(cartShipping) || 0);
+    if (computedDiscount > maxAllowable) {
+      computedDiscount = maxAllowable;
+    }
+
+    return computedDiscount > 0 ? computedDiscount : 0;
+  }, [appliedVoucher, cartShipping, cartSubtotal]);
 
   const totalWeight = useMemo(() => (
     cartItems.reduce((total, item) => {
@@ -393,6 +479,9 @@ const CheckOut = () => {
       bankCode: 'NCB',
       requiredNote: 'KHONGCHOXEMHANG',
     };
+    if (selectedVoucherCode) {
+      payload.voucherCodeId = selectedVoucherCode;
+    }
 
     setPlacingOrder(true);
     try {
@@ -442,7 +531,13 @@ const CheckOut = () => {
   return (
     <div className="min-h-screen flex flex-col checkout-shell">
       <Header />
-      <CheckoutBanner />
+      <CheckoutBanner
+        breadcrumbItems={[
+          { label: 'Trang chủ', href: '/' },
+          { label: t('cart.title') || 'Giỏ hàng', href: '/cart' },
+          { label: t('checkout.title') || 'Thanh toán' },
+        ]}
+      />
 
       <main className="flex-grow">
         <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-12">
@@ -486,6 +581,11 @@ const CheckOut = () => {
                   subtotal={cartSummary.subtotal}
                   shipping={cartSummary.shipping}
                   shippingLoading={shippingLoading}
+                  discount={voucherDiscount}
+                  vouchers={voucherData}
+                  selectedVoucherCode={selectedVoucherCode}
+                  onVoucherSelect={setSelectedVoucherCode}
+                  voucherLoading={voucherLoading}
                   total={cartSummary.total}
                   currencySuffix={priceSuffix}
                   onPlaceOrder={handlePlaceOrder}

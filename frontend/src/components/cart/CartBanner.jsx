@@ -1,27 +1,38 @@
 import React from 'react';
-import CustomBreadcrumbs from '../shared/CustomBreadcrumbs';
-const breadcrumbIcon = "https://www.figma.com/api/mcp/asset/367c48b8-7c15-4d78-8f4e-f9faa2495e38";
+import PropTypes from 'prop-types';
+import Breadcrumb from '../shared/Breadcrumb';
 
-const CartBanner = () => {
-  return (
-    <div className="cart-banner" style={{
-      position: 'relative',
-      width: '100%',
-      backgroundColor: '#fdfdf5',
-      padding: '12px 144px',
-    }}>
-      <div className="absolute left-4 top-4 md:left-8 md:top-8 z-20">
-        <div className="text-white">
-          <CustomBreadcrumbs
-            breadcrumbs={[
-              { label: 'Trang chủ', href: '/' },
-              { label: 'Giỏ hàng', href: '/about' }
-            ]}
-          />
-        </div>
+const CartBanner = ({ breadcrumbItems = [] }) => (
+  <section className="relative w-full bg-[#FFF8E7] overflow-hidden">
+    <div className="absolute inset-0">
+      <img
+        src="/images/banner.jpg"
+        alt="Giỏ hàng"
+        className="w-full h-full object-cover object-center opacity-40"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#fff8e7] via-[#fff7e1]/80 to-[#fef4d7]" />
+    </div>
+    <div className="relative max-w-6xl mx-auto px-4 sm:px-8 lg:px-12 py-16 flex flex-col gap-6">
+      {breadcrumbItems.length > 0 && (
+        <Breadcrumb items={breadcrumbItems} floating className="w-fit" />
+      )}
+      <div>
+        <h1 className="text-3xl sm:text-4xl font-alata text-[#8B4513]">
+          Giỏ hàng của bạn
+        </h1>
+        <p className="mt-2 text-sm text-gray-600 max-w-2xl">
+          Kiểm tra lại sản phẩm trước khi tiến hành thanh toán để đảm bảo mọi thứ đều chính xác.
+        </p>
       </div>
     </div>
-  );
+  </section>
+);
+
+CartBanner.propTypes = {
+  breadcrumbItems: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    href: PropTypes.string,
+  })),
 };
 
 export default CartBanner;

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import OrderDetailModal from "./OrderDetailModal";
 import CancelOrderDialog from "./CancelOrderDialog";
+import ReturnOrderDialog from "./ReturnOrderDialog";
 import { OrderService } from "../../services/modules/orders/orderService";
 import { toast } from "react-toastify";
 
@@ -29,6 +30,7 @@ function StatusBadge({ status }) {
 function OrderCard({ order }) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
 
   const createDate = new Date(order.createAt);
   const formattedDate = createDate.toLocaleDateString('vi-VN', {
@@ -56,8 +58,14 @@ function OrderCard({ order }) {
     }
   };
 
+  const now = new Date();
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+  const daysSinceCreated = (now - createDate) / millisecondsPerDay;
+
   // Check if order is VNPAY and Pending
   const showPaymentButton = order.paymentType === 'VNPAY' && order.status === 'Pending';
+  const withinReturnWindow = order.paymentType !== 'VNPAY' || daysSinceCreated <= 2;
+  const canRequestReturn = order.status === 'Paid' && withinReturnWindow;
 
   return (
     <>
@@ -86,6 +94,11 @@ function OrderCard({ order }) {
             </div>
           </div>
         </div>
+        {order.paymentType === 'VNPAY' && order.status === 'Paid' && (
+          <div className="px-6 py-3 bg-white text-sm font-nunito text-primary border-t border-gray-200">
+            Đơn hàng đã được chuyển đến bộ phận giao hàng.
+          </div>
+        )}
 
         {/* Order Actions */}
         <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex gap-3">
@@ -95,6 +108,14 @@ function OrderCard({ order }) {
           >
             Xem chi tiết
           </button>
+          {canRequestReturn && (
+            <button
+              onClick={() => setShowReturnDialog(true)}
+              className="px-4 py-2 text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors font-nunito text-sm font-medium"
+            >
+              Hoàn đơn
+            </button>
+          )}
           {showPaymentButton && (
             <button
               onClick={handleContinuePayment}
@@ -137,6 +158,12 @@ function OrderCard({ order }) {
           // Reload page to refresh order list
           window.location.reload();
         }}
+      />
+      <ReturnOrderDialog
+        isOpen={showReturnDialog}
+        orderNumber={order.orderNumber}
+        onClose={() => setShowReturnDialog(false)}
+        onSuccess={() => setShowReturnDialog(false)}
       />
     </>
   );

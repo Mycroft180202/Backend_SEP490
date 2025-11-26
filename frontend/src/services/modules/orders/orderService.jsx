@@ -12,6 +12,18 @@ export const OrderService = {
     return response.data;
   },
 
+  async getAdminOrders({ pageIndex = 1, pageSize = 10, paymentStatus } = {}) {
+    const params = {
+      pageIndex,
+      pageSize,
+    };
+    if (paymentStatus) {
+      params.paymentStatus = paymentStatus;
+    }
+    const response = await axiosClient.get('/api/Order/orders', { params });
+    return response.data;
+  },
+
   async getById(orderId) {
     if (!orderId) {
       throw new Error('Missing order id');

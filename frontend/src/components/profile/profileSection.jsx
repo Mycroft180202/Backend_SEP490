@@ -25,8 +25,10 @@ import {
   FaPlus,
   FaTimes,
   FaCalendarAlt,
+  FaSpinner,
 } from 'react-icons/fa';
 import { WishlistService } from '../../services/modules/wishlist/wishlistService';
+import { ArtisanApplicationService } from '../../services/modules/artisan/artisanApplicationService';
 import ProductCard from '../shared/ProductCard';
 import ArtisanRegistrationForm from './ArtisanRegistrationForm';
 import { toast } from 'react-toastify';
@@ -231,6 +233,8 @@ function ProfileSection() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
+  const [applicationInfo, setApplicationInfo] = useState(null);
+  const [loadingApplication, setLoadingApplication] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const resolveAddressNames = useCallback(async (addresses) => {
@@ -335,6 +339,53 @@ function ProfileSection() {
     }
   }, []);
 
+  const loadApplicationInfo = useCallback(async () => {
+    if (!profile) {
+      setApplicationInfo(null);
+      return;
+    }
+    try {
+      setLoadingApplication(true);
+      const result = await ArtisanApplicationService.getMyApplication();
+      setApplicationInfo(result);
+    } catch (error) {
+      console.error('Load artisan application error:', error);
+      setApplicationInfo(null);
+    } finally {
+      setLoadingApplication(false);
+    }
+  }, [profile]);
+
+  const getApplicationStatusMeta = (status) => {
+    switch ((status || '').toUpperCase()) {
+      case 'PENDING':
+        return {
+          label: 'Chờ duyệt',
+          color: 'bg-yellow-100 text-yellow-800',
+          description: 'Đơn đăng ký của bạn đang được đội ngũ quản trị xem xét. Vui lòng đợi thêm.',
+        };
+      case 'APPROVED':
+      case 'DONE':
+        return {
+          label: 'Đã duyệt',
+          color: 'bg-green-100 text-green-800',
+          description: 'Đơn đăng ký đã được chấp nhận. Bạn có thể bắt đầu quản lý cửa hàng của mình.',
+        };
+      case 'REJECTED':
+        return {
+          label: 'Đã từ chối',
+          color: 'bg-red-100 text-red-800',
+          description: 'Đơn đăng ký đã bị từ chối. Vui lòng xem lý do và liên hệ hỗ trợ nếu cần.',
+        };
+      default:
+        return {
+          label: 'Không xác định',
+          color: 'bg-gray-100 text-gray-800',
+          description: '',
+        };
+    }
+  };
+
   const loadProvinces = useCallback(async () => {
     try {
       setLoadingProvinces(true);
@@ -416,6 +467,12 @@ function ProfileSection() {
     fetchUser();
 
   }, [refreshUserProfile]);
+
+  useEffect(() => {
+    if (profile) {
+      loadApplicationInfo();
+    }
+  }, [profile, loadApplicationInfo]);
 
   useEffect(() => {
     if (activeSection === 'wishlist') {
@@ -1131,6 +1188,7 @@ function ProfileSection() {
                       shortDescription={product.shortDescription || product.description || ''}
                       price={Number(product.price) || 0}
                       rating={product.rating || 0}
+                      stock={product.stock}
                       shopName={product.shopName || product.displayName || ''}
                       onClick={() => window.location.assign(`/product-detail/${product.id || product.productId}`)}
                       onToggleWishlist={async () => {
@@ -1155,14 +1213,126 @@ function ProfileSection() {
         ) : activeSection === 'changePassword' ? (
           <ChangePasswordSection email={profile.email} />
         ) : activeSection === 'artisanRegistration' ? (
-          <ArtisanRegistrationForm 
-            isOpen={true}
-            onClose={() => setActiveSection('info')}
-            onSuccess={() => {
-              setActiveSection('info');
-              toast.success('Đơn đăng ký được gửi thành công!');
-            }}
-          />
+          <>
+            {applicationInfo && (
+              <div className="bg-white rounded-2xl shadow-lg p-8 max-w-3xl space-y-6 mb-8">
+                <div className="p-4 bg-[#FFF8E7] border border-[#EFD8B1] rounded-xl">
+                  <h3 className="text-lg font-semibold text-[#8B4513] mb-3">Đơn đã gửi trước đó</h3>
+                  <p className="text-sm text-gray-600">
+                    Bạn chỉ có thể gửi một đơn tại một thời điểm. Nếu đơn bị từ chối, bạn có thể nộp lại đơn mới.
+                  </p>
+                  <div className="mt-4 border border-dashed border-gray-200 rounded-lg p-4 bg-white">
+                    <div className="flex flex-wrap justify-between text-sm text-gray-700 gap-4">
+                      <div>
+                        <p className="font-semibold text-gray-900">Mã đơn gần nhất</p>
+                        <p>{applicationInfo.id}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Trạng thái</p>
+                        {(() => {
+                          const meta = getApplicationStatusMeta(applicationInfo.status);
+                          return (
+                            <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${meta.color}`}>
+                              {meta.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Ngày gửi</p>
+                        <p>
+                          {applicationInfo.createdAt
+                            ? new Date(applicationInfo.createdAt).toLocaleDateString('vi-VN')
+                            : '--'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {applicationInfo.status === 'REJECTED' && (
+                    <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+                      <p className="font-semibold">Lý do từ chối:</p>
+                      <p>{applicationInfo.rejectReason || 'Hãy liên hệ quản trị viên để biết thêm chi tiết.'}</p>
+                    </div>
+                  )}
+                </div>
+
+                {applicationInfo.status !== 'REJECTED' && (
+                  <>
+                    <h2 className="text-[#9e211f] text-3xl font-bold mb-6">Trạng thái đơn đăng ký</h2>
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      {(() => {
+                        const meta = getApplicationStatusMeta(applicationInfo.status);
+                        return (
+                          <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${meta.color}`}>
+                            {meta.label}
+                          </span>
+                        );
+                      })()}
+                      <span className="text-sm text-gray-500">
+                        Mã đơn: <strong>{applicationInfo.id}</strong>
+                      </span>
+                    </div>
+                    <p className="text-gray-600 mb-5">
+                      {getApplicationStatusMeta(applicationInfo.status).description}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                      <div>
+                        <p className="font-semibold text-gray-900">Họ và tên</p>
+                        <p>{applicationInfo.fullName || '--'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Số điện thoại</p>
+                        <p>{applicationInfo.phoneNumber || '--'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Email</p>
+                        <p>{applicationInfo.email || '--'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Kinh nghiệm</p>
+                        <p>{applicationInfo.yearsOfExperience || 0} năm</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Tên shop</p>
+                        <p>{applicationInfo.shopName || 'Chưa cập nhật'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Ngày gửi</p>
+                        <p>
+                          {applicationInfo.createdAt
+                            ? new Date(applicationInfo.createdAt).toLocaleDateString('vi-VN')
+                            : '--'}
+                        </p>
+                      </div>
+                    </div>
+                    {applicationInfo.adminNote && (
+                      <div className="mt-5 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
+                        <p className="font-semibold">Ghi chú từ quản trị viên:</p>
+                        <p>{applicationInfo.adminNote}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {loadingApplication ? (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-600 gap-3">
+                <FaSpinner className="animate-spin text-2xl text-[#9e211f]" />
+                <p>Đang kiểm tra trạng thái đơn đăng ký...</p>
+              </div>
+            ) : applicationInfo && applicationInfo.status !== 'REJECTED' ? null : (
+              <ArtisanRegistrationForm
+                isOpen
+                onClose={() => setActiveSection('info')}
+                onSuccess={() => {
+                  toast.success('Đơn đăng ký được gửi thành công!');
+                  loadApplicationInfo();
+                  setActiveSection('info');
+                }}
+              />
+            )}
+          </>
         ) : null}
       </main>
 

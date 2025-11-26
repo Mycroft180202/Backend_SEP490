@@ -2,6 +2,11 @@ import axiosClient from '../../api/axiosConfig';
 import { API_ENDPOINTS } from '../../api/endpoints';
 
 export const VoucherService = {
+  async getMine() {
+    const response = await axiosClient.get(API_ENDPOINTS.VOUCHERS.MY_VOUCHERS);
+    return response.data;
+  },
+
   async list(pageIndex = 1, pageSize = 10) {
     const response = await axiosClient.get(API_ENDPOINTS.VOUCHERS.ROOT, {
       params: { pageIndex, pageSize },

@@ -77,9 +77,6 @@ const ProductList = ({
     <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-[#8B4513]">
-            {t('cart.title')}
-          </h1>
           <p className="text-gray-500 mt-1">
             {displayedCount > 0
               ? t('cart.itemsCount', { count: displayedCount })

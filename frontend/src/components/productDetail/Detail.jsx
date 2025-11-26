@@ -189,7 +189,7 @@ const Detail = ({ product, categoryName }) => {
             </div>
           </div>
           <div className="flex-1">
-            <p className="text-xs md:text-sm text-gray-500 mb-1">Nghệ nhân</p>
+            <p className="text-xs md:text-sm text-gray-500 mb-1">Cửa hàng</p>
             <p className="text-lg md:text-xl font-bold text-[#8B4513]" style={{ fontFamily: 'Nunito, sans-serif' }}>
               {product.shopName || product.displayName}
             </p>
@@ -211,7 +211,7 @@ const Detail = ({ product, categoryName }) => {
             }}
             className="px-4 py-2 bg-gradient-to-r from-[#D4A574] to-[#8B4513] text-white rounded-lg hover:from-[#8B4513] hover:to-[#D4A574] transition-all font-medium shadow-md text-sm"
           >
-            Xem Shop →
+            Xem Cửa hàng →
           </button>
         </div>
 
@@ -342,9 +342,9 @@ const Detail = ({ product, categoryName }) => {
               <button
                 type="button"
                 onClick={handleSubmitFeedback}
-                disabled={isSubmitting || rating === 0 || comment.trim() === ''}
+                disabled={isSubmitting}
                 className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all ${
-                  isSubmitting || rating === 0 || comment.trim() === ''
+                  isSubmitting
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-[#D4A574] to-[#8B4513] hover:from-[#8B4513] hover:to-[#D4A574] shadow-md'
                 }`}

@@ -91,6 +91,7 @@ const CollectionDetail = () => {
                     shortDescription={p.shortDescription}
                     price={p.price}
                     rating={p.rating || 0}
+                    stock={p.stock}
                     onClick={() => navigate(`/product-detail/${p.id || p.productId}`)}
                   />
                 </div>

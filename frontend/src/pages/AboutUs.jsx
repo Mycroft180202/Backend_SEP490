@@ -22,7 +22,12 @@ const AboutUs = () => {
   return (
     <div className="bg-[#fdfeee] min-h-screen w-full font-nunito">
       <Header />
-      <BannerSection assets={assets} />
+      <BannerSection
+        breadcrumbItems={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Về chúng tôi' },
+        ]}
+      />
       <CloudIntroSection assets={assets} />
       <MissionSection />
       <WhyUsSection assets={assets} />

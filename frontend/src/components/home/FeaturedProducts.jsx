@@ -94,6 +94,7 @@ const FeaturedProducts = () => {
                     title={product.name}
                     price={product.price}
                     rating={product.rating || 0}
+                    stock={product.stock}
                     shopName={product.displayName || product.shopName}
                     shortDescription={product.shortDescription}
                     onClick={() => window.location.assign(`/product-detail/${product.id}`)}

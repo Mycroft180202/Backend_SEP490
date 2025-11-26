@@ -13,11 +13,15 @@ import {
   FaStore,
   FaBoxOpen,
   FaBolt,
+  FaFlag,
+  FaSpinner,
+  FaTimes,
 } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 import { UserContext } from '../../context/UserContext';
 import { CartService } from '../../services/modules/cart/cartService';
 import { WishlistService } from '../../services/modules/wishlist/wishlistService';
+import { ReportService } from '../../services/modules/report/reportService';
 
 const ShortDescription = ({ product }) => {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -28,6 +32,16 @@ const ShortDescription = ({ product }) => {
   const { userInfo } = useContext(UserContext);
   const navigate = useNavigate();
   const [wishItemId, setWishItemId] = useState(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReasonKey, setReportReasonKey] = useState('');
+  const [reportNotes, setReportNotes] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const reportOptions = [
+    { value: 'INAPPROPRIATE', label: 'Nội dung không phù hợp' },
+    { value: 'INCORRECT_INFO', label: 'Thông tin không chính xác' },
+    { value: 'SCAM', label: 'Có dấu hiệu lừa đảo' },
+    { value: 'OTHER', label: 'Lý do khác' },
+  ];
 
   const renderStars = (rating) => {
     const stars = [];
@@ -187,7 +201,46 @@ const ShortDescription = ({ product }) => {
     }
   };
 
+  const handleSubmitReport = async () => {
+    if (!product?.id) return;
+    if (!ensureAuthenticated()) return;
+    if (!reportReasonKey) {
+      toast.warn('Vui lòng chọn lý do báo cáo');
+      return;
+    }
+    if (reportReasonKey === 'OTHER' && !reportNotes.trim()) {
+      toast.warn('Vui lòng nhập lý do cụ thể');
+      return;
+    }
+    try {
+      setReportSubmitting(true);
+      const reasonOption = reportOptions.find((opt) => opt.value === reportReasonKey);
+      const baseReason = reasonOption?.label || '';
+      let finalReason = baseReason;
+      if (reportReasonKey === 'OTHER') {
+        finalReason = reportNotes.trim();
+      } else if (reportNotes.trim()) {
+        finalReason = `${baseReason} - ${reportNotes.trim()}`;
+      }
+      await ReportService.reportProduct(product.id, finalReason);
+      toast.success('Đã gửi báo cáo sản phẩm');
+      setReportModalOpen(false);
+      setReportReasonKey('');
+      setReportNotes('');
+    } catch (error) {
+      console.error('Report product error:', error);
+      const message =
+        error?.response?.data?.message
+        || error?.message
+        || 'Không thể gửi báo cáo';
+      toast.error(message);
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   return (
+    <>
     <div className="w-full py-8 bg-gradient-to-b from-[#FFF8E7] to-[#FFFDEB]">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
@@ -308,6 +361,14 @@ const ShortDescription = ({ product }) => {
                     <FaRegHeart className="text-red-600 relative" size={20} />
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setReportModalOpen(true)}
+                  className="p-3 bg-white rounded-full border border-[#D4A574]/50 shadow hover:bg-[#D4A574]/20 transition-all duration-300"
+                  title="Báo cáo sản phẩm"
+                >
+                  <FaFlag className="text-[#8B4513]" size={18} />
+                </button>
               </div>
             </div>
 
@@ -379,6 +440,84 @@ const ShortDescription = ({ product }) => {
         </div>
       </div>
     </div>
+    {reportModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-[#8B4513]">Báo cáo sản phẩm</h3>
+                <p className="text-sm text-gray-500">Hãy cho chúng tôi biết vấn đề gặp phải</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReportModalOpen(false);
+                  setReportReasonKey('');
+                  setReportNotes('');
+                }}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Lý do báo cáo <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={reportReasonKey}
+                  onChange={(e) => setReportReasonKey(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">-- Chọn lý do --</option>
+                  {reportOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Ghi chú thêm {reportReasonKey === 'OTHER' && <span className="text-red-500">*</span>}
+                </label>
+                <textarea
+                  value={reportNotes}
+                  onChange={(e) => setReportNotes(e.target.value)}
+                  rows="4"
+                  placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => {
+                  setReportModalOpen(false);
+                  setReportReasonKey('');
+                  setReportNotes('');
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-white transition-colors"
+                disabled={reportSubmitting}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReport}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white font-semibold shadow hover:opacity-90 transition-colors flex items-center gap-2 disabled:opacity-50"
+                disabled={reportSubmitting}
+              >
+                {reportSubmitting && <FaSpinner className="animate-spin" />}
+                Gửi báo cáo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

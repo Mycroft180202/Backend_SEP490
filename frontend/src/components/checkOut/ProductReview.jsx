@@ -39,7 +39,7 @@ const ProductReview = ({
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
         <h2 className="font-alata text-2xl text-black mb-6">
-          Kiem tra don hang
+          Kiểm tra đơn hàng
         </h2>
         {renderSkeleton()}
       </div>
@@ -50,10 +50,10 @@ const ProductReview = ({
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
         <h2 className="font-alata text-2xl text-black mb-2">
-          Kiem tra don hang
+          Kiểm tra đơn hàng
         </h2>
         <p className="text-center text-gray-500 py-6">
-          Khong co san pham nao trong gio hang.
+          Không có sản phẩm nào trong giỏ hàng.
         </p>
       </div>
     );
@@ -62,29 +62,29 @@ const ProductReview = ({
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
       <h2 className="font-alata text-2xl text-black mb-6">
-        Kiem tra don hang
+        Kiểm tra đơn hàng
       </h2>
 
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-12 gap-4 pb-3 border-b border-gray-200">
           <div className="col-span-6">
             <span className="font-nunito text-lg font-semibold text-black">
-              San pham
+              Sản phẩm
             </span>
           </div>
           <div className="col-span-2 text-center">
             <span className="font-nunito text-lg font-semibold text-black">
-              Don gia
+              Đơn giá
             </span>
           </div>
           <div className="col-span-2 text-center">
             <span className="font-nunito text-lg font-semibold text-black">
-              So luong
+              Số lượng
             </span>
           </div>
           <div className="col-span-2 text-right">
             <span className="font-nunito text-lg font-semibold text-black">
-              Thanh tien
+              Thành tiền
             </span>
           </div>
         </div>

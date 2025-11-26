@@ -201,7 +201,13 @@ const Shop = () => {
   return (
     <div className="bg-gradient-to-b from-[#FFFBF0] to-[#FFF8E7] min-h-screen">
       <Header />
-      <ShopBanner onSelect={(label) => setSelectedCategory(label)} />
+      <ShopBanner
+        onSelect={(label) => setSelectedCategory(label)}
+        breadcrumbItems={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Cửa hàng' },
+        ]}
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {error ? (
@@ -238,6 +244,7 @@ const Shop = () => {
                     shortDescription={product.shortDescription}
                     price={product.price}
                     rating={product.rating || 0}
+                    stock={product.stock}
                     isWished={wishlistMap.has(product.id)}
                     onToggleWishlist={() => toggleWishlist(product.id)}
                     onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}

@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import { LanguageContext } from '../../context/LanguageContext';
+import Breadcrumb from '../shared/Breadcrumb';
 
-const ShopBanner = ({ onSelect = null }) => {
+const ShopBanner = ({ onSelect = null, breadcrumbItems = [] }) => {
   const { t } = useContext(LanguageContext);
 
   const handleExploreClick = () => {
@@ -25,6 +26,11 @@ const ShopBanner = ({ onSelect = null }) => {
         </div>
 
         <div className="relative z-10 h-full">
+          {breadcrumbItems.length > 0 && (
+            <div className="absolute left-6 top-6">
+              <Breadcrumb items={breadcrumbItems} floating />
+            </div>
+          )}
           <div className="max-w-6xl mx-auto h-full px-5 sm:px-8 lg:px-16 flex flex-col md:flex-row items-center justify-center md:justify-start gap-8">
             <div className="text-white text-left max-w-2xl w-full md:max-w-lg">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight drop-shadow-lg md:whitespace-nowrap">
@@ -50,6 +56,10 @@ const ShopBanner = ({ onSelect = null }) => {
 
 ShopBanner.propTypes = {
   onSelect: PropTypes.func,
+  breadcrumbItems: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    href: PropTypes.string,
+  })),
 };
 
 export default ShopBanner;

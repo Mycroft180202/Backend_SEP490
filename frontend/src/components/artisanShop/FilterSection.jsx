@@ -12,7 +12,7 @@ const FilterSection = ({ artisanId }) => {
     <section className="bg-white shadow-sm border-b border-gray-100">
       <div className="max-w-screen-xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between gap-4">
         <h2 className="text-lg md:text-xl font-semibold text-[#8B4513]">
-          Tất cả sản phẩm của shop
+          Tất cả sản phẩm của cửa hàng
         </h2>
         {isArtisan && isOwner && (
           <button
@@ -20,7 +20,7 @@ const FilterSection = ({ artisanId }) => {
             onClick={() => navigate('/artisan-dashboard')}
             className="px-4 py-2 rounded-md bg-[#8B4513] text-white text-sm font-medium shadow hover:bg-[#703814] transition-colors"
           >
-            Quản lý shop
+            Quản lý cửa hàng
           </button>
         )}
       </div>

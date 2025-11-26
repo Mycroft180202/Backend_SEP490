@@ -42,13 +42,6 @@ const AdminDashboard = () => {
 
   const [recentOrders, setRecentOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
-  const [reports] = useState([
-    { id: 1, type: 'product', reportedBy: 'Khách hàng A', target: 'Đèn gốm sứ - Sai mô tả', reason: 'Sản phẩm không đúng với mô tả', date: '2025-11-08', status: 'pending' },
-    { id: 2, type: 'seller', reportedBy: 'Khách hàng B', target: 'Gốm Bát Tràng Shop', reason: 'Giao hàng chậm, không phản hồi', date: '2025-11-07', status: 'investigating' },
-    { id: 3, type: 'product', reportedBy: 'Khách hàng C', target: 'Tượng gỗ - Hàng giả', reason: 'Nghi vấn hàng giả mạo', date: '2025-11-06', status: 'resolved' },
-    { id: 4, type: 'order', reportedBy: 'Khách hàng D', target: 'Đơn hàng #ORD-123', reason: 'Không nhận được hàng', date: '2025-11-05', status: 'pending' },
-  ]);
-
   // Load dashboard data on mount
   useEffect(() => {
     loadDashboardData();
@@ -201,19 +194,6 @@ const menuItems = [
     }
   };
 
-  const getReportStatusColor = (status) => {
-    switch (status) {
-      case 'resolved':
-        return 'bg-green-100 text-green-800';
-      case 'investigating':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar Component */}
@@ -296,12 +276,7 @@ const menuItems = [
 
           {activeTab === 'sellers' && <SellerManagement />}
 
-          {activeTab === 'reports' && (
-            <ReportManagement 
-              reports={reports}
-              getReportStatusColor={getReportStatusColor}
-            />
-          )}
+          {activeTab === 'reports' && <ReportManagement />}
 
           {activeTab === 'blog' && <BlogManagement />}
 

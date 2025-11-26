@@ -57,7 +57,7 @@ const Cart = () => {
         || error?.response?.data?.title
         || error?.message
         || t('messages.cartLoadError');
-      toast.error(message);
+      toast.error("Giỏ của bạn đang trống đó! Mua ngay thôi nào!");
     } finally {
       setLoading(false);
     }
@@ -157,7 +157,12 @@ const Cart = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <CartBanner />
+      <CartBanner
+        breadcrumbItems={[
+          { label: 'Trang chủ', href: '/' },
+          { label: t('cart.title') || 'Giỏ hàng' },
+        ]}
+      />
       <main className="flex-grow">
         <ProductList
           items={paginatedItems}

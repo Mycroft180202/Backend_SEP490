@@ -85,6 +85,37 @@ export const ArtisanApplicationService = {
     }
   },
 
+  async getApplications({
+    statusKeyword,
+    keyword,
+    pageIndex = 1,
+    pageSize = 10,
+  } = {}) {
+    const params = {
+      PageIndex: pageIndex,
+      PageSize: pageSize,
+    };
+    if (statusKeyword && statusKeyword !== 'ALL') {
+      params['Status.Keyword'] = statusKeyword;
+    }
+    if (keyword) {
+      params.Keyword = keyword;
+    }
+    const response = await axiosClient.get('/api/ArtisanApplication', { params });
+    return response.data;
+  },
+
+  async reviewApplication(id, { approve, adminNote, rejectReason }) {
+    if (!id) throw new Error('Missing application id');
+    const payload = {
+      approve,
+      adminNote,
+      rejectReason,
+    };
+    const response = await axiosClient.put(`/api/ArtisanApplication/${id}/review`, payload);
+    return response.data;
+  },
+
   /**
    * Clear application cache
    */

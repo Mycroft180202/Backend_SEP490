@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import Breadcrumb from '../components/shared/Breadcrumb';
 import { LanguageContext } from '../context/LanguageContext';
 
 const Policy = () => {
@@ -10,7 +11,16 @@ const Policy = () => {
     <div className="min-h-screen bg-[#FFFBF0] flex flex-col">
       <Header />
       <main className="flex-1">
-        <section className="py-20">
+        <section className="relative py-20">
+          <div className="absolute left-6 top-6 z-10">
+            <Breadcrumb
+              items={[
+                { label: 'Trang chủ', href: '/' },
+                { label: t('policy.title') || 'Chính sách' },
+              ]}
+              floating
+            />
+          </div>
           <div className="max-w-5xl mx-auto px-6 lg:px-8 space-y-10">
             <header className="text-center space-y-4">
               <h1 className="text-4xl font-alata text-[#8B4513]">

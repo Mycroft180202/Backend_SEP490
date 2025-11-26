@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
   VOUCHERS: {
     ROOT: '/voucher',
     BY_ID: (id) => `/voucher/${id}`,
+    MY_VOUCHERS: '/voucher/me',
   },
 
   NOTIFICATIONS: {
@@ -78,5 +79,6 @@ export const API_ENDPOINTS = {
   SHOP: {
     MY_SHOP: '/users/my-shop',
     UPDATE_MY_SHOP: '/users/my-shop',
+    BY_USER: '/users/shop',
   },
 };

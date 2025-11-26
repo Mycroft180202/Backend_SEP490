@@ -4,7 +4,7 @@
  * @param {string} suffix - Currency suffix (default: 'đ')
  * @returns {string} Formatted currency string
  */
-export const formatCurrency = (value, suffix = 'đ') => {
+export const formatCurrency = (value, suffix = ' VND') => {
   if (value === null || value === undefined) {
     return `0${suffix}`;
   }

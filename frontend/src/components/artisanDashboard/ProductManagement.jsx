@@ -1,4 +1,9 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from 'react';
 import {
   FaPlus, FaEdit, FaTrash, FaEye, FaSearch,
 } from 'react-icons/fa';
@@ -7,6 +12,7 @@ import AddProductForm from './AddProductForm';
 import { ProductService } from '../../services/modules/products/productService';
 import { CategoryService } from '../../services/modules/products/categoryService';
 import { UserContext } from '../../context/UserContext';
+import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -28,17 +34,23 @@ const ProductManagement = () => {
   const getStatusColor = (status) => (status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
 
   const refreshProducts = async () => {
-    if (!userInfo?.userID) return;
+    if (!userInfo?.userID && !userInfo?.userId) return;
     try {
       setLoading(true);
-      const res = await ProductService.getAllProducts({
-        artisanId: userInfo.userID,
+      const response = await ArtisanDashboardService.getProducts({
         pageIndex: 1,
         pageSize: 200,
       });
-      const items = res?.items || res?.Items || [];
-      const mine = items.filter((item) => (item.artisanId || item.artisanID) === userInfo.userID);
-      setProducts(mine);
+      const items = response?.items || response?.Items || [];
+      const normalized = items.map((entry) => {
+        const product = entry.product || entry.Product || entry;
+        return {
+          ...product,
+          totalSold: entry.totalSold ?? entry.TotalSold ?? 0,
+          totalAmmount: entry.totalAmmount ?? entry.TotalAmmount ?? 0,
+        };
+      });
+      setProducts(normalized);
     } catch (err) {
       console.error('Load artisan products error:', err);
       toast.error(err?.response?.data?.message || 'Không thể tải danh sách sản phẩm.');
@@ -185,6 +197,7 @@ const ProductManagement = () => {
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Giá</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Tồn kho</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Đã bán</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Doanh thu</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Thao tác</th>
             </tr>
@@ -207,7 +220,8 @@ const ProductManagement = () => {
                   <td className="py-3 px-4">{categoryNameOf(product.category)}</td>
                   <td className="py-3 px-4">{formatCurrency(product.price)}</td>
                   <td className="py-3 px-4">{product.stock}</td>
-                  <td className="py-3 px-4">{product.sold || product.sales || 0}</td>
+                  <td className="py-3 px-4">{product.totalSold ?? product.sold ?? product.sales ?? 0}</td>
+                  <td className="py-3 px-4 text-primary font-semibold">{formatCurrency(product.totalAmmount ?? 0)}</td>
                   <td className="py-3 px-4">
                     <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(product.stock > 0)}`}>
                       {product.stock > 0 ? 'Còn hàng' : 'Hết hàng'}

@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import Breadcrumb from '../components/shared/Breadcrumb';
 import Pagination from '../components/shared/Pagination';
 import { BlogService } from '../services/modules/blog/blogService';
 import { UserService } from '../services/modules/users/userService';
@@ -197,7 +198,16 @@ const Blog = () => {
     <div className="min-h-screen bg-[#fdf9f4] flex flex-col">
       <Header />
       <main className="flex-grow">
-        <section className="bg-[#fff8f1] text-gray-900 px-4 md:px-10 lg:px-36 py-12 md:py-16">
+        <section className="relative bg-[#fff8f1] text-gray-900 px-4 md:px-10 lg:px-36 py-12 md:py-16">
+          <div className="absolute left-6 top-6 z-10">
+            <Breadcrumb
+              items={[
+                { label: 'Trang chủ', href: '/' },
+                { label: 'Bài viết' },
+              ]}
+              floating
+            />
+          </div>
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex items-center gap-3 text-xs uppercase tracking-[0.5em] text-amber-600">
               <span className="h-px flex-1 bg-amber-200" />

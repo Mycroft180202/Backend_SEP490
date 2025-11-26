@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import Breadcrumb from '../components/shared/Breadcrumb';
 import { LanguageContext } from '../context/LanguageContext';
 
 const Contact = () => {
@@ -34,6 +35,15 @@ const Contact = () => {
       <Header />
       <main className="flex-1">
         <section className="relative py-20">
+          <div className="absolute left-6 top-6 z-10">
+            <Breadcrumb
+              items={[
+                { label: 'Trang chủ', href: '/' },
+                { label: t('contact.title') || 'Liên hệ' },
+              ]}
+              floating
+            />
+          </div>
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>

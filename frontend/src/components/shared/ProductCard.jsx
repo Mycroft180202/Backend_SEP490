@@ -60,6 +60,11 @@ const ProductCard = ({
   const priceLabelText = priceLabel && priceLabel.includes('productCard.priceLabel')
     ? (language === 'en' ? 'Price' : 'Giá bán')
     : priceLabel;
+  const soldOutLabel = t('productCard.soldOut');
+  const soldOutText = soldOutLabel && soldOutLabel.includes('productCard.soldOut')
+    ? 'Hết hàng'
+    : soldOutLabel || 'Hết hàng';
+  const isOutOfStock = typeof stock === 'number' ? Number(stock) <= 0 : false;
 
   const handleAddToCart = (event) => {
     event.stopPropagation();
@@ -127,17 +132,26 @@ const ProductCard = ({
             alt={title}
             className="w-full h-[320px] object-cover rounded-xl"
           />
-          {(onToggleWishlist || productId) && (
-            <button
-              type="button"
-              onClick={handleWishlist}
-              className={`absolute top-3 right-3 bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-red-300' : ''}`}
-            >
-              {isWished && (
-                <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+          {(isOutOfStock || onToggleWishlist || productId) && (
+            <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+              {isOutOfStock && (
+                <div className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-semibold shadow">
+                  {soldOutText}
+                </div>
               )}
-              {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
-            </button>
+              {(onToggleWishlist || productId) && (
+                <button
+                  type="button"
+                  onClick={handleWishlist}
+                  className={`bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 relative ${isWished ? 'ring-2 ring-red-300' : ''}`}
+                >
+                  {isWished && (
+                    <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+                  )}
+                  {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
+                </button>
+              )}
+            </div>
           )}
         </div>
         <div className="flex flex-col gap-2">
@@ -200,9 +214,18 @@ const ProductCard = ({
             alt={title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
-          {price !== undefined && (
-            <div className="absolute top-4 right-4 bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-              {formatCurrency(price, priceSuffix)}
+          {(isOutOfStock || price !== undefined) && (
+            <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+              {isOutOfStock && (
+                <div className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-semibold shadow">
+                  {soldOutText}
+                </div>
+              )}
+              {price !== undefined && (
+                <div className="bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                  {formatCurrency(price, priceSuffix)}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -241,7 +264,7 @@ const ProductCard = ({
 
   return (
     <div
-      className={`group bg-white/95 rounded-[28px] overflow-hidden border border-[#F1D2AA] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''}`}
+      className={`group bg-white/95 rounded-[28px] overflow-hidden border border-[#F1D2AA] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} h-full flex flex-col`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -251,27 +274,36 @@ const ProductCard = ({
         }
       }}
     >
-      <div className="relative h-64 overflow-hidden bg-gradient-to-br from-[#FFF8E7] to-white">
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-        {(onToggleWishlist || productId) && (
-          <button
-            type="button"
-            onClick={handleWishlist}
-            className={`absolute top-3 right-3 bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-red-300' : ''}`}
-          >
-            {isWished && (
-              <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-[#FFF8E7] to-white">
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        {(isOutOfStock || onToggleWishlist || productId) && (
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+            {isOutOfStock && (
+              <div className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-semibold shadow">
+                {soldOutText}
+              </div>
             )}
-            {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
-          </button>
+            {(onToggleWishlist || productId) && (
+              <button
+                type="button"
+                onClick={handleWishlist}
+                className={`relative bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-red-300' : ''}`}
+              >
+                {isWished && (
+                  <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+                )}
+                {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      <div className="p-5 bg-gradient-to-b from-white to-[#FFFBF0] flex flex-col gap-3 border-t-2 border-[#D4A574]/40">
+      <div className="p-5 bg-gradient-to-b from-white to-[#FFFBF0] flex flex-col gap-3 border-t-2 border-[#D4A574]/40 flex-1">
         <h3 className="font-['Nunito'] text-lg font-semibold text-[#5A3310] line-clamp-2 min-h-[48px] group-hover:text-[#9E211F] transition-colors">
           {title}
         </h3>
@@ -289,7 +321,7 @@ const ProductCard = ({
         </div>
         <div className="flex items-center justify-between pt-1">
           <div>
-            <p className="text-2xl font-bold text-[#8B4513] font-['Nunito']">
+            <p className="text-xl font-bold text-[#8B4513] font-['Nunito']">
               {formatCurrency(price, priceSuffix)}
             </p>
           </div>
@@ -300,7 +332,7 @@ const ProductCard = ({
           )}
         </div>
         {(onAddToCart || onBuyNow) && (
-          <div className="mt-4 flex gap-2">
+          <div className="mt-auto flex gap-2">
             {onAddToCart && (
               <button
                 type="button"
@@ -315,7 +347,7 @@ const ProductCard = ({
               <button
                 type="button"
                 onClick={handleBuyNow}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] border-2 border-[#9E211F] text-[#9E211F] px-3 py-2.5 text-sm font-['Nunito'] font-semibold hover:bg-[#FFF6EF] hover:-translate-y-0.5 transition-all duration-200"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] border-2 border-[#9E211R] text-[#9E211F] px-3 py-2.5 text-sm font-['Nunito'] font-semibold hover:bg-[#FFF6EF] hover:-translate-y-0.5 transition-all duration-200"
               >
                 <FaBolt className="text-sm" />
                 <span>{t('productCard.buyNow')}</span>

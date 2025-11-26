@@ -17,4 +17,12 @@ export const ShopService = {
     });
     return response.data;
   },
+
+  async getShopByUserId(userId) {
+    if (!userId) throw new Error('Missing user id');
+    const response = await axiosClient.get(API_ENDPOINTS.SHOP.BY_USER, {
+      params: { userId },
+    });
+    return response.data;
+  },
 };

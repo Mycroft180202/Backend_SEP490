@@ -3,6 +3,7 @@ import { FaEye, FaCheck, FaTimes, FaBan, FaUnlock, FaSearch, FaStore, FaSpinner 
 import { toast } from 'react-toastify';
 import { AdminSellerService } from '../../services/modules/admin/adminSellerService';
 import SellerDetailModal from './SellerDetailModal';
+import { ArtisanApplicationService } from '../../services/modules/artisan/artisanApplicationService';
 
 const SellerManagement = () => {
   const [sellers, setSellers] = useState([]);
@@ -18,6 +19,22 @@ const SellerManagement = () => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [applicationLoading, setApplicationLoading] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState('ALL');
+  const [applicationPage, setApplicationPage] = useState(1);
+  const [applicationPageSize] = useState(10);
+  const [applicationTotalPages, setApplicationTotalPages] = useState(1);
+  const [applicationTotalCount, setApplicationTotalCount] = useState(0);
+  const [applicationSearchInput, setApplicationSearchInput] = useState('');
+  const [applicationKeyword, setApplicationKeyword] = useState('');
+  const [applicationDetailOpen, setApplicationDetailOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewMode, setReviewMode] = useState('approve');
+  const [reviewAdminNote, setReviewAdminNote] = useState('');
+  const [reviewRejectReason, setReviewRejectReason] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Fetch sellers data
   const fetchSellers = useCallback(async () => {
@@ -170,6 +187,115 @@ const SellerManagement = () => {
     pending: sellers.filter(s => s.status === 'pending').length,
     blocked: sellers.filter(s => s.status === 'blocked' || s.status === 'suspended').length,
     totalRevenue: sellers.reduce((sum, s) => sum + (s.revenue || 0), 0),
+  };
+
+  const statusOptions = [
+    { value: 'ALL', label: 'Tất cả' },
+    { value: 'PENDING', label: 'Chờ duyệt' },
+    { value: 'APPROVED', label: 'Đã duyệt' },
+    { value: 'REJECTED', label: 'Đã từ chối' },
+  ];
+
+  const getApplicationStatusText = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Chờ duyệt';
+      case 'APPROVED':
+        return 'Đã duyệt';
+      case 'REJECTED':
+        return 'Đã từ chối';
+      default:
+        return status;
+    }
+  };
+
+  const getApplicationStatusColor = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return 'text-yellow-700 bg-yellow-100';
+      case 'APPROVED':
+        return 'text-green-700 bg-green-100';
+      case 'REJECTED':
+        return 'text-red-700 bg-red-100';
+      default:
+        return 'text-gray-700 bg-gray-100';
+    }
+  };
+
+  const fetchApplications = useCallback(async () => {
+    try {
+      setApplicationLoading(true);
+      const response = await ArtisanApplicationService.getApplications({
+        statusKeyword: applicationStatus,
+        keyword: applicationKeyword,
+        pageIndex: applicationPage,
+        pageSize: applicationPageSize,
+      });
+      setApplications(response?.items || []);
+      setApplicationTotalPages(response?.totalPages || 1);
+      setApplicationTotalCount(response?.totalCount || 0);
+    } catch (error) {
+      console.error('Error fetching artisan applications:', error);
+      toast.error('Không thể tải danh sách đơn đăng ký');
+    } finally {
+      setApplicationLoading(false);
+    }
+  }, [applicationKeyword, applicationPage, applicationPageSize, applicationStatus]);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
+
+  const handleApplicationSearch = () => {
+    setApplicationPage(1);
+    setApplicationKeyword(applicationSearchInput);
+  };
+
+  const openApplicationDetail = (application) => {
+    setSelectedApplication(application);
+    setApplicationDetailOpen(true);
+  };
+
+  const closeApplicationDetail = () => {
+    setApplicationDetailOpen(false);
+    setSelectedApplication(null);
+  };
+
+  const openReviewModal = (application, mode) => {
+    setSelectedApplication(application);
+    setReviewMode(mode);
+    setReviewAdminNote('');
+    setReviewRejectReason('');
+    setReviewModalOpen(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!selectedApplication) return;
+    if (reviewMode === 'reject' && !reviewRejectReason.trim()) {
+      toast.warn('Vui lòng nhập lý do từ chối');
+      return;
+    }
+    try {
+      setSubmittingReview(true);
+      await ArtisanApplicationService.reviewApplication(selectedApplication.id, {
+        approve: reviewMode === 'approve',
+        adminNote: reviewAdminNote || null,
+        rejectReason: reviewMode === 'reject' ? reviewRejectReason : null,
+      });
+      toast.success(reviewMode === 'approve' ? 'Đã chấp nhận đơn đăng ký' : 'Đã từ chối đơn đăng ký');
+      setReviewModalOpen(false);
+      setSelectedApplication(null);
+      fetchApplications();
+    } catch (error) {
+      console.error('Review artisan application error:', error);
+      const message =
+        error?.response?.data?.message
+        || error?.message
+        || 'Không thể xử lý đơn đăng ký';
+      toast.error(message);
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   return (
@@ -375,6 +501,299 @@ const SellerManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Order/Application Management Section */}
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý đơn</h2>
+            <p className="text-sm text-gray-600 mt-1">Theo dõi và xử lý các đơn đăng ký trở thành nghệ nhân</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="relative md:col-span-2 flex gap-2">
+            <div className="relative flex-1">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Tìm tên, email, số điện thoại..."
+                value={applicationSearchInput}
+                onChange={(e) => setApplicationSearchInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <button
+              onClick={handleApplicationSearch}
+              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+            >
+              Tìm kiếm
+            </button>
+          </div>
+          <select
+            value={applicationStatus}
+            onChange={(e) => {
+              setApplicationPage(1);
+              setApplicationStatus(e.target.value);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="overflow-x-auto">
+          {applicationLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <FaSpinner className="animate-spin text-primary text-2xl" />
+              <span className="ml-3 text-gray-600">Đang tải đơn đăng ký...</span>
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              Không có đơn đăng ký nào
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Mã đơn</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Người đăng ký</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Liên hệ</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Kinh nghiệm</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Ngày tạo</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applications.map((application) => (
+                  <tr key={application.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm font-semibold text-gray-700">{application.id}</td>
+                    <td className="py-3 px-4">
+                      <p className="text-sm font-semibold">{application.fullName || '---'}</p>
+                      <p className="text-xs text-gray-500">{application.shopName || 'Chưa có tên shop'}</p>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600">
+                      <p>{application.email}</p>
+                      <p>{application.phoneNumber}</p>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600">
+                      {application.yearsOfExperience || 0} năm
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600">
+                      {application.createdAt ? new Date(application.createdAt).toLocaleDateString('vi-VN') : '--'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getApplicationStatusColor(application.status)}`}>
+                        {getApplicationStatusText(application.status)}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex gap-2 flex-wrap text-sm font-semibold">
+                        <button
+                          onClick={() => openApplicationDetail(application)}
+                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          Xem
+                        </button>
+                        {application.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => openReviewModal(application, 'approve')}
+                              className="text-green-600 hover:text-green-800 transition-colors"
+                            >
+                              Chấp nhận
+                            </button>
+                            <button
+                              onClick={() => openReviewModal(application, 'reject')}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                            >
+                              Từ chối
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {applications.length > 0 && !applicationLoading && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Hiển thị {applications.length} trên tổng {applicationTotalCount} đơn đăng ký
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setApplicationPage((p) => Math.max(p - 1, 1))}
+                disabled={applicationPage === 1}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              {Array.from({ length: applicationTotalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setApplicationPage(page)}
+                  className={`px-4 py-2 rounded-lg ${
+                    applicationPage === page
+                      ? 'bg-primary text-white'
+                      : 'border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setApplicationPage((p) => Math.min(p + 1, applicationTotalPages))}
+                disabled={applicationPage === applicationTotalPages}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {applicationDetailOpen && selectedApplication && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Chi tiết đơn đăng ký</h3>
+                <p className="text-sm text-gray-500">Mã đơn: {selectedApplication.id}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeApplicationDetail}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+              <div>
+                <p className="font-semibold text-gray-900">Họ và tên</p>
+                <p>{selectedApplication.fullName || '---'}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Email</p>
+                <p>{selectedApplication.email}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Số điện thoại</p>
+                <p>{selectedApplication.phoneNumber}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Tên shop</p>
+                <p>{selectedApplication.shopName || '---'}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Kinh nghiệm</p>
+                <p>{selectedApplication.yearsOfExperience || 0} năm</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Ngày sinh</p>
+                <p>
+                  {selectedApplication.dateOfBirth
+                    ? new Date(selectedApplication.dateOfBirth).toLocaleDateString('vi-VN')
+                    : '---'}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="font-semibold text-gray-900">Địa chỉ xưởng</p>
+                <p>{selectedApplication.workshopAddress || '---'}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="font-semibold text-gray-900">Mô tả kỹ năng</p>
+                <p>{selectedApplication.skillDescription || '---'}</p>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={closeApplicationDetail}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewModalOpen && selectedApplication && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div className={`px-6 py-4 ${reviewMode === 'approve' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+              <h3 className="text-lg font-bold">
+                {reviewMode === 'approve' ? 'Chấp nhận đơn đăng ký' : 'Từ chối đơn đăng ký'}
+              </h3>
+              <p className="text-sm text-white/90 mt-1">Mã đơn: {selectedApplication.id}</p>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Ghi chú nội bộ
+                </label>
+                <textarea
+                  value={reviewAdminNote}
+                  onChange={(e) => setReviewAdminNote(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows="3"
+                  placeholder="Nhập ghi chú cho quản trị viên..."
+                />
+              </div>
+              {reviewMode === 'reject' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Lý do từ chối <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={reviewRejectReason}
+                    onChange={(e) => setReviewRejectReason(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    rows="3"
+                    placeholder="Nhập lý do từ chối gửi tới nghệ nhân..."
+                  />
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewModalOpen(false);
+                  setSelectedApplication(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={submittingReview}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReview}
+                className={`px-4 py-2 rounded-lg text-white font-semibold flex items-center gap-2 ${
+                  reviewMode === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                } transition-colors disabled:opacity-50`}
+                disabled={submittingReview}
+              >
+                {submittingReview && <FaSpinner className="animate-spin" />}
+                {reviewMode === 'approve' ? 'Chấp nhận' : 'Từ chối'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seller Detail Modal */}
       <SellerDetailModal
