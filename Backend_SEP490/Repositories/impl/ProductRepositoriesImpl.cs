@@ -48,7 +48,7 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
     public async Task<IEnumerable<Product>> GetAllProductsWithOrderItemsAsync()
     {
         var products = await _context.Products
-                   .Include( p => p.OrderItems)
+                   .Include( p => p.OrderItems).ThenInclude( p=> p.Order)
                     .AsNoTracking()
                     .ToListAsync();
 

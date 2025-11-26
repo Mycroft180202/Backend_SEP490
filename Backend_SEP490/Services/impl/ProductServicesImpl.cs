@@ -364,7 +364,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
         var result = _mapper.Map<IEnumerable<ResponseDTOProductDashboard>>(products)
-            .Where( p => p.Product.ArtisanId.Equals(userId)).ToList();
+            .Where( p => p.Product.ArtisanId.Equals(userId)).OrderByDescending( p=> p.TotalSold).ToList();
 
         return new PagedResult<ResponseDTOProductDashboard>
         {
