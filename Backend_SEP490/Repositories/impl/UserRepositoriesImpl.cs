@@ -155,6 +155,7 @@ public class UserRepositoriesImpl : GenericRepositoryImpl<User>, IUserRepositori
         {
             user.ShopName = request.ShopName;
             user.PhoneNumber = request.PhoneNumber;
+            user.Bio = request.Bio;
             user.ShopUrlImage = imageURL;
 
         }

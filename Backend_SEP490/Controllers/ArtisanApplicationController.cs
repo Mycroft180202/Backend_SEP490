@@ -27,6 +27,28 @@ public class ArtisanApplicationController : ControllerBase
             return BadRequest(ModelState);
         }
 
+        if (request.IdentityBackImageFile != null)
+        {
+            var ext = Path.GetExtension(request.IdentityBackImageFile.FileName).ToLower();
+            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+            if (!allowed.Contains(ext))
+            {
+                return BadRequest("Only jpg, jpeg, png or webp images are supported.");
+            }
+        }
+
+        if (request.IdentityFrontImageFile != null)
+        {
+            var ext = Path.GetExtension(request.IdentityFrontImageFile.FileName).ToLower();
+            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+            if (!allowed.Contains(ext))
+            {
+                return BadRequest("Only jpg, jpeg, png or webp images are supported.");
+            }
+        }
+
         var userId = GetUserId();
         if (string.IsNullOrWhiteSpace(userId))
         {

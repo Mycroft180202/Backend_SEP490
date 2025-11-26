@@ -1332,26 +1332,30 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .ToList();
 
         var grouped = ordersInYear
-            .GroupBy(o => o.CreateAt.Month)
-            .Select(g => new
+        .SelectMany(order => order.OrderItems
+            .Where(oi => oi.Product.ArtisanId == userId)             
+            .Select(oi => new
             {
-                Month = g.Key,
-                TotalAmmount = g.Sum(x => x.TotalAmount),
-                TotalShippingFee = g.Sum(x =>x.ShippingFee),
-                TotalDiscountAmmount = g.Sum(x =>  x.DiscountAmount)
+                Month = order.CreateAt.Month,
+                Amount = oi.Quantity * oi.UnitPrice                  
             })
-            .ToList();
+        )
+        .GroupBy(x => x.Month)
+        .Select(g => new
+        {
+            Month = g.Key,
+            TotalProductAmount = g.Sum(x => x.Amount)
+        })
+        .ToList();
 
         var result = Enumerable.Range(1, 12)
-            .Select(month => new ResponseDTOMonthRevenue
-            {
-                Month = month,
-                TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount ?? 0,
-                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount 
-                            - grouped.FirstOrDefault(x => x.Month == month)?.TotalShippingFee
-                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0) * 0.95m
-            })
-            .ToList();
+       .Select(month => new ResponseDTOMonthRevenue
+       {
+           Month = month,
+           TotalOrderAmount = grouped.FirstOrDefault(x => x.Month == month)?.TotalProductAmount ?? 0,
+           Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalProductAmount ?? 0) * 0.95m
+       })
+       .ToList();
 
         return result;
     }
@@ -1360,13 +1364,14 @@ public class OrderServiceImpl : GenericServices, IOrderService
     {
         var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
 
-
+        // Chỉ lấy order trong tháng + đã thanh toán
         var ordersInMonth = orders
-        .Where(o => o.CreateAt.Year == year && o.CreateAt.Month == month && o.Status.Equals("Paid"))
-        .ToList();
+            .Where(o => o.CreateAt.Year == year
+                     && o.CreateAt.Month == month
+                     && o.Status.Equals("Paid"))
+            .ToList();
 
         var weeklyRevenue = new List<ResponseDTOWeeklyRevenue>();
-
 
         var firstDayOfMonth = new DateTime(year, month, 1);
         var lastDayOfMonth = new DateTime(year, month, DateTime.DaysInMonth(year, month));
@@ -1376,26 +1381,29 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         while (currentStart <= lastDayOfMonth)
         {
-
             var currentEnd = currentStart.AddDays(6 - (int)currentStart.DayOfWeek + 1);
             if (currentEnd > lastDayOfMonth) currentEnd = lastDayOfMonth;
-
 
             var ordersInWeek = ordersInMonth
                 .Where(o => o.CreateAt.Date >= currentStart.Date && o.CreateAt.Date <= currentEnd.Date)
                 .ToList();
 
-            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount);
-            var TotalShippingFee = ordersInWeek.Sum(o => o.ShippingFee);
-            var TotalDiscountAmmount = ordersInWeek.Sum(o => o.DiscountAmount);
+            var totalProductAmount = ordersInWeek
+                .SelectMany(o => o.OrderItems
+                    .Where(oi => oi.Product.ArtisanId == userId)
+                    .Select(oi => oi.Quantity * oi.UnitPrice)
+                )
+                .Sum();
+
+            var revenue = totalProductAmount * 0.95m;
 
             weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
             {
                 WeekNumber = weekNumber,
                 StartDate = currentStart,
                 EndDate = currentEnd,
-                TotalOrderAmount = totalAmount,
-                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount) * 0.95m
+                TotalOrderAmount = totalProductAmount,
+                Revenue = revenue
             });
 
             currentStart = currentEnd.AddDays(1);

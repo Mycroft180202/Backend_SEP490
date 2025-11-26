@@ -19,10 +19,10 @@ public class RequestCreateArtisanApplication
     [Required]
     public string IdentityNumber { get; set; }
 
-    [FileExtensions(Extensions = "jpg,jpeg,png,webp", ErrorMessage = "Chỉ chấp nhận jpg/jpeg/png/webp")]
+    [Required]
     public IFormFile? IdentityFrontImageFile { get; set; }
 
-    [FileExtensions(Extensions = "jpg,jpeg,png,webp", ErrorMessage = "Chỉ chấp nhận jpg/jpeg/png/webp")]
+    [Required]
     public IFormFile? IdentityBackImageFile { get; set; }
 
     [Required]
