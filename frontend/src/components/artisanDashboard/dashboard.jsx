@@ -38,6 +38,7 @@ const ArtisanDashboard = () => {
   });
 
   const [performanceRows, setPerformanceRows] = useState([]);
+  const [productStats, setProductStats] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [monthlyRevenue, setMonthlyRevenue] = useState([]);
   const [weeklyRevenue, setWeeklyRevenue] = useState([]);
@@ -76,6 +77,8 @@ const ArtisanDashboard = () => {
         return {
           id: product.id || product.Id || `product-${index}`,
           name: product.name || product.Name || 'Sản phẩm chưa đặt tên',
+          shortDescription: product.shortDescription || product.ShortDescription || '',
+          category: product.category || product.Category || '',
           stock: product.stock ?? product.Stock ?? 0,
           price: product.price ?? product.Price ?? 0,
           rating: product.rating ?? product.Rating ?? 0,
@@ -138,6 +141,7 @@ const ArtisanDashboard = () => {
           stock: item.stock,
         }));
       setPerformanceRows(performanceData);
+      setProductStats(normalizedProducts);
 
       const topProductsData = normalizedProducts
         .slice()
@@ -228,6 +232,7 @@ const ArtisanDashboard = () => {
                 stats={stats}
                 performanceRows={performanceRows}
                 topProducts={topProducts}
+                allProducts={productStats}
                 formatCurrency={formatCurrency}
               />
             )
