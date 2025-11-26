@@ -85,7 +85,75 @@ const CheckOut = () => {
 
   const resolveAddressNames = useCallback(async (addresses) => {
     if (!Array.isArray(addresses) || addresses.length === 0) return [];
-    return addresses;
+    const provinces = await GHNLocationService.getProvinces();
+    const getProvinceName = (provinceId) => {
+      if (!provinceId) return '';
+      const matched = provinces.find((p) => Number(p.ProvinceID) === Number(provinceId));
+      return matched?.ProvinceName || '';
+    };
+
+    const districtCache = new Map();
+    const wardCache = new Map();
+
+    const resolved = await Promise.all(
+      addresses.map(async (addr) => {
+        const provinceId = addr.ghnProvinceId ?? addr.provinceId ?? addr.ProvinceID;
+        let province = addr.province || getProvinceName(provinceId);
+
+        const districtId = addr.ghnDistrictId ?? addr.districtId ?? addr.DistrictID;
+        let district = addr.district;
+        if (districtId) {
+          const provinceKey = provinceId || 0;
+          if (!districtCache.has(provinceKey)) {
+            const districtsData = await GHNLocationService.getDistricts(provinceKey);
+            districtCache.set(provinceKey, districtsData || []);
+          }
+          const districtsData = districtCache.get(provinceKey) || [];
+          const matchedDistrict = districtsData.find(
+            (d) => Number(d.DistrictID) === Number(districtId),
+          );
+          if (matchedDistrict) {
+            district = matchedDistrict.DistrictName;
+          }
+        }
+
+        const wardCode = addr.ghnWardCode ?? addr.wardCode ?? addr.WardCode;
+        let ward = addr.ward;
+        if (wardCode && districtId) {
+          if (!wardCache.has(districtId)) {
+            const wardsData = await GHNLocationService.getWards(districtId);
+            wardCache.set(districtId, wardsData || []);
+          }
+          const wardsData = wardCache.get(districtId) || [];
+          const matchedWard = wardsData.find(
+            (w) => String(w.WardCode) === String(wardCode),
+          );
+          if (matchedWard) {
+            ward = matchedWard.WardName;
+          }
+        }
+
+        const combinedFull = [
+          addr.detailAddress || addr.addressLine || addr.line1,
+          ward,
+          district,
+          province,
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+        return {
+          ...addr,
+          province,
+          district,
+          ward,
+          line1: addr.line1 || combinedFull || addr.detailAddress || '',
+          fullAddress: addr.fullAddress || combinedFull || addr.detailAddress || '',
+        };
+      }),
+    );
+
+    return resolved;
   }, []);
 
   const fetchCart = useCallback(async () => {

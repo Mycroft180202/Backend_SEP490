@@ -5,6 +5,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import Pagination from '../components/shared/Pagination';
 import { BlogService } from '../services/modules/blog/blogService';
+import { UserService } from '../services/modules/users/userService';
 
 const API_PAGE_SIZE = 9;
 const GRID_PAGE_SIZE = 6;
@@ -84,7 +85,51 @@ const Blog = () => {
         }
 
         if (isMounted) {
-          setBlogs(collected);
+          const authorIds = [...new Set(
+            collected
+              .map((item) => item.authorId || item.authorID)
+              .filter((id) => Boolean(id)),
+          )];
+
+          const authorMap = new Map();
+
+          if (authorIds.length) {
+            await Promise.all(
+              authorIds.map(async (authorId) => {
+                try {
+                  const profile = await UserService.getById(authorId);
+                  if (profile) {
+                    const resolvedName = profile.displayName
+                      || profile.username
+                      || profile.email
+                      || '';
+                    if (resolvedName) {
+                      authorMap.set(authorId, resolvedName);
+                    }
+                  }
+                } catch (authorError) {
+                  console.error('Fetch author details error:', authorError);
+                }
+              }),
+            );
+            if (!isMounted) {
+              return;
+            }
+          }
+
+          const enriched = collected.map((item) => {
+            const resolvedAuthorId = item.authorId || item.authorID;
+            return {
+              ...item,
+              authorDisplayName:
+                authorMap.get(resolvedAuthorId)
+                || item.authorName
+                || item.author
+                || 'G90 Editorial',
+            };
+          });
+
+          setBlogs(enriched);
         }
       } catch (error) {
         console.error('Fetch blogs error:', error);
@@ -92,7 +137,7 @@ const Blog = () => {
           toast.error(
             error?.response?.data?.message
               || error?.message
-              || 'Unable to load blog feed.',
+              || 'Không thể tải các bài viết.',
           );
         }
       } finally {
@@ -156,7 +201,7 @@ const Blog = () => {
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex items-center gap-3 text-xs uppercase tracking-[0.5em] text-amber-600">
               <span className="h-px flex-1 bg-amber-200" />
-              Editorial Picks
+              Tin tức làng nghề
               <span className="h-px flex-1 bg-amber-200" />
             </div>
 
@@ -186,8 +231,8 @@ const Blog = () => {
                   <div className="p-6 md:p-8 lg:p-10 space-y-4">
                     <span className="text-xs uppercase tracking-[0.3em] text-amber-700 block">
                       {formatDate(heroBlog.publishedAt || heroBlog.updatedAt)}
-                      {' / '}
-                      {heroBlog.authorName || heroBlog.author || heroBlog.authorId || 'G90 Editorial'}
+                      {' -- '}
+                      {heroBlog.displayName || 'G90 Editorial'}
                     </span>
                     <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold leading-tight text-gray-900">
                       {heroBlog.title}
@@ -228,14 +273,14 @@ const Blog = () => {
                     ))
                   ) : (
                     <div className="h-full flex items-center justify-center rounded-2xl border border-dashed border-amber-200 text-gray-500 text-sm">
-                      More stories will be highlighted soon.
+                      Các bài viết sẽ được nổi bật trong thời gian tới.
                     </div>
                   )}
                 </div>
               </div>
             ) : (
               <div className="text-center py-20 text-gray-500">
-                No published stories yet. Please check back later.
+                Chưa có bài viết nào được xuất bản. Vui lòng quay lại sau.
               </div>
             )}
           </div>
@@ -245,21 +290,21 @@ const Blog = () => {
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10">
               <div>
-                <p className="text-xs uppercase tracking-[0.5em] text-amber-600">Newsroom</p>
+                <p className="text-xs uppercase tracking-[0.5em] text-amber-600">Bài viết nổi bật</p>
                 <h2 className="text-3xl md:text-4xl font-alata text-gray-900 mt-3">
-                  Latest stories
+                  Các bài viết gần đây
                 </h2>
               </div>
               <p className="text-sm text-gray-500">
-                Showing
+                Hiển thị
                 {' '}
                 {paginatedArchive.length}
                 {' '}
-                of
+                trên
                 {' '}
                 {archiveItems.length}
                 {' '}
-                stories
+                bài viết
               </p>
             </div>
 
@@ -307,7 +352,7 @@ const Blog = () => {
                           }}
                           className="text-sm font-semibold text-[#8B4513] inline-flex items-center gap-2 mt-2"
                         >
-                          Read article
+                          Đọc bài viết
                           <span aria-hidden="true">-&gt;</span>
                         </button>
                       </div>

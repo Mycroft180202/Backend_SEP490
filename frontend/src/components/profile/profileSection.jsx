@@ -633,10 +633,10 @@ function ProfileSection() {
       setSavingAddress(true);
       if (editingAddressId) {
         await UserService.updateAddress(editingAddressId, payload);
-        toast.success('Cap nhat dia chi thanh cong!');
+        toast.success('Cập nhật địa chỉ thành công!');
       } else {
         await UserService.addAddress(payload);
-        toast.success('Them dia chi thanh cong!');
+        toast.success('Thêm địa chỉ thành công!');
       }
       await refreshUserProfile();
       setNewAddress(addressFormDefaults);
@@ -648,7 +648,7 @@ function ProfileSection() {
         err?.response?.data?.message
         || err?.response?.data?.title
         || err?.message
-        || 'Khong the luu dia chi.';
+        || 'Không thể lưu địa chỉ.';
       toast.error(message);
     } finally {
       setSavingAddress(false);

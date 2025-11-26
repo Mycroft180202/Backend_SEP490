@@ -84,7 +84,7 @@ const ProductCard = ({
     if (!productId) return;
     try {
       await WishlistService.add(productId);
-      toast.success(t('productCard.addedToWishlist') || 'Đã thêm vào yêu thích');
+      toast.success(t('Đã thêm vào yêu thích') || 'Đã thêm vào yêu thích');
     } catch (err) {
       console.error('Add wishlist error:', err);
       toast.error(

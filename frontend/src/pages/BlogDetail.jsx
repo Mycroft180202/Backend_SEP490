@@ -85,7 +85,14 @@ const BlogDetail = () => {
 
   const authorName = useMemo(() => {
     if (!blog) return '';
-    return blog.authorName || blog.author || blog.authorId || 'G90 Editorial';
+    return (
+      blog.displayName
+      || blog.authorDisplayName
+      || blog.authorName
+      || blog.author
+      || blog.authorId
+      || 'G90 Editorial'
+    );
   }, [blog]);
 
   const handleOpenBlog = (blogId) => {
@@ -158,13 +165,13 @@ const BlogDetail = () => {
           </div>
         </section>
 
-        <section className="max-w-4xl mx-auto px-4 md:px-10 lg:px-36 py-12 space-y-10">
-          <article className="bg-white rounded-[32px] shadow-xl p-8 md:p-12 space-y-6">
+        <section className="max-w-6xl mx-auto px-4 sm:px-8 md:px-14 lg:px-24 xl:px-32 py-12 space-y-10">
+          <article className="bg-white rounded-[32px] shadow-xl p-8 md:px-16 md:py-12 xl:px-20 space-y-6">
             <div className="text-sm text-amber-700 uppercase tracking-[0.5em]">
               Nội dung chính
             </div>
             <div
-              className="prose prose-lg max-w-none text-gray-800 leading-relaxed blog-detail-content"
+              className="prose prose-2xl max-w-none text-gray-800 leading-relaxed blog-detail-content"
               dangerouslySetInnerHTML={{ __html: blog.content || '<p>Nội dung sẽ được cập nhật.</p>' }}
             />
             <div className="pt-6 border-t border-amber-50 flex flex-wrap gap-4 text-sm text-gray-500">

@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ const Header = () => {
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const notificationHoverRef = useRef(false);
 
   useEffect(() => {
     if (!userInfo) {
@@ -303,11 +305,25 @@ const Header = () => {
         />
 
         {/* Notifications */}
-        <div className="relative">
+        <div
+          className="relative"
+          onMouseEnter={() => {
+            notificationHoverRef.current = true;
+            setNotificationVisible(true);
+          }}
+          onMouseLeave={() => {
+            notificationHoverRef.current = false;
+            setNotificationVisible(false);
+          }}
+        >
           <FaBell
             className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
             title="Thông báo"
-            onClick={() => setNotificationVisible(!isNotificationVisible)}
+            onClick={() => {
+              if (!notificationHoverRef.current) {
+                setNotificationVisible((prev) => !prev);
+              }
+            }}
           />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1 leading-none">
@@ -316,8 +332,14 @@ const Header = () => {
           )}
           {isNotificationVisible && (
             <div
-              className="absolute right-0 mt-2 w-72 sm:w-80 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
-              style={{ zIndex: 1000 }}
+              className="absolute w-72 sm:w-80 bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden"
+              style={{
+                zIndex: 1000,
+                right: 0,
+                top: 'calc(100% + 8px)',
+                paddingTop: '8px',
+                marginTop: '-8px',
+              }}
             >
               <div className="flex items-center justify-between px-4 py-2 border-b">
                 <span className="text-sm font-semibold text-gray-800">Thông báo</span>

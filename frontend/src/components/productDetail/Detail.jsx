@@ -23,6 +23,14 @@ const Detail = ({ product, categoryName }) => {
   const navigate = useNavigate();
   const { userInfo } = useContext(UserContext);
 
+  const formatRating = (value) => {
+    if (value === null || value === undefined) return '0.0';
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '0.0';
+    const roundedUp = Math.ceil(numeric * 10) / 10;
+    return roundedUp.toFixed(1);
+  };
+
   // Fetch feedbacks
   const fetchFeedbacks = async (pageIndex = 1) => {
     try {
@@ -267,7 +275,7 @@ const Detail = ({ product, categoryName }) => {
                     <FaStar className="text-yellow-500" size={20} />
                     <span className="text-xs md:text-sm text-gray-500 font-medium">Đánh giá</span>
                   </div>
-                  <p className="text-base md:text-lg font-semibold text-[#8B4513]">{product.rating || 0} / 5 ⭐</p>
+                  <p className="text-base md:text-lg font-semibold text-[#8B4513]">{formatRating(product.rating)} / 5 ⭐</p>
                 </div>
                 
                 {/* Kho */}

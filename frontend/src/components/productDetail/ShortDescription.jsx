@@ -7,7 +7,6 @@ import {
   FaRegStar,
   FaHeart,
   FaRegHeart,
-  FaShare,
   FaChevronLeft,
   FaChevronRight,
   FaShoppingCart,
@@ -56,6 +55,38 @@ const ShortDescription = ({ product }) => {
     }
   };
 
+  const handleQuantityInputChange = (event) => {
+    const { value } = event.target;
+    if (!value.trim()) {
+      setQuantity(1);
+      return;
+    }
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return;
+    let next = Math.floor(parsed);
+    if (next < 1) next = 1;
+    if (next > product.stock) next = product.stock;
+    setQuantity(next);
+  };
+
+  const validateQuantity = () => {
+    if (product.stock <= 0) {
+      toast.error('Sản phẩm đã hết hàng.');
+      return false;
+    }
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      toast.error('Vui lòng nhập số lượng hợp lệ.');
+      setQuantity(1);
+      return false;
+    }
+    if (quantity > product.stock) {
+      toast.error(`Chỉ còn tối đa ${product.stock} sản phẩm.`);
+      setQuantity(product.stock);
+      return false;
+    }
+    return true;
+  };
+
   const ensureAuthenticated = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (token) return true;
@@ -97,6 +128,7 @@ const ShortDescription = ({ product }) => {
   const maxThumbnailStart = Math.max(0, images.length - thumbnailsPerPage);
 
   const handleAddToCart = async (redirect = false) => {
+    if (!validateQuantity()) return;
     if (!ensureAuthenticated()) return;
     try {
       await CartService.addItem(product.id, product.price ?? 0, quantity);
@@ -138,12 +170,12 @@ const ShortDescription = ({ product }) => {
         await WishlistService.remove(wishItemId);
         setIsFavorite(false);
         setWishItemId(null);
-        toast.success(t('productCard.removedFromWishlist') || 'Đã xoá khỏi yêu thích');
+        toast.success(t('Đã xoá khỏi yêu thích') || 'Đã xoá khỏi yêu thích');
       } else {
         await WishlistService.add(product.id);
         setIsFavorite(true);
-        toast.success(t('productCard.addedToWishlist') || 'Đã thêm vào yêu thích');
-        // Reload to capture id
+        toast.success(t('Đã thêm vào yêu thích') || 'Đã thêm vào yêu thích');
+        // Reload to capture i
         const res = await WishlistService.getList(1, 50);
         const items = res?.items || res?.Items || [];
         const found = items.find((i) => (i.productId || i.product?.id) === product.id);
@@ -276,12 +308,6 @@ const ShortDescription = ({ product }) => {
                     <FaRegHeart className="text-red-600 relative" size={20} />
                   )}
                 </button>
-                <button
-                  type="button"
-                  className="p-3 hover:bg-[#D4A574]/20 rounded-full transition-all duration-300 border border-[#D4A574]/30"
-                >
-                  <FaShare className="text-[#8B4513]" size={20} />
-                </button>
               </div>
             </div>
 
@@ -292,12 +318,12 @@ const ShortDescription = ({ product }) => {
             <div className="bg-gradient-to-r from-[#8B4513] to-[#A0522D] rounded-xl p-5 shadow-lg text-center border-2 border-[#D4A574]">
               <p className="text-sm text-white/80 mb-1">Giá bán</p>
               <div className="text-3xl font-bold text-white">
-                {product.price.toLocaleString('vi-VN')} ₫
+                {product.price.toLocaleString('vi-VN')} VND
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 sm:gap-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex items-center gap-1 bg-[#FFF8E7] px-3 py-2 rounded-full border border-[#E2C8A2]">
                   <button
                     type="button"
@@ -306,7 +332,14 @@ const ShortDescription = ({ product }) => {
                   >
                     -
                   </button>
-                  <span className="w-10 text-center text-base font-semibold text-[#8B4513]">{quantity}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={product.stock}
+                    value={quantity}
+                    onChange={handleQuantityInputChange}
+                    className="w-16 text-center text-base font-semibold text-[#8B4513] bg-transparent border-none focus:outline-none"
+                  />
                   <button
                     type="button"
                     onClick={() => handleQuantityChange('increase')}
@@ -321,7 +354,7 @@ const ShortDescription = ({ product }) => {
                 </span>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-[#F1E0C8]">
                 <button
                   type="button"
                   onClick={() => handleAddToCart(false)}

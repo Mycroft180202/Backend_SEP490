@@ -67,7 +67,7 @@ const translations = {
       priceLabel: 'Giá bán',
       stock: 'Còn {stock} sản phẩm',
       viewDetail: 'Xem chi tiết',
-      addToCart: 'Thêm vào giỏ',
+      addToCart: 'Giỏ hàng',
       buyNow: 'Mua ngay',
       priceSuffix: ' VND',
     },
