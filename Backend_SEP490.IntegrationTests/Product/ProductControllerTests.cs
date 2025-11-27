@@ -402,6 +402,71 @@ public class ProductControllerTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task PATCH_product_activation_updates_persistence_when_admin_requests()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var category = await CreateCategoryAsync(db);
+        var artisan = await CreateUserAsync(db, "Artisan");
+        var productId = NewId("PROD");
+
+        db.Products.Add(new ProductEntity
+        {
+            Id = productId,
+            Name = "Activation Target",
+            ShortDescription = "Short",
+            LongDescription = "Long",
+            Price = 50m,
+            Category = category.Id,
+            IsActive = false,
+            ArtisanId = artisan.UserID,
+            CreateAt = DateTime.UtcNow,
+            UpdateAt = DateTime.UtcNow,
+            Stock = 15,
+            EmbeddingJson = JsonDocument.Parse("[]")
+        });
+        await db.SaveChangesAsync();
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Patch, $"/products/{productId}/activation")
+            {
+                Content = JsonContent.Create(new UpdateProductActivationRequest { IsActive = true })
+            };
+            request.Headers.Add("X-Test-UserId", "ADMIN-USER");
+            request.Headers.Add("X-Test-Roles", "Admin");
+
+            var response = await _client.SendAsync(request);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var updated = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId);
+            updated.Should().NotBeNull();
+            updated!.IsActive.Should().BeTrue();
+        }
+        finally
+        {
+            await CleanupProductAsync(db, productId);
+            await CleanupUserAsync(db, artisan.UserID);
+            await CleanupCategoryAsync(db, category.Id);
+        }
+    }
+
+    [Fact]
+    public async Task PATCH_product_activation_returns_not_found_when_product_absent()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"/products/{NewId("PROD")}/activation")
+        {
+            Content = JsonContent.Create(new UpdateProductActivationRequest { IsActive = false })
+        };
+        request.Headers.Add("X-Test-UserId", "ADMIN-USER");
+        request.Headers.Add("X-Test-Roles", "Admin");
+
+        var response = await _client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
     private static string NewId(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
 
     private static async Task<Models.Category> CreateCategoryAsync(AppDbContext db, string? id = null, string? name = null)
