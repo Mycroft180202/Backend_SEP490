@@ -88,7 +88,7 @@ public class ProductController:ControllerBase
         return NoContent(); 
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Artisan,Admin")]
     [HttpPatch("products/{id}/activation")]
     public async Task<IActionResult> UpdateProductActivation(string id, [FromBody] UpdateProductActivationRequest request)
     {
