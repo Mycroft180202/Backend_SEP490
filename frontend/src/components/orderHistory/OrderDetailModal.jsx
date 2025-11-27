@@ -8,6 +8,25 @@ import { toast } from "react-toastify";
 import { formatCurrency } from "../../utils/formatCurrency";
 import CancelOrderDialog from "./CancelOrderDialog";
 
+const statusConfigs = {
+  Pending: {
+    label: 'Chờ thanh toán',
+    className: 'bg-yellow-100 text-yellow-800',
+  },
+  Paid: {
+    label: 'Đã thanh toán',
+    className: 'bg-green-100 text-green-800',
+  },
+  Cancelled: {
+    label: 'Đã hủy',
+    className: 'bg-red-100 text-red-700',
+  },
+  Default: {
+    label: 'Không xác định',
+    className: 'bg-gray-100 text-gray-700',
+  },
+};
+
 function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
   const [orderDetail, setOrderDetail] = useState(null);
   const [products, setProducts] = useState({});
@@ -114,19 +133,14 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
                 </div>
                 <div>
                   <p className="text-gray-600 text-sm font-nunito">Trạng thái</p>
-                  <p className="font-nunito font-semibold">
-                    <span
-                      className={`px-3 py-1 rounded-lg text-sm ${
-                        orderDetail.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
-                      {orderDetail.status === "Pending"
-                        ? "Chờ thanh toán"
-                        : "Đã thanh toán"}
-                    </span>
-                  </p>
+                  {(() => {
+                    const config = statusConfigs[orderDetail.status] || statusConfigs.Default;
+                    return (
+                      <span className={`inline-flex px-3 py-1 rounded-lg text-sm font-semibold ${config.className}`}>
+                        {config.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div>
                   <p className="text-gray-600 text-sm font-nunito">Ngày đặt hàng</p>
