@@ -46,6 +46,8 @@ const normalizeCartItems = (data) => {
       price: priceAtAdd,
       priceAtAdd,
       quantity: item?.quantity ?? 1,
+      isActive: item?.isActive ?? product?.isActive ?? true,
+      stock: item?.stock ?? product?.stock,
       product,
     };
   });

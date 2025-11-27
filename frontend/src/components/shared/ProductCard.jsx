@@ -346,8 +346,20 @@ const ProductCard = ({
             {onBuyNow && (
               <button
                 type="button"
-                onClick={handleBuyNow}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] border-2 border-[#9E211R] text-[#9E211F] px-3 py-2.5 text-sm font-['Nunito'] font-semibold hover:bg-[#FFF6EF] hover:-translate-y-0.5 transition-all duration-200"
+                onClick={(event) => {
+                  if (isOutOfStock) {
+                    event.stopPropagation();
+                    toast.info(soldOutText);
+                    return;
+                  }
+                  handleBuyNow(event);
+                }}
+                disabled={isOutOfStock}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] border-2 px-3 py-2.5 text-sm font-['Nunito'] font-semibold transition-all duration-200 ${
+                  isOutOfStock
+                    ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : 'border-[#9E211F] text-[#9E211F] hover:bg-[#FFF6EF] hover:-translate-y-0.5'
+                }`}
               >
                 <FaBolt className="text-sm" />
                 <span>{t('productCard.buyNow')}</span>

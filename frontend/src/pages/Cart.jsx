@@ -148,6 +148,12 @@ const Cart = () => {
       toast.info(t('messages.cartEmpty'));
       return;
     }
+
+    const unavailableItem = items.find((item) => item.isActive === false || item.stock <= 0);
+    if (unavailableItem) {
+      toast.error(`"${unavailableItem.name || unavailableItem.productName || 'Sản phẩm'}" đã hết hàng nên không thể tiến hành đặt hàng.`);
+      return;
+    }
     navigate('/checkout');
   };
 

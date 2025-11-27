@@ -191,9 +191,10 @@ const Header = () => {
             key={item.path}
             to={item.path}
             style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '32px', color: '#fff' }}
-            className="hover:text-yellow-200 transition"
+            className="group relative px-1 py-1 text-sm font-semibold text-white transition-colors duration-200 hover:text-yellow-200"
           >
-            {item.label}
+            <span className="relative z-10 group-hover:tracking-[0.12em] transition-all duration-300">{item.label}</span>
+            <span className="absolute left-0 right-0 -bottom-1 h-0.5 bg-yellow-200 scale-x-0 origin-center transition-transform duration-300 group-hover:scale-x-100" />
           </Link>
         ))}
       </nav>
