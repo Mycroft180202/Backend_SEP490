@@ -147,7 +147,8 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
                 ArtisanId = p.ArtisanId,
                 CreateAt = p.CreateAt,
                 UpdateAt = p.UpdateAt,
-                Stock = p.Stock
+                Stock = p.Stock,
+                QuantitySale = p.QuantitySale
             })
             .ToListAsync();
 

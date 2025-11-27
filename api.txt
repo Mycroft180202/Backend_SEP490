@@ -1,0 +1,869 @@
+﻿Controller: ArtisanApplicationController
+--------------------------------------------------
+1. POST /api/ArtisanApplication (auth)
+   - Input JSON (multipart form fields, file parts allowed):
+```
+{
+  "FullName": "string",
+  "Email": "user@example.com",
+  "PhoneNumber": "string",
+  "DateOfBirth": "2025-01-01",
+  "IdentityNumber": "string",
+  "IdentityFrontImageFile": "<image>",
+  "IdentityBackImageFile": "<image>",
+  "SkillDescription": "string",
+  "YearsOfExperience": 3,
+  "WorkshopAddress": "string",
+  "ShopName": "string?",
+  "Bio": "string?"
+}
+```
+   - Output JSON:
+```
+{
+  "id": "AA-001",
+  "userId": "USR-1",
+  "fullName": "string",
+  "email": "user@example.com",
+  "phoneNumber": "string",
+  "dateOfBirth": "2025-01-01T00:00:00Z",
+  "identityNumber": "string",
+  "identityFrontImagePublicId": "string",
+  "identityFrontImageUrl": "string",
+  "identityBackImagePublicId": "string",
+  "identityBackImageUrl": "string",
+  "skillDescription": "string",
+  "yearsOfExperience": 3,
+  "workshopAddress": "string",
+  "shopName": "string",
+  "bio": "string",
+  "status": "Pending|Done|Rejected",
+  "adminNote": "string?",
+  "rejectReason": "string?",
+  "reviewedBy": "USR-ADMIN",
+  "reviewerName": "Admin",
+  "createdAt": "2025-01-01T00:00:00Z",
+  "updatedAt": "2025-01-02T00:00:00Z",
+  "reviewedAt": "2025-01-03T00:00:00Z"
+}
+```
+   - Tac dung: Tao ho so ung tuyen nghe nhan cho nguoi dung hien tai.
+
+2. GET /api/ArtisanApplication/me (auth)
+   - Input JSON: none (lay user tu token).
+   - Output JSON: `ResponseArtisanApplicationDto` giong nhu tren hoac 404 neu chua nop ho so.
+   - Tac dung: Xem lai ho so ung tuyen cua chinh minh.
+
+3. GET /api/ArtisanApplication?Status=&Keyword=&PageIndex=&PageSize= (Admin)
+   - Input JSON (query string):
+```
+{
+  "Status": "Pending",
+  "Keyword": "search term",
+  "PageIndex": 1,
+  "PageSize": 20
+}
+```
+   - Output JSON (paged wrapper):
+```
+{
+  "items": [ { ...ResponseArtisanApplicationDto... } ],
+  "totalCount": 120,
+  "isactive": false,
+  "pageIndex": 1,
+  "pageSize": 20,
+  "totalPages": 6,
+  "hasPreviousPage": false,
+  "hasNextPage": true
+}
+```
+   - Tac dung: Quan tri vien loc ho so ung vien theo trang thai va tu khoa.
+
+4. GET /api/ArtisanApplication/{id} (Admin)
+   - Input JSON: none; id nam tren route.
+   - Output JSON: `ResponseArtisanApplicationDto` theo id hoac 404.
+   - Tac dung: Xem chi tiet ho so tung ung vien.
+
+5. PUT /api/ArtisanApplication/{id}/review (Admin)
+   - Input JSON:
+```
+{
+  "Approve": true,
+  "AdminNote": "string?",
+  "RejectReason": "string?"
+}
+```
+   - Output JSON:
+```
+{
+  "applicationId": "AA-001",
+  "status": "Done|Rejected",
+  "message": "string"
+}
+```
+   - Tac dung: Duyet hoac tu choi ho so ung vien va cap nhat ghi chu, ly do.
+
+Controller: AuthController
+--------------------------------------------------
+1. POST /api/Auth/login (AllowAnonymous)
+   - Input JSON (form fields):
+```
+{"Username":"string","Password":"string"}
+```
+   - Output JSON:
+```
+{
+  "accessToken":"jwt-string",
+  "refreshToken":"guid",
+  "expireAt":"2025-01-01T00:15:00Z"
+}
+```
+   - Tac dung: Dang nhap va nhan token JWT.
+
+2. POST /api/Auth/refresh (AllowAnonymous)
+   - Input JSON:
+```
+{"refreshToken":"guid"}
+```
+   - Output JSON: giong login (token moi).
+   - Tac dung: Cap moi cap access token khi token cu sap het han.
+
+3. POST /api/Auth/logout (Authorize)
+   - Input JSON: `{"refreshToken":"guid"}`.
+   - Output JSON: Chuoi trang thai ("Logged out successfully" hoac thong bao loi).
+   - Tac dung: Thu hoi refresh token hien tai.
+
+4. POST /api/Auth/register (AllowAnonymous)
+   - Input JSON (form fields):
+```
+{
+  "Username":"string",
+  "PasswordHash":"plaintext",
+  "Email":"user@example.com",
+  "PhoneNumber":"string?",
+  "DisplayName":"string?",
+  "Dob":"2025-01-01"
+}
+```
+   - Output JSON: "OTP sent to email" hoac thong bao user/email ton tai.
+   - Tac dung: Dang ky tai khoan moi va gui OTP xac thuc email.
+
+5. POST /api/Auth/verify-otp (AllowAnonymous)
+   - Input JSON:
+```
+{
+  "RegisterDto": { ...RequestDTORegister... },
+  "Otp": "123456"
+}
+```
+   - Output JSON: "Registration successful" hoac loi OTP.
+   - Tac dung: Xac minh OTP de hoan tat dang ky.
+
+6. POST /api/Auth/forgot-password (AllowAnonymous)
+   - Input JSON: chuoi email trong body, vi du "user@example.com".
+   - Output JSON: thong bao da gui OTP hoac email khong ton tai.
+   - Tac dung: Gui OTP dat lai mat khau.
+
+7. POST /api/Auth/reset-password (AllowAnonymous)
+   - Input JSON:
+```
+{
+  "Email":"user@example.com",
+  "OtpCode":"123456",
+  "NewPassword":"Aa1!abcd"
+}
+```
+   - Output JSON: thong bao thanh cong hoac OTP khong hop le.
+   - Tac dung: Dat lai mat khau bang OTP.
+
+Controller: BlogController
+--------------------------------------------------
+1. GET /api/Blog/blogs?pageIndex=&pageSize=
+   - Input JSON: none (chi co query pageIndex, pageSize mac dinh 1,3).
+   - Output JSON (paged ds bai viet, vi du):
+```
+{
+  "items":[
+    {"id":"BLOG-1","title":"string","content":"string","image":"https://...","authorId":"USR-1","postStatus":"Published","publishedAt":"2025-01-01T00:00:00Z"}
+  ],
+  "pageIndex":1,
+  "pageSize":3,
+  "totalCount":10
+}
+```
+   - Tac dung: Lay danh sach bai viet cong khai cho landing page.
+
+2. GET /api/Blog/blogs/{id}
+   - Input JSON: none.
+   - Output JSON: `ResponseDTOBlogPost` theo id.
+   - Tac dung: Xem noi dung chi tiet bai blog.
+
+3. PUT /api/Blog/blogs?id= (Authorize)
+   - Input JSON (form):
+```
+{
+  "Title":"string",
+  "Content":"string",
+  "PostStatus":"Draft|Published|Archived",
+  "Image":"<file?>"
+}
+```
+   - Output JSON: Blog post sau cap nhat.
+   - Tac dung: Chinh sua bai viet hien co.
+
+4. DELETE /api/Blog/blogs?id=
+   - Input JSON: none (id tren query string).
+   - Output JSON: Chuoi trang thai tu service.
+   - Tac dung: Xoa bai viet.
+
+5. POST /api/Blog/blogs (Authorize)
+   - Input JSON (form):
+```
+{
+  "Title":"string",
+  "Content":"string",
+  "Image":"<file?>"
+}
+```
+   - Output JSON: Chuoi trang thai tao moi.
+   - Tac dung: Tao blog post moi tu user dang nhap.
+
+Controller: CartController
+--------------------------------------------------
+1. GET /api/Cart/carts?pageIndex=&pageSize= (Authorize)
+   - Input JSON: none.
+   - Output JSON:
+```
+{
+  "createAt":"2025-01-01T00:00:00Z",
+  "totalAmount":250000,
+  "customer": { ...ResponseDTOUser... },
+  "cartItems": {
+    "items": [
+      {"id":"CARTITEM-1","quantity":2,"priceAtAdd":125000,"product":{...ResponseDTOProduct...}}
+    ],
+    "totalCount":3,
+    "pageIndex":1,
+    "pageSize":10
+  }
+}
+```
+   - Tac dung: Xem gio hang ca nhan theo trang.
+
+2. POST /api/Cart/carts (Authorize)
+   - Input JSON:
+```
+{"ProductId":"PROD-1","PriceAtAdd":125000,"quantity":2}
+```
+   - Output JSON: thong diep/flag thanh cong tu service.
+   - Tac dung: Them san pham vao gio hang.
+
+3. PUT /api/Cart/carts?cartItemId=&quantity=
+   - Input JSON: none (param tren query).
+   - Output JSON: thong diep/flag cap nhat.
+   - Tac dung: Chinh sua so luong mot dong gio hang.
+
+4. DELETE /api/Cart/carts?cartItemId=
+   - Input JSON: none.
+   - Output JSON: thong diep xoa.
+   - Tac dung: Xoa san pham khoi gio hang.
+
+Controller: CategoryController
+--------------------------------------------------
+1. GET /api/Category/categories (AllowAnonymous)
+   - Input JSON: none.
+   - Output JSON: danh sach category `{ "id":"CAT-1","name":"string" }`.
+   - Tac dung: Lay tat ca danh muc hien hanh.
+
+2. PUT /api/Category/categories/{id} (Admin, Artisan)
+   - Input JSON: `{"Name":"string"}`.
+   - Output JSON: 200 OK.
+   - Tac dung: Cap nhat ten danh muc.
+
+3. POST /api/Category/categories (Admin, Artisan)
+   - Input JSON: `{"Name":"string"}`.
+   - Output JSON: 200 OK.
+   - Tac dung: Tao danh muc moi.
+
+Controller: DashboardController
+--------------------------------------------------
+1. GET /users?pageIndex=&pageSize= (Admin)
+   - Input JSON: none.
+   - Output JSON: `PagedResult<ResponseDTOUserDashboard>` gom thong tin user va dia chi.
+   - Tac dung: Quan ly danh sach tat ca user.
+
+2. GET /users/customers?pageIndex=&pageSize= (Admin)
+   - Output JSON: `PagedResult<ResponseDTOUserDashboard>`.
+   - Tac dung: Liet ke user co vai tro customer.
+
+3. GET /users/artisans?pageIndex=&pageSize= (Admin)
+   - Output JSON: `PagedResult<ResponseDTOUserShopDashboard>`.
+   - Tac dung: Quan ly thong tin shop cua nghe nhan.
+
+4. PUT /users?userId= (Admin)
+   - Input JSON:
+```
+{"IsActive":true,"RolesId":"role-id?"}
+```
+   - Output JSON: User sau cap nhat (`ResponseDTOUser`).
+   - Tac dung: Kich hoat/khoa tai khoan hoac doi vai tro.
+
+5. GET /newest-orders (Admin)
+   - Output JSON: danh sach `ResponseDTOOrder` moi nhat.
+   - Tac dung: Theo doi giao dich moi.
+
+6. GET /products-dashboard?pageIndex=&pageSize= (Artisan)
+   - Output JSON: `PagedResult<ResponseDTOProductDashboard>` voi thong ke ban hang theo san pham.
+   - Tac dung: Artisan xem bang dieu khien san pham cua minh.
+
+7. GET /top-products (Admin)
+   - Output JSON: Top 10 `ResponseDTOProductDashboard`.
+   - Tac dung: Thong ke san pham ban chay.
+
+8. GET /admin/monthly-revenue?year= (Admin)
+   - Output JSON:
+```
+[
+  {"month":1,"totalOrderAmount":5000000,"revenue":4000000}
+]
+```
+   - Tac dung: Theo doi doanh thu hang thang toan he thong.
+
+9. GET /admin/weekly-revenue?year=&month= (Admin)
+   - Output JSON:
+```
+[
+  {"weekNumber":35,"startDate":"2025-08-25","endDate":"2025-08-31","totalOrderAmount":800000,"revenue":620000}
+]
+```
+   - Tac dung: Theo doi doanh thu hang tuan toan he thong.
+
+10. GET /artisan/monthly-revenue?year= (Artisan)
+    - Output JSON giong cau truc monthly revenue.
+    - Tac dung: Artisan xem doanh thu cua rieng minh theo thang.
+
+11. GET /artisan/weekly-revenue?year=&month= (Artisan)
+    - Output JSON giong weekly revenue.
+    - Tac dung: Artisan xem doanh thu rieng theo tuan.
+
+Controller: FeedbackController
+--------------------------------------------------
+1. GET /api/Feedback/feedbacks/{productId}?pageIndex=&pageSize=
+   - Output JSON: `PagedResult<ResponseDTOFeedback>` voi cac truong id, customerName, rating, comment, createAt.
+   - Tac dung: Lay danh gia cua mot san pham.
+
+2. DELETE /api/Feedback/feedbacks?feedbackid=&IdduserId= (Authorize)
+   - Input JSON: none (query param).
+   - Output JSON: "Delete successfully" hoac thong bao loi.
+   - Tac dung: Cho phep chinh chu xoa danh gia.
+
+3. PUT /api/Feedback/feedbacks?productid=&userid=&feedbackid= (Authorize)
+   - Input JSON:
+```
+{"Rating":5,"Comment":"Great"}
+```
+   - Output JSON: "Update successfully" hoac loi.
+   - Tac dung: Sua noi dung danh gia cua chinh minh.
+
+4. POST /api/Feedback/feedbacks?productid=&userid= (Authorize)
+   - Input JSON: `{"Rating":5,"Comment":"Great"}`.
+   - Output JSON: "Create successfully" hoac loi neu chua mua san pham.
+   - Tac dung: Tao danh gia moi cho san pham da mua.
+
+Controller: GhnMasterDataController
+--------------------------------------------------
+1. GET /api/ghn/master-data/provinces
+   - Output JSON (GHN response):
+```
+{"code":200,"message":"Success","data":[{"provinceId":1,"provinceName":"Ha Noi","code":"HN"}]}
+```
+   - Tac dung: Lay danh sach tinh thanh tu GHN.
+
+2. GET /api/ghn/master-data/districts?provinceId=
+   - Output JSON: danh sach `GhnDistrict` (`districtId`,`districtName`,`provinceId`).
+   - Tac dung: Lay danh sach quan/huyen tu GHN theo tinh.
+
+3. GET /api/ghn/master-data/wards?districtId=
+   - Output JSON: danh sach `GhnWard` (`wardCode`,`wardName`,`districtId`).
+   - Tac dung: Lay danh sach phuong/xa theo quan.
+
+Controller: GhnShippingController
+--------------------------------------------------
+1. POST /api/ghn/shipping/fee
+   - Input JSON:
+```
+{"ToDistrictId":1450,"ToWardCode":"20415"}
+```
+   - Output JSON:
+```
+{"totalFee":42000}
+```
+   - Tac dung: Uoc tinh phi giao hang voi GHN cho don hang du kien.
+
+Controller: GhnWebhookController
+--------------------------------------------------
+1. POST /api/ghn/webhook
+   - Input JSON (tu GHN):
+```
+{
+  "OrderCode":"GHN123",
+  "ClientOrderCode":"ORDER-001",
+  "CurrentStatus":"delivered",
+  "ReasonCode":"string?",
+  "Reason":"string?",
+  "UpdatedDate":"2025-01-01T00:00:00Z",
+  "CodAmount":150000,
+  "CodCollected": true
+}
+```
+   - Output JSON: `{ "status":"ack" }`.
+   - Tac dung: Nhan thong bao trang thai van chuyen tu GHN, cap nhat shipment/order/payment.
+
+Controller: NotificationController
+--------------------------------------------------
+1. GET /api/Notification?PageIndex=&PageSize=&UnreadOnly=&Type= (Authorize)
+   - Output JSON: `PagedResult<ResponseNotificationDto>` voi cac truong id, message, type, isRead, createAt.
+   - Tac dung: Xem danh sach thong bao cua minh theo bo loc.
+
+2. PUT /api/Notification/{notificationId}/read (Authorize)
+   - Output JSON: 204 No Content hoac 404.
+   - Tac dung: Danh dau mot thong bao da doc.
+
+3. PUT /api/Notification/mark-all-read (Authorize)
+   - Output JSON: `{ "updated": soLuong }`.
+   - Tac dung: Danh dau tat ca thong bao da doc.
+
+4. DELETE /api/Notification/{notificationId} (Authorize)
+   - Output JSON: 204 No Content hoac 404.
+   - Tac dung: Xoa thong bao khoi hop thu nguoi dung.
+
+5. POST /api/Notification/admin/send (Admin)
+   - Input JSON:
+```
+{"TargetUserId":"USR-1","Message":"Your order shipped","Type":"Order"}
+```
+   - Output JSON: "Notification sent." hoac loi.
+   - Tac dung: Admin gui thong bao truc tiep toi user.
+
+Controller: OrderController
+--------------------------------------------------
+1. GET /api/Order/my-orders?search=&Status=&PageIndex=&PageSize= (Authorize)
+   - Output JSON: `PagedResult<ResponseDTOOrder>` voi thong tin don hang, items, shipments.
+   - Tac dung: Khach xem lich su don hang cua minh.
+
+2. GET /api/Order/orders/{orderId} (Authorize)
+   - Output JSON: `ResponseDTOOrder` theo id.
+   - Tac dung: Xem chi tiet don hang cu the.
+
+3. GET /api/Order/orders?pageIndex=&pageSize=&paymentStatus= (Admin)
+   - Output JSON: `PagedResult<ResponseDTOOrder>` toan he thong.
+   - Tac dung: Admin theo doi tat ca don hang.
+
+4. POST /api/Order/orders (Authorize)
+   - Input JSON:
+```
+{
+  "CartItems":[{"ProductId":"PROD-1","Quantity":2}],
+  "AddressId":"ADDR-1",
+  "ShippingServiceId":53320,
+  "PaymentMethod":"COD|VNPAY",
+  "VoucherCodeId":"VCH-1",
+  "RequiredNote":"KHONGCHOXEMHANG",
+  "PaymentTypeId":2,
+  "ServiceTypeId":2,
+  "BankCode":"NCB"
+}
+```
+   - Output JSON (`CreateOrderResult`):
+```
+{
+  "success":true,
+  "message":"Order created successfully (COD)",
+  "orderId":"ORDER-UUID",
+  "paymentMethod":"COD",
+  "status":"Pending",
+  "subtotal":200000,
+  "discount":50000,
+  "shippingFee":40000,
+  "total":190000,
+  "voucherCode":"SPRING",
+  "ghnOrderCode":"GHN123",
+  "expectedDelivery":"2025-01-05T00:00:00Z",
+  "paymentUrl":"https://pay...",
+  "paymentId":"PAY-1"
+}
+```
+   - Tac dung: Tao don hang moi tu gio hang va goi payment neu chon VNPAY.
+
+5. POST /api/Order/orders/{orderNumber}/continue-payment (Authorize)
+   - Output JSON (`VnpayPaymentResponse`):
+```
+{
+  "paymentId":"PAY-1",
+  "orderId":"ORDER-UUID",
+  "orderNumber":"ORD0001",
+  "amount":190000,
+  "paymentUrl":"https://pay...",
+  "qrContent":"...",
+  "expiredAt":"2025-01-01T00:15:00Z"
+}
+```
+   - Tac dung: Khoi dong lai giao dich VNPAY cho don Pending.
+
+6. POST /api/Order/orders/{orderNumber}/cancel (Authorize)
+   - Input JSON: `{"Reason":"string?"}` (optional).
+   - Output JSON: thong diep chua tu khoa "success" hoac loi.
+   - Tac dung: Yeu cau huy don hang cua minh.
+
+Controller: PaymentController
+--------------------------------------------------
+1. POST /api/Payment/vnpay (Authorize)
+   - Input JSON: `{"OrderId":"ORDER-UUID","BankCode":"NCB?"}`.
+   - Output JSON: `VnpayPaymentResponse` (xem tren).
+   - Tac dung: Tao giao dich VNPAY truc tiep tu order id.
+
+2. GET /api/Payment/vnpay/callback (AllowAnonymous)
+   - Input JSON: khong co; VNPAY gui query string `vnp_*`.
+   - Output JSON: 400 voi `VnpayCallbackResult` neu that bai hoac redirect 302 toi front-end khi thanh cong.
+   - Tac dung: Xu ly thong bao ket qua thanh toan tu VNPAY.
+
+3. PUT /api/Payment/status (Admin)
+   - Input JSON:
+```
+{"PaymentId":"PAY-1","Status":"Paid|Failed|Cancelled"}
+```
+   - Output JSON: Chuoi thong bao.
+   - Tac dung: Admin cap nhat truc tiep trang thai payment neu can.
+
+Controller: ProductCollectionController
+--------------------------------------------------
+1. GET /api/ProductCollection/productcollection
+   - Output JSON: danh sach `ResponseDTOProductCollection` (`productCollectionId`,`image`,`title`,`isActive`).
+   - Tac dung: Lay tat ca bo suu tap dang kich hoat.
+
+2. GET /api/ProductCollection/productcollection/{id}
+   - Output JSON:
+```
+{
+  "productCollectionId":1,
+  "title":"Summer Picks",
+  "image":"https://...",
+  "headline":"string?",
+  "content":"string?",
+  "createdDate":"2025-01-01T00:00:00Z",
+  "createName":"Artisan A",
+  "products":[ { ...ResponseDTOProduct... } ]
+}
+```
+   - Tac dung: Xem chi tiet bo suu tap va san pham.
+
+3. POST /api/ProductCollection/productcollection (Admin, Artisan)
+   - Input JSON (form):
+```
+{
+  "Title":"string",
+  "Headline":"string?",
+  "Content":"string?",
+  "ImageFile":"<image>",
+  "ProductIds":["PROD-1","PROD-2"]
+}
+```
+   - Output JSON: `{ "message":"Created ProductCollection successfully" }` hoac loi.
+   - Tac dung: Tao bo suu tap moi kem anh va ds san pham.
+
+4. PUT /api/ProductCollection/productcollection (Admin, Artisan)
+   - Input JSON (form):
+```
+{
+  "ProductCollectionId":1,
+  "Title":"string?",
+  "Headline":"string?",
+  "Content":"string?",
+  "Image":"<file?>",
+  "IsActive":true,
+  "ProductIds":["PROD-1"]
+}
+```
+   - Output JSON: `{ "message":"ProductCollection updated successfully." }` hoac 404 message.
+   - Tac dung: Cap nhat tieu de, noi dung, anh va san pham cua bo suu tap.
+
+5. DELETE /api/ProductCollection/productcollection?id=
+   - Output JSON: `{ "message":"Soft deleted ProductCollection successfully." }` hoac thong bao khong ton tai.
+   - Tac dung: Xoa mem bo suu tap.
+
+Controller: ProductController
+--------------------------------------------------
+1. GET /api/Product/products/{id}
+   - Output JSON: `ResponseDTOProductDetail` (id, name, descriptions, price, category, artisanId, stock, rating, images...).
+   - Tac dung: Lay chi tiet mot san pham.
+
+2. POST /api/Product/products (Artisan)
+   - Input JSON (form):
+```
+{
+  "Name":"string",
+  "ShortDescription":"string?",
+  "LongDescription":"string?",
+  "Price":150000,
+  "Category":"CAT-1",
+  "ArtisanId":"USR-ART",
+  "Stock":10,
+  "Images":["<file1>","<file2>"]
+}
+```
+   - Output JSON: true/false hoac thong bao thanh cong.
+   - Tac dung: Tao san pham moi.
+
+3. GET /api/Product/products/artisan/{artisanId}
+   - Output JSON: `IEnumerable<ResponseDTOProduct>`.
+   - Tac dung: Xem san pham cua mot nghe nhan cu the.
+
+4. PUT /api/Product/products/{id} (Artisan)
+   - Input JSON: giong request tao san pham (co the bo sung anh).
+   - Output JSON: true/false hoac 404.
+   - Tac dung: Chinh sua san pham ton tai.
+
+5. GET /api/Product/products?productName=&categoryId=&isactive=&pageIndex=&pageSize=&sortOrder=
+   - Output JSON: `PagedResult<ResponseDTOProduct>`.
+   - Tac dung: Tim kiem san pham theo bo loc/phan trang.
+
+6. DELETE /api/Product/products/{id} (Artisan, Admin)
+   - Output JSON: 204 No Content hoac `{ "message":"Product with id ... not found" }`.
+   - Tac dung: Xoa hoac vo hieu hoa san pham.
+
+7. POST /api/Product/image/add (Artisan)
+   - Input JSON (form):
+```
+{
+  "ProductId":"PROD-1",
+  "ImageFile":["<file1>","<file2>"]
+}
+```
+   - Output JSON:
+```
+{
+  "message":"Image added successfully",
+  "data": {"productId":"PROD-1","url":"https://...","position":1}
+}
+```
+   - Tac dung: Them hinh anh bo sung cho san pham.
+
+Controller: ReportController
+--------------------------------------------------
+1. GET /api/Report?Status=&SearchTerm=&PageIndex=&PageSize= (Admin)
+   - Output JSON: `PagedResult<ReportSummaryResponse>` (reportId, target info, reporter, status, assigned admin, timestamps...).
+   - Tac dung: Admin xem danh sach report theo bo loc.
+
+2. POST /api/Report/product (Authorize)
+   - Input JSON:
+```
+{"TargetProductId":"PROD-1","Reason":"Product is fake"}
+```
+   - Output JSON: Chuoi trang thai chua tu "success" hoac thong bao loi.
+   - Tac dung: Khach hang bao cao san pham vi pham.
+
+3. GET /api/Report/{reportId} (Authorize hoac Admin)
+   - Output JSON: `ReportDetailResponse` (bao gom thong tin reporter, accused, ly do, admin notes, appeal...).
+   - Tac dung: Xem chi tiet mot report.
+
+4. POST /api/Report/{reportId}/assign (Admin)
+   - Input JSON: `{"Note":"Investigation"}`.
+   - Output JSON: Chuoi thong bao.
+   - Tac dung: Admin tu gan report va ghi chu xu ly.
+
+5. PUT /api/Report/{reportId}/status (Admin)
+   - Input JSON:
+```
+{"NewStatus":"Resolved","AdminNote":"Refund issued"}
+```
+   - Output JSON: Chuoi thong bao.
+   - Tac dung: Cap nhat trang thai xu ly report.
+
+6. GET /api/Report/my/submissions (Authorize)
+   - Output JSON: `IEnumerable<ReportStatusResponse>` mo ta cac report do user gui.
+   - Tac dung: Reporter theo doi trang thai to cao cua minh.
+
+7. GET /api/Report/my/accusations (Authorize)
+   - Output JSON: `IEnumerable<ReportStatusResponse>`.
+   - Tac dung: User bi to cao xem trang thai vu viec lien quan.
+
+8. POST /api/Report/{reportId}/appeal (Authorize)
+   - Input JSON: `{"Message":"I have evidence..."}`.
+   - Output JSON: Chuoi chua tu "success" hoac loi.
+   - Tac dung: Bi cao gui don khang cao report.
+
+Controller: SellerShippingProfileController
+--------------------------------------------------
+1. GET /api/seller/shipping-profile/me (Authorize)
+   - Output JSON: `SellerShippingProfileDto` (sellerId, pickup contact, dia chi, GHN token/shop, isActive, updatedAt).
+   - Tac dung: Xem cau hinh van chuyen cua artisian dang nhap.
+
+2. PUT /api/seller/shipping-profile/me (Authorize)
+   - Input JSON:
+```
+{
+  "PickupContactName":"string?",
+  "PickupContactPhone":"string?",
+  "PickupAddressLine":"string?",
+  "PickupProvinceName":"string?",
+  "PickupDistrictId":123,
+  "PickupWardCode":"W123",
+  "GhnToken":"string?",
+  "GhnShopId":67890,
+  "IsActive":true
+}
+```
+   - Output JSON: `SellerShippingProfileDto` sau khi upsert.
+   - Tac dung: Luu hoac cap nhat thong tin lay hang GHN cua nguoi ban.
+
+Controller: UserController
+--------------------------------------------------
+1. GET /api/User/users/{userId} (Authorize)
+   - Output JSON: `ResponseDTOUser`.
+   - Tac dung: Admin hoac user co quyen xem profile theo id.
+
+2. GET /api/User/users/me (Authorize)
+   - Output JSON: `ResponseDTOUser`.
+   - Tac dung: Lay profile cua chinh minh.
+
+3. PUT /api/User/users/me (Authorize)
+   - Input JSON (form):
+```
+{
+  "PhoneNumber":"string?",
+  "DisplayName":"string?",
+  "Dob":"2025-01-01",
+  "UserUrlImage":"<file?>"
+}
+```
+   - Output JSON: `ResponseDTOUser` moi.
+   - Tac dung: Cap nhat thong tin ca nhan.
+
+4. PUT /api/User/users/change-password (Authorize)
+   - Input JSON:
+```
+{
+  "OldPassword":"string",
+  "NewPassword":"NewPass123",
+  "ConfirmNewPassword":"NewPass123"
+}
+```
+   - Output JSON: thong bao.
+   - Tac dung: Doi mat khau dang nhap.
+
+5. GET /api/User/users/address (Authorize)
+   - Output JSON: danh sach `ResponseDTOAddress`.
+   - Tac dung: Xem tat ca dia chi nhan hang.
+
+6. GET /api/User/users/address/{addressId} (Authorize)
+   - Output JSON: `ResponseDTOAddress` hoac 404.
+   - Tac dung: Xem mot dia chi cu the.
+
+7. POST /api/User/users/address (Authorize)
+   - Input JSON:
+```
+{
+  "Line1":"123 Main",
+  "Line2":"Apt 4",
+  "City":"Ha Noi",
+  "PosttalCode":"10000",
+  "Country":"VN",
+  "IsDefault":true,
+  "ContactName":"string?",
+  "ContactPhone":"string?",
+  "GhnProvinceId":1,
+  "GhnDistrictId":2,
+  "GhnWardCode":"00001"
+}
+```
+   - Output JSON: thong bao thanh cong.
+   - Tac dung: Tao dia chi moi.
+
+8. PUT /api/User/users/address?addressId= (Authorize)
+   - Input JSON: giong payload tao dia chi.
+   - Output JSON: thong bao cap nhat.
+   - Tac dung: Chinh sua dia chi ton tai.
+
+9. DELETE /api/User/users/address?addressId= (Authorize)
+   - Output JSON: thong bao xoa.
+   - Tac dung: Xoa dia chi.
+
+10. PUT /api/User/users/my-shop (Artisan)
+    - Input JSON (form): `{"ShopName":"string?","PhoneNumber":"string?","ShopURLImage":"<file?>"}`.
+    - Output JSON: `ResponseDTOUserShop`.
+    - Tac dung: Cap nhat trang shop nghe nhan.
+
+11. GET /api/User/users/my-shop (Artisan)
+    - Output JSON: `ResponseDTOUserShop`.
+    - Tac dung: Xem thong tin shop cua chinh minh.
+
+12. GET /api/User/users/shop?userId=
+    - Output JSON: `ResponseDTOUserShop`.
+    - Tac dung: Cong khai thong tin shop theo user.
+
+Controller: VoucherController
+--------------------------------------------------
+1. GET /api/Voucher/voucher?pageIndex=&pageSize=
+   - Output JSON: `PagedResult<ResponseDTOVoucher>` gom thong tin ma giam gia (code, discountType, value, date, flags...).
+   - Tac dung: Quan ly danh sach voucher.
+
+2. GET /api/Voucher/voucher/{voucherId}
+   - Output JSON: `ResponseDTOVoucher`.
+   - Tac dung: Xem chi tiet voucher.
+
+3. GET /api/Voucher/voucher/me (Authorize)
+   - Output JSON:
+```
+{
+  "shared":[{...ResponseDTOVoucher...}],
+  "personal":[{...ResponseDTOVoucher...}]
+}
+```
+   - Tac dung: User xem cac voucher co the su dung (phan cap shared/personal).
+
+4. POST /api/Voucher/voucher (Authorize)
+   - Input JSON (`RequestCreateVoucher`):
+```
+{
+  "Code":"SPRING25",
+  "Description":"string?",
+  "DiscountType":"Percent|Fixed",
+  "DiscountValue":25,
+  "MinOrderAmount":200000,
+  "MaxDiscountAmount":100000,
+  "StartDate":"2025-01-01",
+  "EndDate":"2025-02-01",
+  "UsageLimit":100,
+  "IsActive":true,
+  "IsShared":true,
+  "SingleUse":false,
+  "OwnerUserId":"USR-ART?",
+  "Source":"Campaign"
+}
+```
+   - Output JSON: thong bao tao moi thanh cong hoac loi trung code.
+   - Tac dung: Tao ma giam gia moi.
+
+5. PUT /api/Voucher/voucher/{voucherId}
+   - Input JSON (`RequestUpdateVoucher`) tuong tu nhung co truong `UsedCount`.
+   - Output JSON: thong bao cap nhat.
+   - Tac dung: Chinh sua voucher da ton tai.
+
+6. DELETE /api/Voucher/voucher/{voucherId}
+   - Output JSON: thong bao xoa.
+   - Tac dung: Vo hieu hoa voucher.
+
+Controller: WishListController
+--------------------------------------------------
+1. GET /api/WishList/wish-list?pageIndex=&pageSize= (Authorize)
+   - Output JSON: `PagedResult<ResponseDTOWishListItem>` voi thong tin san pham.
+   - Tac dung: Xem danh sach yeu thich cua minh.
+
+2. POST /api/WishList/wish-list?productId= (Authorize)
+   - Input JSON: none.
+   - Output JSON: thong bao tao thanh cong.
+   - Tac dung: Them san pham vao danh sach yeu thich.
+
+3. DELETE /api/WishList/wish-list?wishListItemId= (Authorize)
+   - Output JSON: thong bao xoa.
+   - Tac dung: Goi bo san pham khoi danh sach yeu thich.

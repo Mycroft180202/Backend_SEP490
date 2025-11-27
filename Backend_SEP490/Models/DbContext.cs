@@ -134,6 +134,9 @@ namespace Backend_SEP490.Models
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.Category);
             modelBuilder.Entity<Product>()
+                .Property(p => p.QuantitySale)
+                .HasDefaultValue(0);
+            modelBuilder.Entity<Product>()
                 .Property(p => p.EmbeddingJson)
                 .HasColumnType("jsonb");
             modelBuilder.Entity<Product>()

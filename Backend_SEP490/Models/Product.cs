@@ -17,6 +17,7 @@ public class Product
     public DateTime? CreateAt { get; set; }
     public DateTime? UpdateAt { get; set; }
     public int Stock { get; set; }
+    public int QuantitySale { get; set; }
     
     public JsonDocument EmbeddingJson { get; set; }
     [JsonIgnore]

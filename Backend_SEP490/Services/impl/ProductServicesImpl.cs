@@ -160,6 +160,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         newProduct.IsActive = true;
         newProduct.CreateAt = DateTime.UtcNow;
         newProduct.UpdateAt = DateTime.UtcNow;
+        newProduct.QuantitySale = 0;
         var textToEmbed = $"{newProduct.Name} {newProduct.ShortDescription} {newProduct.LongDescription}".Trim();
 
 // Batch embedding
@@ -335,6 +336,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
     {
         var product = await _context.Products.GetProductByIdAsync(productId);
         product.IsActive = false;
+        await _context.Products.UpdateAsync(product);
+        return true;
+    }
+
+    public async Task<bool> UpdateProductIsActiveStatusAsync(string productId, bool isActive)
+    {
+        var product = await _context.Products.GetProductByIdAsync(productId);
+        if (product == null)
+        {
+            return false;
+        }
+
+        product.IsActive = isActive;
+        product.UpdateAt = DateTime.UtcNow;
         await _context.Products.UpdateAsync(product);
         return true;
     }

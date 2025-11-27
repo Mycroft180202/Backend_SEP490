@@ -235,12 +235,14 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
 
     private async Task ApplyPaymentStatusAsync(Payment payment, string status, string? providerReference)
     {
+        var wasPaid = string.Equals(payment.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase);
         var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "Pending" : status.Trim();
         payment.PaymentStatus = normalizedStatus;
         payment.ProccessedAt = DateTime.UtcNow;
         payment.ProviderXlnd = providerReference;
 
         var isPaid = string.Equals(normalizedStatus, "Paid", StringComparison.OrdinalIgnoreCase);
+        var becamePaid = isPaid && !wasPaid;
 
         if (isPaid)
         {
@@ -266,11 +268,18 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         {
             if (order != null)
             {
+                if (becamePaid)
+                {
+                    await UpdateProductSaleQuantitiesAsync(order);
+                    await _voucherService.TryGrantLargeOrderVoucherAsync(order);
+                }
+
                 await UpdateOrderStatusToPaidAsync(order);
-                await _voucherService.TryGrantLargeOrderVoucherAsync(order);
             }
 
-            if (!string.IsNullOrWhiteSpace(customerId) && ShouldClearCartAfterPayment(order, normalizedStatus))
+            if (becamePaid &&
+                !string.IsNullOrWhiteSpace(customerId) &&
+                ShouldClearCartAfterPayment(order, normalizedStatus))
             {
                 await ClearUserCartAsync(customerId!);
             }
@@ -287,7 +296,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             await _notificationService.NotifyPaymentStatusAsync(payment, customerId!, orderNumber);
         }
 
-        if (isPaid)
+        if (becamePaid)
         {
             await _orderService.CreateShipmentsAfterPaymentAsync(payment.OrderID);
         }
@@ -483,6 +492,65 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         if (!string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
         {
             order.Status = "Paid";
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private async Task UpdateProductSaleQuantitiesAsync(Order order)
+    {
+        if (order == null)
+        {
+            return;
+        }
+
+        var orderItems = await EnsureOrderItemsLoadedAsync(order);
+        if (orderItems == null || orderItems.Count == 0)
+        {
+            return;
+        }
+
+        var productIds = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .Select(item => item.ProductID!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (productIds.Count == 0)
+        {
+            return;
+        }
+
+        var products = await _context.Products.GetProductsByIdsAsync(productIds);
+        var lookup = products
+            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+            .ToDictionary(p => p.Id!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+        var updated = false;
+
+        foreach (var item in orderItems)
+        {
+            if (string.IsNullOrWhiteSpace(item.ProductID))
+            {
+                continue;
+            }
+
+            if (!lookup.TryGetValue(item.ProductID.Trim(), out var product))
+            {
+                continue;
+            }
+
+            var quantity = Math.Max(item.Quantity, 0);
+            if (quantity <= 0)
+            {
+                continue;
+            }
+
+            product.QuantitySale += quantity;
+            updated = true;
+        }
+
+        if (updated)
+        {
             await _context.SaveChangesAsync();
         }
     }

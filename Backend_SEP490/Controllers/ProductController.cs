@@ -87,6 +87,25 @@ public class ProductController:ControllerBase
 
         return NoContent(); 
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPatch("products/{id}/activation")]
+    public async Task<IActionResult> UpdateProductActivation(string id, [FromBody] UpdateProductActivationRequest request)
+    {
+        if (request?.IsActive == null)
+        {
+            return BadRequest(new { message = "Activation state is required." });
+        }
+
+        var updated = await _productServices.UpdateProductIsActiveStatusAsync(id, request.IsActive.Value);
+        if (!updated)
+        {
+            return NotFound(new { message = $"Product with id {id} not found" });
+        }
+
+        var statusText = request.IsActive.Value ? "activated" : "deactivated";
+        return Ok(new { message = $"Product successfully {statusText}." });
+    }
     [Authorize(Roles = "Artisan")]
     [HttpPost("image/add")]
     public async Task<IActionResult> AddProductImage([FromForm] RequestDTOAddProductImage dto)

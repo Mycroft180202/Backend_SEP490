@@ -13,6 +13,7 @@ public class ResponseDTOProduct
     public string ArtisanId { get; set; }
     public string DisplayName { get; set; }
     public int Stock { get; set; }
+    public int QuantitySale { get; set; }
     public string ShopName { get; set; }
     public double Rating { get; set; }
     public string ImageUrl { get; set; }
