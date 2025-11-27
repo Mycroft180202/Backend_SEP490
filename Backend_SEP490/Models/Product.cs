@@ -34,4 +34,6 @@ public class Product
     public ICollection<Feedback>? Feedbacks { get; set; }
     public ICollection<WishListItem>? WishListItems { get; set; }
     public ProductShippingProfile? ShippingProfile { get; set; }
+    [JsonIgnore]
+    public ICollection<StoryTelling>? StoryTellings { get; set; } = new List<StoryTelling>();
 }

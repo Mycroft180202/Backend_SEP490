@@ -33,6 +33,7 @@ namespace Backend_SEP490.Models
         public DbSet<SellerShippingProfile> SellerShippingProfiles { get; set; }
         public DbSet<ShipmentHistory> ShipmentHistories { get; set; }
         public DbSet<ArtisanApplication> ArtisanApplications { get; set; }
+        public DbSet<StoryTelling> StoryTellings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -170,6 +171,25 @@ namespace Backend_SEP490.Models
                 .WithOne(p => p.ShippingProfile)
                 .HasForeignKey<ProductShippingProfile>(psp => psp.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StoryTelling>(entity =>
+            {
+                entity.HasIndex(st => new { st.ProductId, st.StoryType })
+                    .IsUnique();
+
+                entity.Property(st => st.CreatedAt)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.HasOne(st => st.Product)
+                    .WithMany(p => p.StoryTellings)
+                    .HasForeignKey(st => st.ProductId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(st => st.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(st => st.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // ========== ORDER ==========
             modelBuilder.Entity<Order>()
