@@ -146,6 +146,7 @@ const Shop = () => {
         const params = {
           pageIndex,
           pageSize,
+          isactive: true,
         };
 
         if (selectedCategory) {
@@ -167,11 +168,12 @@ const Shop = () => {
         const response = await ProductService.getAllProducts(params);
         if (!isMounted) return;
 
-        setProducts(response.items || []);
+        const activeItems = (response.items || []).filter((item) => item.isActive !== false);
+        setProducts(activeItems);
         setTotalPages(
           response.totalPages && response.totalPages > 0
             ? response.totalPages
-            : Math.ceil((response.totalCount || 0) / pageSize),
+            : Math.ceil((response.totalCount || activeItems.length) / pageSize),
         );
       } catch (err) {
         if (!isMounted) return;

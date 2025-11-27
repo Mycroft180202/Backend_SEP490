@@ -15,8 +15,8 @@ const FeaturedProducts = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await ProductService.getAllProducts({ pageIndex: 1, pageSize: 50 });
-        const items = res?.items || [];
+        const res = await ProductService.getAllProducts({ pageIndex: 1, pageSize: 50, isactive: true });
+        const items = (res?.items || []).filter((item) => item.isActive !== false);
         const sorted = [...items].sort((a, b) => (b.rating || 0) - (a.rating || 0));
         setProducts(sorted);
       } catch (err) {
