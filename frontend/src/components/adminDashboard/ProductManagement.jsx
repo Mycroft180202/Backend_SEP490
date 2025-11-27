@@ -153,7 +153,15 @@ const ProductManagement = () => {
     }
   };
 
-  const filteredProducts = useMemo(() => products, [products]);
+  const filteredProducts = useMemo(() => products.filter((product) => {
+    if (statusFilter === 'inactive') {
+      return !product?.isActive;
+    }
+    if (statusFilter === 'active') {
+      return product?.isActive;
+    }
+    return Boolean(product?.isActive);
+  }), [products, statusFilter]);
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">

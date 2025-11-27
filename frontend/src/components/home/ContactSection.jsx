@@ -62,12 +62,7 @@ const ContactSection = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-3">
-              <input type="checkbox" className="w-5 h-5 rounded border border-[#8B4513]/40 accent-[#8B4513]" />
-              <span className="font-nunito sm:text-base text-[#1C355E] whitespace-nowrap">
-                Nhận thông tin mới về sản phẩm mới qua Email
-              </span>
-            </label>
+            
           </div>
 
           <button className={`${PRIMARY_BUTTON_CLASS} self-center text-base md:text-lg px-6 md:px-8 md:py-3`}>

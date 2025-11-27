@@ -185,15 +185,15 @@ const CustomerManagement = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <p className="text-sm text-gray-600">Tong nguoi dung</p>
+          <p className="text-sm text-gray-600">Tổng người dùng</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-sm text-gray-600">Dang hoat dong</p>
+          <p className="text-sm text-gray-600">Đang hoạt động</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.active}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-          <p className="text-sm text-gray-600">Da khoa</p>
+          <p className="text-sm text-gray-600">Đã khóa</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.inactive}</p>
         </div>
       </div>
@@ -206,7 +206,7 @@ const CustomerManagement = () => {
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tim ten, email hoac so dien thoai..."
+                placeholder="Tìm tên, email hoặc số điện thoại..."
                 className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -215,13 +215,13 @@ const CustomerManagement = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="all">Tat ca</option>
-              <option value="active">Dang hoat dong</option>
-              <option value="inactive">Da khoa</option>
+              <option value="all">Tất cả</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Đã khóa</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span>Hien</span>
+            <span>Hiện</span>
             <select
               value={pageSize}
               onChange={handlePageSizeChange}
@@ -231,7 +231,7 @@ const CustomerManagement = () => {
                 <option key={size} value={size}>{size}</option>
               ))}
             </select>
-            <span>nguoi dung</span>
+            <span>người dùng</span>
           </div>
         </div>
 
@@ -240,25 +240,25 @@ const CustomerManagement = () => {
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">User</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Display name</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Username</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Tên hiển thị</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Tên đăng nhập</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Email</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Phone</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Status</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Actions</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Số điện thoại</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Hành động</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-gray-500">
-                    Dang tai danh sach...
+                    Đang tải danh sách...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-gray-500">
-                    Khong co nguoi dung nao.
+                    Không có người dùng nào.
                   </td>
                 </tr>
               ) : (
@@ -276,7 +276,7 @@ const CustomerManagement = () => {
                       <td className="py-3 px-4 text-sm">{user.phoneNumber || 'N/A'}</td>
                       <td className="py-3 px-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(user.isActive)}`}>
-                          {user.isActive ? 'Dang hoat dong' : 'Da khoa'}
+                          {user.isActive ? 'Đang hoạt động' : 'Đã khóa'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -291,7 +291,7 @@ const CustomerManagement = () => {
                           {user.isActive ? (
                             <button
                               className="text-red-600 hover:text-red-800"
-                              title="Khoa tai khoan"
+                              title="Khóa tài khoản"
                               onClick={() => toggleActive(user)}
                             >
                               <FaBan />
@@ -299,7 +299,7 @@ const CustomerManagement = () => {
                           ) : (
                             <button
                               className="text-green-600 hover:text-green-800"
-                              title="Mo khoa"
+                              title="Mở khóa"
                               onClick={() => toggleActive(user)}
                             >
                               <FaUnlock />
@@ -318,7 +318,7 @@ const CustomerManagement = () => {
         {meta.totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Dang hien {filteredUsers.length} / {meta.totalCount} nguoi dung
+              Đang hiện {filteredUsers.length} / {meta.totalCount} người dùng
             </p>
             <Pagination
               totalPages={meta.totalPages}
@@ -351,21 +351,21 @@ const CustomerManagement = () => {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
                 <div>
-                  <p className="text-gray-500">So dien thoai</p>
+                  <p className="text-gray-500">Số điện thoại</p>
                   <p className="font-semibold">{selectedUser.phoneNumber || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Trang thai</p>
-                  <p className="font-semibold">{selectedUser.isActive ? 'Dang hoat dong' : 'Da khoa'}</p>
+                  <p className="text-gray-500">Trạng thái</p>
+                  <p className="font-semibold">{selectedUser.isActive ? 'Đang hoạt động' : 'Đã khóa'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Ngay sinh</p>
+                  <p className="text-gray-500">Ngày sinh</p>
                   <p className="font-semibold">
                     {selectedUser.dob ? new Date(selectedUser.dob).toLocaleDateString('vi-VN') : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Vai tro</p>
+                  <p className="text-gray-500">Vai trò</p>
                   <p className="font-semibold">
                     {formatRoles(selectedUser.roles || selectedUser.role)}
                   </p>
@@ -373,12 +373,12 @@ const CustomerManagement = () => {
               </div>
               {Array.isArray(selectedUser.addresses) && selectedUser.addresses.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-gray-800">Dia chi</p>
+                  <p className="text-sm font-semibold text-gray-800">Địa chỉ</p>
                   <div className="space-y-2">
                     {selectedUser.addresses.map((addr, idx) => (
                       <div key={idx} className="p-3 rounded-lg border bg-gray-50">
                         <p className="text-sm font-semibold text-gray-800">
-                          {addr.contactName || selectedUser.displayName || 'Nguoi nhan'} - {addr.contactPhone || selectedUser.phoneNumber || 'N/A'}
+                          {addr.contactName || selectedUser.displayName || 'Người nhận'} - {addr.contactPhone || selectedUser.phoneNumber || 'N/A'}
                         </p>
                         <p className="text-sm text-gray-700">{addr.line1}</p>
                         {addr.line2 && <p className="text-sm text-gray-500">{addr.line2}</p>}
@@ -387,7 +387,7 @@ const CustomerManagement = () => {
                         </p>
                         {addr.isDefault && (
                           <span className="mt-2 inline-block px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold">
-                            Mac dinh
+                            Mặc định
                           </span>
                         )}
                       </div>

@@ -42,7 +42,7 @@ export const ProductService = {
   },
 
   updateStatus: async (id, isActive) => {
-    const response = await axiosClient.put(API_ENDPOINTS.PRODUCTS.UPDATE(id), { isActive });
+    const response = await axiosClient.patch(`${API_ENDPOINTS.PRODUCTS.UPDATE(id)}/activation`, { isActive });
     return response.data;
   },
 

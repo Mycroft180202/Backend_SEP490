@@ -233,6 +233,7 @@ const ArtisanDashboard = () => {
                 performanceRows={performanceRows}
                 topProducts={topProducts}
                 allProducts={productStats}
+                monthlyRevenue={monthlyRevenue}
                 formatCurrency={formatCurrency}
               />
             )

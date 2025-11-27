@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
 import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import {
   FaBox,
   FaShoppingCart,
   FaDollarSign,
@@ -8,7 +18,14 @@ import {
   FaStar,
 } from 'react-icons/fa';
 
-const OverviewSection = ({ stats, performanceRows, topProducts, allProducts = [], formatCurrency }) => {
+const OverviewSection = ({
+  stats,
+  performanceRows,
+  topProducts,
+  allProducts = [],
+  monthlyRevenue = [],
+  formatCurrency,
+}) => {
   const [showAllModal, setShowAllModal] = useState(false);
   const [detailProduct, setDetailProduct] = useState(null);
   const sortedAllProducts = [...allProducts].sort((a, b) => Number(b.sold || 0) - Number(a.sold || 0));
@@ -17,6 +34,14 @@ const OverviewSection = ({ stats, performanceRows, topProducts, allProducts = []
     const found = allProducts.find((item) => item.id === productId);
     setDetailProduct(found || null);
   };
+
+  const monthlyChartData = Array.isArray(monthlyRevenue)
+    ? monthlyRevenue.map((item) => ({
+      name: `T${item.month}`,
+      revenue: Number(item.revenue || item.totalRevenue || 0),
+      orders: Number(item.totalOrderAmount || 0),
+    }))
+    : [];
 
   return (
     <>
@@ -75,7 +100,40 @@ const OverviewSection = ({ stats, performanceRows, topProducts, allProducts = []
         </div>
       </div>
 
-      {/* Charts and Tables */}
+      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 font-alata">Biểu đồ doanh thu theo tháng</h2>
+            <p className="text-sm text-gray-600 mt-1">Theo dõi hiệu suất 12 tháng</p>
+          </div>
+        </div>
+        <div className="h-72">
+          {monthlyChartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+              Chưa có dữ liệu doanh thu.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlyChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="name" stroke="#6b7280" />
+                <YAxis
+                  stroke="#6b7280"
+                  tickFormatter={(value) => (value >= 1000000 ? `${value / 1000000}tr` : value)}
+                />
+                <Tooltip
+                  formatter={(value, name) => [formatCurrency(value), name === 'revenue' ? 'Doanh thu' : 'Giá trị đơn']}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="revenue" stroke="#ef4444" strokeWidth={2} name="Doanh thu" />
+                <Line type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={2} name="Tổng đơn" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      {/* Performance tables */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Orders */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">

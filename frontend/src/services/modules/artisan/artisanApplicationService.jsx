@@ -21,14 +21,20 @@ export const ArtisanApplicationService = {
       if (formData.fullName) data.append('FullName', formData.fullName);
       if (formData.email) data.append('Email', formData.email);
       if (formData.phoneNumber) data.append('PhoneNumber', formData.phoneNumber);
-      if (formData.dateOfBirth) data.append('DateOfBirth', formData.dateOfBirth);
+      if (formData.dateOfBirth) {
+        const dobValue = new Date(formData.dateOfBirth);
+        if (Number.isNaN(dobValue.getTime())) {
+          throw new Error('Ngày sinh không hợp lệ');
+        }
+        data.append('DateOfBirth', dobValue.toISOString());
+      }
       if (formData.identityNumber) data.append('IdentityNumber', formData.identityNumber);
       if (formData.skillDescription) data.append('SkillDescription', formData.skillDescription);
       if (formData.workshopAddress) data.append('WorkshopAddress', formData.workshopAddress);
       
       // Optional fields
       if (formData.yearsOfExperience !== undefined && formData.yearsOfExperience !== null) {
-        data.append('YearsOfExperience', formData.yearsOfExperience);
+        data.append('YearsOfExperience', Number(formData.yearsOfExperience));
       }
       if (formData.shopName) data.append('ShopName', formData.shopName);
       if (formData.bio) data.append('Bio', formData.bio);
@@ -41,11 +47,15 @@ export const ArtisanApplicationService = {
         data.append('IdentityBackImageFile', formData.identityBackImageFile);
       }
 
-      const response = await axiosClient.post('/api/ArtisanApplication', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const token = localStorage.getItem('accessToken');
+      const headers = {
+        'Content-Type': 'multipart/form-data',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await axiosClient.post('/api/ArtisanApplication', data, { headers });
 
       // Clear cache after submission
       applicationCache.clear();

@@ -57,7 +57,7 @@ const Cart = () => {
         || error?.response?.data?.title
         || error?.message
         || t('messages.cartLoadError');
-      toast.error("Giỏ của bạn đang trống đó! Mua ngay thôi nào!");
+      toast.loading("Giỏ của bạn đang trống đó! Mua ngay thôi nào!");
     } finally {
       setLoading(false);
     }
