@@ -68,20 +68,7 @@ const DiscoverHoaLac = () => {
   );
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#FFF3E0] via-[#FFE4C5] to-[#F9D4A6] pt-20 pb-24">
-      <div className="absolute inset-x-0 top-0 -translate-y-full pointer-events-none">
-        <svg className="w-full h-16 md:h-20" viewBox="0 0 1440 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <path d="M0 120 Q60 0 120 120 T240 120 T360 120 T480 120 T600 120 T720 120 T840 120 T960 120 T1080 120 T1200 120 T1320 120 T1440 120 L1440 0 L0 0 Z" fill="#FFF3E0" />
-        </svg>
-      </div>
-      <div
-        className="absolute inset-0 opacity-[0.06] pointer-events-none"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 15% 25%, #B96C5E 0, transparent 40%), radial-gradient(circle at 80% 20%, #C78C54 0, transparent 45%), radial-gradient(circle at 45% 70%, #8B4513 0, transparent 50%)',
-        }}
-      />
-
+    <section className="relative overflow-hidden bg-[#FFF6E9] pt-20 pb-24">
       <div className="relative max-w-[1440px] mx-auto px-4 md:px-10 lg:px-20">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div className="space-y-3">

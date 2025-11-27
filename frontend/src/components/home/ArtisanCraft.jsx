@@ -41,12 +41,7 @@ const ArtisanCraft = () => {
   const slide = slides[current];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#FFF0D9] via-[#FFE2B7] to-[#FFECD5] pt-20 pb-24">
-      <div className="absolute inset-x-0 top-0 -translate-y-full pointer-events-none">
-        <svg className="w-full h-16 md:h-20" viewBox="0 0 1440 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <path d="M0 120 Q60 0 120 120 T240 120 T360 120 T480 120 T600 120 T720 120 T840 120 T960 120 T1080 120 T1200 120 T1320 120 T1440 120 L1440 0 L0 0 Z" fill="#FFF8E7" />
-        </svg>
-      </div>
+    <section className="relative overflow-hidden bg-[#FFF6E9] pt-20 pb-24">
 
       <div className="relative max-w-6xl mx-auto px-4 md:px-10 lg:px-16">
         <div className="text-center space-y-4">
@@ -60,7 +55,7 @@ const ArtisanCraft = () => {
         </div>
 
         <div className="relative mt-12">
-          <div className="relative h-[440px] md:h-[520px] lg:h-[620px] rounded-[36px] border border-[#D4A574]/40 shadow-[0_32px_70px_-30px_rgba(97,43,0,0.65)] overflow-hidden bg-[#241915]">
+          <div className="relative h-[440px] md:h-[520px] lg:h-[620px] rounded-[36px] border border-[#D4A574]/40 shadow-[0_32px_70px_-30px_rgba(97,43,0,0.15)] overflow-hidden bg-[#FFF6E9]">
             <div className="absolute inset-0 overflow-hidden">
               <div
                 className="flex h-full transition-transform duration-[900ms] ease-[cubic-bezier(0.65,0,0.35,1)]"

@@ -3,20 +3,7 @@ import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS, PRIMARY_BUTTON_CLASS } fro
 
 const ContactSection = () => {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#F7C88B] via-[#F1B774] to-[#EAA35C] pt-20 pb-24">
-      <div className="absolute inset-x-0 top-0 -translate-y-full pointer-events-none">
-        <svg className="w-full h-16 md:h-20" viewBox="0 0 1440 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <path d="M0 120 Q60 0 120 120 T240 120 T360 120 T480 120 T600 120 T720 120 T840 120 T960 120 T1080 120 T1200 120 T1320 120 T1440 120 L1440 0 L0 0 Z" fill="#F7C88B" />
-        </svg>
-      </div>
-      <div
-        className="absolute inset-0 opacity-[0.08] pointer-events-none"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 25% 20%, #8B4513 0, transparent 45%), radial-gradient(circle at 70% 35%, #C19A5B 0, transparent 40%), radial-gradient(circle at 45% 80%, #6B2F0F 0, transparent 50%)',
-        }}
-      />
-
+    <section className="relative overflow-hidden bg-[#FFF6E9] pt-20 pb-24">
       <div className="relative max-w-[820px] mx-auto px-4 sm:px-6 lg:px-0">
         <div className="absolute inset-0 blur-3xl bg-black/20 rounded-[40px]" />
         <div className="relative flex flex-col gap-8 p-8 sm:p-10 rounded-[32px] bg-white/90 backdrop-blur-md border border-white/40 shadow-[0_32px_60px_-28px_rgba(54,26,0,0.6)]">

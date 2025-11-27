@@ -39,8 +39,7 @@ const Collections = () => {
   const displayed = activeCollections.slice((pageIndex - 1) * pageSize, (pageIndex - 1) * pageSize + pageSize);
 
   return (
-    <section className="relative pt-20 md:pt-24 pb-16 md:pb-24 bg-gradient-to-b from-[#FFF8E7] via-[#FFF8E7] to-white -mt-px">
-      <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-[#FFF8E7] via-[#FFF8E7] to-transparent pointer-events-none" />
+    <section className="relative pt-20 md:pt-24 pb-16 md:pb-24 bg-[#FFF6E9] -mt-px">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
           <div className="space-y-3">
