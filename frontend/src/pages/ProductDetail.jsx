@@ -58,8 +58,8 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        <div className="relative bg-[#fff4e5] h-24">
-          <div className="absolute left-6 top-1/2 -translate-y-1/2">
+        <div className="relative bg-[#fff4e5]">
+          <div className="px-4 sm:px-8 lg:px-12 py-4">
             <Breadcrumb items={breadcrumbItems} floating />
           </div>
         </div>
@@ -78,8 +78,8 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        <div className="relative bg-[#fff4e5] h-24">
-          <div className="absolute left-6 top-1/2 -translate-y-1/2">
+        <div className="relative bg-[#fff4e5]">
+          <div className="px-4 sm:px-8 lg:px-12 py-4">
             <Breadcrumb items={breadcrumbItems} floating />
           </div>
         </div>
@@ -98,8 +98,8 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        <div className="relative bg-[#fff4e5] h-24">
-          <div className="absolute left-6 top-1/2 -translate-y-1/2">
+        <div className="relative bg-[#fff4e5]">
+          <div className="px-4 sm:px-8 lg:px-12 py-4">
             <Breadcrumb items={breadcrumbItems} floating />
           </div>
         </div>
@@ -115,7 +115,7 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-background flex flex-col relative">
       <Header />
       <div className="relative bg-[#fff4e5]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 lg:px-12 py-6">
+        <div className="px-4 sm:px-8 lg:px-12 py-6">
           <Breadcrumb items={breadcrumbItems} floating />
         </div>
       </div>
