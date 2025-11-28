@@ -1,6 +1,7 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,6 +17,7 @@ namespace Backend_SEP490.Controllers
         {
             _storyTellingService = storyTellingService;
         }
+        [AllowAnonymous]
         [HttpGet("product/story-telling")]
         public async Task<IActionResult> GetAllStoryTellingByProductIdAsync([FromQuery] string productId)
         {
@@ -30,6 +32,7 @@ namespace Backend_SEP490.Controllers
             return Ok(storyTellings);
         }
 
+        [AllowAnonymous]
         [HttpGet("product/story-telling/{storyTellingId}")]
         public async Task<IActionResult> GetStoryTellingByIdAsync( int storyTellingId)
         {
@@ -44,6 +47,7 @@ namespace Backend_SEP490.Controllers
             return Ok(storyTellings);
         }
 
+        [Authorize(Roles = "Artisan")]
         [HttpPost("product/story-telling")]
         public async Task<IActionResult> CreateStoryTellingAsync([FromForm] RequestCreateStoryTelling request)
         {
@@ -57,6 +61,7 @@ namespace Backend_SEP490.Controllers
             return Ok(storyTellings);
         }
 
+        [Authorize(Roles = "Artisan")]
         [HttpPut("product/story-telling")]
         public async Task<IActionResult> UpdateStoryTellingAsync([FromQuery] int storyTellingId,[FromForm] RequestUpdateStoryTelling request)
         {
@@ -70,6 +75,7 @@ namespace Backend_SEP490.Controllers
             return Ok(storyTellings);
         }
 
+        [Authorize(Roles = "Artisan")]
         [HttpDelete("product/story-telling")]
         public async Task<IActionResult> DeleteStoryTellingAsync([FromQuery] int storyTellingId)
         {
