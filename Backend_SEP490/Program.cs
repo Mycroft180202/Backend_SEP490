@@ -166,6 +166,7 @@ builder.Services.AddScoped<IProductShippingProfileRepository, ProductShippingPro
 builder.Services.AddScoped<ISellerShippingProfileRepository, SellerShippingProfileRepository>();
 builder.Services.AddScoped<IShipmentHistoryRepository, ShipmentHistoryRepository>();
 builder.Services.AddScoped<IArtisanApplicationRepository, ArtisanApplicationRepository>();
+builder.Services.AddScoped<IStoryTellingRepositories, StoryTellingRepositoriesImpl>();
 
 // ----------------------
 // Services
@@ -187,6 +188,7 @@ builder.Services.AddScoped<INotificationService,NotificationServicesImpl>();
 builder.Services.AddScoped<IReportService, ReportServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService>();
+builder.Services.AddScoped<IStoryTellingService, StoryTellingServiceImpl>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
 builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
