@@ -24,15 +24,29 @@ const ProductList = ({
 }) => {
   const { t } = useContext(LanguageContext);
   const priceSuffix = t('productCard.priceSuffix');
+  const soldOutLabel = t('productCard.soldOut');
+  const soldOutText = soldOutLabel && soldOutLabel.includes('productCard.soldOut')
+    ? 'Hết hàng'
+    : soldOutLabel || 'Hết hàng';
+  const unavailableNoticeLabel = t('cart.unavailableNotice');
+  const unavailableNoticeText = unavailableNoticeLabel && unavailableNoticeLabel.includes('cart.unavailableNotice')
+    ? 'Sản phẩm đã hết hàng hoặc ngừng kinh doanh.'
+    : unavailableNoticeLabel || 'Sản phẩm đã hết hàng hoặc ngừng kinh doanh.';
+
+  const isUnavailable = (item) => (
+    item?.isActive === false
+    || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
+  );
 
   const baseItems = allItems && allItems.length ? allItems : items;
-  const derivedSubtotal = baseItems.reduce(
+  const availableItems = baseItems.filter((item) => !isUnavailable(item));
+  const derivedSubtotal = availableItems.reduce(
     (total, item) => total + (item.price || 0) * (item.quantity || 0),
     0,
   );
-  const subtotal = summary?.subtotal ?? derivedSubtotal;
-  const shippingFee = 0;
-  const total = summary?.total ?? subtotal;
+  const shippingFee = summary?.shipping ?? 0;
+  const subtotal = derivedSubtotal;
+  const total = derivedSubtotal + shippingFee;
   const displayedCount = totalCount ?? baseItems.length;
 
   const renderSkeleton = () => (
@@ -100,18 +114,23 @@ const ProductList = ({
             {items.map((item) => {
               const isUpdating = updatingItemId === item.id || updatingItemId === item.cartItemId;
               const subtotalPerItem = (item.price || 0) * (item.quantity || 0);
+              const itemUnavailable = isUnavailable(item);
 
               return (
                 <article
                   key={item.id}
-                  className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 md:p-5 transition hover:shadow-md"
+                  className={`border rounded-2xl shadow-sm p-4 md:p-5 transition ${
+                    itemUnavailable
+                      ? 'bg-gray-100 border-gray-300 opacity-80'
+                      : 'bg-white border-gray-200 hover:shadow-md'
+                  }`}
                 >
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="md:w-32">
                       <img
                         src={item.imageUrl || '/images/default-product.png'}
                         alt={item.name}
-                        className="w-full h-24 md:h-28 rounded-xl object-cover border border-gray-100"
+                        className={`w-full h-24 md:h-28 rounded-xl object-cover border ${itemUnavailable ? 'border-gray-200 grayscale' : 'border-gray-100'}`}
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.src = '/images/default-product.png';
@@ -121,12 +140,22 @@ const ProductList = ({
 
                     <div className="flex-1 flex flex-col justify-between gap-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-[#8B4513] leading-snug">
+                        <h3 className={`text-lg font-semibold leading-snug ${itemUnavailable ? 'text-gray-500' : 'text-[#8B4513]'}`}>
                           {item.name}
                         </h3>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className={`text-sm mt-1 flex items-center gap-2 ${itemUnavailable ? 'text-gray-400' : 'text-gray-500'}`}>
                           {formatCurrency(item.price, priceSuffix)}
+                          {itemUnavailable && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">
+                              {soldOutText}
+                            </span>
+                          )}
                         </p>
+                        {itemUnavailable && (
+                          <p className="text-xs text-red-500 mt-2">
+                            {unavailableNoticeText}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -134,7 +163,7 @@ const ProductList = ({
                           <button
                             type="button"
                             onClick={async () => {
-                              if (isUpdating) return;
+                              if (isUpdating || itemUnavailable) return;
                               const next = (item.quantity || 0) - 1;
                               const targetId = item.cartItemId || item.id;
                               if (next <= 0) {
@@ -144,39 +173,39 @@ const ProductList = ({
                               }
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border border-transparent transition ${
-                              isUpdating
+                              isUpdating || itemUnavailable
                                 ? 'text-gray-300 cursor-not-allowed'
                                 : 'text-[#8B4513] hover:bg-white hover:border-[#D4A574]'
                             }`}
-                            disabled={isUpdating}
+                            disabled={isUpdating || itemUnavailable}
                           >
                             <FaMinus size={12} />
                           </button>
-                          <span className="min-w-[2rem] text-center font-semibold text-[#8B4513]">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (isUpdating) return;
-                              const targetId = item.cartItemId || item.id;
-                              await onQuantityChange(targetId, (item.quantity || 0) + 1);
-                            }}
-                            className={`w-8 h-8 flex items-center justify-center rounded-full border border-transparent transition ${
-                              isUpdating
+                            <span className="min-w-[2rem] text-center font-semibold text-[#8B4513]">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                              if (isUpdating || itemUnavailable) return;
+                               const targetId = item.cartItemId || item.id;
+                               await onQuantityChange(targetId, (item.quantity || 0) + 1);
+                             }}
+                              className={`w-8 h-8 flex items-center justify-center rounded-full border border-transparent transition ${
+                              isUpdating || itemUnavailable
                                 ? 'text-gray-300 cursor-not-allowed'
                                 : 'text-[#8B4513] hover:bg-white hover:border-[#D4A574]'
-                            }`}
-                            disabled={isUpdating}
-                          >
-                            <FaPlus size={12} />
-                          </button>
+                              }`}
+                              disabled={isUpdating || itemUnavailable}
+                            >
+                              <FaPlus size={12} />
+                            </button>
                         </div>
 
                         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 gap-4 sm:justify-end">
                           <div className="text-right">
                             <p className="text-sm text-gray-500">{t('cart.headerSubtotal')}</p>
-                            <p className="text-lg font-semibold text-[#8B4513]">
+                            <p className={`text-lg font-semibold ${itemUnavailable ? 'text-gray-500' : 'text-[#8B4513]'}`}>
                               {formatCurrency(subtotalPerItem, priceSuffix)}
                             </p>
                           </div>

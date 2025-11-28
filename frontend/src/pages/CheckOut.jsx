@@ -22,6 +22,25 @@ import { GHNLocationService } from '../services/modules/shipping/ghnLocationServ
 import { VoucherService } from '../services/modules/voucher/voucherService';
 import { LanguageContext } from '../context/LanguageContext';
 
+const isUnavailable = (item) => {
+  if (!item) return false;
+  const activeFlags = [
+    item.isActive,
+    item.product?.isActive,
+    item.product?.product?.isActive,
+  ].filter((flag) => flag !== undefined);
+  const isInactive = activeFlags.length ? activeFlags.some((flag) => flag === false) : false;
+
+  const stockValues = [
+    item.stock,
+    item.product?.stock,
+    item.product?.product?.stock,
+  ].filter((value) => value !== undefined);
+  const stock = stockValues.length ? Number(stockValues[0]) : undefined;
+
+  return isInactive || (Number.isFinite(stock) && stock <= 0);
+};
+
 const CheckOut = () => {
   const { t } = useContext(LanguageContext);
   const navigate = useNavigate();
@@ -166,10 +185,18 @@ const CheckOut = () => {
       setLoadingCart(true);
       const response = await CartService.getCart();
       const fetchedItems = response?.items || [];
-      setCartItems(fetchedItems);
+      const availableItems = fetchedItems.filter((item) => !isUnavailable(item));
+      if (availableItems.length !== fetchedItems.length) {
+        toast.info('Một số sản phẩm đã hết hàng và được loại khỏi đơn thanh toán.');
+      }
+      setCartItems(availableItems);
 
-      const subtotal = response?.subtotal ?? fetchedItems.reduce(
-        (total, item) => total + (item.price || 0) * (item.quantity || 0),
+      if (!availableItems.length) {
+        setShippingFee(0);
+      }
+
+      const subtotal = availableItems.reduce(
+        (total, item) => total + (Number(item.price) || 0) * (item.quantity || 0),
         0,
       );
       // Prefer client-calculated shippingFee (from GHN) to avoid flicker/overwrite
@@ -180,16 +207,18 @@ const CheckOut = () => {
         : serverShipping || 0;
 
       setCartSummary((prev) => {
-        // If a positive shipping was already set (from GHN calc), preserve it to avoid overwriting
-        const preservedShipping = prev?.shipping && Number.isFinite(prev.shipping) && prev.shipping > 0
-          ? prev.shipping
-          : shipping;
-        const computedTotal = subtotal + (preservedShipping || 0);
+        const hasItems = availableItems.length > 0;
+        const preservedShipping = hasItems
+          ? (prev?.shipping && Number.isFinite(prev.shipping) && prev.shipping > 0
+            ? prev.shipping
+            : shipping)
+          : 0;
+        const computedTotal = hasItems ? subtotal + (preservedShipping || 0) : 0;
         return {
           ...prev,
           subtotal,
           shipping: preservedShipping,
-          total: response?.totalAmount ?? computedTotal,
+          total: computedTotal,
         };
       });
     } catch (error) {
@@ -372,7 +401,7 @@ const CheckOut = () => {
   useEffect(() => {
     let mounted = true;
     const doImmediateCalc = async () => {
-      if (!selectedAddress) {
+      if (!selectedAddress || !cartItems.length) {
         setShippingFee(0);
         setCartSummary((s) => ({ ...s, shipping: 0, total: (s.subtotal || 0) + 0 }));
         return;
@@ -391,7 +420,7 @@ const CheckOut = () => {
       doImmediateCalc();
     }
     return () => { mounted = false; };
-  }, [loadingCart, loadingAddresses, selectedAddress, totalWeight, calculateShipping]);
+  }, [loadingCart, loadingAddresses, selectedAddress, totalWeight, calculateShipping, cartItems.length]);
 
   // Recalculate shipping when selected address or cart weight changes (with debounce)
   useEffect(() => {
@@ -400,7 +429,7 @@ const CheckOut = () => {
     const scheduleCalc = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(async () => {
-        if (!selectedAddress) {
+        if (!selectedAddress || !cartItems.length) {
           setShippingFee(0);
           setCartSummary((s) => ({ ...s, shipping: 0, total: (s.subtotal || 0) + 0 }));
           return;
@@ -425,10 +454,11 @@ const CheckOut = () => {
       mounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [selectedAddress, totalWeight, calculateShipping, loadingCart, loadingAddresses]);
+  }, [selectedAddress, totalWeight, calculateShipping, loadingCart, loadingAddresses, cartItems.length]);
 
   const handlePlaceOrder = async () => {
-    if (!cartItems.length) {
+    const validCartItems = cartItems.filter((item) => !isUnavailable(item));
+    if (!validCartItems.length) {
       toast.info(t('messages.cartEmpty'));
       return;
     }
@@ -437,7 +467,7 @@ const CheckOut = () => {
       return;
     }
 
-    const cartItemsPayload = cartItems
+    const cartItemsPayload = validCartItems
       .map((item) => {
         const productId = item.productId
           || item.product?.id

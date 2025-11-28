@@ -138,6 +138,11 @@ const Cart = () => {
     }
   };
 
+  const isUnavailable = (item) => (
+    item?.isActive === false
+    || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
+  );
+
   const handleCheckout = () => {
     if (!token) {
       toast.info(t('messages.loginRequired'));
@@ -149,10 +154,19 @@ const Cart = () => {
       return;
     }
 
-    const unavailableItem = items.find((item) => item.isActive === false || item.stock <= 0);
-    if (unavailableItem) {
-      toast.error(`"${unavailableItem.name || unavailableItem.productName || 'Sản phẩm'}" đã hết hàng nên không thể tiến hành đặt hàng.`);
-      return;
+    const unavailableItems = items.filter((item) => isUnavailable(item));
+    if (unavailableItems.length) {
+      const availableExists = items.some((item) => !isUnavailable(item));
+      if (!availableExists) {
+        toast.error('Giỏ hàng của bạn hiện chỉ chứa các sản phẩm đã hết hàng. Vui lòng xóa chúng trước khi tiếp tục.');
+        return;
+      }
+      const confirmMessage = 'Một số sản phẩm trong giỏ hàng đã hết hàng. Tiếp tục thanh toán với các sản phẩm còn hàng thôi nhé?';
+      // in case window undefined (SSR), fallback to proceed automatically
+      const confirmProceed = typeof window !== 'undefined' ? window.confirm(confirmMessage) : true;
+      if (!confirmProceed) {
+        return;
+      }
     }
     navigate('/checkout');
   };

@@ -68,6 +68,10 @@ const ProductCard = ({
 
   const handleAddToCart = (event) => {
     event.stopPropagation();
+    if (isOutOfStock) {
+      toast.info(soldOutText);
+      return;
+    }
     if (onAddToCart) {
       onAddToCart();
     }
@@ -337,7 +341,12 @@ const ProductCard = ({
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#8B4513] text-white px-3 py-2.5 text-sm font-['Nunito'] font-semibold shadow-[0_8px_18px_rgba(139,69,19,0.35)] hover:-translate-y-0.5 hover:bg-[#A8602D] transition-all duration-200"
+                disabled={isOutOfStock}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-['Nunito'] font-semibold transition-all duration-200 ${
+                  isOutOfStock
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#8B4513] text-white shadow-[0_8px_18px_rgba(139,69,19,0.35)] hover:-translate-y-0.5 hover:bg-[#A8602D]'
+                }`}
               >
                 <FaShoppingCart className="text-sm" />
                 <span>{t('productCard.addToCart')}</span>

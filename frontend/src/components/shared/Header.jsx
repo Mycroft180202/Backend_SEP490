@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 import { FaBell, FaShoppingCart, FaSearch } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
@@ -162,6 +162,8 @@ const Header = () => {
   const isAdmin = roleList.some((r) => (typeof r === 'string' ? r : r?.name) === 'Admin');
   const isArtisan = roleList.some((r) => (typeof r === 'string' ? r : r?.name) === 'Artisan');
 
+  const location = useLocation();
+
   const navItems = [
     { path: '/', label: t('nav.home') },
     { path: '/about', label: t('nav.about') },
@@ -186,17 +188,33 @@ const Header = () => {
 
       {/* Desktop Navigation */}
       <nav className="hidden lg:flex items-center gap-6 relative z-10">
-        {navItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '32px', color: '#fff' }}
-            className="group relative px-1 py-1 text-sm font-semibold text-white transition-colors duration-200 hover:text-yellow-200"
-          >
-            <span className="relative z-10 group-hover:tracking-[0.12em] transition-all duration-300">{item.label}</span>
-            <span className="absolute left-0 right-0 -bottom-1 h-0.5 bg-yellow-200 scale-x-0 origin-center transition-transform duration-300 group-hover:scale-x-100" />
-          </Link>
-        ))}
+        {navItems.map((item) => {
+          const isActive = item.path === '/'
+            ? location.pathname === '/'
+            : location.pathname.startsWith(item.path);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              style={{ fontFamily: 'Nunito, sans-serif', fontSize: 16, lineHeight: '32px', color: '#fff' }}
+              className={`group relative px-1 py-1 text-sm font-semibold transition-colors duration-200 ${
+                isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-200'
+              }`}
+            >
+              <span className={`relative z-10 transition-all duration-300 ${
+                isActive ? 'tracking-[0.12em]' : 'group-hover:tracking-[0.12em]'
+              }`}
+              >
+                {item.label}
+              </span>
+              <span
+                className={`absolute left-0 right-0 -bottom-1 h-0.5 bg-yellow-200 origin-center transition-transform duration-300 ${
+                  isActive ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                }`}
+              />
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Right Icons Section */}
@@ -423,16 +441,23 @@ const Header = () => {
       {isMobileMenuOpen && (
         <div className="lg:hidden absolute top-full left-0 right-0 bg-[rgba(122,9,9,0.98)] backdrop-blur-xl border-t border-white/10">
           <nav className="flex flex-col px-6 py-6 gap-3">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-white text-base font-nunito py-2 border-b border-white/10 last:border-b-0 hover:text-yellow-200 transition"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive = item.path === '/'
+                ? location.pathname === '/'
+                : location.pathname.startsWith(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`text-base font-nunito py-2 border-b border-white/10 last:border-b-0 transition ${
+                    isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-200'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
