@@ -21,13 +21,6 @@ namespace Backend_SEP490.Controllers
         [HttpGet("product/story-telling")]
         public async Task<IActionResult> GetAllStoryTellingByProductIdAsync([FromQuery] string productId)
         {
-
-            var userId = User.GetUserId();
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Unauthorized();
-            }
-
             var storyTellings = await _storyTellingService.GetAllStoryTellingByProductIdAsync(productId);
             return Ok(storyTellings);
         }
@@ -36,13 +29,6 @@ namespace Backend_SEP490.Controllers
         [HttpGet("product/story-telling/{storyTellingId}")]
         public async Task<IActionResult> GetStoryTellingByIdAsync( int storyTellingId)
         {
-
-            var userId = User.GetUserId();
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Unauthorized();
-            }
-
             var storyTellings = await _storyTellingService.GetStoryTellingByIdAsync(storyTellingId);
             return Ok(storyTellings);
         }
