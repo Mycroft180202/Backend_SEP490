@@ -378,15 +378,45 @@ public class ProductServicesImpl: GenericServices, IProductServices
     public async Task<PagedResult<ResponseDTOProductDashboard>> GetProductsDashboardByUserIdAsync(string? userId, int pageIndex, int pageSize)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
-        var result = _mapper.Map<IEnumerable<ResponseDTOProductDashboard>>(products)
-            .Where( p => p.Product.ArtisanId.Equals(userId)).OrderByDescending( p=> p.TotalSold).ToList();
+
+        var enrichedProducts = await MapAndEnrichProductsAsync(products);
+
+        var enrichedDict = enrichedProducts.ToDictionary(p => p.Id);
+
+        var dashboards = products.Select(p =>
+        {
+            enrichedDict.TryGetValue(p.Id, out var enriched);
+
+            int totalSold = p.OrderItems?
+                .Where(o => o.Order.Status == "Paid")
+                .Sum(o => o.Quantity) ?? 0;
+
+            decimal totalAmount = p.OrderItems?
+                .Where(o => o.Order.Status == "Paid")
+                .Sum(o => Convert.ToDecimal(o.Quantity) * o.UnitPrice) ?? 0m;
+
+            return new ResponseDTOProductDashboard
+            {
+                Product = enriched,    
+                TotalSold = totalSold,
+                TotalAmmount = totalAmount
+            };
+        })
+        .Where(x => x.Product.ArtisanId == userId)
+        .OrderByDescending(x => x.TotalSold)
+        .ToList();
+
+        var pagedItems = dashboards
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         return new PagedResult<ResponseDTOProductDashboard>
         {
-            TotalCount = products.Count(),
+            TotalCount = dashboards.Count,
             PageIndex = pageIndex,
             PageSize = pageSize,
-            Items = result
+            Items = pagedItems
         };
     }
 }
