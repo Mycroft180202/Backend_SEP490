@@ -36,11 +36,19 @@ public class GenericServices
         {
             foreach (var item in cart.CartItems.ToList())
             {
-                await _context.CartItem.DeleteCartItemAsync(item);
+                if(item.Product.Stock == 0 || item.Product.Stock < item.Quantity)
+                {
+
+                }
+                else
+                {
+                    await _context.CartItem.DeleteCartItemAsync(item);
+                }
+                    
             }
         }
 
-        await _context.Cart.DeleteCartAsync(cart);
+        //await _context.Cart.DeleteCartAsync(cart);
     }
 
     protected async Task<List<OrderItem>> EnsureOrderItemsLoadedAsync(Order? order)
