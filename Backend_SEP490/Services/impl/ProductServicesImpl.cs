@@ -363,14 +363,208 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return $"{prefix}-{timestamp}";
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTop10ProductsAsync()
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
-        var result = _mapper.Map<IEnumerable<ResponseDTOProductDashboard>>(products)
-         .OrderByDescending(x => x.TotalSold)
-         .Take(10)
-         .ToList();
+        var artisanProducts = products
+        .Where(p => p.ArtisanId.Equals(userId))
+        .ToList();
+
+        var today = DateTime.UtcNow.Date;
+
+        var result = artisanProducts
+            .Select(p =>
+            {
+                var todaysOrderItems = p.OrderItems
+                    .Where(oi =>
+                        oi.Order != null &&
+                        oi.Order.Status == "Paid" &&
+                        oi.Order.CreateAt.Date == today
+                    );
+
+                return new ResponseDTOProductDashboard
+                {
+                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    TotalSold = todaysOrderItems.Sum(oi => oi.Quantity),
+                    TotalAmmount = todaysOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+                };
+            })
+            .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0) 
+            .OrderByDescending(x => x.TotalAmmount)
+            .Take(5)
+            .ToList();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueMonthlyAsync(string? userId, int year, int month)
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+
+        var artisanProducts = products
+       .Where(p => p.ArtisanId.Equals(userId))
+       .ToList();
+
+        var result = artisanProducts
+            .Select(p =>
+            {
+                var monthOrderItems = p.OrderItems
+                    .Where(oi =>
+                        oi.Order != null &&
+                        oi.Order.Status == "Paid" &&
+                        oi.Order.CreateAt.Year == year &&
+                        oi.Order.CreateAt.Month == month
+                    );
+
+                return new ResponseDTOProductDashboard
+                {
+                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    TotalSold = monthOrderItems.Sum(oi => oi.Quantity),
+                    TotalAmmount = monthOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+                };
+            })
+            .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0) 
+            .OrderByDescending(x => x.TotalAmmount)
+            .Take(5)
+            .ToList();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueInYearAsync(string? userId, int year)
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+
+        var artisanProducts = products
+       .Where(p => p.ArtisanId.Equals(userId))
+       .ToList();
+
+        var result = artisanProducts
+        .Select(p =>
+        {
+            var yearOrderItems = p.OrderItems
+                .Where(oi =>
+                    oi.Order != null &&
+                    oi.Order.Status == "Paid" &&
+                    oi.Order.CreateAt.Year == year
+                );
+
+            return new ResponseDTOProductDashboard
+            {
+                Product = _mapper.Map<ResponseDTOProduct>(p),
+                TotalSold = yearOrderItems.Sum(oi => oi.Quantity),
+                TotalAmmount = yearOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+            };
+        })
+        .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0) 
+        .OrderByDescending(x => x.TotalAmmount)
+        .Take(5)
+        .ToList();
+
+        return result;
+    }
+
+
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId)
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+
+        var artisanProducts = products
+        .Where(p => p.ArtisanId.Equals(userId))
+        .ToList();
+
+        var today = DateTime.UtcNow.Date;
+
+        var result = artisanProducts
+            .Select(p =>
+            {
+                var todaysOrderItems = p.OrderItems
+                    .Where(oi =>
+                        oi.Order != null &&
+                        oi.Order.Status == "Paid" &&
+                        oi.Order.CreateAt.Date == today
+                    );
+
+                return new ResponseDTOProductDashboard
+                {
+                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    TotalSold = todaysOrderItems.Sum(oi => oi.Quantity),
+                    TotalAmmount = todaysOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+                };
+            })
+            .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0)
+            .OrderByDescending(x => x.TotalSold)
+            .Take(5)
+            .ToList();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldMonthlyAsync(string? userId, int year, int month)
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+
+        var artisanProducts = products
+       .Where(p => p.ArtisanId.Equals(userId))
+       .ToList();
+
+        var result = artisanProducts
+            .Select(p =>
+            {
+                var monthOrderItems = p.OrderItems
+                    .Where(oi =>
+                        oi.Order != null &&
+                        oi.Order.Status == "Paid" &&
+                        oi.Order.CreateAt.Year == year &&
+                        oi.Order.CreateAt.Month == month
+                    );
+
+                return new ResponseDTOProductDashboard
+                {
+                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    TotalSold = monthOrderItems.Sum(oi => oi.Quantity),
+                    TotalAmmount = monthOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+                };
+            })
+            .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0)
+            .OrderByDescending(x => x.TotalSold)
+            .Take(5)
+            .ToList();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldInYearAsync(string? userId, int year)
+    {
+        var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
+
+        var artisanProducts = products
+       .Where(p => p.ArtisanId.Equals(userId))
+       .ToList();
+
+        var result = artisanProducts
+        .Select(p =>
+        {
+            var yearOrderItems = p.OrderItems
+                .Where(oi =>
+                    oi.Order != null &&
+                    oi.Order.Status == "Paid" &&
+                    oi.Order.CreateAt.Year == year
+                );
+
+            return new ResponseDTOProductDashboard
+            {
+                Product = _mapper.Map<ResponseDTOProduct>(p),
+                TotalSold = yearOrderItems.Sum(oi => oi.Quantity),
+                TotalAmmount = yearOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+            };
+        })
+        .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0)
+        .OrderByDescending(x => x.TotalSold)
+        .Take(5)
+        .ToList();
 
         return result;
     }

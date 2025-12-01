@@ -122,19 +122,6 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
-        // GET /top-products
-        [Authorize(Roles = "Admin")]
-        [HttpGet("top-products")]
-        public async Task<IActionResult> GetTopProductsOrders()
-        {
-            var users = await _productServices.GetTop10ProductsAsync();
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(users);
-        }
 
         // GET /admin/today-revenue
         [Authorize(Roles = "Admin")]
@@ -262,6 +249,114 @@ namespace Backend_SEP490.Controllers
             }
 
             return Ok(revenues);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/top-product/revenue")]
+        public async Task<IActionResult> GetTopProductByRevenue()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _productServices.GetTopProductsByRevenueAsync(userId);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/top-product/revenue/{year}/{month}")]
+        public async Task<IActionResult> GetTopProductByRevenueMonthly([FromRoute] int year,[FromRoute] int month)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _productServices.GetTopProductsByRevenueMonthlyAsync(userId, year, month);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/top-product/revenue/{year}")]
+        public async Task<IActionResult> GetTopProductByRevenueInYear([FromRoute] int year)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _productServices.GetTopProductsByRevenueInYearAsync(userId, year);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/top-product/total-sold")]
+        public async Task<IActionResult> GetTopProductByToTalSold()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _productServices.GetTopProductsByTotalSoldAsync(userId);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/top-product/total-sold/{year}/{month}")]
+        public async Task<IActionResult> GetTopProductByToTalSoldMonthly([FromRoute] int year,[FromRoute] int month)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _productServices.GetTopProductsByTotalSoldMonthlyAsync(userId, year, month);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/top-product/total-sold/{year}")]
+        public async Task<IActionResult> GetTopProductByToTalSoldInYear([FromRoute] int year)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _productServices.GetTopProductsByTotalSoldInYearAsync(userId, year);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
         }
 
         private bool TryGetUserId(out string userId)

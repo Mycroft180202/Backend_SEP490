@@ -1357,7 +1357,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         var revenueByMonth = ordersInYear
              .SelectMany(o => o.OrderItems
-                .Where(oi => oi.Product.ArtisanId == userId) // lọc lại chính xác seller
+                .Where(oi => oi.Product.ArtisanId == userId)
                 .Select(oi => new
                 {
                     Month = o.CreateAt.Month,

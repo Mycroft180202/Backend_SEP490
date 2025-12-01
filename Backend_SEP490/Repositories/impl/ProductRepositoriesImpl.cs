@@ -49,8 +49,6 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
     {
         var products = await _context.Products
                    .Include( p => p.OrderItems).ThenInclude( p=> p.Order)
-                   //.Include( p => p.ProductImages).Include(p => p.Artisan)
-                    .AsNoTracking()
                     .ToListAsync();
 
         return products;
