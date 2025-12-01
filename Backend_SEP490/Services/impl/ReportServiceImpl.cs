@@ -314,4 +314,13 @@ public class ReportServiceImpl : GenericServices, IReportService
 
         return !string.Equals(report.AssignedAdminId, adminId, StringComparison.OrdinalIgnoreCase);
     }
+
+    public async Task<int> NewReportNumberAsync()
+    {
+        var reports = await _context.Reports.GetAllReportAsync();
+
+        reports = reports.Where( r => "Pending".Equals(r.ReportStatus)).OrderByDescending( r => r.CreatedAt).ToList();
+
+        return reports.Count();
+    }
 }

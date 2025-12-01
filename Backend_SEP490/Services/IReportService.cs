@@ -7,6 +7,7 @@ namespace Backend_SEP490.Services;
 public interface IReportService
 {
     Task<string> ReportProductAsync(string reporterId, ReportProductRequest request);
+    Task<int> NewReportNumberAsync();
     Task<PagedResult<ReportSummaryResponse>> GetReportsForAdminAsync(ReportFilterRequest filter);
     Task<ReportDetailResponse?> GetReportDetailAsync(string reportId, string requesterId, bool isAdmin);
     Task<string> AssignReportAsync(string adminId, string reportId, AssignReportRequest request);

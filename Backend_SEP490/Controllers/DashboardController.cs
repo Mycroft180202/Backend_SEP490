@@ -15,15 +15,19 @@ namespace Backend_SEP490.Controllers
         private readonly IUserServices _userServices;
         private readonly IOrderService _orderService;
         private readonly IProductServices _productServices;
+        private readonly IReportService _reportServices;
+
 
         public DashBoardController(
             IUserServices userServices,
             IOrderService orderService,
-            IProductServices productServices)
+            IProductServices productServices,
+            IReportService reportServices)
         {
             _userServices = userServices;
             _orderService = orderService;
             _productServices = productServices;
+            _reportServices = reportServices;
         }
 
         // GET /users
@@ -128,6 +132,19 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
+        // GET /admin/today-revenue
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/today-revenue")]
+        public async Task<IActionResult> GetAdminTodayRevenue()
+        {
+            var revenues = await _orderService.GetAdminTodayRevenueAsync();
+            if (revenues == null)
+            {
+                return NotFound();
+            }
+            return Ok(revenues);
+        }
+
         // GET /admin/monthly-revenue?year=2025
         [Authorize(Roles = "Admin")]
         [HttpGet("admin/monthly-revenue")]
@@ -153,6 +170,37 @@ namespace Backend_SEP490.Controllers
                 return NotFound();
             }
 
+            return Ok(revenues);
+        }
+
+        // GET /admin/report-number
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/report-number")]
+        public async Task<IActionResult> GetNeedActionReportNumberRevenue()
+        {
+            var number = await _reportServices.NewReportNumberAsync();
+            if (number == null)
+            {
+                return NotFound();
+            }
+            return Ok(number);
+        }
+        
+        // GET /artisan/today-revenue
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/today-revenue")]
+        public async Task<IActionResult> GetArtisanTodayRevenue()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var revenues = await _orderService.GetArtisanTodayRevenueAsync(userId);
+            if (revenues == null)
+            {
+                return NotFound();
+            }
             return Ok(revenues);
         }
 

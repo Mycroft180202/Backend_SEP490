@@ -15,6 +15,10 @@ public class ReportRepositoryImpl : GenericRepositoryImpl<Report>, IReportReposi
             .Where(r => r.TargetID == targetId)
             .ToListAsync();
     }
+    public async Task<IEnumerable<Report>> GetAllReportAsync()
+    {
+        return await _context.Reports.ToListAsync();
+    }
 
     public async Task<Report?> GetDetailsAsync(string reportId)
     {
