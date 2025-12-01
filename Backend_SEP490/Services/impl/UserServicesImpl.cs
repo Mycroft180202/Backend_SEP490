@@ -78,10 +78,32 @@ public class UserServicesImpl : GenericServices, IUserServices
     public async Task<PagedResult<ResponseDTOUserShopDashboard>> GetAllArtisanAsync(int pageIndex, int pageSize)
     {
         var usersList = await _context.Users.GetAllUsersWithRoleArtisanAsync();
-        var users = usersList.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+        var usersPage = usersList.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
 
-        var userList = _mapper.Map<IEnumerable<ResponseDTOUserShopDashboard>>(users);
+        var userList = _mapper.Map<IEnumerable<ResponseDTOUserShopDashboard>>(usersPage).ToList();
 
+        foreach (var userDto in userList)
+        {
+            var user = usersPage.First(u => u.UserID == userDto.UserID);
+
+            // Tính tổng doanh thu từ các products
+            decimal totalRevenue = 0m;
+
+            if (user.Products != null)
+            {
+                foreach (var product in user.Products)
+                {
+                    if (product.OrderItems != null)
+                    {
+                        totalRevenue += product.OrderItems
+                            .Where(oi => oi.Order != null && oi.Order.Status.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                            .Sum(oi => oi.Quantity * oi.UnitPrice);
+                    }
+                }
+            }
+
+            userDto.TotalRevenue = totalRevenue * 0.95m;
+        }
         return new PagedResult<ResponseDTOUserShopDashboard>
         {
             Items = userList,

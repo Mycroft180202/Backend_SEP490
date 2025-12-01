@@ -34,14 +34,7 @@ public class UserMapper : Profile
             .ReverseMap();
         CreateMap<User, ResponseDTOUserShopDashboard>()
             .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses))
-            .ForMember(dest => dest.TotalRevenue, opt => opt.MapFrom(
-            src => src.Products != null
-            ? src.Products
-                .SelectMany(p => p.OrderItems)
-                .Where(oi => oi.Order.Status == "Completed")
-                .Sum(oi => oi.UnitPrice * oi.Quantity)
-            : 0
-            ))
+            .ForMember(dest => dest.TotalRevenue, opt => opt.Ignore())
             .ReverseMap();
     }
 }
