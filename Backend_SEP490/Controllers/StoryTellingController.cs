@@ -51,6 +51,21 @@ namespace Backend_SEP490.Controllers
         [HttpPut("product/story-telling")]
         public async Task<IActionResult> UpdateStoryTellingAsync([FromQuery] int storyTellingId,[FromForm] RequestUpdateStoryTelling request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (request.Image != null)
+            {
+                var ext = Path.GetExtension(request.Image.FileName).ToLower();
+                var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+                if (!allowed.Contains(ext))
+                {
+                    return BadRequest("Only jpg, jpeg, png or webp images are supported.");
+                }
+            }
 
             if (!TryGetUserId(out var userId))
             {
