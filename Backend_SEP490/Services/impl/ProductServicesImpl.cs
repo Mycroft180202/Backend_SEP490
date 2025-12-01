@@ -419,4 +419,16 @@ public class ProductServicesImpl: GenericServices, IProductServices
             Items = pagedItems
         };
     }
+
+    public async Task<ResponseDTOOutOfStockProductNumber> GetProductsOutOfStockNumberByArtisanIdAsync(string artisanId)
+    {
+        var product = await _context.Products.GetProductsByArtisanIdAsync(artisanId);
+
+        var result = new ResponseDTOOutOfStockProductNumber
+        {
+            NearlyOutOfStock = product.Where(p => p.Stock > 0 && p.Stock <= 10).Count(),
+            OutOfStock = product.Where(p => p.Stock == 0).Count()
+        };
+        return result;
+    }
 }

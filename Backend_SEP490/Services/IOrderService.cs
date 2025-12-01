@@ -15,7 +15,7 @@ namespace Backend_SEP490.Services
         Task<Order?> GetOrderByNumberForUserAsync(string? userId, string? orderNumber);
         Task<bool> CreateShipmentsAfterPaymentAsync(string orderId);
         Task<PagedResult<ResponseDTOOrder>> GetOrdersPagedAsync(int pageIndex, int pageSize, string? paymentStatus);
-        Task<IEnumerable<ResponseDTOOrder>> GetNewestOrderAsync();
+        Task<IEnumerable<ResponseDTOOrder>> GetNewestOrderAsync(string userId);
         Task<ResponseDTOTodayRevenue> GetAdminTodayRevenueAsync();
         Task<IEnumerable<ResponseDTOMonthRevenue>> GetAdminRevenuePerMonthAllOrderAsync(int year);
         Task<IEnumerable<ResponseDTOWeeklyRevenue>> GetAdminRevenuePerWeekAllOrderAsync(int year, int month);

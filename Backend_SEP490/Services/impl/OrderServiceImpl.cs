@@ -1234,10 +1234,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return string.Equals(order.CustomerId, userId, StringComparison.OrdinalIgnoreCase) ? order : null;
     }
 
-    public async Task<IEnumerable<ResponseDTOOrder>> GetNewestOrderAsync()
+    public async Task<IEnumerable<ResponseDTOOrder>> GetNewestOrderAsync(string userId)
     {
-        var order = await _context.Order.GetNewestOrderAsync();
-        var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(order);
+        var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
+
+        orders = orders.OrderByDescending( o => o.CreateAt).Take(10);
+
+        var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
         return mapped;
     }
 
@@ -1352,26 +1355,41 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .Where(o => o.CreateAt.Year == year && o.Status.Equals("Paid"))
             .ToList();
 
-        var grouped = ordersInYear
-             .GroupBy(o => o.CreateAt.Month)
-             .Select(g => new
-             {
-                 Month = g.Key,
-                 TotalAmmount = g.Sum(x => x.TotalAmount),
-                 TotalShippingFee = g.Sum(x => x.ShippingFee),
-                 TotalDiscountAmmount = g.Sum(x => x.DiscountAmount),
-                 TotalOrderNumber = g.Count()
-             })
-             .ToList();
+        var revenueByMonth = ordersInYear
+             .SelectMany(o => o.OrderItems
+                .Where(oi => oi.Product.ArtisanId == userId) // lọc lại chính xác seller
+                .Select(oi => new
+                {
+                    Month = o.CreateAt.Month,
+                    Revenue = oi.Quantity * oi.UnitPrice
+                })
+            )
+            .GroupBy(x => x.Month)
+            .Select(g => new 
+            {
+                Month = g.Key,
+                TotalRevenue = g.Sum(x => x.Revenue)
+            })
+            .OrderBy(x => x.Month)
+            .ToList();
 
+        var orderCountByMonth = ordersInYear.Select(o => new
+                                {
+                                    Month = o.CreateAt.Month,
+                                    OrderId = o.Id
+                                })
+                                .GroupBy(x => x.Month)
+                                .Select(g => new
+                                {
+                                    Month = g.Key,
+                                    TotalOrders = g.Select(x => x.OrderId).Distinct().Count()
+                                }).ToList();
         var result = Enumerable.Range(1, 12)
             .Select(month => new ResponseDTOMonthRevenue
             {
                 Month = month,
-                TotalOrderNumber = (grouped.FirstOrDefault(x => x.Month == month)?.TotalOrderNumber ?? 0),
-                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount
-                            - grouped.FirstOrDefault(x => x.Month == month)?.TotalShippingFee
-                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0) * 0.05m
+                TotalOrderNumber = orderCountByMonth.FirstOrDefault(x => x.Month == month)?.TotalOrders ?? 0,
+                Revenue = (revenueByMonth.FirstOrDefault(x => x.Month == month)?.TotalRevenue ?? 0) * 0.95m
             })
             .ToList();
 
@@ -1400,10 +1418,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
         while (currentStart <= lastDayOfMonth)
         {
             var currentEnd = currentStart.AddDays(6 - (int)currentStart.DayOfWeek + 1);
-            if (currentEnd > lastDayOfMonth) currentEnd = lastDayOfMonth;
+            if (currentEnd > lastDayOfMonth)
+                currentEnd = lastDayOfMonth;
 
             var ordersInWeek = ordersInMonth
-                .Where(o => o.CreateAt.Date >= currentStart.Date && o.CreateAt.Date <= currentEnd.Date)
+                .Where(o => o.CreateAt.Date >= currentStart.Date &&
+                            o.CreateAt.Date <= currentEnd.Date)
                 .ToList();
 
             var totalProductAmount = ordersInWeek
@@ -1415,13 +1435,17 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             var revenue = totalProductAmount * 0.95m;
 
+            var totalOrdersForSeller = ordersInWeek
+                .Where(o => o.OrderItems.Any(oi => oi.Product.ArtisanId == userId))
+                .Count();
+
             weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
             {
                 WeekNumber = weekNumber,
                 StartDate = currentStart,
                 EndDate = currentEnd,
-                TotalOrderNumber = ordersInWeek.Count(),
-                Revenue = revenue
+                Revenue = revenue,
+                TotalOrderNumber = totalOrdersForSeller
             });
 
             currentStart = currentEnd.AddDays(1);
@@ -1429,6 +1453,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         return weeklyRevenue;
+
     }
 
     public async Task<ResponseDTOTodayRevenue> GetArtisanTodayRevenueAsync(string? userId)
@@ -1442,7 +1467,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
           .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && o.Status.Equals("Paid"))
           .ToList();
 
-        var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m)) * 0.05m;
+        var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m)) * 0.95m;
         var result = new ResponseDTOTodayRevenue
         {
             Revenue = revenue,

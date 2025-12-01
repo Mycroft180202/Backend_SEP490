@@ -86,11 +86,15 @@ namespace Backend_SEP490.Controllers
         }
 
         // GET /newest-orders
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Artisan")]
         [HttpGet("newest-orders")]
         public async Task<IActionResult> GetNewestOrders()
         {
-            var users = await _orderService.GetNewestOrderAsync();
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+            var users = await _orderService.GetNewestOrderAsync(userId);
             if (users == null)
             {
                 return NotFound();
@@ -185,7 +189,25 @@ namespace Backend_SEP490.Controllers
             }
             return Ok(number);
         }
-        
+
+        // GET /artisan/today-revenue
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/product/out-stock")]
+        public async Task<IActionResult> GetOutOfStockProductNumberByArtisanId()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var revenues = await _productServices.GetProductsOutOfStockNumberByArtisanIdAsync(userId);
+            if (revenues == null)
+            {
+                return NotFound();
+            }
+            return Ok(revenues);
+        }
+
         // GET /artisan/today-revenue
         [Authorize(Roles = "Artisan")]
         [HttpGet("artisan/today-revenue")]
