@@ -1,6 +1,11 @@
 import axiosClient from '../../api/axiosConfig';
 
 class ArtisanDashboardService {
+  async getTodaySummary() {
+    const response = await axiosClient.get('/artisan/today-revenue');
+    return response.data;
+  }
+
   async getProducts({ pageIndex = 1, pageSize = 50 } = {}) {
     const response = await axiosClient.get('/products-dashboard', {
       params: { pageIndex, pageSize },
@@ -24,6 +29,32 @@ class ArtisanDashboardService {
         month: month || (now.getMonth() + 1),
       },
     });
+    return response.data;
+  }
+
+  async getOutOfStockProducts() {
+    const response = await axiosClient.get('/artisan/product/out-stock');
+    return response.data;
+  }
+
+  async getTopProducts({ metric = 'revenue', period = 'month', year, month } = {}) {
+    const basePath = metric === 'totalSold'
+      ? '/artisan/product/top-product/total-sold'
+      : '/artisan/product/top-product/revenue';
+
+    let endpoint = basePath;
+    if (period === 'year' && year) {
+      endpoint = `${basePath}/${year}`;
+    } else if (period === 'month' && year && month) {
+      endpoint = `${basePath}/${year}/${month}`;
+    }
+
+    const response = await axiosClient.get(endpoint);
+    return response.data;
+  }
+
+  async getLatestOrders() {
+    const response = await axiosClient.get('/newest-orders');
     return response.data;
   }
 }

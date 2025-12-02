@@ -8,41 +8,7 @@ import Detail from '../components/productDetail/Detail';
 import RelationProduct from '../components/productDetail/RelationProduct';
 import { ProductService } from '../services/modules/products/productService';
 import { CategoryService } from '../services/modules/products/categoryService';
-
-const promoHighlights = [
-  {
-    id: 'promo-heritage',
-    title: 'Tinh hoa nghề gốm Hòa Lạc',
-    excerpt: 'Theo chân nghệ nhân để thấy từng đường nét được tạo nên từ đôi tay khéo léo và sự kiên nhẫn vô tận.',
-    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=500&q=80',
-    href: '/blog',
-    badge: 'Blog thủ công',
-  },
-  {
-    id: 'promo-workshop',
-    title: 'Workshop cuối tuần',
-    excerpt: 'Trải nghiệm đan mây tre, học cách thổi hồn vào chất liệu tự nhiên cùng các nghệ nhân kỳ cựu.',
-    image: 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=500&q=80',
-    href: '/contact',
-    badge: 'Trải nghiệm',
-  },
-  {
-    id: 'promo-custom',
-    title: 'Thiết kế riêng theo yêu cầu',
-    excerpt: 'Đặt những món quà độc bản được làm thủ công, phù hợp cho không gian và câu chuyện của bạn.',
-    image: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=500&q=80',
-    href: '/shop',
-    badge: 'Đặt riêng',
-  },
-  {
-    id: 'promo-fair',
-    title: 'Phiên chợ thủ công',
-    excerpt: 'Gặp gỡ cộng đồng nghệ nhân địa phương và cập nhật những bộ sưu tập mới nhất trong tháng.',
-    image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=500&q=80',
-    href: '/about',
-    badge: 'Sự kiện',
-  },
-];
+import StorytellingService from '../services/modules/products/storytellingService';
 
 const PromoCard = ({
   title, excerpt, image, href, badge,
@@ -60,7 +26,7 @@ const PromoCard = ({
       <h3 className="font-alata text-lg text-[#7A0909] leading-tight line-clamp-2">{title}</h3>
       <p className="text-sm text-gray-600 line-clamp-3">{excerpt}</p>
       <Link
-        to={href}
+        to={href || '#'}
         className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-[#7A0909] hover:text-[#B73E3E] transition-colors"
       >
         Khám phá thêm
@@ -70,18 +36,65 @@ const PromoCard = ({
   </div>
 );
 
+const GalleryCard = ({ image, isActive, onClick, label }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`group relative w-full aspect-square overflow-hidden rounded-xl border transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B4513]/40 ${
+      isActive
+        ? 'border-amber-400 shadow-lg ring-2 ring-[#8B4513]/30'
+        : 'border-amber-200 bg-white/80 hover:border-amber-300 hover:-translate-y-0.5'
+    }`}
+    aria-label={label}
+  >
+    <img
+      src={image}
+      alt={label}
+      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+    />
+    {isActive && (
+      <span className="absolute inset-x-0 bottom-0 bg-[#8B4513]/80 text-white text-xs font-semibold tracking-wide uppercase text-center py-1">
+        Đang xem
+      </span>
+    )}
+  </button>
+);
+
+const storyTypeBadges = {
+  ProductStory: 'Câu chuyện sản phẩm',
+  CraftingProcess: 'Quy trình chế tác',
+  ArtisanBiography: 'Câu chuyện Nghệ nhân',
+};
+
+const DEFAULT_STORY_IMAGE = 'https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=500&q=80';
+
+const toPlainText = (value) => {
+  if (!value) return '';
+  return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [categoryName, setCategoryName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [storyPromos, setStoryPromos] = useState([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const promoCards = useMemo(() => storyPromos.slice(0, 3), [storyPromos]);
 
   const breadcrumbItems = useMemo(() => ([
     { label: 'Trang chủ', href: '/' },
     { label: 'Cửa hàng', href: '/shop' },
     { label: product?.name || 'Chi tiết sản phẩm' },
   ]), [product]);
+
+  const productImages = useMemo(() => {
+    if (Array.isArray(product?.images) && product.images.length) {
+      return product.images;
+    }
+    return ['/images/default-product.png'];
+  }, [product]);
 
   useEffect(() => {
     const fetchProductDetail = async () => {
@@ -114,6 +127,37 @@ const ProductDetail = () => {
       fetchProductDetail();
     }
   }, [id]);
+
+  useEffect(() => {
+    const loadStories = async () => {
+      if (!product?.id && !product?.productId) return;
+      try {
+        const data = await StorytellingService.getStoriesByProduct(product.id || product.productId);
+        if (Array.isArray(data) && data.length) {
+          const normalized = data.slice(0, 3).map((item) => ({
+            id: item.id,
+            title: item.title || 'Story highlight',
+            excerpt: toPlainText(item.content) || 'Khám phá câu chuyện thủ công độc đáo.',
+            image: item.image || DEFAULT_STORY_IMAGE,
+            href: `/storytelling/${item.id}`,
+            badge: storyTypeBadges[item.storyType] || 'Story',
+          }));
+          setStoryPromos(normalized);
+        } else {
+          setStoryPromos([]);
+        }
+      } catch (storyError) {
+        console.error('Không thể tải story telling:', storyError);
+        setStoryPromos([]);
+      }
+    };
+
+    loadStories();
+  }, [product?.id, product?.productId]);
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [product?.id, product?.productId]);
 
   if (loading) {
     return (
@@ -183,19 +227,33 @@ const ProductDetail = () => {
       <main className="flex-grow">
         <div className="px-4 sm:px-8 lg:px-12 py-8">
           <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
-            <div className="hidden lg:flex flex-col gap-6 sticky top-24 self-start">
-              {promoHighlights.slice(0, 2).map((promo) => (
-                <PromoCard key={promo.id} {...promo} />
-              ))}
+            <div className="hidden lg:flex justify-center top-24 self-start">
+              <div className="w-[150px]">
+                <div className="flex max-h-[680px] flex-col gap-3 overflow-y-auto pr-1">
+                  {productImages.map((img, idx) => (
+                    <GalleryCard
+                      key={`gallery-${idx}-${img}`}
+                      image={img}
+                      label={`Ảnh ${idx + 1}`}
+                      isActive={idx === selectedImageIndex}
+                      onClick={() => setSelectedImageIndex(idx)}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="space-y-8">
-              <ShortDescription product={product} />
+              <ShortDescription
+                product={product}
+                selectedImageIndex={selectedImageIndex}
+                onSelectImage={setSelectedImageIndex}
+              />
               <Detail product={product} categoryName={categoryName} />
               <RelationProduct categoryId={product.category} currentProductId={product.id} />
             </div>
-            <div className="hidden lg:flex flex-col gap-6 sticky top-24 self-start">
-              {promoHighlights.slice(2).map((promo) => (
-                <PromoCard key={promo.id} {...promo} />
+            <div className="hidden lg:flex flex-col gap-6 self-start">
+              {promoCards.map((promo) => (
+                <PromoCard key={`promo-${promo.id || promo.title}`} {...promo} />
               ))}
             </div>
           </div>

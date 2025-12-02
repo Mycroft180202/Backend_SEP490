@@ -28,6 +28,7 @@ import CheckOut from './pages/CheckOut';
 import OrderSuccess from './pages/OrderSuccess';
 import PaymentResult from './pages/PaymentResult';
 import ArtisanDashboard from './components/artisanDashboard/dashboard';
+import StorytellingDetail from './pages/StorytellingDetail';
 function App() {
   return (
     <UserProvider>
@@ -52,6 +53,7 @@ function App() {
               <Route path="/artisan-shop" element={<ArtisanShop />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:id" element={<BlogDetail />} />
+              <Route path="/storytelling/:storyId" element={<StorytellingDetail />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/policy" element={<Policy />} />
               <Route path="/admin" element={<AdminDashboard />} />

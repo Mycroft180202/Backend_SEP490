@@ -1,155 +1,306 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useCallback } from 'react';
 import {
+  FaDollarSign,
+  FaChartLine,
   FaShoppingCart,
   FaUsers,
-  FaDollarSign,
-  FaUsersCog,
-  FaEye,
-  FaEdit
+  FaExclamationTriangle,
+  FaArrowUp,
+  FaArrowDown,
 } from 'react-icons/fa';
-import RevenueChart from './RevenueChart';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from 'recharts';
 
-const OverviewSection = ({ stats, recentOrders, topProducts, formatCurrency, getStatusColor }) => {
+const OverviewSection = ({
+  overview,
+  monthlyData,
+  weeklyData,
+  selectedYear,
+  selectedMonth,
+  onChangePeriod,
+  formatCurrency,
+}) => {
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const monthNames = useMemo(
+    () => [
+      'Tháng 1',
+      'Tháng 2',
+      'Tháng 3',
+      'Tháng 4',
+      'Tháng 5',
+      'Tháng 6',
+      'Tháng 7',
+      'Tháng 8',
+      'Tháng 9',
+      'Tháng 10',
+      'Tháng 11',
+      'Tháng 12',
+    ],
+    [],
+  );
+
+  const chartData = useMemo(() => {
+    const byMonth = new Map(
+      (Array.isArray(monthlyData) ? monthlyData : []).map((entry) => [entry.month, entry]),
+    );
+
+    return monthNames.map((label, index) => {
+      const month = index + 1;
+      const entry = byMonth.get(month) || {};
+      return {
+        monthLabel: label,
+        revenue: Number(entry.revenue) || 0,
+        orders: Number(entry.orders ?? entry.totalOrderNumber ?? 0) || 0,
+      };
+    });
+  }, [monthNames, monthlyData]);
+
+  const totalUsers = overview.totalSellers + overview.totalCustomers;
+  const growth = Number(overview.monthGrowthPercent) || 0;
+  const growthState = growth > 0 ? 'up' : growth < 0 ? 'down' : 'flat';
+  const growthColor =
+    growthState === 'up' ? 'text-green-600' : growthState === 'down' ? 'text-red-600' : 'text-gray-500';
+  const GrowthIcon = growthState === 'up' ? FaArrowUp : growthState === 'down' ? FaArrowDown : null;
+
+  const weeklyChartData = useMemo(() => {
+    return (Array.isArray(weeklyData) ? weeklyData : []).map((entry) => ({
+      label: `Tuần ${entry.weekNumber}`,
+      revenue: Number(entry.revenue) || 0,
+      orders: Number(entry.totalOrderNumber ?? entry.totalOrderAmount ?? 0) || 0,
+    }));
+  }, [weeklyData]);
+
+  const formatVND = useCallback((value) => `${(Number(value) || 0).toLocaleString('vi-VN')} VND`, []);
+
+  const renderEmptyChart = (message) => (
+    <div className="flex h-72 items-center justify-center text-sm text-gray-500">{message}</div>
+  );
+
   return (
-    <>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Orders */}
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-nunito">Tổng đơn hàng</p>
-              <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalOrders}</h3>
+              <p className="text-sm text-gray-500">Doanh thu hôm nay</p>
+              <h3 className="mt-2 text-3xl font-bold text-gray-800">{formatVND(overview.todayRevenue)}</h3>
             </div>
-            <div className="bg-blue-100 p-4 rounded-full">
-              <FaShoppingCart className="text-blue-600 text-2xl" />
+            <div className="rounded-full bg-green-100 p-4 text-green-600">
+              <FaDollarSign className="text-2xl" />
             </div>
           </div>
         </div>
 
-        {/* Total Revenue */}
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+        <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-nunito">Doanh thu</p>
-              <h3 className="text-2xl font-bold text-gray-800 mt-2">{formatCurrency(stats.totalRevenue)}</h3>
+              <p className="text-sm text-gray-500">Doanh thu tháng này</p>
+              <h3 className="mt-2 text-3xl font-bold text-gray-800">{formatVND(overview.monthRevenue)}</h3>
             </div>
-            <div className="bg-green-100 p-4 rounded-full">
-              <FaDollarSign className="text-green-600 text-2xl" />
+            <div className="rounded-full bg-red-100 p-4 text-red-600">
+              <FaChartLine className="text-2xl" />
+            </div>
+          </div>
+          <div className={`mt-4 flex items-center gap-2 text-sm font-semibold ${growthColor}`}>
+            {GrowthIcon ? <GrowthIcon /> : null}
+            <span>{Math.abs(growth).toFixed(1)}%</span>
+            <span className="text-xs font-medium text-gray-500">so với tháng trước</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Đơn hàng hôm nay</p>
+              <h3 className="mt-2 text-3xl font-bold text-gray-800">{overview.todayOrders}</h3>
+            </div>
+            <div className="rounded-full bg-blue-100 p-4 text-blue-600">
+              <FaShoppingCart className="text-2xl" />
             </div>
           </div>
         </div>
 
-        {/* Total Sellers */}
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500 hover:shadow-lg transition-shadow">
+        <div className="rounded-xl bg-white p-6 shadow-md md:col-span-2 xl:col-span-1">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-nunito">Người bán</p>
-              <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalSellers}</h3>
+              <p className="text-sm text-gray-500">Tổng người dùng</p>
+              <h3 className="mt-2 text-3xl font-bold text-gray-800">{totalUsers}</h3>
             </div>
-            <div className="bg-orange-100 p-4 rounded-full">
-              <FaUsers className="text-orange-600 text-2xl" />
+            <div className="rounded-full bg-purple-100 p-4 text-purple-600">
+              <FaUsers className="text-2xl" />
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+              <span>Người bán</span>
+              <span className="font-semibold text-gray-800">{overview.totalSellers}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+              <span>Người mua</span>
+              <span className="font-semibold text-gray-800">{overview.totalCustomers}</span>
             </div>
           </div>
         </div>
 
-        {/* Total Customers */}
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
+        <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-nunito">Khách hàng</p>
-              <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalCustomers}</h3>
+              <p className="text-sm text-gray-500">Report chờ xử lý</p>
+              <h3 className="mt-2 text-3xl font-bold text-gray-800">{overview.reportCount}</h3>
             </div>
-            <div className="bg-purple-100 p-4 rounded-full">
-              <FaUsersCog className="text-purple-600 text-2xl" />
+            <div className="rounded-full bg-yellow-100 p-4 text-yellow-600">
+              <FaExclamationTriangle className="text-2xl" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Charts and Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-800 font-alata">Đơn hàng gần đây</h2>
-            <Link to="/admin/orders" className="text-primary hover:text-red-700 font-nunito text-sm">
-              Xem tất cả →
-            </Link>
+      <div className="rounded-xl bg-white p-6 shadow-md">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Doanh thu & đơn hàng theo tháng</h2>
+            <span className="text-xs text-gray-500">Đơn vị: VND & đơn</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">STT</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Mã đơn</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Khách hàng</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Sản phẩm</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Giá trị</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-semibold text-sm text-gray-600">{order.rowNumber}</td>
-                    <td className="py-3 px-4 font-semibold text-sm">{order.id}</td>
-                    <td className="py-3 px-4 text-sm">{order.customer}</td>
-                    <td className="py-3 px-4 text-sm">{order.productCount} sản phẩm</td>
-                    <td className="py-3 px-4 text-sm font-semibold">{formatCurrency(order.amount)}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button className="text-blue-600 hover:text-blue-800" title="Xem chi tiết">
-                          <FaEye />
-                        </button>
-                        <button className="text-green-600 hover:text-green-800" title="Chỉnh sửa">
-                          <FaEdit />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={selectedYear}
+              onChange={(event) => onChangePeriod?.({ year: Number(event.target.value), month: selectedMonth })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {Array.from({ length: 5 }, (_, index) => currentYear - index).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedMonth}
+              onChange={(event) => onChangePeriod?.({ year: selectedYear, month: Number(event.target.value) })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {monthNames.map((name, index) => (
+                <option key={name} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-
-        {/* Top Products */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Sản phẩm bán chạy</h2>
-          <div className="space-y-4">
-            {topProducts.map((product, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex-1">
-                  <p className="font-semibold text-sm text-gray-800">{product.name}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Đã bán: {product.sales} | Tồn kho: {product.stock}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary">{formatCurrency(product.revenue)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="w-full mt-4 py-2 border-2 border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors font-semibold">
-            Xem tất cả sản phẩm
-          </button>
+        <div className="mt-4 h-72">
+          {chartData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={60} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={formatVND} width={80} />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  allowDecimals={false}
+                  tick={{ fontSize: 12 }}
+                  width={50}
+                />
+                <Tooltip
+                  formatter={(value, name, { dataKey }) => (dataKey === 'orders' ? value : formatVND(value))}
+                  labelFormatter={(label) => label}
+                  contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#f5f5f5' }}
+                />
+                <Legend wrapperStyle={{ paddingTop: 12 }} />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Doanh thu"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="orders"
+                  name="Đơn hàng"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            renderEmptyChart('Không có dữ liệu doanh thu và đơn hàng')
+          )}
         </div>
       </div>
 
-      {/* Revenue Chart */}
-      <div className="mt-6">
-        <RevenueChart formatCurrency={formatCurrency} />
+      <div className="rounded-xl bg-white p-6 shadow-md">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Doanh thu theo tuần</h2>
+            <p className="text-xs text-gray-500">Tháng {selectedMonth} • Năm {selectedYear}</p>
+          </div>
+          <span className="text-xs text-gray-500">Đơn vị: VND & đơn</span>
+        </div>
+        <div className="mt-4 h-72">
+          {weeklyChartData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={weeklyChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} interval={0} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={formatVND} width={80} />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  allowDecimals={false}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${value} đơn`}
+                  width={60}
+                />
+                <Tooltip
+                  formatter={(value, name, { dataKey }) =>
+                    dataKey === 'orders' ? `${value} đơn` : formatVND(value)
+                  }
+                  labelFormatter={(label) => label}
+                  contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#f5f5f5' }}
+                />
+                <Legend wrapperStyle={{ paddingTop: 12 }} />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Doanh thu"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="orders"
+                  name="Đơn hàng"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            renderEmptyChart('Không có dữ liệu tuần cho kỳ đã chọn')
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

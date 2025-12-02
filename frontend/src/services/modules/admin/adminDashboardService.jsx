@@ -2,6 +2,16 @@ import axiosClient from '../../api/axiosConfig';
 import { UserService } from '../users/userService';
 
 class AdminDashboardService {
+  async getTodayRevenue() {
+    try {
+      const response = await axiosClient.get('/admin/today-revenue');
+      return response.data;
+    } catch (error) {
+      console.error('Get today revenue error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get all orders with pagination
    * @returns Promise<{items: [], totalCount: number, ...}>
@@ -140,6 +150,28 @@ class AdminDashboardService {
       return response.data;
     } catch (error) {
       console.error('Get monthly revenue error:', error);
+      throw error;
+    }
+  }
+
+  async getReportNumber() {
+    try {
+      const response = await axiosClient.get('/admin/report-number');
+      return response.data;
+    } catch (error) {
+      console.error('Get report number error:', error);
+      throw error;
+    }
+  }
+
+  async getWeeklyRevenue(year, month) {
+    try {
+      const response = await axiosClient.get('/admin/weekly-revenue', {
+        params: { year, month },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get weekly revenue error:', error);
       throw error;
     }
   }

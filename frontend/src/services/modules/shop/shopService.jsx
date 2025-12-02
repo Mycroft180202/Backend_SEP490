@@ -7,10 +7,11 @@ export const ShopService = {
     return response.data;
   },
 
-  async updateMyShop({ shopName, phoneNumber, shopUrlImage }) {
+  async updateMyShop({ shopName, phoneNumber, bio, shopUrlImage }) {
     const formData = new FormData();
-    if (shopName) formData.append('ShopName', shopName);
-    if (phoneNumber) formData.append('PhoneNumber', phoneNumber);
+    if (shopName !== undefined && shopName !== null) formData.append('ShopName', shopName);
+    if (phoneNumber !== undefined && phoneNumber !== null) formData.append('PhoneNumber', phoneNumber);
+    if (bio !== undefined && bio !== null) formData.append('Bio', bio);
     if (shopUrlImage) formData.append('ShopURLImage', shopUrlImage);
     const response = await axiosClient.put(API_ENDPOINTS.SHOP.UPDATE_MY_SHOP, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

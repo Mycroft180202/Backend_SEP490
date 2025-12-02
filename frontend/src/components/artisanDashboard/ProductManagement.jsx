@@ -3,18 +3,123 @@ import React, {
   useEffect,
   useState,
   useMemo,
+  useCallback,
 } from 'react';
 import {
-  FaPlus, FaEdit, FaTrash, FaEye, FaSearch,
+  FaPlus,
+  FaEdit,
+  FaEye,
+  FaSearch,
+  FaToggleOn,
+  FaToggleOff,
+  FaQuestionCircle,
+  FaSpinner,
+  FaBullhorn,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import AddProductForm from './AddProductForm';
+import ProductStoryManager from './ProductStoryManager';
 import { ProductService } from '../../services/modules/products/productService';
 import { CategoryService } from '../../services/modules/products/categoryService';
 import { UserContext } from '../../context/UserContext';
 import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
 
 const ITEMS_PER_PAGE = 8;
+const LOW_STOCK_THRESHOLD = 10;
+const BEST_SELLER_COUNT = 3;
+
+const ViewProductModal = ({ product, onClose, formatCurrency, categoryLabel }) => {
+  if (!product) return null;
+
+  const primaryImage = product.imageUrl || product.image || (Array.isArray(product.images) ? product.images[0] : null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">Chi tiết sản phẩm</h3>
+            <p className="text-sm text-gray-500">#{product.id}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 transition-colors hover:text-gray-700"
+            aria-label="Đóng"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="grid gap-6 px-6 py-5 md:grid-cols-[220px_1fr]">
+          <div className="space-y-4">
+            <div className="aspect-square w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              {primaryImage ? (
+                <img src={primaryImage} alt={product.name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                  Chưa có ảnh
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p><span className="font-semibold">Danh mục:</span> {categoryLabel}</p>
+              <p><span className="font-semibold">Giá:</span> {formatCurrency(product.price)}</p>
+              <p><span className="font-semibold">Tồn kho:</span> {product.stock}</p>
+              <p><span className="font-semibold">Đã bán:</span> {product.totalSold ?? product.sold ?? 0}</p>
+              <p><span className="font-semibold">Doanh thu:</span> {formatCurrency(product.totalAmmount ?? 0)}</p>
+              <p><span className="font-semibold">Đánh giá:</span> {product.rating ?? '--'}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800">{product.name}</h4>
+              <p className="text-sm text-gray-500">Mã sản phẩm: {product.id}</p>
+            </div>
+            {product.shortDescription && (
+              <div>
+                <h5 className="text-sm font-semibold text-gray-700">Mô tả ngắn</h5>
+                <p className="mt-1 text-sm text-gray-600">{product.shortDescription}</p>
+              </div>
+            )}
+            {product.longDescription && (
+              <div>
+                <h5 className="text-sm font-semibold text-gray-700">Mô tả chi tiết</h5>
+                <p className="mt-1 whitespace-pre-line text-sm text-gray-600">{product.longDescription}</p>
+              </div>
+            )}
+            {Array.isArray(product.images) && product.images.length > 1 && (
+              <div className="space-y-2">
+                <h5 className="text-sm font-semibold text-gray-700">Thư viện ảnh</h5>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                  {product.images.map((img, idx) => (
+                    <img
+                      key={`${product.id}-img-${idx}`}
+                      src={img}
+                      alt={`${product.name} ${idx + 1}`}
+                      className="h-20 w-full rounded-lg border border-gray-200 object-cover"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end border-t border-gray-200 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-gray-300 px-5 py-2 text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProductManagement = () => {
   const { userInfo } = useContext(UserContext);
@@ -22,6 +127,10 @@ const ProductManagement = () => {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [products, setProducts] = useState([]);
+  const [viewingProduct, setViewingProduct] = useState(null);
+  const [storyManagerProduct, setStoryManagerProduct] = useState(null);
+  const [toggleModal, setToggleModal] = useState(null);
+  const [isToggling, setIsToggling] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,9 +140,9 @@ const ProductManagement = () => {
 
   const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(amount) || 0);
 
-  const getStatusColor = (status) => (status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+  const getStatusColor = (isActive) => (isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
 
-  const refreshProducts = async () => {
+  const refreshProducts = useCallback(async () => {
     if (!userInfo?.userID && !userInfo?.userId) return;
     try {
       setLoading(true);
@@ -46,8 +155,10 @@ const ProductManagement = () => {
         const product = entry.product || entry.Product || entry;
         return {
           ...product,
+          isActive: product.isActive ?? product.IsActive ?? true,
           totalSold: entry.totalSold ?? entry.TotalSold ?? 0,
           totalAmmount: entry.totalAmmount ?? entry.TotalAmmount ?? 0,
+          stock: product.stock ?? product.Stock ?? 0,
         };
       });
       setProducts(normalized);
@@ -57,11 +168,11 @@ const ProductManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userInfo]);
 
   useEffect(() => {
     refreshProducts();
-  }, [userInfo]);
+  }, [refreshProducts]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -81,6 +192,24 @@ const ProductManagement = () => {
     return found?.name || id;
   };
 
+  const lowStockProducts = useMemo(
+    () => products.filter((product) => (product.stock ?? 0) > 0 && product.stock < LOW_STOCK_THRESHOLD),
+    [products],
+  );
+
+  const topSellingProducts = useMemo(() => {
+    if (!products.length) return [];
+    const sorted = [...products]
+      .sort((a, b) => (b.totalSold ?? b.sold ?? 0) - (a.totalSold ?? a.sold ?? 0))
+      .filter((item) => (item.totalSold ?? item.sold ?? 0) > 0);
+    return sorted.slice(0, BEST_SELLER_COUNT);
+  }, [products]);
+
+  const bestSellerIds = useMemo(
+    () => new Set(topSellingProducts.map((item) => item.id)),
+    [topSellingProducts],
+  );
+
   const filteredProducts = useMemo(() => products.filter((product) => {
     const matchSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const categoryLabel = categoryNameOf(product.category);
@@ -95,9 +224,25 @@ const ProductManagement = () => {
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
   const currentProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+  const ensureArtisanId = (value) => value || userInfo?.userID || userInfo?.userId || '';
+
   const handleAddProduct = async (formData) => {
     try {
-      const payload = { ...formData, artisanId: userInfo?.userID || formData.artisanId };
+      let payload = formData;
+
+      if (formData instanceof FormData) {
+        const artisanIdValue = ensureArtisanId(formData.get('ArtisanId'));
+        if (artisanIdValue) {
+          formData.set('ArtisanId', artisanIdValue);
+        }
+        payload = formData;
+      } else {
+        payload = {
+          ...formData,
+          ArtisanId: ensureArtisanId(formData?.ArtisanId || formData?.artisanId),
+        };
+      }
+
       if (editingProduct?.id) {
         await ProductService.updateProduct(editingProduct.id, payload);
         toast.success('Cập nhật sản phẩm thành công');
@@ -107,23 +252,37 @@ const ProductManagement = () => {
       }
       setIsAddFormOpen(false);
       setEditingProduct(null);
-      refreshProducts();
+      await refreshProducts();
+      return true;
     } catch (err) {
       console.error('Save product error:', err);
       toast.error(err?.response?.data?.message || 'Không thể lưu sản phẩm.');
+      return false;
     }
   };
 
-  const handleDelete = async (product) => {
+  const handleToggleActiveRequest = (product) => {
     if (!product?.id) return;
-    if (!window.confirm('Xác nhận xoá sản phẩm này?')) return;
+    const currentActive = product.isActive ?? true;
+    setToggleModal({
+      product,
+      nextState: !currentActive,
+    });
+  };
+
+  const handleConfirmToggle = async () => {
+    if (!toggleModal?.product?.id) return;
+    setIsToggling(true);
     try {
-      await ProductService.deleteProduct(product.id);
-      toast.success('Đã xoá sản phẩm');
-      refreshProducts();
+      await ProductService.updateStatus(toggleModal.product.id, toggleModal.nextState);
+      toast.success(toggleModal.nextState ? 'Đã bật trạng thái hoạt động' : 'Đã tắt trạng thái hoạt động');
+      setToggleModal(null);
+      await refreshProducts();
     } catch (err) {
-      console.error('Delete product error:', err);
-      toast.error(err?.response?.data?.message || 'Không thể xoá sản phẩm.');
+      console.error('Toggle active product error:', err);
+      toast.error(err?.response?.data?.message || 'Không thể cập nhật trạng thái sản phẩm.');
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -188,6 +347,24 @@ const ProductManagement = () => {
         </select>
       </div>
 
+      {lowStockProducts.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-semibold uppercase tracking-wide">Sản phẩm sắp hết hàng</p>
+          <ul className="mt-2 space-y-1 pl-4">
+            {lowStockProducts.slice(0, 5).map((item) => (
+              <li key={`low-stock-${item.id}`} className="list-disc">
+                {item.name} — còn {item.stock} sản phẩm
+              </li>
+            ))}
+          </ul>
+          {lowStockProducts.length > 5 && (
+            <p className="mt-2 text-xs italic">
+              ... và {lowStockProducts.length - 5} sản phẩm khác cũng gần hết hàng.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -204,9 +381,9 @@ const ProductManagement = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="py-4 text-center text-gray-500">Đang tải danh sách...</td></tr>
+              <tr><td colSpan={8} className="py-4 text-center text-gray-500">Đang tải danh sách...</td></tr>
             ) : currentProducts.length === 0 ? (
-              <tr><td colSpan={7} className="py-4 text-center text-gray-500">Không có sản phẩm.</td></tr>
+              <tr><td colSpan={8} className="py-4 text-center text-gray-500">Không có sản phẩm.</td></tr>
             ) : (
               currentProducts.map((product) => (
                 <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -215,6 +392,11 @@ const ProductManagement = () => {
                     <div>
                       <p className="font-semibold text-gray-800">{product.name}</p>
                       <p className="text-xs text-gray-500">#{product.id}</p>
+                      {bestSellerIds.has(product.id) && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                          ◉ Best Seller
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-3 px-4">{categoryNameOf(product.category)}</td>
@@ -223,13 +405,33 @@ const ProductManagement = () => {
                   <td className="py-3 px-4">{product.totalSold ?? product.sold ?? product.sales ?? 0}</td>
                   <td className="py-3 px-4 text-primary font-semibold">{formatCurrency(product.totalAmmount ?? 0)}</td>
                   <td className="py-3 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(product.stock > 0)}`}>
-                      {product.stock > 0 ? 'Còn hàng' : 'Hết hàng'}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(product.isActive ?? true)}`}>
+                        <span className="inline-block h-2 w-2 rounded-full bg-current"></span>
+                        {(product.isActive ?? true) ? 'Đang bán' : 'Ngưng bán'}
+                      </span>
+                      <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${product.stock > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
+                        <span className={`inline-block h-2 w-2 rounded-full ${product.stock > 0 ? 'bg-emerald-600' : 'bg-gray-500'}`}></span>
+                        {product.stock > 0 ? 'Còn hàng' : 'Hết hàng'}
+                      </span>
+                    </div>
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex gap-2">
-                      <button className="text-blue-600 hover:text-blue-800" title="Xem">
+                      <button
+                        className="text-amber-600 transition-colors hover:text-amber-700"
+                        title="Quản lý quảng bá"
+                        type="button"
+                        onClick={() => setStoryManagerProduct(product)}
+                      >
+                        <FaBullhorn />
+                      </button>
+                      <button
+                        className="text-blue-600 transition-colors hover:text-blue-800"
+                        title="Xem"
+                        type="button"
+                        onClick={() => setViewingProduct(product)}
+                      >
                         <FaEye />
                       </button>
                       <button
@@ -243,11 +445,14 @@ const ProductManagement = () => {
                         <FaEdit />
                       </button>
                       <button
-                        className="text-red-600 hover:text-red-800"
-                        title="Xóa"
-                        onClick={() => handleDelete(product)}
+                        className={`transition-colors ${product.isActive
+                          ? 'text-green-600 hover:text-green-700'
+                          : 'text-red-500 hover:text-red-600'}`}
+                        title={product.isActive ? 'Ngưng bán sản phẩm' : 'Mở bán sản phẩm'}
+                        type="button"
+                        onClick={() => handleToggleActiveRequest(product)}
                       >
-                        <FaTrash />
+                        {product.isActive ? <FaToggleOn className="text-xl" /> : <FaToggleOff className="text-xl" />}
                       </button>
                     </div>
                   </td>
@@ -289,6 +494,34 @@ const ProductManagement = () => {
         </div>
       </div>
 
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <FaQuestionCircle className="text-base text-primary" /> Ghi chú thao tác
+        </h3>
+        <div className="grid gap-3 text-sm text-gray-600 md:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-center gap-2">
+            <FaBullhorn className="text-amber-600 text-lg" />
+            <span>Quản lý nội dung quảng bá</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaEye className="text-blue-600 text-lg" />
+            <span>Xem chi tiết sản phẩm</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaEdit className="text-green-600 text-lg" />
+            <span>Chỉnh sửa thông tin sản phẩm</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaToggleOn className="text-green-600 text-lg" />
+            <span>Bật trạng thái hoạt động</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaToggleOff className="text-red-500 text-lg" />
+            <span>Tắt trạng thái hoạt động</span>
+          </div>
+        </div>
+      </div>
+
       <AddProductForm
         isOpen={isAddFormOpen}
         onClose={() => {
@@ -300,6 +533,70 @@ const ProductManagement = () => {
         artisanId={userInfo?.userID || userInfo?.userId}
         categories={categories}
       />
+
+      <ViewProductModal
+        product={viewingProduct}
+        onClose={() => setViewingProduct(null)}
+        formatCurrency={formatCurrency}
+        categoryLabel={categoryNameOf(viewingProduct?.category)}
+      />
+
+      {storyManagerProduct && (
+        <ProductStoryManager
+          product={storyManagerProduct}
+          onClose={() => setStoryManagerProduct(null)}
+        />
+      )}
+
+      {toggleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-bold text-gray-800">Xác nhận cập nhật trạng thái</h3>
+            </div>
+            <div className="space-y-3 px-6 py-5 text-sm text-gray-700">
+              <p>
+                Bạn có chắc muốn
+                {' '}
+                <span className="font-semibold text-primary">
+                  {toggleModal.nextState ? 'bật hoạt động' : 'tắt hoạt động'}
+                </span>
+                {' '}
+                cho sản phẩm
+                {' '}
+                <span className="font-semibold text-gray-900">{toggleModal.product.name}</span>
+                ?
+              </p>
+              <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+                <p><span className="font-semibold">Mã sản phẩm:</span> {toggleModal.product.id}</p>
+                <p><span className="font-semibold">Trạng thái hiện tại:</span> {(toggleModal.product.isActive ?? true) ? 'Đang bán' : 'Ngưng bán'}</p>
+              </div>
+              <p className="text-xs text-gray-500">
+                Hệ thống chỉ ẩn/hiện sản phẩm khỏi cửa hàng, dữ liệu vẫn được giữ nguyên.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => { if (!isToggling) setToggleModal(null); }}
+                disabled={isToggling}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmToggle}
+                disabled={isToggling}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isToggling && <FaSpinner className="animate-spin" />}
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

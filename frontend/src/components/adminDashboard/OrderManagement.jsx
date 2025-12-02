@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { OrderService } from '../../services/modules/orders/orderService';
 import { UserService } from '../../services/modules/users/userService';
 import { AddressService } from '../../services/modules/orders/addressService';
+import { ProductService } from '../../services/modules/products/productService';
 
 const statusLabels = {
   Pending: 'Chờ xử lý',
@@ -26,6 +27,8 @@ const defaultStats = {
   pending: 0,
   paid: 0,
   cancelled: 0,
+  cod: 0,
+  vnpay: 0,
 };
 
 const STATS_PAGE_SIZE = 50;
@@ -45,6 +48,7 @@ const OrderManagement = () => {
   const [stats, setStats] = useState(defaultStats);
   const [customerDetails, setCustomerDetails] = useState({});
   const [addressDetails, setAddressDetails] = useState({});
+  const [productCache, setProductCache] = useState({});
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -85,7 +89,9 @@ const OrderManagement = () => {
       const response = await OrderService.getAdminOrders({
         pageIndex,
         pageSize,
-        paymentStatus: paymentFilter !== 'all' ? paymentFilter : undefined,
+        paymentType: paymentFilter !== 'all' ? paymentFilter : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        keyword: searchTerm?.trim() ? searchTerm.trim() : undefined,
       });
       setOrders(response?.items || []);
       setTotalCount(response?.totalCount || 0);
@@ -101,11 +107,49 @@ const OrderManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, paymentFilter]);
+  }, [pageIndex, pageSize, paymentFilter, statusFilter, searchTerm]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const fetchProductDetails = useCallback(async (productIds = []) => {
+    const uniqueIds = [...new Set(productIds.filter(Boolean))];
+    if (!uniqueIds.length) return;
+
+    const idsToFetch = uniqueIds.filter((id) => !productCache[id]);
+    if (!idsToFetch.length) return;
+
+    try {
+      const results = await Promise.all(
+        idsToFetch.map(async (id) => {
+          try {
+            const data = await ProductService.getProductById(id);
+            return { id, data };
+          } catch (error) {
+            console.error('Fetch product detail error:', id, error);
+            return null;
+          }
+        }),
+      );
+
+      setProductCache((prev) => {
+        const updated = { ...prev };
+        let changed = false;
+        (results || []).forEach((item) => {
+          if (!item?.id) return;
+          const productData = item.data?.data ?? item.data;
+          if (productData && !updated[item.id]) {
+            updated[item.id] = productData;
+            changed = true;
+          }
+        });
+        return changed ? updated : prev;
+      });
+    } catch (error) {
+      console.error('Batch product fetch error:', error);
+    }
+  }, [productCache]);
 
   useEffect(() => {
     if (!orders.length) return;
@@ -188,14 +232,10 @@ const OrderManagement = () => {
     fetchDetails();
   }, [orders, customerDetails, addressDetails]);
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const matchSearch = order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-        || order.customerId?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = statusFilter === 'all' || String(order.status).toLowerCase() === statusFilter.toLowerCase();
-      return matchSearch && matchStatus;
-    });
-  }, [orders, searchTerm, statusFilter]);
+  useEffect(() => {
+    const productIds = orders.flatMap((order) => (order.items || []).map((item) => item.productID));
+    fetchProductDetails(productIds);
+  }, [orders, fetchProductDetails]);
 
   const getStatusBadgeClass = (status) => {
     switch ((status || '').toUpperCase()) {
@@ -243,19 +283,44 @@ const OrderManagement = () => {
     [addressDetails],
   );
 
-  const calculateStats = useCallback((orderList, total) => {
-    const statusCounts = orderList.reduce((acc, order) => {
-      const key = (order.status || 'Unknown').toUpperCase();
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
+  const filteredOrders = useMemo(() => {
+    const normalizedQuery = searchTerm.trim().toLowerCase();
+    const normalizedPayment = paymentFilter === 'all' ? null : paymentFilter.trim().toUpperCase();
 
-    return {
-      total,
-      pending: statusCounts.PENDING || 0,
-      paid: statusCounts.PAID || 0,
-      cancelled: statusCounts.CANCELLED || 0,
-    };
+    return orders.filter((order) => {
+      const customerName = getCustomerName(order.customerId).toLowerCase();
+      const matchSearch = !normalizedQuery
+        || order.orderNumber?.toLowerCase().includes(normalizedQuery)
+        || order.customerId?.toLowerCase().includes(normalizedQuery)
+        || customerName.includes(normalizedQuery);
+
+      const matchStatus =
+        statusFilter === 'all'
+        || String(order.status).toLowerCase() === statusFilter.toLowerCase();
+
+      const paymentValue = (order.paymentType || '').trim().toUpperCase();
+      const matchPayment = !normalizedPayment || paymentValue === normalizedPayment;
+
+      return matchSearch && matchStatus && matchPayment;
+    });
+  }, [orders, searchTerm, statusFilter, paymentFilter, getCustomerName]);
+
+  const calculateStats = useCallback((orderList, total) => {
+    return orderList.reduce(
+      (acc, order) => {
+        const statusKey = (order.status || 'Unknown').toUpperCase();
+        acc.pending += statusKey === 'PENDING' ? 1 : 0;
+        acc.paid += statusKey === 'PAID' ? 1 : 0;
+        acc.cancelled += statusKey === 'CANCELLED' ? 1 : 0;
+
+        const paymentKey = (order.paymentType || '').toUpperCase();
+        if (paymentKey === 'COD') acc.cod += 1;
+        if (paymentKey === 'VNPAY') acc.vnpay += 1;
+
+        return acc;
+      },
+      { total, pending: 0, paid: 0, cancelled: 0, cod: 0, vnpay: 0 },
+    );
   }, []);
 
   const fetchOverallStats = useCallback(async () => {
@@ -310,10 +375,15 @@ const OrderManagement = () => {
     setDetailOpen(false);
   };
 
+  useEffect(() => {
+    if (!selectedOrder?.items?.length) return;
+    fetchProductDetails(selectedOrder.items.map((item) => item.productID));
+  }, [selectedOrder, fetchProductDetails]);
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
           <p className="text-sm text-gray-600">Tổng đơn hàng</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
@@ -329,6 +399,14 @@ const OrderManagement = () => {
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
           <p className="text-sm text-gray-600">Đã hủy</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.cancelled}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+          <p className="text-sm text-gray-600">Thanh toán COD</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.cod}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+          <p className="text-sm text-gray-600">Thanh toán VNPAY</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.vnpay}</p>
         </div>
       </div>
 
@@ -352,7 +430,10 @@ const OrderManagement = () => {
               type="text"
               placeholder="Tìm kiếm mã đơn, tên khách hàng, số điện thoại..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPageIndex(1);
+              }}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -455,7 +536,7 @@ const OrderManagement = () => {
         {!loading && totalCount > 0 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Hiển thị {filteredOrders.length} trên tổng {totalCount} đơn hàng
+              Hiển thị {filteredOrders.length} trên tổng {paymentFilter === 'all' && statusFilter === 'all' && !searchTerm ? totalCount : filteredOrders.length} đơn hàng
             </p>
             <div className="flex gap-2">
               <button
@@ -491,7 +572,7 @@ const OrderManagement = () => {
       </div>
       {detailOpen && selectedOrder && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-[#8B4513]">Chi tiết đơn hàng</h3>
@@ -505,7 +586,7 @@ const OrderManagement = () => {
                 ×
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4 text-sm text-gray-700">
+            <div className="px-6 py-5 space-y-4 text-sm text-gray-700 overflow-y-auto flex-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="font-semibold text-gray-900">Khách hàng</p>
@@ -532,17 +613,39 @@ const OrderManagement = () => {
               </div>
               <div>
                 <p className="font-semibold text-gray-900 mb-2">Sản phẩm</p>
-                <div className="border border-gray-200 rounded-lg divide-y divide-gray-200">
-                  {(selectedOrder.items || []).map((item) => (
-                    <div key={`${item.productID}-${item.unitPrice}`} className="px-4 py-3 flex items-center justify-between text-sm">
-                      <div>
-                        <p className="font-semibold">{item.productID}</p>
-                        <p className="text-xs text-gray-500">Đơn giá: {formatCurrency(item.unitPrice)}</p>
-                      </div>
-                      <span className="text-gray-700 font-semibold">x{item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-200">
+                    {(selectedOrder.items || []).map((item) => {
+                      const product = productCache[item.productID] || {};
+                      const productImage = Array.isArray(product.images) && product.images.length > 0
+                        ? product.images[0]
+                        : product.imageUrl || product.thumbnail || '/images/default-product.png';
+                      const productName = product.productName || product.name || `Mã sản phẩm: ${item.productID}`;
+
+                      return (
+                        <div
+                          key={`${item.productID}-${item.unitPrice}`}
+                          className="px-4 py-3 flex items-center justify-between text-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={productImage}
+                              alt={productName}
+                              className="h-12 w-12 rounded-lg object-cover border border-gray-200"
+                              onError={(event) => {
+                                event.currentTarget.src = '/images/default-product.png';
+                              }}
+                            />
+                            <div>
+                              <p className="font-semibold text-gray-800">{productName}</p>
+                              <p className="text-xs text-gray-500">Mã: {item.productID}</p>
+                              <p className="text-xs text-gray-500">Đơn giá: {formatCurrency(item.unitPrice)}</p>
+                            </div>
+                          </div>
+                          <span className="text-gray-700 font-semibold">x{item.quantity}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
               </div>
               <div className="flex items-center justify-between text-base font-semibold text-gray-900 pt-2">
                 <span>Tổng tiền</span>

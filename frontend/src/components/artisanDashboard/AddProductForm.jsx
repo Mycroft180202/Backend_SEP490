@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { FaTimes, FaCloudUploadAlt, FaTrash } from 'react-icons/fa';
+import {
+  FaTimes,
+  FaCloudUploadAlt,
+  FaTrash,
+  FaSpinner,
+} from 'react-icons/fa';
 
 const AddProductForm = ({
   isOpen,
@@ -9,29 +14,30 @@ const AddProductForm = ({
   artisanId = '',
   categories = [],
 }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    shortDescription: '',
-    longDescription: '',
-    price: '',
-    category: '',
-    artisanId: artisanId || '',
-    stock: 0,
-    images: [],
-  });
+  const isEditing = Boolean(initialData?.id);
+  const buildInitialState = (rawSource = {}) => {
+    const source = rawSource || {};
+    return {
+      name: source.name || source.Name || '',
+      shortDescription: source.shortDescription || source.ShortDescription || '',
+      longDescription: source.longDescription || source.LongDescription || '',
+      price: source.price ?? source.Price ?? '',
+      category: source.category || source.Category || '',
+      artisanId: artisanId || source.artisanId || source.ArtisanId || '',
+      stock: source.stock ?? source.Stock ?? 0,
+      images: [],
+    };
+  };
 
+  const [formData, setFormData] = useState(buildInitialState());
   const [errors, setErrors] = useState({});
   const [previewImages, setPreviewImages] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync initial data when editing
   React.useEffect(() => {
     if (!isOpen) return;
-    setFormData((prev) => ({
-      ...prev,
-      ...initialData,
-      artisanId: artisanId || initialData?.artisanId || prev.artisanId,
-      images: [],
-    }));
+    setFormData(buildInitialState(initialData));
     setPreviewImages([]);
     setErrors({});
   }, [initialData, isOpen, artisanId]);
@@ -87,16 +93,6 @@ const AddProductForm = ({
         }
         break;
 
-      case 'artisanId':
-        if (!value || value.trim() === '') {
-          newErrors.artisanId = 'Mã nghệ nhân không được để trống';
-        } else if (value.length > 50) {
-          newErrors.artisanId = 'Mã nghệ nhân không được vượt quá 50 ký tự';
-        } else {
-          delete newErrors.artisanId;
-        }
-        break;
-
       case 'stock':
         if (value < 0) {
           newErrors.stock = 'Số lượng tồn kho không hợp lệ';
@@ -114,6 +110,7 @@ const AddProductForm = ({
 
   // Handle input change
   const handleChange = (e) => {
+    if (isSubmitting) return;
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -124,6 +121,7 @@ const AddProductForm = ({
 
   // Handle file upload
   const handleFileChange = (e) => {
+    if (isSubmitting) return;
     const files = Array.from(e.target.files);
     
     if (files.length === 0) return;
@@ -172,6 +170,7 @@ const AddProductForm = ({
 
   // Remove image
   const handleRemoveImage = (index) => {
+    if (isSubmitting) return;
     const newImages = formData.images.filter((_, i) => i !== index);
     const newPreviews = previewImages.filter((_, i) => i !== index);
     
@@ -221,12 +220,6 @@ const AddProductForm = ({
       newErrors.category = 'Tên danh mục không được vượt quá 50 ký tự';
     }
 
-    if (!formData.artisanId || formData.artisanId.trim() === '') {
-      newErrors.artisanId = 'Mã nghệ nhân không được để trống';
-    } else if (formData.artisanId.length > 50) {
-      newErrors.artisanId = 'Mã nghệ nhân không được vượt quá 50 ký tự';
-    }
-
     if (formData.stock < 0) {
       newErrors.stock = 'Số lượng tồn kho không hợp lệ';
     }
@@ -240,8 +233,9 @@ const AddProductForm = ({
   };
 
   // Handle submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     
     if (!validateAll()) {
       return;
@@ -263,31 +257,37 @@ const AddProductForm = ({
       submitData.append('Images', image);
     });
 
-    // Call the onSubmit callback
-    onSubmit(submitData);
-    
-    // Reset form
-    handleReset();
+    setIsSubmitting(true);
+    let shouldReset = false;
+    try {
+      const result = await onSubmit(submitData);
+      if (result !== false) {
+        shouldReset = true;
+      }
+    } catch (submitError) {
+      console.error('Submit product error:', submitError);
+    } finally {
+      setIsSubmitting(false);
+      if (shouldReset) {
+        handleReset();
+      }
+    }
   };
 
   // Reset form
   const handleReset = () => {
-    setFormData({
-      name: '',
-      shortDescription: '',
-      longDescription: '',
-      price: '',
-      category: '',
-      artisanId: artisanId || '',
-      stock: 0,
-      images: []
-    });
+    if (isEditing) {
+      setFormData(buildInitialState(initialData));
+    } else {
+      setFormData(buildInitialState());
+    }
     setErrors({});
     setPreviewImages([]);
   };
 
   // Handle close
   const handleClose = () => {
+    if (isSubmitting) return;
     handleReset();
     onClose();
   };
@@ -295,11 +295,18 @@ const AddProductForm = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-2xl">
+        {isSubmitting && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm">
+            <FaSpinner className="text-primary text-3xl animate-spin" />
+          </div>
+        )}
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-800 font-alata">Thêm sản phẩm mới</h2>
+          <h2 className="text-2xl font-bold text-gray-800 font-alata">
+            {isEditing ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm mới'}
+          </h2>
           <button
             onClick={handleClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -376,42 +383,23 @@ const AddProductForm = ({
               </div>
             </div>
 
-            {/* Artisan ID and Stock */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mã nghệ nhân <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="artisanId"
-                  value={formData.artisanId}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                    errors.artisanId ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Nhập mã nghệ nhân"
-                />
-                {errors.artisanId && <p className="text-red-500 text-xs mt-1">{errors.artisanId}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số lượng tồn kho
-                </label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  min="0"
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                    errors.stock ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Nhập số lượng tồn kho"
-                />
-                {errors.stock && <p className="text-red-500 text-xs mt-1">{errors.stock}</p>}
-              </div>
+            {/* Stock */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Số lượng tồn kho
+              </label>
+              <input
+                type="number"
+                name="stock"
+                value={formData.stock}
+                onChange={handleChange}
+                min="0"
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                  errors.stock ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Nhập số lượng tồn kho"
+              />
+              {errors.stock && <p className="text-red-500 text-xs mt-1">{errors.stock}</p>}
             </div>
 
             {/* Short Description */}
@@ -473,11 +461,12 @@ const AddProductForm = ({
                 multiple
                 accept="image/*"
                 onChange={handleFileChange}
+                disabled={isSubmitting}
                 className="hidden"
               />
               <label
                 htmlFor="images"
-                className="cursor-pointer flex flex-col items-center justify-center"
+                className={`flex flex-col items-center justify-center ${isSubmitting ? 'cursor-not-allowed opacity-60 pointer-events-none' : 'cursor-pointer'}`}
               >
                 <FaCloudUploadAlt size={48} className="text-gray-400 mb-3" />
                 <p className="text-gray-600 mb-1">
@@ -500,13 +489,15 @@ const AddProductForm = ({
                       alt={`Preview ${index + 1}`}
                       className="w-full h-32 object-cover rounded-lg border border-gray-300"
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                    >
-                      <FaTrash size={12} />
-                    </button>
+                    {!isSubmitting && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    )}
                     <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                       Ảnh {index + 1}
                     </div>
@@ -521,22 +512,28 @@ const AddProductForm = ({
             <button
               type="button"
               onClick={handleClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isSubmitting}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               Hủy
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isSubmitting}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               Đặt lại
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-red-700 transition-colors"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Thêm sản phẩm
+              {isSubmitting && <FaSpinner className="animate-spin" />}
+              {isSubmitting
+                ? 'Đang lưu...'
+                : isEditing ? 'Lưu thay đổi' : 'Thêm sản phẩm'}
             </button>
           </div>
         </form>

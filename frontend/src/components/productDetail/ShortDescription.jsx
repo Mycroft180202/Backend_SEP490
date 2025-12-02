@@ -23,7 +23,7 @@ import { CartService } from '../../services/modules/cart/cartService';
 import { WishlistService } from '../../services/modules/wishlist/wishlistService';
 import { ReportService } from '../../services/modules/report/reportService';
 
-const ShortDescription = ({ product }) => {
+const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [thumbnailStart, setThumbnailStart] = useState(0);
@@ -131,15 +131,34 @@ const ShortDescription = ({ product }) => {
     fetchWishlistState();
   }, [product]);
 
-  if (!product) return null;
+  useEffect(() => {
+    if (typeof selectedImageIndex === 'number') {
+      setSelectedImage(selectedImageIndex);
+    }
+  }, [selectedImageIndex]);
 
-  const images = product.images && product.images.length > 0
+  const images = product?.images && product.images.length > 0
     ? product.images
     : ['/images/default-product.png'];
 
   const mainImage = images[selectedImage] || images[0];
   const thumbnailsPerPage = 4;
   const maxThumbnailStart = Math.max(0, images.length - thumbnailsPerPage);
+
+  useEffect(() => {
+    if (images.length <= thumbnailsPerPage) {
+      if (thumbnailStart !== 0) setThumbnailStart(0);
+      return;
+    }
+
+    if (selectedImage < thumbnailStart) {
+      setThumbnailStart(Math.max(0, selectedImage - (selectedImage % thumbnailsPerPage)));
+    } else if (selectedImage >= thumbnailStart + thumbnailsPerPage) {
+      setThumbnailStart(Math.max(0, selectedImage - thumbnailsPerPage + 1));
+    }
+  }, [images.length, selectedImage, thumbnailStart, thumbnailsPerPage]);
+
+  if (!product) return null;
 
   const handleAddToCart = async (redirect = false) => {
     if (!validateQuantity()) return;
@@ -161,12 +180,22 @@ const ShortDescription = ({ product }) => {
     }
   };
 
+  const updateSelectedImage = (nextIndex) => {
+    const safeIndex = ((nextIndex % images.length) + images.length) % images.length;
+    setSelectedImage(safeIndex);
+    if (typeof onSelectImage === 'function') {
+      onSelectImage(safeIndex);
+    }
+  };
+
   const handlePrevImage = () => {
-    setSelectedImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    if (images.length <= 1) return;
+    updateSelectedImage(selectedImage === 0 ? images.length - 1 : selectedImage - 1);
   };
 
   const handleNextImage = () => {
-    setSelectedImage((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    if (images.length <= 1) return;
+    updateSelectedImage(selectedImage === images.length - 1 ? 0 : selectedImage + 1);
   };
 
   const handlePrevThumbnail = () => {
@@ -276,7 +305,7 @@ const ShortDescription = ({ product }) => {
             </div>
 
             {images.length > 1 && (
-              <div className="relative">
+              <div className="lg:hidden relative">
                 {thumbnailStart > 0 && (
                   <button
                     type="button"
@@ -294,7 +323,7 @@ const ShortDescription = ({ product }) => {
                       <button
                         type="button"
                         key={img}
-                        onClick={() => setSelectedImage(actualIndex)}
+                        onClick={() => updateSelectedImage(actualIndex)}
                         className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-300 ${
                           selectedImage === actualIndex
                             ? 'border-[#D4A574] shadow-lg ring-2 ring-[#8B4513]/40'

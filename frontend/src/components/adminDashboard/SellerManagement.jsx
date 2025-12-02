@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { AdminSellerService } from '../../services/modules/admin/adminSellerService';
 import SellerDetailModal from './SellerDetailModal';
 import { ArtisanApplicationService } from '../../services/modules/artisan/artisanApplicationService';
+import { UserService } from '../../services/modules/users/userService';
 
 const SellerManagement = () => {
   const [sellers, setSellers] = useState([]);
@@ -11,12 +12,12 @@ const SellerManagement = () => {
   const [searchInput, setSearchInput] = useState(''); // Temporary search input
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState('');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortBy] = useState('');
+  const [sortOrder] = useState('asc');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -222,6 +223,26 @@ const SellerManagement = () => {
     }
   };
 
+  const resolveApplicantUserId = (application) => (
+    application?.userId
+    || application?.userID
+    || application?.accountId
+    || application?.accountID
+    || application?.applicantId
+    || application?.customerId
+    || application?.user?.id
+    || application?.user?.userId
+    || null
+  );
+
+  const resolveApplicantDisplayName = (application) => (
+    application?.fullName
+    || application?.shopName
+    || application?.email
+    || application?.phoneNumber
+    || 'ứng viên'
+  );
+
   const fetchApplications = useCallback(async () => {
     try {
       setApplicationLoading(true);
@@ -282,10 +303,26 @@ const SellerManagement = () => {
         adminNote: reviewAdminNote || null,
         rejectReason: reviewMode === 'reject' ? reviewRejectReason : null,
       });
-      toast.success(reviewMode === 'approve' ? 'Đã chấp nhận đơn đăng ký' : 'Đã từ chối đơn đăng ký');
+
+      if (reviewMode === 'approve') {
+        const applicantUserId = resolveApplicantUserId(selectedApplication);
+        if (!applicantUserId) {
+          throw new Error('Không tìm thấy mã người dùng của đơn đăng ký để gán quyền Nghệ nhân.');
+        }
+
+        await UserService.adminUpdate(applicantUserId, {
+          isActive: true,
+          rolesId: 'R02',
+        });
+      }
+
+      toast.success(reviewMode === 'approve' ? 'Đã chấp nhận đơn đăng ký và gán quyền Nghệ nhân.' : 'Đã từ chối đơn đăng ký');
       setReviewModalOpen(false);
       setSelectedApplication(null);
-      fetchApplications();
+      await fetchApplications();
+      if (reviewMode === 'approve') {
+        await fetchSellers();
+      }
     } catch (error) {
       console.error('Review artisan application error:', error);
       const message =
@@ -406,10 +443,7 @@ const SellerManagement = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <div>
-                        <p className="text-xs text-gray-500">{seller.email}</p>
-                        <p className="text-xs text-gray-500">{seller.phone}</p>
-                      </div>
+                      <p className="text-sm text-gray-600">{seller.phone || '---'}</p>
                     </td>
                     <td className="py-3 px-4 text-sm font-semibold text-green-600">{formatCurrency(seller.revenue)}</td>
                     <td className="py-3 px-4">
@@ -497,6 +531,19 @@ const SellerManagement = () => {
               >
                 Sau
               </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && filteredSellers.length > 0 && (
+          <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+            <p className="font-semibold text-gray-700">Ghi chú thao tác</p>
+            <div className="mt-2 flex flex-wrap gap-4">
+              <span className="flex items-center gap-2"><FaEye className="text-blue-500" />Xem chi tiết</span>
+              <span className="flex items-center gap-2"><FaCheck className="text-green-500" />Phê duyệt nhanh</span>
+              <span className="flex items-center gap-2"><FaTimes className="text-red-500" />Từ chối nhanh</span>
+              <span className="flex items-center gap-2"><FaBan className="text-red-500" />Khóa tài khoản</span>
+              <span className="flex items-center gap-2"><FaUnlock className="text-green-500" />Mở khóa tài khoản</span>
             </div>
           </div>
         )}
@@ -663,6 +710,19 @@ const SellerManagement = () => {
         )}
       </div>
 
+      {(filteredSellers.length > 0 || applications.length > 0) && (
+        <div className="mt-8 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+          <p className="font-semibold text-gray-700">Ghi chú thao tác</p>
+          <div className="mt-2 flex flex-wrap gap-4">
+            <span className="flex items-center gap-2"><FaEye className="text-blue-500" />Xem chi tiết</span>
+            <span className="flex items-center gap-2"><FaCheck className="text-green-500" />Phê duyệt nhanh / Chấp nhận</span>
+            <span className="flex items-center gap-2"><FaTimes className="text-red-500" />Từ chối nhanh / Đóng</span>
+            <span className="flex items-center gap-2"><FaBan className="text-red-500" />Khóa tài khoản</span>
+            <span className="flex items-center gap-2"><FaUnlock className="text-green-500" />Mở khóa tài khoản</span>
+          </div>
+        </div>
+      )}
+
       {applicationDetailOpen && selectedApplication && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
@@ -740,6 +800,16 @@ const SellerManagement = () => {
               <p className="text-sm text-white/90 mt-1">Mã đơn: {selectedApplication.id}</p>
             </div>
             <div className="px-6 py-5 space-y-4">
+              {reviewMode === 'approve' && selectedApplication && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  Bạn chuẩn bị chấp nhận đơn xin mở cửa hàng của
+                  {' '}
+                  <span className="font-semibold text-green-800">
+                    {resolveApplicantDisplayName(selectedApplication)}
+                  </span>
+                  . Hệ thống sẽ kích hoạt tài khoản và gán quyền Nghệ nhân (Artisan).
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Ghi chú nội bộ

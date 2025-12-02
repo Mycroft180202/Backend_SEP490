@@ -5,6 +5,13 @@ import {
   FaUnlock,
   FaSearch,
   FaUserCheck,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaMapMarkerAlt,
+  FaRegCalendar,
+  FaShieldAlt,
+  FaIdBadge,
+  FaTimes,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import Pagination from '../shared/Pagination';
@@ -329,76 +336,188 @@ const CustomerManagement = () => {
         )}
       </div>
 
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <div>
-                <p className="text-lg font-semibold text-gray-800">
-                  {selectedUser.displayName || selectedUser.fullName || selectedUser.username || 'User detail'}
-                </p>
-                <p className="text-sm text-gray-500">{selectedUser.email}</p>
-              </div>
-              <button
-                type="button"
-                className="text-gray-400 hover:text-gray-600"
-                onClick={() => setSelectedUser(null)}
-                aria-label="Close"
-              >
-                <span className="text-xl leading-none">×</span>
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
-                <div>
-                  <p className="text-gray-500">Số điện thoại</p>
-                  <p className="font-semibold">{selectedUser.phoneNumber || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Trạng thái</p>
-                  <p className="font-semibold">{selectedUser.isActive ? 'Đang hoạt động' : 'Đã khóa'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Ngày sinh</p>
-                  <p className="font-semibold">
-                    {selectedUser.dob ? new Date(selectedUser.dob).toLocaleDateString('vi-VN') : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Vai trò</p>
-                  <p className="font-semibold">
-                    {formatRoles(selectedUser.roles || selectedUser.role)}
-                  </p>
-                </div>
-              </div>
-              {Array.isArray(selectedUser.addresses) && selectedUser.addresses.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-gray-800">Địa chỉ</p>
-                  <div className="space-y-2">
-                    {selectedUser.addresses.map((addr, idx) => (
-                      <div key={idx} className="p-3 rounded-lg border bg-gray-50">
-                        <p className="text-sm font-semibold text-gray-800">
-                          {addr.contactName || selectedUser.displayName || 'Người nhận'} - {addr.contactPhone || selectedUser.phoneNumber || 'N/A'}
-                        </p>
-                        <p className="text-sm text-gray-700">{addr.line1}</p>
-                        {addr.line2 && <p className="text-sm text-gray-500">{addr.line2}</p>}
-                        <p className="text-xs text-gray-500">
-                          {addr.city} • {addr.country}
-                        </p>
-                        {addr.isDefault && (
-                          <span className="mt-2 inline-block px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold">
-                            Mặc định
+      {selectedUser && (() => {
+        const displayName = selectedUser.displayName || selectedUser.fullName || selectedUser.username || 'Khách hàng';
+        const email = selectedUser.email || 'Chưa cập nhật';
+        const avatarUrl = selectedUser.avatarUrl || selectedUser.profileImage || selectedUser.profilePicture;
+        const initials = displayName
+          .split(' ')
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase())
+          .join('') || 'U';
+
+        const accountCreatedAt = selectedUser.createAt || selectedUser.createdAt;
+        const formatDate = (value) => {
+          if (!value) return 'Chưa cập nhật';
+          try {
+            return new Date(value).toLocaleDateString('vi-VN');
+          } catch (error) {
+            return value;
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+              onClick={() => setSelectedUser(null)}
+            />
+            <div className="relative w-full max-w-3xl">
+              <div className="absolute inset-x-6 -top-10 h-24 rounded-3xl bg-gradient-to-r from-primary via-orange-500 to-amber-500 blur-3xl opacity-30" />
+              <div className="relative flex max-h-[90vh] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+                <div className="bg-gradient-to-r from-primary via-orange-500 to-amber-500 px-6 py-6 text-white">
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-white/40 bg-white/20 shadow-inner">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-white">
+                            {initials}
                           </span>
                         )}
                       </div>
-                    ))}
+                      <div>
+                        <p className="text-lg font-semibold leading-tight">{displayName}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/80">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1">
+                            <FaEnvelope className="text-xs" />
+                            {email}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${selectedUser.isActive ? 'bg-white/20 text-white' : 'bg-white text-red-600'}`}>
+                            <FaShieldAlt className="text-xs" />
+                            {selectedUser.isActive ? 'Đang hoạt động' : 'Đã khóa'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full bg-white/15 p-2 text-white transition hover:bg-white/25"
+                      onClick={() => setSelectedUser(null)}
+                      aria-label="Đóng"
+                    >
+                      <FaTimes />
+                    </button>
                   </div>
                 </div>
-              )}
+
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 shadow-sm">
+                      <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">
+                        <FaIdBadge className="text-sm text-primary" /> Thông tin tài khoản
+                      </h4>
+                      <div className="mt-4 space-y-3 text-sm text-gray-700">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <FaUserCheck />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Mã người dùng</p>
+                            <p className="font-semibold text-gray-800">{selectedUser.userID || selectedUser.id || '---'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <FaShieldAlt />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Vai trò</p>
+                            <p className="font-semibold text-gray-800">{formatRoles(selectedUser.roles || selectedUser.role)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <FaRegCalendar />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Ngày tạo</p>
+                            <p className="font-semibold text-gray-800">{formatDate(accountCreatedAt)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                      <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">
+                        <FaEnvelope className="text-sm text-primary" /> Liên hệ nhanh
+                      </h4>
+                      <div className="mt-4 space-y-3 text-sm text-gray-700">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                            <FaEnvelope />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Email</p>
+                            <p className="font-semibold text-gray-800">{email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                            <FaPhoneAlt />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Số điện thoại</p>
+                            <p className="font-semibold text-gray-800">{selectedUser.phoneNumber || 'Chưa cập nhật'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                            <FaRegCalendar />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Ngày sinh</p>
+                            <p className="font-semibold text-gray-800">{formatDate(selectedUser.dob)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {Array.isArray(selectedUser.addresses) && selectedUser.addresses.length > 0 ? (
+                    <div className="mt-6 space-y-3">
+                      <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">
+                        <FaMapMarkerAlt className="text-sm text-primary" /> Địa chỉ đã lưu
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {selectedUser.addresses.map((addr, idx) => (
+                          <div key={idx} className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-amber-100/20" />
+                            <div className="relative p-4 text-sm text-gray-700">
+                              <p className="font-semibold text-gray-800">
+                                {addr.contactName || displayName}
+                                <span className="ml-2 text-xs font-medium text-gray-500">
+                                  {addr.contactPhone || selectedUser.phoneNumber || 'N/A'}
+                                </span>
+                              </p>
+                              <p className="mt-2 text-sm text-gray-700">{addr.line1 || '---'}</p>
+                              {addr.line2 ? <p className="text-sm text-gray-500">{addr.line2}</p> : null}
+                              <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">
+                                {[addr.city, addr.country].filter(Boolean).join(' • ') || 'Chưa cập nhật'}
+                              </p>
+                              {addr.isDefault ? (
+                                <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                  <FaShieldAlt /> Mặc định
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500">
+                      Người dùng này chưa lưu địa chỉ giao hàng.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

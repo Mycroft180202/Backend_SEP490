@@ -1,442 +1,323 @@
-import React, { useState } from 'react';
-import { FaSave, FaStore, FaUser, FaBell, FaLock, FaMapMarkerAlt, FaPhone, FaEnvelope } from 'react-icons/fa';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FaStore,
+  FaMapMarkerAlt,
+  FaPhone,
+  FaIdCard,
+  FaSpinner,
+  FaInfoCircle,
+} from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import { ShopService } from '../../services/modules/shop/shopService';
 
 const SettingsManagement = () => {
-  const [shopInfo, setShopInfo] = useState({
-    shopName: 'Gốm Bát Tràng Truyền Thống',
-    shopDescription: 'Chuyên cung cấp các sản phẩm gốm sứ thủ công chất lượng cao từ làng nghề Bát Tràng.',
-    address: 'Làng Bát Tràng, Gia Lâm, Hà Nội',
-    phone: '0912345678',
-    email: 'contact@gomtrangtrang.vn',
-    taxCode: '0123456789',
-    bankName: 'Vietcombank',
-    bankAccount: '1234567890',
-    bankAccountName: 'Nguyễn Văn A',
+  const [shopInfo, setShopInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(false);
+  const [formValues, setFormValues] = useState({
+    shopName: '',
+    phoneNumber: '',
+    bio: '',
+    shopUrlImage: null,
+  });
+  const [imagePreview, setImagePreview] = useState('');
+  const fileInputRef = useRef(null);
+
+  const extractAddress = (addresses) => {
+    if (!Array.isArray(addresses) || !addresses.length) return '';
+    const primary = addresses.find((addr) => addr.isPrimary || addr.isDefault) || addresses[0];
+    if (!primary) return '';
+    const parts = [
+      primary.line1 || primary.addressLine || '',
+      primary.district || primary.districtName || '',
+      primary.city || primary.cityName || primary.province || '',
+    ].filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const normalizeShopData = (data) => ({
+    shopName: data?.shopName || data?.displayName || '',
+    bio: data?.bio || data?.description || '',
+    address: extractAddress(data?.addresses) || data?.address || '',
+    phone: data?.phoneNumber || data?.phone || '',
+    shopUrlImage: data?.shopUrlImage || '',
+    artisanId: data?.userID || data?.userId || null,
+    ownerName: data?.displayName || data?.ownerName || '',
   });
 
-  const [personalInfo, setPersonalInfo] = useState({
-    fullName: 'Nguyễn Văn A',
-    email: 'seller@gomtrangtrang.vn',
-    phone: '0912345678',
-    address: 'Hà Nội, Việt Nam',
-  });
+  useEffect(() => {
+    let cancelled = false;
 
-  const [notifications, setNotifications] = useState({
-    orderNotif: true,
-    reviewNotif: true,
-    promotionNotif: false,
-    emailNotif: true,
-    smsNotif: false,
-  });
+    const loadShopInfo = async () => {
+      try {
+        setLoading(true);
+        const response = await ShopService.getMyShop();
+        if (cancelled) return;
+        const normalized = normalizeShopData(response || {});
+        setShopInfo(normalized);
+        setFormValues({
+          shopName: normalized.shopName || '',
+          phoneNumber: normalized.phone || '',
+          bio: normalized.bio || '',
+          shopUrlImage: null,
+        });
+        setImagePreview(normalized.shopUrlImage || '');
+        setError(null);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Load artisan shop info error:', err);
+        const message = err?.response?.data?.message || err?.message || 'Không thể tải thông tin cửa hàng.';
+        toast.error(message);
+        setError(message);
+        setShopInfo(null);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
 
-  const [activeTab, setActiveTab] = useState('shop');
+    loadShopInfo();
 
-  const handleShopInfoChange = (e) => {
-    setShopInfo({ ...shopInfo, [e.target.name]: e.target.value });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const infoItems = useMemo(() => {
+    if (!shopInfo) return [];
+    return [
+      {
+        key: 'shopName',
+        label: 'Tên cửa hàng',
+        value: shopInfo.shopName || '—',
+        icon: FaStore,
+      },
+      {
+        key: 'ownerName',
+        label: 'Chủ cửa hàng',
+        value: shopInfo.ownerName || 'Chưa cập nhật chủ cửa hàng.',
+        icon: FaIdCard,
+      },
+      {
+        key: 'bio',
+        label: 'Giới thiệu cửa hàng',
+        value: shopInfo.bio || 'Chưa cập nhật mô tả.',
+        icon: FaInfoCircle,
+      },
+      {
+        key: 'address',
+        label: 'Địa chỉ',
+        value: shopInfo.address || 'Chưa cập nhật địa chỉ.',
+        icon: FaMapMarkerAlt,
+      },
+      {
+        key: 'phone',
+        label: 'Số điện thoại',
+        value: shopInfo.phone || 'Chưa cập nhật số điện thoại.',
+        icon: FaPhone,
+      },
+    ];
+  }, [shopInfo]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePersonalInfoChange = (e) => {
-    setPersonalInfo({ ...personalInfo, [e.target.name]: e.target.value });
+  const handleFileChange = (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+      setFormValues((prev) => ({ ...prev, shopUrlImage: file }));
+    } else {
+      setImagePreview(shopInfo?.shopUrlImage || '');
+      setFormValues((prev) => ({ ...prev, shopUrlImage: null }));
+    }
   };
 
-  const handleNotificationChange = (e) => {
-    setNotifications({ ...notifications, [e.target.name]: e.target.checked });
-  };
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const trimmedName = formValues.shopName.trim();
+    if (!trimmedName) {
+      toast.error('Vui lòng nhập tên cửa hàng.');
+      return;
+    }
 
-  const handleSaveShopInfo = () => {
-    alert('Đã lưu thông tin cửa hàng!');
-  };
+    setUpdating(true);
+    try {
+      await ShopService.updateMyShop({
+        shopName: trimmedName,
+        phoneNumber: formValues.phoneNumber.trim(),
+        bio: formValues.bio.trim(),
+        shopUrlImage: formValues.shopUrlImage || undefined,
+      });
 
-  const handleSavePersonalInfo = () => {
-    alert('Đã lưu thông tin cá nhân!');
-  };
-
-  const handleSaveNotifications = () => {
-    alert('Đã lưu cài đặt thông báo!');
+      toast.success('Cập nhật thông tin cửa hàng thành công.');
+      const refreshed = await ShopService.getMyShop();
+      const normalized = normalizeShopData(refreshed || {});
+      setShopInfo(normalized);
+      setFormValues({
+        shopName: normalized.shopName || '',
+        phoneNumber: normalized.phone || '',
+        bio: normalized.bio || '',
+        shopUrlImage: null,
+      });
+      setImagePreview(normalized.shopUrlImage || '');
+      setError(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (err) {
+      console.error('Update artisan shop info error:', err);
+      const message = err?.response?.data?.message || err?.message || 'Không thể cập nhật thông tin cửa hàng.';
+      toast.error(message);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('shop')}
-            className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors ${
-              activeTab === 'shop'
-                ? 'bg-primary text-white border-b-2 border-primary'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <FaStore /> Thông tin cửa hàng
-          </button>
-          <button
-            onClick={() => setActiveTab('personal')}
-            className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors ${
-              activeTab === 'personal'
-                ? 'bg-primary text-white border-b-2 border-primary'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <FaUser /> Thông tin cá nhân
-          </button>
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors ${
-              activeTab === 'notifications'
-                ? 'bg-primary text-white border-b-2 border-primary'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <FaBell /> Thông báo
-          </button>
-          <button
-            onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors ${
-              activeTab === 'security'
-                ? 'bg-primary text-white border-b-2 border-primary'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <FaLock /> Bảo mật
-          </button>
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xl font-bold text-gray-800 font-alata">Thông tin cửa hàng</h2>
+          <p className="text-sm text-gray-500 mt-1">Thông tin được lấy trực tiếp từ hồ sơ cửa hàng của bạn.</p>
         </div>
 
-        {/* Shop Info Tab */}
-        {activeTab === 'shop' && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Thông tin cửa hàng</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tên cửa hàng <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="shopName"
-                  value={shopInfo.shopName}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <FaPhone className="inline mr-2" />Số điện thoại
-                </label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={shopInfo.phone}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Mô tả cửa hàng</label>
-                <textarea
-                  name="shopDescription"
-                  value={shopInfo.shopDescription}
-                  onChange={handleShopInfoChange}
-                  rows="3"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <FaMapMarkerAlt className="inline mr-2" />Địa chỉ
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={shopInfo.address}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <FaEnvelope className="inline mr-2" />Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={shopInfo.email}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Mã số thuế</label>
-                <input
-                  type="text"
-                  name="taxCode"
-                  value={shopInfo.taxCode}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Ngân hàng</label>
-                <input
-                  type="text"
-                  name="bankName"
-                  value={shopInfo.bankName}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Số tài khoản</label>
-                <input
-                  type="text"
-                  name="bankAccount"
-                  value={shopInfo.bankAccount}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Tên chủ tài khoản</label>
-                <input
-                  type="text"
-                  name="bankAccountName"
-                  value={shopInfo.bankAccountName}
-                  onChange={handleShopInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+        <div className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-gray-600">
+              <FaSpinner className="mr-3 animate-spin text-2xl text-primary" />
+              Đang tải thông tin cửa hàng...
             </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleSaveShopInfo}
-                className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <FaSave /> Lưu thay đổi
-              </button>
+          ) : error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-600">
+              {error}
             </div>
-          </div>
-        )}
-
-        {/* Personal Info Tab */}
-        {activeTab === 'personal' && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Thông tin cá nhân</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Họ và tên</label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={personalInfo.fullName}
-                  onChange={handlePersonalInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={personalInfo.email}
-                  onChange={handlePersonalInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Số điện thoại</label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={personalInfo.phone}
-                  onChange={handlePersonalInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Địa chỉ</label>
-                <input
-                  type="text"
-                  name="address"
-                  value={personalInfo.address}
-                  onChange={handlePersonalInfoChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+          ) : !shopInfo ? (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+              Chưa có thông tin cửa hàng để hiển thị.
             </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleSavePersonalInfo}
-                className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <FaSave /> Lưu thay đổi
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Notifications Tab */}
-        {activeTab === 'notifications' && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Cài đặt thông báo</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold text-gray-800">Thông báo đơn hàng mới</p>
-                  <p className="text-sm text-gray-600">Nhận thông báo khi có đơn hàng mới</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="orderNotif"
-                    checked={notifications.orderNotif}
-                    onChange={handleNotificationChange}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold text-gray-800">Thông báo đánh giá</p>
-                  <p className="text-sm text-gray-600">Nhận thông báo khi có đánh giá mới</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="reviewNotif"
-                    checked={notifications.reviewNotif}
-                    onChange={handleNotificationChange}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold text-gray-800">Thông báo khuyến mãi</p>
-                  <p className="text-sm text-gray-600">Nhận thông báo về các chương trình khuyến mãi</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="promotionNotif"
-                    checked={notifications.promotionNotif}
-                    onChange={handleNotificationChange}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold text-gray-800">Thông báo qua Email</p>
-                  <p className="text-sm text-gray-600">Nhận thông báo qua email</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="emailNotif"
-                    checked={notifications.emailNotif}
-                    onChange={handleNotificationChange}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold text-gray-800">Thông báo qua SMS</p>
-                  <p className="text-sm text-gray-600">Nhận thông báo qua tin nhắn SMS</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="smsNotif"
-                    checked={notifications.smsNotif}
-                    onChange={handleNotificationChange}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleSaveNotifications}
-                className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <FaSave /> Lưu thay đổi
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Security Tab */}
-        {activeTab === 'security' && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Bảo mật</h2>
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h3 className="font-semibold text-gray-800 mb-4">Đổi mật khẩu</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu hiện tại</label>
-                    <input
-                      type="password"
-                      placeholder="Nhập mật khẩu hiện tại"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {infoItems.map(({ key, label, value, icon: Icon }) => (
+                <div key={key} className="flex items-start gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4 shadow-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu mới</label>
-                    <input
-                      type="password"
-                      placeholder="Nhập mật khẩu mới"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-800 whitespace-pre-line">{value}</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Xác nhận mật khẩu mới</label>
-                    <input
-                      type="password"
-                      placeholder="Nhập lại mật khẩu mới"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors">
-                    Đổi mật khẩu
-                  </button>
                 </div>
-              </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h3 className="font-semibold text-gray-800 mb-2">Xác thực hai yếu tố</h3>
-                <p className="text-sm text-gray-600 mb-4">Tăng cường bảo mật tài khoản với xác thực hai yếu tố</p>
-                <button className="border-2 border-primary text-primary px-6 py-2 rounded-lg hover:bg-primary hover:text-white transition-colors">
-                  Kích hoạt
-                </button>
-              </div>
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xl font-bold text-gray-800 font-alata">Cập nhật thông tin cửa hàng</h2>
+          <p className="text-sm text-gray-500 mt-1">Chỉnh sửa tên, số điện thoại, mô tả và ảnh đại diện của cửa hàng.</p>
+        </div>
+
+        <form className="p-6 space-y-6" onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="shopName">Tên cửa hàng</label>
+              <input
+                id="shopName"
+                name="shopName"
+                type="text"
+                value={formValues.shopName}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Nhập tên cửa hàng"
+                disabled={updating}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="phoneNumber">Số điện thoại</label>
+              <input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                value={formValues.phoneNumber}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Nhập số điện thoại"
+                disabled={updating}
+              />
             </div>
           </div>
-        )}
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="bio">Giới thiệu cửa hàng</label>
+            <textarea
+              id="bio"
+              name="bio"
+              rows={4}
+              value={formValues.bio}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Chia sẻ câu chuyện hoặc thông tin nổi bật của cửa hàng"
+              disabled={updating}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_200px] items-start">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="shopUrlImage">Ảnh đại diện cửa hàng</label>
+              <input
+                id="shopUrlImage"
+                name="shopUrlImage"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                ref={fileInputRef}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={updating}
+              />
+              <p className="mt-2 text-xs text-gray-500">Hỗ trợ định dạng JPG, PNG. Dung lượng tối đa 5MB.</p>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-3">
+              <div className="w-32 h-32 rounded-lg border border-dashed border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Xem trước ảnh cửa hàng" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs text-gray-400 text-center px-2">Chưa có ảnh đại diện</span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 text-center">Ảnh đang hiển thị sẽ được sử dụng làm ảnh đại diện cửa hàng.</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+              disabled={updating}
+            >
+              {updating ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

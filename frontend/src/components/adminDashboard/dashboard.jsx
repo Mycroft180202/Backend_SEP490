@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { 
   FaHome,
   FaProductHunt,
@@ -26,141 +26,97 @@ import VoucherManagement from './VoucherManagement';
 import ProductCollectionManagement from './ProductCollectionManagement';
 import { UserContext } from '../../context/UserContext';
 import AdminDashboardService from '../../services/modules/admin/adminDashboardService.jsx';
-import { UserService } from '../../services/modules/users/userService';
 
 const AdminDashboard = () => {
   const { userInfo } = useContext(UserContext);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalOrders: 0,
-    totalRevenue: 0,
+  const [overview, setOverview] = useState({
+    todayRevenue: 0,
+    todayOrders: 0,
+    monthRevenue: 0,
+    monthGrowthPercent: 0,
     totalSellers: 0,
-    totalCustomers: 0
+    totalCustomers: 0,
+    reportCount: 0,
+  });
+  const [monthlyMetrics, setMonthlyMetrics] = useState([]);
+  const [weeklyMetrics, setWeeklyMetrics] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
 
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
-  // Load dashboard data on mount
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async (period) => {
     setLoading(true);
     try {
-      // Load all data in parallel
-      const currentYear = new Date().getFullYear();
-      const [ordersData, artisansData, customersData, newestOrdersData, topProductsData, monthlyRevenueData] = await Promise.all([
-        AdminDashboardService.getAllOrders(),
+      const year = period?.year || new Date().getFullYear();
+      const month = period?.month || new Date().getMonth() + 1;
+      const [
+        todayRevenueData,
+        monthlyRevenueData,
+        weeklyRevenueData,
+        artisansData,
+        customersData,
+        reportNumber,
+      ] = await Promise.all([
+        AdminDashboardService.getTodayRevenue(),
+        AdminDashboardService.getMonthlyRevenue(year),
+        AdminDashboardService.getWeeklyRevenue(year, month),
         AdminDashboardService.getAllArtisans(),
         AdminDashboardService.getAllCustomers(),
-        AdminDashboardService.getNewestOrders(),
-        AdminDashboardService.getTopProducts(),
-        AdminDashboardService.getMonthlyRevenue(currentYear),
+        AdminDashboardService.getReportNumber(),
       ]);
 
-      // Calculate stats
-      const totalOrders = ordersData?.totalCount || 0;
-      // Calculate total revenue from monthly data (sum all months)
-      const totalRevenue = (monthlyRevenueData || []).reduce((sum, month) => sum + (month.revenue || 0), 0);
-      const totalSellers = artisansData?.totalCount || 0;
-      const totalCustomers = customersData?.totalCount || 0;
+      const monthlyList = Array.isArray(monthlyRevenueData) ? monthlyRevenueData : [];
+      const currentMonthData = monthlyList.find((item) => item.month === month) || {};
+      const previousMonth = month === 1 ? null : month - 1;
+      const prevMonthData = previousMonth ? monthlyList.find((item) => item.month === previousMonth) : null;
 
-      // Debug logs
-      console.log('monthlyRevenueData:', monthlyRevenueData);
-      console.log('totalRevenue from monthly:', totalRevenue);
-      console.log('newestOrdersData:', newestOrdersData);
-      console.log('newestOrdersData[0]:', newestOrdersData?.[0]);
-      console.log('customersData:', customersData);
-      console.log('customersData.items[0]:', customersData?.items?.[0]);
+      const calculateGrowthPercent = (currentValue, previousValue) => {
+        if (!previousValue && !currentValue) return 0;
+        if (!previousValue) return 100;
+        const growth = ((currentValue - previousValue) / previousValue) * 100;
+        return Number.isFinite(growth) ? Number(growth.toFixed(1)) : 0;
+      };
 
-      setStats({
-        totalOrders,
-        totalRevenue,
-        totalSellers,
-        totalCustomers
+      setOverview({
+        todayRevenue: Number(todayRevenueData?.revenue) || 0,
+        todayOrders: Number(todayRevenueData?.orderNumber) || 0,
+        monthRevenue: Number(currentMonthData?.revenue) || 0,
+        monthGrowthPercent: calculateGrowthPercent(
+          Number(currentMonthData?.revenue) || 0,
+          Number(prevMonthData?.revenue) || 0,
+        ),
+        totalSellers: artisansData?.totalCount || 0,
+        totalCustomers: customersData?.totalCount || 0,
+        reportCount: Number(reportNumber) || 0,
       });
 
-      // Get detailed info for recent orders
-      const orderDetailsPromises = (newestOrdersData || []).map(order =>
-        AdminDashboardService.getOrderDetail(order.orderNumber)
-      );
-      const orderDetails = await Promise.all(orderDetailsPromises);
-
-      console.log('orderDetails:', orderDetails);
-
-      // Get user info for customers in orders (get customer ID from orders)
-      const customerIds = orderDetails
-        .map(detail => detail?.customerId)
-        .filter(Boolean)
-        .filter((id, index, arr) => arr.indexOf(id) === index); // Remove duplicates
-
-      const userInfoPromises = customerIds.map(customerId =>
-        UserService.getById(customerId).catch(err => {
-          console.error(`Failed to get user ${customerId}:`, err);
-          return null;
-        })
-      );
-      const userInfoMap = new Map();
-      const userInfos = await Promise.all(userInfoPromises);
-      customerIds.forEach((id, index) => {
-        if (userInfos[index]) {
-          userInfoMap.set(id, userInfos[index]);
-        }
-      });
-
-      console.log('userInfoMap:', userInfoMap);
-
-      // Transform recent orders for display with full details
-      const recentOrdersForDisplay = (newestOrdersData || []).map((order, index) => {
-        const orderDetail = orderDetails[index];
-        const customerId = orderDetail?.customerId;
-        const userInfo = customerId ? userInfoMap.get(customerId) : null;
-        
-        // Get customer name from userInfo first, then fallback to orderDetail
-        let customerName = userInfo?.displayName || 
-                          userInfo?.fullName || 
-                          userInfo?.name || 
-                          userInfo?.username ||
-                          orderDetail?.customer?.fullName || 
-                          orderDetail?.customer?.name || 
-                          order.customerName || 
-                          customerId;
-        
-        // Get product count from order detail items
-        const productCount = orderDetail?.items?.length || order.items?.length || 0;
-        
-        console.log(`Order ${order.orderNumber}: customer="${customerName}", products=${productCount}`);
-        
+      const normalizedMonthly = Array.from({ length: 12 }, (_, index) => {
+        const month = index + 1;
+        const entry = monthlyList.find((item) => item.month === month) || {};
         return {
-          id: order.orderNumber,
-          customer: customerName,
-          productCount: productCount,
-          amount: orderDetail?.totalAmount || order.totalAmount || 0,
-          status: orderDetail?.status || order.status,
-          date: new Date(orderDetail?.createAt || order.createAt).toLocaleDateString('vi-VN'),
-          rowNumber: index + 1
+          month,
+          revenue: Number(entry.revenue) || 0,
+          orders: Number(entry.totalOrderNumber ?? entry.totalOrderAmount ?? 0) || 0,
         };
       });
-      setRecentOrders(recentOrdersForDisplay);
 
-      // Transform top products for display
-      const topProductsForDisplay = (topProductsData || []).map(item => ({
-        name: item.product?.name || 'Unknown',
-        sales: item.totalSold || 0,
-        revenue: item.totalAmmount || 0,
-        stock: item.product?.stock || 0
-      }));
-      setTopProducts(topProductsForDisplay);
+      setMonthlyMetrics(normalizedMonthly);
+      setWeeklyMetrics(Array.isArray(weeklyRevenueData) ? weeklyRevenueData : []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      toast.error('Không thể tải dữ liệu dashboard');
+      toast.error('Không thể tải dữ liệu tổng quan');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData(selectedPeriod);
+  }, [loadDashboardData, selectedPeriod]);
 
 const menuItems = [
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/admin' },
@@ -177,21 +133,6 @@ const menuItems = [
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Paid':
-        return 'bg-green-100 text-green-800';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Cancelled':
-        return 'bg-red-100 text-red-800';
-      case 'Delivered':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
   };
 
   return (
@@ -249,17 +190,19 @@ const menuItems = [
         <div className="p-8">
           {activeTab === 'overview' && (
             loading ? (
-              <div className="flex justify-center items-center py-16">
-                <FaSpinner className="animate-spin text-primary text-3xl" />
-                <span className="ml-4 text-gray-600 font-medium">Đang tải dữ liệu...</span>
+              <div className="flex justify-center items-center py-16 gap-3 text-gray-600">
+                <FaSpinner className="text-3xl animate-spin text-primary" />
+                <span className="font-medium">Đang tải dữ liệu...</span>
               </div>
             ) : (
-              <OverviewSection 
-                stats={stats}
-                recentOrders={recentOrders}
-                topProducts={topProducts}
+              <OverviewSection
+                overview={overview}
+                monthlyData={monthlyMetrics}
+                weeklyData={weeklyMetrics}
+                selectedYear={selectedPeriod.year}
+                selectedMonth={selectedPeriod.month}
+                onChangePeriod={setSelectedPeriod}
                 formatCurrency={formatCurrency}
-                getStatusColor={getStatusColor}
               />
             )
           )}

@@ -11,6 +11,7 @@ import { FaBell, FaShoppingCart, FaSearch } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 import { NotificationService } from '../../services/modules/notification/notificationService';
 import { NotificationHub } from '../../services/modules/notification/notificationHub';
+import { CartService } from '../../services/modules/cart/cartService';
 
 const Header = () => {
   const { userInfo } = useContext(UserContext);
@@ -23,12 +24,53 @@ const Header = () => {
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const notificationHoverRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const computeCartCount = useCallback((cartResponse) => {
+    if (!cartResponse) return 0;
+    const { raw, items } = cartResponse;
+    const totalFromRaw = raw?.totalItems
+      ?? raw?.totalCount
+      ?? raw?.cartItems?.totalItems
+      ?? raw?.cartItems?.totalCount
+      ?? raw?.cartItems?.total
+      ?? raw?.total;
+    if (typeof totalFromRaw === 'number' && Number.isFinite(totalFromRaw)) {
+      return totalFromRaw;
+    }
+    if (!Array.isArray(items)) return 0;
+    return items.reduce((sum, item) => sum + (item?.quantity || 0), 0);
+  }, []);
+
+  const fetchCartCount = useCallback(async () => {
+    if (!userInfo) {
+      if (isMountedRef.current) setCartCount(0);
+      return;
+    }
+    try {
+      const cart = await CartService.getCart(1, 50);
+      const totalItems = computeCartCount(cart);
+      if (isMountedRef.current) setCartCount(totalItems);
+    } catch (error) {
+      console.error('Load cart count error:', error);
+      if (isMountedRef.current) setCartCount(0);
+    }
+  }, [userInfo, computeCartCount]);
 
   useEffect(() => {
     if (!userInfo) {
       setNotifications([]);
       setUnreadCount(0);
+      setCartCount(0);
     }
   }, [userInfo]);
 
@@ -126,6 +168,21 @@ const Header = () => {
     }, 30000);
     return () => clearInterval(interval);
   }, [userInfo, fetchNotifications]);
+
+  useEffect(() => {
+    fetchCartCount();
+  }, [fetchCartCount]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+    const handleCartUpdated = () => {
+      fetchCartCount();
+    };
+    window.addEventListener('cart:updated', handleCartUpdated);
+    return () => {
+      window.removeEventListener('cart:updated', handleCartUpdated);
+    };
+  }, [fetchCartCount]);
 
   const markAsRead = async (id) => {
     if (!id) return;
@@ -317,11 +374,18 @@ const Header = () => {
         )}
 
         {/* Cart Icon */}
-        <FaShoppingCart
-          className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
-          title={t('header.cartTooltip')}
-          onClick={() => navigate('/cart')}
-        />
+        <div className="relative">
+          <FaShoppingCart
+            className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
+            title={t('header.cartTooltip')}
+            onClick={() => navigate('/cart')}
+          />
+          {cartCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-semibold rounded-full px-[3px] min-w-[16px] h-[16px] flex items-center justify-center leading-none">
+              {cartCount > 99 ? '99+' : cartCount}
+            </span>
+          )}
+        </div>
 
         {/* Notifications */}
         <div

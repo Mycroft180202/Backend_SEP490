@@ -12,13 +12,19 @@ export const OrderService = {
     return response.data;
   },
 
-  async getAdminOrders({ pageIndex = 1, pageSize = 10, paymentStatus } = {}) {
+  async getAdminOrders({ pageIndex = 1, pageSize = 10, paymentType, status, keyword } = {}) {
     const params = {
       pageIndex,
       pageSize,
     };
-    if (paymentStatus) {
-      params.paymentStatus = paymentStatus;
+    if (paymentType) {
+      params.paymentType = paymentType;
+    }
+    if (status) {
+      params.status = status;
+    }
+    if (keyword) {
+      params.keyword = keyword;
     }
     const response = await axiosClient.get('/api/Order/orders', { params });
     return response.data;

@@ -1,6 +1,11 @@
 import axiosClient from '../../api/axiosConfig';
 import { API_ENDPOINTS } from '../../api/endpoints';
 
+const emitCartUpdated = () => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('cart:updated'));
+};
+
 const normalizeCartItems = (data) => {
   const sourceItems =
     data?.cartItems?.items
@@ -86,6 +91,7 @@ export const CartService = {
       quantity,
     };
     const response = await axiosClient.post(API_ENDPOINTS.CART.ROOT, payload);
+    emitCartUpdated();
     return response.data;
   },
 
@@ -95,6 +101,7 @@ export const CartService = {
       null,
       { params: { cartItemId, quantity } },
     );
+    emitCartUpdated();
     return response.data;
   },
 
@@ -102,6 +109,7 @@ export const CartService = {
     const response = await axiosClient.delete(API_ENDPOINTS.CART.ROOT, {
       params: { cartItemId },
     });
+    emitCartUpdated();
     return response.data;
   },
 };
