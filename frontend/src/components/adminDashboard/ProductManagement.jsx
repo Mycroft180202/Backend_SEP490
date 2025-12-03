@@ -20,12 +20,11 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const DEFAULT_PAGE_SIZE = 10;
 
 const formatCurrency = (value) => {
-  const amount = Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
+  const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
+  return `${new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 0,
-  }).format(amount);
+    maximumFractionDigits: 0,
+  }).format(amount)} VND`;
 };
 
 const statusBadge = (isActive) => (

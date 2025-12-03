@@ -43,11 +43,13 @@ const numberOrZero = (val) => {
   return Number.isNaN(num) ? 0 : num;
 };
 
-const formatCurrency = (value) => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-  minimumFractionDigits: 0,
-}).format(numberOrZero(value));
+const formatCurrency = (value) => {
+  const numericValue = numberOrZero(value);
+  return `${new Intl.NumberFormat('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numericValue)} VND`;
+};
 
 const formatDateTime = (value) => {
   if (!value) return '--';

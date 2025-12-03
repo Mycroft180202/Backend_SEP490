@@ -59,11 +59,12 @@ const SellerManagement = () => {
         products: 0, // Not in current API response, needs backend endpoint
         revenue: item.totalRevenue || 0,
         joinDate: new Date().toISOString().split('T')[0], // Not in current API response
-        status: 'approved', // Default, needs isActive field from backend
+        status: item.isActive === false ? 'blocked' : 'approved',
         verified: true,
         rating: item.rating || 0,
         bio: item.bio || '',
         avatarUrl: item.shopUrlImage || '',
+        isActive: item.isActive,
       }));
 
       setSellers(transformedSellers);
@@ -112,7 +113,7 @@ const SellerManagement = () => {
       // Update local state
       setSellers(sellers.map(s =>
         s.id === seller.id
-          ? { ...s, status: newIsActive ? 'approved' : 'blocked' }
+          ? { ...s, status: newIsActive ? 'approved' : 'blocked', isActive: newIsActive }
           : s
       ));
 
@@ -136,8 +137,11 @@ const SellerManagement = () => {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    const numericAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+    return `${new Intl.NumberFormat('vi-VN', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numericAmount)} VND`;
   };
 
   const getStatusColor = (status) => {

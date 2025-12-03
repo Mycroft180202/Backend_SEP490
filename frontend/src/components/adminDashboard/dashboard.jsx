@@ -127,7 +127,7 @@ const menuItems = [
     { id: 'vouchers', icon: FaTicketAlt, label: 'Voucher', path: '/admin/vouchers' },
     { id: 'collections', icon: FaTicketAlt, label: 'Bộ sưu tập', path: '/admin/collections' },
     { id: 'reports', icon: FaChartBar, label: 'Báo cáo & Khiếu nại', path: '/admin/reports' },
-    { id: 'blog', icon: FaBlog, label: 'Blog', path: '/admin/blog' },
+    { id: 'blog', icon: FaBlog, label: 'Bài viết', path: '/admin/blog' },
     { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/admin/settings' },
   ];
 

@@ -48,9 +48,9 @@ class Base64UploadAdapter {
 
 
 const statusOptions = [
-  { value: 'Published', label: 'Published' },
-  { value: 'Draft', label: 'Draft' },
-  { value: 'Archived', label: 'Archived' },
+  { value: 'Published', label: 'Đã xuất bản' },
+  { value: 'Draft', label: 'Bản nháp' },
+  { value: 'Archived', label: 'Đã lưu trữ' },
 ];
 
 const emptyForm = {
@@ -150,7 +150,7 @@ const BlogManagement = ({ isAdmin = true }) => {
       toast.error(
         error?.response?.data?.message
           || error?.message
-          || 'Unable to load blog list.',
+          || 'Không thể tải danh sách bài viết.',
       );
     } finally {
       setLoading(false);
@@ -264,7 +264,7 @@ const BlogManagement = ({ isAdmin = true }) => {
 
   const handleOpenModal = (blog = null) => {
     if (!isAdmin) {
-      toast.warn('You do not have permission to edit blogs.');
+      toast.warn('Bạn không có quyền chỉnh sửa bài viết.');
       return;
     }
 
@@ -409,10 +409,10 @@ const BlogManagement = ({ isAdmin = true }) => {
 
       if (formData.id) {
         await BlogService.update(formData.id, payload);
-        toast.success('Blog updated successfully.');
+        toast.success('Đã cập nhật bài viết thành công.');
       } else {
         await BlogService.create(payload);
-        toast.success('Blog created successfully.');
+        toast.success('Đã tạo bài viết thành công.');
       }
 
       handleCloseModal();
@@ -422,7 +422,7 @@ const BlogManagement = ({ isAdmin = true }) => {
       toast.error(
         error?.response?.data?.message
           || error?.message
-          || 'Unable to save blog.',
+          || 'Không thể lưu bài viết.',
       );
     } finally {
       setSaving(false);
@@ -434,14 +434,14 @@ const BlogManagement = ({ isAdmin = true }) => {
     try {
       setDeletingId(blogId);
       await BlogService.delete(blogId);
-      toast.success('Blog deleted successfully.');
+      toast.success('Đã xóa bài viết thành công.');
       await loadBlogs(pageIndex, pageSize);
     } catch (error) {
       console.error('Delete blog error:', error);
       toast.error(
         error?.response?.data?.message
         || error?.message
-        || 'Unable to delete blog.',
+        || 'Không thể xóa bài viết.',
       );
     } finally {
       setDeletingId(null);
@@ -491,23 +491,23 @@ const BlogManagement = ({ isAdmin = true }) => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <p className="text-sm text-gray-600">Total posts</p>
+          <p className="text-sm text-gray-600">Tổng bài viết</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-sm text-gray-600">Published</p>
+          <p className="text-sm text-gray-600">Đã xuất bản</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.published}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <p className="text-sm text-gray-600">Draft posts</p>
+          <p className="text-sm text-gray-600">Bản nháp</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.draft}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-          <p className="text-sm text-gray-600">Archived</p>
+          <p className="text-sm text-gray-600">Đã lưu trữ</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.archived}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-          <p className="text-sm text-gray-600">Visible on page</p>
+          <p className="text-sm text-gray-600">Đang hiển thị</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.visible}</p>
         </div>
       </div>
@@ -522,7 +522,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Search by title or author..."
+                placeholder="Tìm theo tiêu đề hoặc tác giả..."
               />
             </div>
             <select
@@ -530,7 +530,7 @@ const BlogManagement = ({ isAdmin = true }) => {
               onChange={(event) => setStatusFilter(event.target.value)}
               className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="all">All statuses</option>
+              <option value="all">Tất cả trạng thái</option>
               {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -538,7 +538,7 @@ const BlogManagement = ({ isAdmin = true }) => {
               ))}
             </select>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Posts/page</span>
+              <span>Bài / trang</span>
               <select
                 value={pageSize}
                 onChange={handlePageSizeChange}
@@ -559,7 +559,7 @@ const BlogManagement = ({ isAdmin = true }) => {
             disabled={!isAdmin}
           >
             <FaPlus />
-            Add blog
+            Thêm bài viết
           </button>
         </div>
 
@@ -567,24 +567,24 @@ const BlogManagement = ({ isAdmin = true }) => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
-                <th className="py-3 px-4">Title</th>
-                <th className="py-3 px-4">Author</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Published</th>
-                <th className="py-3 px-4 text-center">Actions</th>
+                <th className="py-3 px-4">Tiêu đề</th>
+                <th className="py-3 px-4">Tác giả</th>
+                <th className="py-3 px-4 text-center">Trạng thái</th>
+                <th className="py-3 px-4 text-center">Ngày xuất bản</th>
+                <th className="py-3 px-4 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-gray-500">
-                    Loading blogs...
+                    Đang tải bài viết...
                   </td>
                 </tr>
               ) : filteredBlogs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-gray-500">
-                    No blog matches your filters.
+                    Không có bài viết phù hợp với bộ lọc.
                   </td>
                 </tr>
               ) : (
@@ -606,7 +606,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                           )}
                           <div>
                             <p className="text-sm font-semibold text-gray-800 line-clamp-2">
-                              {blog.title || 'Untitled'}
+                              {blog.title || 'Chưa đặt tiêu đề'}
                             </p>
                             <p className="text-xs text-gray-500">
                               #
@@ -615,12 +615,12 @@ const BlogManagement = ({ isAdmin = true }) => {
                           </div>
                         </div>
                       </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      {buildAuthorName(blog) || 'Unknown'}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {renderStatusBadge(blog.postStatus)}
-                    </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        {buildAuthorName(blog) || 'Không rõ'}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {renderStatusBadge(blog.postStatus)}
+                      </td>
                       <td className="py-3 px-4 text-sm text-center text-gray-500">
                         {formatDate(blog.publishedAt || blog.updatedAt || blog.createdAt)}
                       </td>
@@ -629,7 +629,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                           <button
                             type="button"
                             className="text-blue-600 hover:text-blue-800"
-                            title="Preview"
+                            title="Xem trước"
                             onClick={() => handlePreview(blog)}
                           >
                             <FaEye />
@@ -637,7 +637,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                           <button
                             type="button"
                             className="text-green-600 hover:text-green-800 disabled:opacity-40"
-                            title="Edit"
+                            title="Chỉnh sửa"
                             onClick={() => handleOpenModal(blog)}
                             disabled={!isAdmin}
                           >
@@ -646,16 +646,16 @@ const BlogManagement = ({ isAdmin = true }) => {
                           <button
                             type="button"
                             className="text-red-600 hover:text-red-800 disabled:opacity-40"
-                            title="Delete"
-                          onClick={() => setConfirmDeleteBlog(blog)}
-                          disabled={!isAdmin || deletingId === blog.id}
-                        >
-                          {deletingId === blog.id ? (
-                            <span className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full inline-block animate-spin" />
-                          ) : (
-                            <FaTrash />
-                          )}
-                        </button>
+                            title="Xóa"
+                            onClick={() => setConfirmDeleteBlog(blog)}
+                            disabled={!isAdmin || deletingId === blog.id}
+                          >
+                            {deletingId === blog.id ? (
+                              <span className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full inline-block animate-spin" />
+                            ) : (
+                              <FaTrash />
+                            )}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -667,7 +667,7 @@ const BlogManagement = ({ isAdmin = true }) => {
         </div>
 
         <div className="text-sm text-gray-500 mt-2">
-          Showing
+          Hiển thị
           {' '}
           {pageRange.start}
           {' '}
@@ -675,11 +675,11 @@ const BlogManagement = ({ isAdmin = true }) => {
           {' '}
           {pageRange.end}
           {' '}
-          of
+          trên tổng
           {' '}
           {meta.totalCount}
           {' '}
-          posts
+          bài viết
         </div>
 
         {meta.totalPages > 1 && (
@@ -697,10 +697,10 @@ const BlogManagement = ({ isAdmin = true }) => {
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div>
                 <p className="text-lg font-semibold text-gray-800">
-                  {formData.id ? 'Edit blog' : 'Create blog'}
+                  {formData.id ? 'Chỉnh sửa bài viết' : 'Tạo bài viết'}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Fill the fields below to publish your story.
+                  Điền thông tin bên dưới để xuất bản bài viết.
                 </p>
               </div>
               <button
@@ -717,20 +717,20 @@ const BlogManagement = ({ isAdmin = true }) => {
                 <div className="lg:col-span-2 space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Title
+                      Tiêu đề
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(event) => handleInputChange('title', event.target.value)}
                       className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter a clear headline"
+                      placeholder="Nhập tiêu đề rõ ràng"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Status
+                      Trạng thái
                     </label>
                     <select
                       value={formData.postStatus}
@@ -748,23 +748,23 @@ const BlogManagement = ({ isAdmin = true }) => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Cover image
+                    Ảnh bìa
                   </label>
                   <div className="border border-dashed border-[#D4A574] rounded-lg p-4 text-center">
                     {previewUrl ? (
                       <img
                         src={previewUrl}
-                        alt="Preview"
+                        alt="Ảnh xem trước"
                         className="w-full h-40 object-cover rounded-lg mb-4"
                       />
                     ) : (
                       <p className="text-sm text-gray-500 mb-4">
-                        Choose an image to make your story stand out.
+                        Chọn ảnh để làm nổi bật bài viết.
                       </p>
                     )}
                     <label className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#8B4513] text-white text-sm font-semibold cursor-pointer hover:bg-[#DDA15E] transition">
                       <FaUpload />
-                      Select image
+                      Chọn ảnh
                       <input
                         type="file"
                         accept="image/*"
@@ -778,7 +778,7 @@ const BlogManagement = ({ isAdmin = true }) => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Content
+                  Nội dung
                 </label>
                 <div className="border rounded-lg overflow-hidden">
                   <CKEditor
@@ -825,7 +825,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                 onClick={handleCloseModal}
                 disabled={saving}
               >
-                Cancel
+                Hủy
               </button>
               <button
                 type="button"
@@ -833,7 +833,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                 onClick={handleSubmit}
                 disabled={saving}
               >
-                {saving ? 'Saving...' : (formData.id ? 'Save changes' : 'Create post')}
+                {saving ? 'Đang lưu...' : (formData.id ? 'Lưu thay đổi' : 'Tạo bài viết')}
               </button>
             </div>
           </div>
@@ -846,10 +846,10 @@ const BlogManagement = ({ isAdmin = true }) => {
             <div className="flex items-start justify-between border-b px-6 py-4">
               <div>
                 <p className="text-lg font-semibold text-gray-800">
-                  Preview: {previewBlog.title || 'Untitled'}
+                  Xem trước: {previewBlog.title || 'Chưa đặt tiêu đề'}
                 </p>
                 <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                  <span>{buildAuthorName(previewBlog) || 'Unknown author'}</span>
+                  <span>{buildAuthorName(previewBlog) || 'Tác giả chưa xác định'}</span>
                   <span className="w-1 h-1 rounded-full bg-gray-300" />
                   <span>{formatDate(previewBlog.publishedAt || previewBlog.updatedAt || previewBlog.createdAt)}</span>
                   <span className="w-1 h-1 rounded-full bg-gray-300" />
@@ -879,7 +879,7 @@ const BlogManagement = ({ isAdmin = true }) => {
               <div className="flex flex-wrap gap-3">
                 {renderStatusBadge(previewBlog.postStatus)}
                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
-                  {buildAuthorName(previewBlog) || 'Unknown'}
+                  {buildAuthorName(previewBlog) || 'Không rõ'}
                 </span>
               </div>
 
@@ -891,7 +891,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                   />
                 ) : (
                   <p className="text-gray-500 text-sm">
-                    This blog does not have any content yet.
+                    Bài viết chưa có nội dung.
                   </p>
                 )}
               </div>
@@ -903,7 +903,7 @@ const BlogManagement = ({ isAdmin = true }) => {
         <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Delete blog post</h3>
+              <h3 className="text-lg font-semibold text-gray-800">Xóa bài viết</h3>
               <button
                 type="button"
                 className="text-gray-400 hover:text-gray-600"
@@ -915,11 +915,11 @@ const BlogManagement = ({ isAdmin = true }) => {
             </div>
             <div className="p-6 space-y-4">
               <p className="text-gray-700">
-                Are you sure you want to delete{' '}
+                Bạn có chắc chắn muốn xóa{' '}
                 <span className="font-semibold text-[#8B4513]">
                   {confirmDeleteBlog.title || `#${confirmDeleteBlog.id}`}
                 </span>
-                ? This action cannot be undone.
+                ? Hành động này không thể hoàn tác.
               </p>
               {resolveImage(confirmDeleteBlog) && (
                 <div className="rounded-lg overflow-hidden border border-gray-100">
@@ -938,7 +938,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                 onClick={handleCancelDelete}
                 disabled={Boolean(deletingId)}
               >
-                Cancel
+                Hủy
               </button>
               <button
                 type="button"
@@ -946,7 +946,7 @@ const BlogManagement = ({ isAdmin = true }) => {
                 onClick={handleConfirmDelete}
                 disabled={Boolean(deletingId)}
               >
-                {deletingId ? 'Deleting...' : 'Delete'}
+                {deletingId ? 'Đang xóa...' : 'Xóa'}
               </button>
             </div>
           </div>

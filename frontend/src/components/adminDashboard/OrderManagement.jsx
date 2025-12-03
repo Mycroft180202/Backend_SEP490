@@ -79,8 +79,11 @@ const OrderManagement = () => {
   };
 
   const formatCurrency = (amount) => {
-    if (!Number.isFinite(amount)) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    const numericAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+    return `${new Intl.NumberFormat('vi-VN', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numericAmount)} VND`;
   };
 
   const fetchOrders = useCallback(async () => {
