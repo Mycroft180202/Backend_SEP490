@@ -21,7 +21,8 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
     public async Task<IEnumerable<ResponseDTOProductCollection>> GetAllProducts()
     {
         var products = await _context.ProductCollections.GetAllProductsCollection();
-        var result = _mapper.Map<IEnumerable<ResponseDTOProductCollection>>(products);
+        var filteredCollections = products.Where(pc => pc.ProductCollectionItems.Any(p => p.IsActive)).ToList();
+        var result = _mapper.Map<IEnumerable<ResponseDTOProductCollection>>(filteredCollections);
         return result;
     }
 

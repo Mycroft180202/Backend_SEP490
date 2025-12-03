@@ -12,7 +12,7 @@ public class ProductCollectionRepositoriesImpl: GenericRepositoryImpl<ProductCol
 
     public async Task<IEnumerable<ProductCollection>> GetAllProductsCollection()
     {
-        var productCollection = await _context.ProductCollections.ToListAsync();
+        var productCollection = await _context.ProductCollections.Include( pc => pc.ProductCollectionItems).ToListAsync();
         return productCollection;
     }
 

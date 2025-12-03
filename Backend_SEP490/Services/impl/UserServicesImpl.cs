@@ -411,7 +411,48 @@ public class UserServicesImpl : GenericServices, IUserServices
             };
             return await _context.Users.UpdateUserAsync(user, request, role);
         }
+        
+        if (user.IsActive == true && request.IsActive == false && user.UserRoles.Any( u => u.RoleID.Equals("R02")))
+        {
+            await using var transaction = await _context.BeginTransactionAsync();
+            var productList = await _context.Products.GetProductsByArtisanIdAsync(userID);
 
+            foreach (var product in productList)
+            {
+                product.IsActive = false;
+                try
+                {
+                    await _context.Products.UpdateAsync(product);
+                }
+                catch (Exception ex) 
+                {
+                    await transaction.RollbackAsync();
+                    return "InActive Products of the artisan failed!";
+                }
+            }
+            await transaction.CommitAsync();
+        }
+
+        if (user.IsActive == false && request.IsActive == true && user.UserRoles.Any(u => u.RoleID.Equals("R02")))
+        {
+            await using var transaction = await _context.BeginTransactionAsync();
+            var productList = await _context.Products.GetProductsByArtisanIdAsync(userID);
+
+            foreach (var product in productList)
+            {
+                product.IsActive = true;
+                try
+                {
+                    await _context.Products.UpdateAsync(product);
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return "Active Products of the artisan failed!";
+                }
+            }
+            await transaction.CommitAsync();
+        }
         return await _context.Users.UpdateUserAsync(user, request, null);
 
     }
