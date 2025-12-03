@@ -103,6 +103,24 @@ namespace Backend_SEP490.Controllers
             return Ok(users);
         }
 
+        // GET /artisan/orders
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/orders")]
+        public async Task<IActionResult> GetArtisanOrders([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+            var users = await _orderService.GetAllOrderByArtisanIdAsync(userId, pageIndex, pageSize);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+
         // GET /products-dashboard
         [Authorize(Roles = "Artisan")]
         [HttpGet("products-dashboard")]

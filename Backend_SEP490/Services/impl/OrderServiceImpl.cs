@@ -1475,4 +1475,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
         };
         return result;
     }
+
+    public async Task<PagedResult<ResponseDTOOrder>> GetAllOrderByArtisanIdAsync(string userId, int pageIndex, int pageSize)
+    {
+        var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
+        int totalPage = orders.Count();
+        orders = orders.OrderByDescending(o => o.CreateAt).Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+
+        var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
+        
+        return new PagedResult<ResponseDTOOrder>
+        {
+            Items = mapped,
+            TotalCount = totalPage,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
+    }
 }
