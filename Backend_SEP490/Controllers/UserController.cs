@@ -8,7 +8,7 @@ namespace Backend_SEP490.Controllers
 {
     [Microsoft.AspNetCore.Components.Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    
     public class UserController : ControllerBase
     {
         private readonly IUserServices _userServices;
