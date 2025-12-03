@@ -3,7 +3,13 @@ import { UserContext } from '../context/UserContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthService } from '../services/modules/auth/authService';
 import { toast } from 'react-toastify';
-import { FaUser, FaLock } from 'react-icons/fa';
+import {
+  FaUser,
+  FaLock,
+  FaEnvelope,
+  FaPaperPlane,
+  FaKey,
+} from 'react-icons/fa';
 import { LanguageContext } from '../context/LanguageContext';
 
 const Login = () => {
@@ -14,6 +20,13 @@ const Login = () => {
   const { language, changeLanguage, t } = useContext(LanguageContext);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtpCode, setForgotOtpCode] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
   const languageOptions = [
     { code: 'vi', label: t('auth.common.viLabel'), flag: '/images/VNFlag.png' },
@@ -33,6 +46,68 @@ const Login = () => {
       localStorage.setItem('rememberMeUsername', username);
     }
   }, [rememberMe, username]);
+
+  const resetForgotState = () => {
+    setForgotStep(1);
+    setForgotEmail('');
+    setForgotOtpCode('');
+    setForgotNewPassword('');
+    setForgotConfirmPassword('');
+    setForgotLoading(false);
+  };
+
+  const handleSendOtp = async () => {
+    if (!forgotEmail) {
+      toast.error('Vui lòng nhập email.');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const response = await AuthService.sendOtp(forgotEmail);
+      toast.success(response?.message || 'OTP đã được gửi tới email của bạn.');
+      setForgotStep(2);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Email không tồn tại trong hệ thống.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!forgotOtpCode) {
+      toast.error('Vui lòng nhập mã OTP.');
+      return;
+    }
+    if (!forgotNewPassword || !forgotConfirmPassword) {
+      toast.error('Vui lòng điền đầy đủ mật khẩu.');
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      toast.error('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+    if (forgotNewPassword.length < 6) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự.');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const response = await AuthService.resetPassword({
+        email: forgotEmail,
+        otpCode: forgotOtpCode,
+        newPassword: forgotNewPassword,
+      });
+      toast.success(response?.message || 'Mật khẩu đã được thay đổi thành công.');
+      resetForgotState();
+      setForgotMode(false);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,73 +221,184 @@ const handleRememberMe = (e) => {
             <h2 className="text-3xl font-bold text-[#331c11] mt-2">{t('auth.login.title')}</h2>
             <p className="text-sm text-[#746355] mt-2">{t('auth.login.subtitle')}</p>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.login.usernameLabel')}</label>
-              <div className="relative group">
-                <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
-                <input
-                  type="text"
-                  placeholder={t('auth.login.usernamePlaceholder')}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.login.passwordLabel')}</label>
-              <div className="relative group">
-                <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={t('auth.login.passwordPlaceholder')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full py-3 pl-11 pr-12 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
-                />
+          {forgotMode ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-[#331c11]">Quên mật khẩu</h3>
                 <button
                   type="button"
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f7eee2] transition-colors"
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                  onClick={() => {
+                    resetForgotState();
+                    setForgotMode(false);
+                  }}
+                  className="text-sm text-[#9E211F] font-semibold hover:underline"
                 >
-                  <img
-                    src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
-                    alt={showPassword ? t('auth.common.hidePassword') : t('auth.common.showPassword')}
-                    className="w-5 h-5 object-contain"
-                  />
+                  Quay lại đăng nhập
                 </button>
               </div>
+
+              {forgotStep === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Email</label>
+                    <div className="relative group">
+                      <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                      <input
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="Nhập email của bạn"
+                        className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={forgotLoading}
+                    className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0 flex items-center justify-center gap-2"
+                  >
+                    <FaPaperPlane />
+                    {forgotLoading ? 'Đang gửi...' : 'Gửi OTP'}
+                  </button>
+                </div>
+              )}
+
+              {forgotStep === 2 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Mã OTP</label>
+                    <div className="relative group">
+                      <FaKey className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                      <input
+                        type="text"
+                        value={forgotOtpCode}
+                        onChange={(e) => setForgotOtpCode(e.target.value)}
+                        placeholder="Nhập mã OTP"
+                        className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Mật khẩu mới</label>
+                    <div className="relative group">
+                      <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                      <input
+                        type="password"
+                        value={forgotNewPassword}
+                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        placeholder="Nhập mật khẩu mới"
+                        className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Xác nhận mật khẩu</label>
+                    <div className="relative group">
+                      <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                      <input
+                        type="password"
+                        value={forgotConfirmPassword}
+                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                        placeholder="Nhập lại mật khẩu"
+                        className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={forgotLoading}
+                    className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0 flex items-center justify-center gap-2"
+                  >
+                    <FaLock />
+                    {forgotLoading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm text-[#746355]">
-              <label className="flex items-center gap-2 text-[#4a3c32]">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 accent-[#9E211F]"
-                  checked={rememberMe}
-                  onChange={handleRememberMe}
-                />
-                <span>{t('auth.login.remember')}</span>
-              </label>
-              <Link to="/forgot-password" className="text-[#9E211F] font-semibold hover:underline">{t('auth.login.forgot')}</Link>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0"
-            >
-              {loading ? t('auth.login.submitting') : t('auth.login.submit')}
-            </button>
-            <div className="text-center text-sm text-[#746355]">
-              {t('auth.login.registerPrompt')}
-              {' '}
-              <Link to="/register" className="text-[#9E211F] font-semibold hover:underline">{t('auth.login.registerLink')}</Link>
-            </div>
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.login.usernameLabel')}</label>
+                <div className="relative group">
+                  <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                  <input
+                    type="text"
+                    placeholder={t('auth.login.usernamePlaceholder')}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    className="w-full py-3 pl-11 pr-4 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.login.passwordLabel')}</label>
+                <div className="relative group">
+                  <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t('auth.login.passwordPlaceholder')}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full py-3 pl-11 pr-12 border border-[#efe7db] rounded-[16px] bg-white text-[#3b2c24] placeholder:text-[#c8bdac] focus:border-[#9E211F] focus:shadow-[0_15px_40px_rgba(158,33,31,0.15)] outline-none transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#f7eee2] transition-colors"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                  >
+                    <img
+                      src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
+                      alt={showPassword ? t('auth.common.hidePassword') : t('auth.common.showPassword')}
+                      className="w-5 h-5 object-contain"
+                    />
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm text-[#746355]">
+                <label className="flex items-center gap-2 text-[#4a3c32]">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-[#9E211F]"
+                    checked={rememberMe}
+                    onChange={handleRememberMe}
+                  />
+                  <span>{t('auth.login.remember')}</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForgotState();
+                    setForgotMode(true);
+                  }}
+                  className="text-[#9E211F] font-semibold hover:underline"
+                >
+                  {t('auth.login.forgot')}
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0"
+              >
+                {loading ? t('auth.login.submitting') : t('auth.login.submit')}
+              </button>
+              <div className="text-center text-sm text-[#746355]">
+                {t('auth.login.registerPrompt')}
+                {' '}
+                <Link to="/register" className="text-[#9E211F] font-semibold hover:underline">{t('auth.login.registerLink')}</Link>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
