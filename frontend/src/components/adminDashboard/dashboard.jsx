@@ -10,6 +10,7 @@ import {
   FaChartBar,
   FaUsers,
   FaTicketAlt,
+  FaListUl,
   FaSpinner
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -24,6 +25,7 @@ import BlogManagement from './BlogManagement';
 import SettingsManagement from './SettingsManagement';
 import VoucherManagement from './VoucherManagement';
 import ProductCollectionManagement from './ProductCollectionManagement';
+import CategoryManagement from './CategoryManagement';
 import { UserContext } from '../../context/UserContext';
 import AdminDashboardService from '../../services/modules/admin/adminDashboardService.jsx';
 
@@ -122,6 +124,7 @@ const menuItems = [
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/admin' },
     { id: 'sellers', icon: FaUsers, label: 'Người bán', path: '/admin/sellers' },
     { id: 'products', icon: FaProductHunt, label: 'Sản phẩm', path: '/admin/products' },
+  { id: 'categories', icon: FaListUl, label: 'Danh mục', path: '/admin/categories' },
     { id: 'orders', icon: FaClipboardList, label: 'Đơn hàng', path: '/admin/orders' },
     { id: 'customers', icon: FaUsersCog, label: 'Khách hàng', path: '/admin/customers' },
     { id: 'vouchers', icon: FaTicketAlt, label: 'Voucher', path: '/admin/vouchers' },
@@ -208,6 +211,8 @@ const menuItems = [
           )}
 
           {activeTab === 'products' && <ProductManagement />}
+
+          {activeTab === 'categories' && <CategoryManagement />}
 
           {activeTab === 'orders' && <OrderManagement />}
 

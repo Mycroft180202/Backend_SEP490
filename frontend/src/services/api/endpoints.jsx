@@ -10,6 +10,8 @@ export const API_ENDPOINTS = {
 
   Categories: {
     GET_ALL: '/categories',
+    CREATE: '/categories',
+    UPDATE: (id) => `/categories/${id}`,
   },
 
   AUTH: {

@@ -11,4 +11,22 @@ export const CategoryService = {
       throw error;
     }
   },
+
+  createCategory: async (payload) => {
+    try {
+      const response = await axiosClient.post(API_ENDPOINTS.Categories.CREATE, payload);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updateCategory: async (id, payload) => {
+    try {
+      const response = await axiosClient.put(API_ENDPOINTS.Categories.UPDATE(id), payload);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };

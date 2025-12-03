@@ -772,6 +772,14 @@ const SellerManagement = () => {
                     : '---'}
                 </p>
               </div>
+              <div>
+                <p className="font-semibold text-gray-900">Trạng thái</p>
+                <p>{getApplicationStatusText(selectedApplication.status)}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Người duyệt</p>
+                <p>{selectedApplication.reviewerName || selectedApplication.reviewedBy || '---'}</p>
+              </div>
               <div className="md:col-span-2">
                 <p className="font-semibold text-gray-900">Địa chỉ xưởng</p>
                 <p>{selectedApplication.workshopAddress || '---'}</p>
@@ -779,6 +787,68 @@ const SellerManagement = () => {
               <div className="md:col-span-2">
                 <p className="font-semibold text-gray-900">Mô tả kỹ năng</p>
                 <p>{selectedApplication.skillDescription || '---'}</p>
+              </div>
+              {(selectedApplication.adminNote || selectedApplication.rejectReason) && (
+                <div className="md:col-span-2">
+                  <p className="font-semibold text-gray-900">Ghi chú / Lý do</p>
+                  <p>
+                    {selectedApplication.adminNote && (
+                      <span className="block">Ghi chú: {selectedApplication.adminNote}</span>
+                    )}
+                    {selectedApplication.rejectReason && (
+                      <span className="block">Lý do từ chối: {selectedApplication.rejectReason}</span>
+                    )}
+                  </p>
+                </div>
+              )}
+              <div className="md:col-span-2">
+                <p className="font-semibold text-gray-900 mb-2">Hình ảnh CMND/CCCD</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Mặt trước</p>
+                    {selectedApplication.identityFrontImageUrl ? (
+                      <a
+                        href={selectedApplication.identityFrontImageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block group"
+                      >
+                        <img
+                          src={selectedApplication.identityFrontImageUrl}
+                          alt="Ảnh mặt trước CMND/CCCD"
+                          className="w-full h-40 object-cover rounded-md border border-gray-200 group-hover:border-primary transition-colors"
+                        />
+                        <span className="mt-2 inline-block text-xs text-primary font-semibold group-hover:underline">
+                          Mở ảnh trong tab mới
+                        </span>
+                      </a>
+                    ) : (
+                      <p className="text-xs text-gray-500">Chưa cung cấp ảnh.</p>
+                    )}
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Mặt sau</p>
+                    {selectedApplication.identityBackImageUrl ? (
+                      <a
+                        href={selectedApplication.identityBackImageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block group"
+                      >
+                        <img
+                          src={selectedApplication.identityBackImageUrl}
+                          alt="Ảnh mặt sau CMND/CCCD"
+                          className="w-full h-40 object-cover rounded-md border border-gray-200 group-hover:border-primary transition-colors"
+                        />
+                        <span className="mt-2 inline-block text-xs text-primary font-semibold group-hover:underline">
+                          Mở ảnh trong tab mới
+                        </span>
+                      </a>
+                    ) : (
+                      <p className="text-xs text-gray-500">Chưa cung cấp ảnh.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end">

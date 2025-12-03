@@ -1,6 +1,11 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { FaMinus, FaPlus, FaTrash } from 'react-icons/fa';
+import {
+  FaMinus,
+  FaPlus,
+  FaTrash,
+  FaExclamationTriangle,
+} from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { LanguageContext } from '../../context/LanguageContext';
 
@@ -23,6 +28,13 @@ const ProductList = ({
   onCheckout = () => {},
 }) => {
   const { t } = useContext(LanguageContext);
+  const [quantityDrafts, setQuantityDrafts] = useState({});
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    targetId: null,
+    loading: false,
+    productName: '',
+  });
   const priceSuffix = t('productCard.priceSuffix');
   const soldOutLabel = t('productCard.soldOut');
   const soldOutText = soldOutLabel && soldOutLabel.includes('productCard.soldOut')
@@ -32,6 +44,52 @@ const ProductList = ({
   const unavailableNoticeText = unavailableNoticeLabel && unavailableNoticeLabel.includes('cart.unavailableNotice')
     ? 'Sản phẩm đã hết hàng hoặc ngừng kinh doanh.'
     : unavailableNoticeLabel || 'Sản phẩm đã hết hàng hoặc ngừng kinh doanh.';
+  const removeConfirmLabel = t('cart.removeConfirm');
+  const removeConfirmText = removeConfirmLabel && removeConfirmLabel.includes('cart.removeConfirm')
+    ? 'Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?'
+    : removeConfirmLabel || 'Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?';
+  const removeConfirmTitleLabel = t('cart.removeConfirmTitle');
+  const removeConfirmTitleText = removeConfirmTitleLabel && removeConfirmTitleLabel.includes('cart.removeConfirmTitle')
+    ? 'Xóa sản phẩm'
+    : removeConfirmTitleLabel || 'Xóa sản phẩm';
+  const removeConfirmCancelLabel = t('common.cancel');
+  const removeConfirmCancelText = removeConfirmCancelLabel && removeConfirmCancelLabel.includes('common.cancel')
+    ? 'Hủy'
+    : removeConfirmCancelLabel || 'Hủy';
+  const removeConfirmAcceptLabel = t('common.confirm');
+  const removeConfirmAcceptText = removeConfirmAcceptLabel && removeConfirmAcceptLabel.includes('common.confirm')
+    ? 'Xác nhận'
+    : removeConfirmAcceptLabel || 'Xác nhận';
+  const removingLabel = t('cart.removing');
+  const removingText = removingLabel && removingLabel.includes('cart.removing')
+    ? 'Đang xử lý...'
+    : removingLabel || 'Đang xử lý...';
+
+  const openRemoveConfirm = (targetId, productName) => {
+    setConfirmState({
+      open: true,
+      targetId,
+      loading: false,
+      productName: productName || 'Sản phẩm',
+    });
+  };
+
+  const closeRemoveConfirm = () => {
+    setConfirmState({ open: false, targetId: null, loading: false, productName: '' });
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!confirmState.targetId) {
+      closeRemoveConfirm();
+      return;
+    }
+    setConfirmState((prev) => ({ ...prev, loading: true }));
+    try {
+      await onRemove(confirmState.targetId);
+    } finally {
+      closeRemoveConfirm();
+    }
+  };
 
   const isUnavailable = (item) => (
     item?.isActive === false
@@ -87,6 +145,19 @@ const ProductList = ({
     </div>
   );
 
+  useEffect(() => {
+    if (!Array.isArray(items)) {
+      setQuantityDrafts({});
+      return;
+    }
+    const next = items.reduce((acc, current) => {
+      const key = current.cartItemId || current.id;
+      acc[key] = String(current.quantity ?? 1);
+      return acc;
+    }, {});
+    setQuantityDrafts(next);
+  }, [items]);
+
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -104,6 +175,7 @@ const ProductList = ({
           </span>
         )}
       </header>
+
       {loading ? (
         renderSkeleton()
       ) : items.length === 0 ? (
@@ -115,6 +187,8 @@ const ProductList = ({
               const isUpdating = updatingItemId === item.id || updatingItemId === item.cartItemId;
               const subtotalPerItem = (item.price || 0) * (item.quantity || 0);
               const itemUnavailable = isUnavailable(item);
+              const draftKey = item.cartItemId || item.id;
+              const draftValue = quantityDrafts[draftKey] ?? String(item.quantity ?? 1);
 
               return (
                 <article
@@ -167,7 +241,7 @@ const ProductList = ({
                               const next = (item.quantity || 0) - 1;
                               const targetId = item.cartItemId || item.id;
                               if (next <= 0) {
-                                await onRemove(targetId);
+                                openRemoveConfirm(targetId, item.name);
                               } else {
                                 await onQuantityChange(targetId, next);
                               }
@@ -181,9 +255,46 @@ const ProductList = ({
                           >
                             <FaMinus size={12} />
                           </button>
-                            <span className="min-w-[2rem] text-center font-semibold text-[#8B4513]">
-                              {item.quantity}
-                            </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={draftValue}
+                            onChange={(event) => {
+                              if (isUpdating || itemUnavailable) return;
+                              const raw = event.target.value;
+                              const sanitized = raw.replace(/[^0-9]/g, '');
+                              setQuantityDrafts((prev) => ({ ...prev, [draftKey]: sanitized }));
+                            }}
+                            onBlur={async () => {
+                              if (isUpdating || itemUnavailable) return;
+                              const raw = quantityDrafts[draftKey];
+                              if (raw === undefined) return;
+                              if (raw === '') {
+                                setQuantityDrafts((prev) => ({ ...prev, [draftKey]: String(item.quantity ?? 1) }));
+                                return;
+                              }
+                              const parsed = Number(raw);
+                              const result = await onQuantityChange(draftKey, parsed, { manual: true });
+                              if (!result?.success) {
+                                const fallback = result?.quantity ?? item.quantity ?? 1;
+                                setQuantityDrafts((prev) => ({ ...prev, [draftKey]: String(fallback) }));
+                              } else {
+                                const normalizedDisplay = String(result.quantity ?? item.quantity ?? 1);
+                                setQuantityDrafts((prev) => ({ ...prev, [draftKey]: normalizedDisplay }));
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                event.currentTarget.blur();
+                              }
+                            }}
+                            className={`w-14 text-center font-semibold text-[#8B4513] bg-transparent border border-transparent focus:border-[#D4A574] focus:bg-white focus:outline-none rounded-md py-1 ${
+                              isUpdating || itemUnavailable ? 'text-gray-300 cursor-not-allowed' : ''
+                            }`}
+                            disabled={isUpdating || itemUnavailable}
+                          />
                             <button
                               type="button"
                               onClick={async () => {
@@ -214,7 +325,7 @@ const ProductList = ({
                             onClick={() => {
                               if (isUpdating) return;
                               const targetId = item.cartItemId || item.id;
-                              onRemove(targetId);
+                              openRemoveConfirm(targetId, item.name);
                             }}
                             className={`inline-flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 transition ${
                               isUpdating ? 'opacity-50 cursor-not-allowed' : ''
@@ -262,6 +373,38 @@ const ProductList = ({
               {t('cart.checkout')}
             </button>
           </aside>
+        </div>
+      )}
+
+      {confirmState.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 text-[#8B4513]">
+              <FaExclamationTriangle className="text-2xl" />
+              <h3 className="text-lg font-semibold">{removeConfirmTitleText}</h3>
+            </div>
+            <p className="text-gray-600 leading-relaxed">
+              {`${removeConfirmText} (${confirmState.productName})`}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeRemoveConfirm}
+                disabled={confirmState.loading}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition disabled:opacity-60"
+              >
+                {removeConfirmCancelText}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemove}
+                disabled={confirmState.loading}
+                className="px-4 py-2 rounded-lg bg-[#8B4513] text-white font-semibold hover:bg-[#D4A574] transition disabled:opacity-70"
+              >
+                {confirmState.loading ? removingText : removeConfirmAcceptText}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

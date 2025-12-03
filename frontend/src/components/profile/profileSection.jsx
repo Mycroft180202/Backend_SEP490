@@ -3,6 +3,7 @@
   useEffect,
   useRef,
   useCallback,
+  useContext,
 } from 'react';
 import { useNavigate } from "react-router-dom";
 import { AuthService } from '../../services/modules/auth/authService';
@@ -32,6 +33,7 @@ import { ArtisanApplicationService } from '../../services/modules/artisan/artisa
 import ProductCard from '../shared/ProductCard';
 import ArtisanRegistrationForm from './ArtisanRegistrationForm';
 import { toast } from 'react-toastify';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const mapUserProfile = (data) => ({
   name: data.displayName || data.fullName || '',
@@ -57,6 +59,105 @@ const addressFormDefaults = {
   isDefault: false,
 };
 
+const HIDDEN_PROVINCE_IDS = new Set([2002, 298, 290, 286]);
+const HIDDEN_PROVINCE_NAMES = new Set([
+  'hà nội 02',
+  'test - alert - tỉnh - 001',
+  'ngoc test',
+  'test',
+]);
+
+const MAX_AGE_YEARS = 120;
+
+const buildValidDate = (year, month, day) => {
+  if (
+    !Number.isInteger(year)
+    || !Number.isInteger(month)
+    || !Number.isInteger(day)
+    || month < 1
+    || month > 12
+    || day < 1
+    || day > 31
+  ) {
+    return null;
+  }
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+};
+
+const parseDobToFields = (value) => {
+  if (!value) {
+    return { day: '', month: '', year: '' };
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { day: '', month: '', year: '' };
+  }
+  const pad = (v) => v.toString().padStart(2, '0');
+  return {
+    day: pad(date.getDate()),
+    month: pad(date.getMonth() + 1),
+    year: date.getFullYear().toString(),
+  };
+};
+
+const isAgeWithinLimit = (date) => {
+  const now = new Date();
+  let age = now.getFullYear() - date.getFullYear();
+  const monthDiff = now.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  if (age < 0) {
+    return false;
+  }
+  return age <= MAX_AGE_YEARS;
+};
+
+const evaluateDobFields = ({ day, month, year }) => {
+  const trimmedDay = (day || '').trim();
+  const trimmedMonth = (month || '').trim();
+  const trimmedYear = (year || '').trim();
+
+  if (!trimmedDay && !trimmedMonth && !trimmedYear) {
+    return { status: 'empty', iso: '' };
+  }
+
+  if (trimmedDay.length !== 2 || trimmedMonth.length !== 2 || trimmedYear.length !== 4) {
+    return { status: 'invalid' };
+  }
+
+  const numericDay = Number(trimmedDay);
+  const numericMonth = Number(trimmedMonth);
+  const numericYear = Number(trimmedYear);
+
+  if (
+    !Number.isInteger(numericDay)
+    || !Number.isInteger(numericMonth)
+    || !Number.isInteger(numericYear)
+  ) {
+    return { status: 'invalid' };
+  }
+
+  const date = buildValidDate(numericYear, numericMonth, numericDay);
+  if (!date) {
+    return { status: 'invalid' };
+  }
+
+  if (!isAgeWithinLimit(date)) {
+    return { status: 'age' };
+  }
+
+  return { status: 'valid', iso: date.toISOString(), date };
+};
+
 const formatDob = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -68,27 +169,16 @@ const formatDob = (value) => {
   });
 };
 
-const normalizeDobInput = (value) => {
-  if (!value) return '';
-  const parts = value.split(/[-/]/).map((p) => p.trim());
-  if (parts.length === 3) {
-    if (parts[0].length === 4) {
-      // yyyy-mm-dd
-      const [y, m, d] = parts.map(Number);
-      const date = new Date(y, m - 1, d);
-      return Number.isNaN(date.getTime()) ? '' : date.toISOString();
-    }
-    // dd-mm-yyyy
-    const [d, m, y] = parts.map(Number);
-    const date = new Date(y, m - 1, d);
-    return Number.isNaN(date.getTime()) ? '' : date.toISOString();
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
-};
-
 // Component đổi mật khẩu
 function ChangePasswordSection({ email }) {
+  const { t } = useContext(LanguageContext);
+  const translate = useCallback(
+    (key, fallback, replacements) => {
+      const value = t(key, replacements);
+      return value === key ? fallback : value;
+    },
+    [t],
+  );
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -99,10 +189,10 @@ function ChangePasswordSection({ email }) {
     setLoading(true);
     try {
       const response = await AuthService.sendOtp(email);
-      toast.success(response?.message || 'OTP đã được gửi tới email của bạn.');
+      toast.success(response?.message || translate('profile.changePassword.otpSent', 'OTP đã được gửi tới email của bạn.'));
       setStep(2);
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Email không tồn tại trong hệ thống.');
+      toast.error(error?.response?.data?.message || translate('profile.changePassword.emailNotFound', 'Email không tồn tại trong hệ thống.'));
     } finally {
       setLoading(false);
     }
@@ -110,32 +200,32 @@ function ChangePasswordSection({ email }) {
 
   const handleResetPassword = async () => {
     if (!otpCode) {
-      toast.error('Vui lòng nhập mã OTP.');
+      toast.error(translate('profile.changePassword.otpRequired', 'Vui lòng nhập mã OTP.'));
       return;
     }
     if (!newPassword || !confirmPassword) {
-      toast.error('Vui lòng điền đầy đủ mật khẩu.');
+      toast.error(translate('profile.changePassword.passwordRequired', 'Vui lòng điền đầy đủ mật khẩu.'));
       return;
     }
         if (newPassword !== confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp.');
+      toast.error(translate('profile.changePassword.passwordMismatch', 'Mật khẩu xác nhận không khớp.'));
       return;
     }
     const strongPassword = /^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{6,}$/;
     if (!strongPassword.test(newPassword)) {
-      toast.error('Mật khẩu phải có ≥ 6 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.');
+      toast.error(translate('profile.changePassword.passwordRule', 'Mật khẩu phải có ≥ 6 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.'));
       return;
     }
     setLoading(true);
     try {
       const response = await AuthService.resetPassword({ email, otpCode, newPassword });
-      toast.success(response?.message || 'Mật khẩu đã được thay đổi thành công.');
+      toast.success(response?.message || translate('profile.changePassword.resetSuccess', 'Mật khẩu đã được thay đổi thành công.'));
       setStep(1);
       setOtpCode('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.');
+      toast.error(error?.response?.data?.message || translate('profile.changePassword.otpInvalid', 'Mã OTP không hợp lệ hoặc đã hết hạn.'));
     } finally {
       setLoading(false);
     }
@@ -143,10 +233,10 @@ function ChangePasswordSection({ email }) {
 
   return (
     <div className="max-w-md mx-auto">
-      <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Đổi mật khẩu</h2>
+      <h2 className="text-[#9e211f] text-3xl font-bold mb-8">{translate('profile.changePassword.title', 'Đổi mật khẩu')}</h2>
       {step === 1 && (
         <div>
-          <label className="block mb-2 text-sm font-medium">Email</label>
+          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.emailLabel', 'Email')}</label>
           <div className="flex items-center border rounded overflow-hidden mb-4">
             <div className="px-3 text-gray-400"><FaEnvelope /></div>
             <input type="email" value={email} readOnly className="w-full p-2 outline-none bg-gray-100" />
@@ -156,13 +246,15 @@ function ChangePasswordSection({ email }) {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-transform transform hover:scale-105"
           >
-            <FaPaperPlane /> {loading ? 'Đang gửi...' : 'Gửi OTP'}
+            <FaPaperPlane /> {loading
+              ? translate('profile.common.sending', 'Đang gửi...')
+              : translate('profile.changePassword.sendOtp', 'Gửi OTP')}
           </button>
         </div>
       )}
       {step === 2 && (
         <div>
-          <label className="block mb-2 text-sm font-medium">OTP</label>
+          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.otpLabel', 'OTP')}</label>
           <div className="flex items-center border rounded overflow-hidden mb-4">
             <div className="px-3 text-gray-400"><FaKey /></div>
             <input
@@ -170,10 +262,10 @@ function ChangePasswordSection({ email }) {
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value)}
               className="w-full p-2 outline-none"
-              placeholder="Nhập mã OTP"
+              placeholder={translate('profile.changePassword.otpPlaceholder', 'Nhập mã OTP')}
             />
           </div>
-          <label className="block mb-2 text-sm font-medium">Mật khẩu mới</label>
+          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.newPasswordLabel', 'Mật khẩu mới')}</label>
           <div className="flex items-center border rounded overflow-hidden mb-4">
             <div className="px-3 text-gray-400"><FaLock /></div>
             <input
@@ -181,10 +273,10 @@ function ChangePasswordSection({ email }) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full p-2 outline-none"
-              placeholder="Nhập mật khẩu mới"
+              placeholder={translate('profile.changePassword.newPasswordPlaceholder', 'Nhập mật khẩu mới')}
             />
           </div>
-          <label className="block mb-2 text-sm font-medium">Xác nhận mật khẩu</label>
+          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.confirmPasswordLabel', 'Xác nhận mật khẩu')}</label>
           <div className="flex items-center border rounded overflow-hidden mb-4">
             <div className="px-3 text-gray-400"><FaLock /></div>
             <input
@@ -192,7 +284,7 @@ function ChangePasswordSection({ email }) {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full p-2 outline-none"
-              placeholder="Nhập lại mật khẩu"
+              placeholder={translate('profile.changePassword.confirmPasswordPlaceholder', 'Nhập lại mật khẩu')}
             />
           </div>
           <button
@@ -200,7 +292,9 @@ function ChangePasswordSection({ email }) {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-transform transform hover:scale-105"
           >
-            <FaLock /> {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+            <FaLock /> {loading
+              ? translate('profile.common.processing', 'Đang xử lý...')
+              : translate('profile.changePassword.submit', 'Đổi mật khẩu')}
           </button>
         </div>
       )}
@@ -210,6 +304,14 @@ function ChangePasswordSection({ email }) {
 
 // Component ProfileSection
 function ProfileSection() {
+  const { t } = useContext(LanguageContext);
+  const translate = useCallback(
+    (key, fallback, replacements) => {
+      const value = t(key, replacements);
+      return value === key ? fallback : value;
+    },
+    [t],
+  );
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -220,7 +322,8 @@ function ProfileSection() {
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedProfile, setEditedProfile] = useState(null);
-  const [dobInput, setDobInput] = useState('');
+  const [dobFields, setDobFields] = useState({ day: '', month: '', year: '' });
+  const [dobInvalid, setDobInvalid] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
@@ -236,6 +339,9 @@ function ProfileSection() {
   const [applicationInfo, setApplicationInfo] = useState(null);
   const [loadingApplication, setLoadingApplication] = useState(false);
   const fileInputRef = useRef(null);
+  const dayInputRef = useRef(null);
+  const monthInputRef = useRef(null);
+  const yearInputRef = useRef(null);
   const navigate = useNavigate();
   const resolveAddressNames = useCallback(async (addresses) => {
     if (!Array.isArray(addresses) || addresses.length === 0) return [];
@@ -318,7 +424,8 @@ function ProfileSection() {
     const mergedProfile = { ...profileData, addresses: resolvedAddresses };
     setProfile(mergedProfile);
     setEditedProfile(mergedProfile);
-    setDobInput(formatDob(mergedProfile.dob));
+    setDobFields(parseDobToFields(mergedProfile.dob));
+    setDobInvalid(false);
     const roleList = data?.roles || [];
     const artisan = roleList.some((r) => (r.name || '').toLowerCase() === 'artisan');
     setIsArtisan(artisan);
@@ -398,17 +505,22 @@ function ProfileSection() {
     try {
       setLoadingProvinces(true);
       const data = await GHNLocationService.getProvinces();
-      setProvinces(Array.isArray(data) ? data : []);
-      return data;
+      const sanitized = (Array.isArray(data) ? data : []).filter((province) => {
+        const id = Number(province?.ProvinceID);
+        const name = String(province?.ProvinceName || '').toLowerCase().trim();
+        return !HIDDEN_PROVINCE_IDS.has(id) && !HIDDEN_PROVINCE_NAMES.has(name);
+      });
+      setProvinces(sanitized);
+      return sanitized;
     } catch (err) {
       console.error('Load provinces error:', err);
-      toast.error('Khong the tai danh sach tinh/ thanh.');
+      toast.error(translate('profile.address.loadProvincesError', 'Không thể tải danh sách tỉnh/thành.'));
       setProvinces([]);
       return [];
     } finally {
       setLoadingProvinces(false);
     }
-  }, []);
+  }, [translate]);
 
   const loadDistricts = useCallback(async (provinceId) => {
     if (!provinceId) {
@@ -422,13 +534,13 @@ function ProfileSection() {
       return data;
     } catch (err) {
       console.error('Load districts error:', err);
-      toast.error('Khong the tai danh sach quan/huyen.');
+      toast.error(translate('profile.address.loadDistrictsError', 'Không thể tải danh sách quận/huyện.'));
       setDistricts([]);
       return [];
     } finally {
       setLoadingDistricts(false);
     }
-  }, []);
+  }, [translate]);
 
   const loadWards = useCallback(async (districtId) => {
     if (!districtId) {
@@ -442,13 +554,13 @@ function ProfileSection() {
       return data;
     } catch (err) {
       console.error('Load wards error:', err);
-      toast.error('Khong the tai danh sach phuong/xa.');
+      toast.error(translate('profile.address.loadWardsError', 'Không thể tải danh sách phường/xã.'));
       setWards([]);
       return [];
     } finally {
       setLoadingWards(false);
     }
-  }, []);
+  }, [translate]);
 
   useEffect(() => {
 
@@ -462,7 +574,7 @@ function ProfileSection() {
 
       } catch (err) {
 
-        setError('Khong the lay thong tin nguoi dung');
+        setError(translate('profile.errors.fetchUser', 'Không thể lấy thông tin người dùng.'));
 
       } finally {
 
@@ -474,7 +586,7 @@ function ProfileSection() {
 
     fetchUser();
 
-  }, [refreshUserProfile]);
+  }, [refreshUserProfile, translate]);
 
   useEffect(() => {
     if (profile) {
@@ -501,12 +613,12 @@ function ProfileSection() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh không được vượt quá 5MB');
+      toast.error(translate('profile.avatar.sizeError', 'Kích thước ảnh không được vượt quá 5MB'));
       return;
     }
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn file ảnh');
+      toast.error(translate('profile.avatar.typeError', 'Vui lòng chọn file ảnh'));
       return;
     }
 
@@ -522,10 +634,10 @@ function ProfileSection() {
 
       await AuthService.updateProfile(updateData);
       await refreshUserProfile();
-      toast.success('Cập nhật ảnh đại diện thành công!');
+      toast.success(translate('profile.avatar.updateSuccess', 'Cập nhật ảnh đại diện thành công!'));
     } catch (err) {
       console.error('Update avatar error:', err);
-      toast.error(err?.response?.data?.message || 'Không thể cập nhật ảnh đại diện');
+      toast.error(err?.response?.data?.message || translate('profile.avatar.updateError', 'Không thể cập nhật ảnh đại diện'));
     } finally {
       setLoading(false);
     }
@@ -539,7 +651,16 @@ function ProfileSection() {
     setIsEditMode(!isEditMode);
     if (isEditMode) {
       setEditedProfile(profile);
-      setDobInput(formatDob(profile?.dob));
+      setDobFields(parseDobToFields(profile?.dob));
+      setDobInvalid(false);
+    } else {
+      setDobFields(parseDobToFields((editedProfile || profile)?.dob));
+      setDobInvalid(false);
+      setTimeout(() => {
+        if (dayInputRef.current) {
+          dayInputRef.current.focus();
+        }
+      }, 0);
     }
   };
 
@@ -547,23 +668,104 @@ function ProfileSection() {
     setEditedProfile({ ...editedProfile, [field]: value });
   };
 
+  const handleDobFieldChange = (field, rawValue) => {
+    const numeric = rawValue.replace(/\D/g, '');
+    const maxLength = field === 'year' ? 4 : 2;
+    const nextValue = numeric.slice(0, maxLength);
+
+    setDobFields((prev) => {
+      const updated = { ...prev, [field]: nextValue };
+      return updated;
+    });
+    setDobInvalid(false);
+
+    if (field === 'day' && nextValue.length === maxLength) {
+      monthInputRef.current?.focus();
+    } else if (field === 'month' && nextValue.length === maxLength) {
+      yearInputRef.current?.focus();
+    }
+  };
+
+  const handleDobFieldKeyDown = (field, event) => {
+    if (event.key !== 'Backspace') {
+      return;
+    }
+    if (field === 'month' && !dobFields.month) {
+      event.preventDefault();
+      dayInputRef.current?.focus();
+    } else if (field === 'year' && !dobFields.year) {
+      event.preventDefault();
+      monthInputRef.current?.focus();
+    }
+  };
+
+  const handleDobBlur = (field) => {
+    if (field !== 'year') {
+      return;
+    }
+
+    const result = evaluateDobFields(dobFields);
+    if (result.status === 'empty') {
+      setDobInvalid(false);
+      handleInputChange('dob', '');
+      return;
+    }
+
+    if (result.status === 'valid') {
+      setDobInvalid(false);
+      handleInputChange('dob', result.iso);
+      return;
+    }
+
+    setDobInvalid(true);
+    handleInputChange('dob', '');
+    const messageKey = result.status === 'age'
+      ? 'profile.info.dobAgeLimit'
+      : 'profile.info.dobInvalid';
+    const fallback = result.status === 'age'
+      ? 'Ngày sinh vượt quá giới hạn tuổi cho phép.'
+      : 'Ngày sinh không hợp lệ.';
+    toast.error(translate(messageKey, fallback));
+    setTimeout(() => {
+      yearInputRef.current?.focus();
+    }, 0);
+  };
+
   const handleSaveProfile = async () => {
+    const dobEvaluation = evaluateDobFields(dobFields);
+    if (dobEvaluation.status === 'invalid') {
+      setDobInvalid(true);
+      toast.error(translate('profile.info.dobInvalid', 'Ngày sinh không hợp lệ.'));
+      dayInputRef.current?.focus();
+      return;
+    }
+    if (dobEvaluation.status === 'age') {
+      setDobInvalid(true);
+      toast.error(translate('profile.info.dobAgeLimit', 'Ngày sinh vượt quá giới hạn tuổi cho phép.'));
+      yearInputRef.current?.focus();
+      return;
+    }
+
+    const dobValue = dobEvaluation.status === 'valid' ? dobEvaluation.iso : '';
+    handleInputChange('dob', dobValue);
+    setDobInvalid(false);
+
     try {
       setLoading(true);
       const updateData = {
         PhoneNumber: editedProfile.phone,
         DisplayName: editedProfile.name,
-        Dob: editedProfile.dob,
+        Dob: dobValue,
         // Không gửi UserUrlImage khi chỉ update thông tin text
       };
 
       await AuthService.updateProfile(updateData);
       await refreshUserProfile();
       setIsEditMode(false);
-      toast.success('Cập nhật thông tin thành công!');
+      toast.success(translate('profile.info.updateSuccess', 'Cập nhật thông tin thành công!'));
     } catch (err) {
       console.error('Lỗi khi cập nhật thông tin:', err);
-      toast.error(err.message || 'Không thể cập nhật thông tin');
+      toast.error(err.message || translate('profile.info.updateError', 'Không thể cập nhật thông tin'));
     } finally {
       setLoading(false);
     }
@@ -594,7 +796,7 @@ function ProfileSection() {
     const totalAddresses = Array.isArray(profile?.addresses) ? profile.addresses.length : 0;
     // If user only has one address, enforce default and show a gentle notice.
     if (totalAddresses <= 1) {
-      toast.info('Bạn chỉ có một địa chỉ, địa chỉ này sẽ được đặt làm mặc định.');
+      toast.info(translate('profile.address.singleDefaultNotice', 'Bạn chỉ có một địa chỉ, địa chỉ này sẽ được đặt làm mặc định.'));
       setNewAddress((prev) => ({ ...prev, isDefault: true }));
       return;
     }
@@ -658,14 +860,14 @@ function ProfileSection() {
     const wardCodeValue = (newAddress.wardCode || '').trim();
 
     if (!name || !phone || !detail || !provinceIdValue || !districtIdValue || !wardCodeValue) {
-      toast.error('Vui long chon day du tinh, quan, phuong va nhap dia chi chi tiet.');
+      toast.error(translate('profile.address.validation.missingFields', 'Vui lòng chọn đầy đủ tỉnh, quận, phường và nhập địa chỉ chi tiết.'));
       return;
     }
 
     const districtId = Number(districtIdValue);
     const provinceId = Number(provinceIdValue);
     if (Number.isNaN(districtId) || Number.isNaN(provinceId)) {
-      toast.error('Ma tinh hoac quan khong hop le.');
+      toast.error(translate('profile.address.validation.invalidProvinceDistrict', 'Mã tỉnh hoặc quận không hợp lệ.'));
       return;
     }
 
@@ -698,10 +900,10 @@ function ProfileSection() {
       setSavingAddress(true);
       if (editingAddressId) {
         await UserService.updateAddress(editingAddressId, payload);
-        toast.success('Cập nhật địa chỉ thành công!');
+        toast.success(translate('profile.address.updateSuccess', 'Cập nhật địa chỉ thành công!'));
       } else {
-        await UserService.addAddress(payload);
-        toast.success('Thêm địa chỉ thành công!');
+          await UserService.addAddress(payload);
+          toast.success(translate('profile.address.createSuccess', 'Thêm địa chỉ thành công!'));
       }
       await refreshUserProfile();
       setNewAddress(addressFormDefaults);
@@ -714,7 +916,7 @@ function ProfileSection() {
         || err?.response?.data?.title
         || err?.message
         || 'Không thể lưu địa chỉ.';
-      toast.error(message);
+      toast.error(message || translate('profile.address.saveError', 'Không thể lưu địa chỉ.'));
     } finally {
       setSavingAddress(false);
     }
@@ -729,8 +931,8 @@ function ProfileSection() {
           <div className="absolute inset-3 rounded-full bg-white shadow-inner" />
           <div className="absolute inset-5 rounded-full border-2 border-dashed border-[#9E211F]/40 animate-pulse" />
         </div>
-        <p className="text-[#9E211F] font-semibold text-lg font-['Nunito']">Đang tải thông tin...</p>
-        <p className="text-sm text-gray-600 mt-1 font-['Nunito']">Vui lòng chờ trong giây lát</p>
+        <p className="text-[#9E211F] font-semibold text-lg font-['Nunito']">{translate('profile.loading.title', 'Đang tải thông tin...')}</p>
+        <p className="text-sm text-gray-600 mt-1 font-['Nunito']">{translate('profile.loading.subtitle', 'Vui lòng chờ trong giây lát')}</p>
       </div>
     );
   }
@@ -760,7 +962,7 @@ function ProfileSection() {
               >
                 <div className="text-white text-center">
                   <FaEye className="mx-auto mb-1" size={20} />
-                  <span className="text-xs">Xem ảnh</span>
+                  <span className="text-xs">{translate('profile.avatar.view', 'Xem ảnh')}</span>
                 </div>
               </div>
               {/* Bottom half - Change image */}
@@ -770,7 +972,7 @@ function ProfileSection() {
               >
                 <div className="text-white text-center">
                   <FaCamera className="mx-auto mb-1" size={20} />
-                  <span className="text-xs">Đổi ảnh</span>
+                  <span className="text-xs">{translate('profile.avatar.change', 'Đổi ảnh')}</span>
                 </div>
               </div>
             </div>
@@ -790,13 +992,13 @@ function ProfileSection() {
               className={`flex items-center gap-2 font-semibold cursor-pointer ${activeSection === 'info' ? 'text-[#9e211f]' : 'text-gray-600 hover:text-[#9e211f]'}`}
               onClick={() => setActiveSection('info')}
             >
-              <FaUserCircle /> Thông tin tài khoản
+              <FaUserCircle /> {translate('profile.sidebar.accountInfo', 'Thông tin tài khoản')}
             </li>
             <li 
               className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]"
               onClick={() => navigate('/order-history')}
             >
-              <FaHistory /> Lịch sử mua hàng
+              <FaHistory /> {translate('profile.sidebar.orderHistory', 'Lịch sử mua hàng')}
             </li>
             <li
               className={`flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f] ${activeSection === 'wishlist' ? 'text-[#9e211f]' : ''}`}
@@ -805,7 +1007,7 @@ function ProfileSection() {
                 loadWishlist();
               }}
             >
-              <FaHeart /> Sản phẩm đã thích
+              <FaHeart /> {translate('profile.sidebar.wishlist', 'Sản phẩm đã thích')}
             </li>
             <li
               className={`flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f] ${activeSection === 'artisanRegistration' ? 'text-[#9e211f]' : ''}`}
@@ -818,16 +1020,18 @@ function ProfileSection() {
               }}
             >
               <FaUserTie />
-              {isArtisan ? 'Cửa hàng của tôi' : 'Đăng ký làm người bán hàng'}
+              {isArtisan
+                ? translate('profile.sidebar.artisanShop', 'Cửa hàng của tôi')
+                : translate('profile.sidebar.artisanRegister', 'Đăng ký làm người bán hàng')}
             </li>
             <li
               className={`flex items-center gap-2 cursor-pointer ${activeSection === 'changePassword' ? 'text-[#9e211f]' : 'text-gray-600 hover:text-[#9e211f]'}`}
               onClick={() => setActiveSection('changePassword')}
             >
-              <FaLock /> Đổi mật khẩu
+              <FaLock /> {translate('profile.sidebar.changePassword', 'Đổi mật khẩu')}
             </li>
             <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
-              <FaSignOutAlt /> Đăng xuất
+              <FaSignOutAlt /> {translate('profile.sidebar.logout', 'Đăng xuất')}
             </li>
           </ul>
         </nav>
@@ -836,11 +1040,11 @@ function ProfileSection() {
       {/* Main content */}
       <main className="flex-1 px-16 py-12">
         {activeSection === 'info' ? (
-          <>
-            <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Thông tin tài khoản</h2>
+          <React.Fragment>
+            <h2 className="text-[#9e211f] text-3xl font-bold mb-8">{translate('profile.info.title', 'Thông tin tài khoản')}</h2>
             <form className="grid grid-cols-2 gap-x-12 gap-y-6 max-w-2xl">
               <div>
-                <label className="block mb-2 font-medium">Tên</label>
+                <label className="block mb-2 font-medium">{translate('profile.info.nameLabel', 'Tên')}</label>
                 <input 
                   type="text" 
                   value={isEditMode ? editedProfile.name : profile.name}
@@ -850,7 +1054,7 @@ function ProfileSection() {
                 />
               </div>
               <div>
-                <label className="block mb-2 font-medium">Số điện thoại</label>
+                <label className="block mb-2 font-medium">{translate('profile.info.phoneLabel', 'Số điện thoại')}</label>
                 {isEditMode ? (
                   <input
                     type="text"
@@ -866,33 +1070,56 @@ function ProfileSection() {
                 )}
               </div>
               <div>
-                <label className="block mb-2 font-medium">Email</label>
+                <label className="block mb-2 font-medium">{translate('profile.info.emailLabel', 'Email')}</label>
                 <div className="flex items-center border rounded px-4 py-2 bg-white">
                   <FaUserCircle className="mr-2 text-gray-400" />
                   <span>{profile.email}</span>
                 </div>
               </div>
               <div>
-                <label className="block mb-2 font-medium">Tên đăng nhập</label>
+                <label className="block mb-2 font-medium">{translate('profile.info.usernameLabel', 'Tên đăng nhập')}</label>
                 <input type="text" value={profile.username} className="w-full border rounded px-4 py-2" readOnly />
               </div>
               <div>
-                <label className="block mb-2 font-medium">Ngày tháng năm sinh</label>
+                <label className="block mb-2 font-medium">{translate('profile.info.dobLabel', 'Ngày tháng năm sinh')}</label>
                 {isEditMode ? (
-                  <div className="relative">
+                  <div className={`relative flex items-center gap-2 w-full rounded pl-10 pr-4 py-2 bg-white border focus-within:border-[#9e211f] ${dobInvalid ? 'border-red-500' : 'border-gray-300'}`}>
                     <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
+                      ref={dayInputRef}
                       type="text"
                       inputMode="numeric"
-                      placeholder="dd/mm/yyyy"
-                      value={dobInput}
-                      onChange={(e) => setDobInput(e.target.value)}
-                      onBlur={() => {
-                        const normalized = normalizeDobInput(dobInput);
-                        handleInputChange('dob', normalized);
-                        setDobInput(normalized ? formatDob(normalized) : '');
-                      }}
-                      className="w-full border rounded pl-10 pr-4 py-2"
+                      placeholder={translate('profile.info.dobDayPlaceholder', 'dd')}
+                      value={dobFields.day}
+                      onChange={(e) => handleDobFieldChange('day', e.target.value)}
+                      onKeyDown={(e) => handleDobFieldKeyDown('day', e)}
+                      className="w-12 text-center outline-none bg-transparent"
+                      maxLength={2}
+                    />
+                    <span className="text-gray-400">/</span>
+                    <input
+                      ref={monthInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={translate('profile.info.dobMonthPlaceholder', 'mm')}
+                      value={dobFields.month}
+                      onChange={(e) => handleDobFieldChange('month', e.target.value)}
+                      onKeyDown={(e) => handleDobFieldKeyDown('month', e)}
+                      className="w-12 text-center outline-none bg-transparent"
+                      maxLength={2}
+                    />
+                    <span className="text-gray-400">/</span>
+                    <input
+                      ref={yearInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={translate('profile.info.dobYearPlaceholder', 'yyyy')}
+                      value={dobFields.year}
+                      onChange={(e) => handleDobFieldChange('year', e.target.value)}
+                      onKeyDown={(e) => handleDobFieldKeyDown('year', e)}
+                      onBlur={() => handleDobBlur('year')}
+                      className="w-16 text-center outline-none bg-transparent"
+                      maxLength={4}
                     />
                   </div>
                 ) : (
@@ -911,38 +1138,44 @@ function ProfileSection() {
                   onClick={handleEditToggle}
                   className="px-8 py-2 bg-[#9e211f] text-white rounded font-semibold flex items-center gap-2"
                 >
-                  <FaEdit /> Sửa thông tin
+                  <FaEdit /> {translate('profile.info.editButton', 'Sửa thông tin')}
                 </button>
               ) : (
-                <>
+                <React.Fragment>
                   <button 
                     onClick={handleSaveProfile}
                     disabled={loading}
                     className="px-8 py-2 bg-green-600 text-white rounded font-semibold"
                   >
-                    {loading ? 'Đang lưu...' : 'Lưu thông tin'}
+                    {loading
+                      ? translate('profile.common.saving', 'Đang lưu...')
+                      : translate('profile.info.saveButton', 'Lưu thông tin')}
                   </button>
                   <button 
                     onClick={handleEditToggle}
                     className="px-8 py-2 bg-gray-500 text-white rounded font-semibold"
                   >
-                    Hủy
+                    {translate('profile.common.cancel', 'Hủy')}
                   </button>
-                </>
+                </React.Fragment>
               )}
             </div>
             <div className="mt-12 max-w-3xl">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="text-[#9e211f] text-3xl font-bold mb-8">Địa chỉ giao hàng</label>
+                <label className="text-[#9e211f] text-3xl font-bold mb-8">
+                  {translate('profile.address.title', 'Địa chỉ giao hàng')}
+                </label>
                 <button
                   type="button"
                   onClick={handleToggleAddressForm}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#9e211f] text-[#9e211f] font-semibold hover:bg-[#9e211f] hover:text-white transition"
                 >
-                  <FaPlus size={14} /> {showAddressForm ? 'Đóng' : 'Thêm địa chỉ'}
+                  <FaPlus size={14} />
+                  {showAddressForm
+                    ? translate('profile.address.closeButton', 'Đóng')
+                    : translate('profile.address.addButton', 'Thêm địa chỉ')}
                 </button>
               </div>
-
               {profile.addresses && profile.addresses.length > 0 ? (
                 <ul className="mt-4 space-y-3">
                   {profile.addresses.map((addr, idx) => {
@@ -964,7 +1197,7 @@ function ProfileSection() {
                           <p className="font-semibold text-[#9e211f]">{receiverName}</p>
                           <p className="text-sm text-gray-500">{phoneDisplay}</p>
                           <p className="text-sm text-gray-700 mt-1">
-                            {addressLine || 'Chưa có địa chỉ chi tiết'}
+                            {addressLine || translate('profile.address.detailFallback', 'Chưa có địa chỉ chi tiết')}
                           </p>
                           {addressLine2 && (
                             <p className="text-sm text-gray-500">{addressLine2}</p>
@@ -974,7 +1207,7 @@ function ProfileSection() {
                         <div className="flex flex-col gap-2 items-start md:items-end">
                           {addr.isDefault && (
                             <span className="text-xs uppercase bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold self-start md:self-auto">
-                              Mặc định
+                              {translate('profile.address.defaultBadge', 'Mặc định')}
                             </span>
                           )}
                           <div className="flex gap-3">
@@ -1016,7 +1249,7 @@ function ProfileSection() {
                                 });
                               }}
                             >
-                              Xem / Sửa
+                              {translate('profile.address.editButton', 'Xem / Sửa')}
                             </button>
                             <button
                               type="button"
@@ -1026,7 +1259,7 @@ function ProfileSection() {
                                 setDeleteAddressId(addr.id);
                               }}
                             >
-                                Xóa
+                                {translate('profile.address.deleteButton', 'Xóa')}
                             </button>
                           </div>
                         </div>
@@ -1035,14 +1268,18 @@ function ProfileSection() {
                   })}
                 </ul>
               ) : (
-                <div className="mt-4 text-gray-500">Chưa có địa chỉ nào</div>
+                <div className="mt-4 text-gray-500">
+                  {translate('profile.address.empty', 'Chưa có địa chỉ nào')}
+                </div>
               )}
 
               {showAddressForm && (
                 <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Họ tên người nhận</label>
+                      <label className="block text-sm font-medium mb-1">
+                        {translate('profile.address.form.recipientLabel', 'Họ tên người nhận')}
+                      </label>
                       <input
                         type="text"
                         className="w-full border rounded px-3 py-2"
@@ -1051,7 +1288,9 @@ function ProfileSection() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Số điện thoại</label>
+                      <label className="block text-sm font-medium mb-1">
+                        {translate('profile.address.form.phoneLabel', 'Số điện thoại')}
+                      </label>
                       <input
                         type="text"
                         className="w-full border rounded px-3 py-2"
@@ -1060,7 +1299,9 @@ function ProfileSection() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Tỉnh/Thành phố</label>
+                      <label className="block text-sm font-medium mb-1">
+                        {translate('profile.address.form.provinceLabel', 'Tỉnh/Thành phố')}
+                      </label>
                       <select
                         className="w-full border rounded px-3 py-2 bg-white"
                         value={newAddress.provinceId || ''}
@@ -1069,8 +1310,8 @@ function ProfileSection() {
                       >
                         <option value="">
                           {loadingProvinces && provinces.length === 0
-                            ? 'Đang tải tỉnh/thành phố...'
-                            : 'Chọn tỉnh/thành phố'}
+                            ? translate('profile.address.form.provinceLoading', 'Đang tải tỉnh/thành phố...')
+                            : translate('profile.address.form.provincePlaceholder', 'Chọn tỉnh/thành phố')}
                         </option>
                         {provinces.map((province) => (
                           <option key={province.ProvinceID} value={province.ProvinceID}>
@@ -1080,7 +1321,9 @@ function ProfileSection() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Quận/Huyện</label>
+                      <label className="block text-sm font-medium mb-1">
+                        {translate('profile.address.form.districtLabel', 'Quận/Huyện')}
+                      </label>
                       <select
                         className="w-full border rounded px-3 py-2 bg-white"
                         value={newAddress.districtId || ''}
@@ -1089,10 +1332,10 @@ function ProfileSection() {
                       >
                         <option value="">
                           {!newAddress.provinceId
-                            ? 'Vui lòng chọn tỉnh/thành phố trước'
+                            ? translate('profile.address.form.districtSelectProvince', 'Vui lòng chọn tỉnh/thành phố trước')
                             : loadingDistricts
-                              ? 'Đang tải quận/huyện...'
-                              : 'Chọn quận/huyện'}
+                              ? translate('profile.address.form.districtLoading', 'Đang tải quận/huyện...')
+                              : translate('profile.address.form.districtPlaceholder', 'Chọn quận/huyện')}
                         </option>
                         {districts.map((district) => (
                           <option key={district.DistrictID} value={district.DistrictID}>
@@ -1102,7 +1345,9 @@ function ProfileSection() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Phường/Xã</label>
+                      <label className="block text-sm font-medium mb-1">
+                        {translate('profile.address.form.wardLabel', 'Phường/Xã')}
+                      </label>
                       <select
                         className="w-full border rounded px-3 py-2 bg-white"
                         value={newAddress.wardCode || ''}
@@ -1111,10 +1356,10 @@ function ProfileSection() {
                       >
                         <option value="">
                           {!newAddress.districtId
-                            ? 'Vui lòng chọn quận/huyện trước'
+                            ? translate('profile.address.form.wardSelectDistrict', 'Vui lòng chọn quận/huyện trước')
                             : loadingWards
-                              ? 'Đang tải phường/xã...'
-                              : 'Chọn phường/xã'}
+                              ? translate('profile.address.form.wardLoading', 'Đang tải phường/xã...')
+                              : translate('profile.address.form.wardPlaceholder', 'Chọn phường/xã')}
                         </option>
                         {wards.map((ward) => (
                           <option key={ward.WardCode} value={ward.WardCode}>
@@ -1124,21 +1369,14 @@ function ProfileSection() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết</label>
+                      <label className="block text-sm font-medium mb-1">
+                        {translate('profile.address.form.detailLabel', 'Địa chỉ chi tiết')}
+                      </label>
                       <input
                         type="text"
                         className="w-full border rounded px-3 py-2"
                         value={newAddress.detailAddress}
                         onChange={(e) => handleAddressFieldChange('detailAddress', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Địa chỉ chi tiết 2 (nếu có)</label>
-                      <input
-                        type="text"
-                        className="w-full border rounded px-3 py-2"
-                        value={newAddress.detailAddress2}
-                        onChange={(e) => handleAddressFieldChange('detailAddress2', e.target.value)}
                       />
                     </div>
                   </div>
@@ -1152,7 +1390,9 @@ function ProfileSection() {
                       }
                       onChange={(e) => handleDefaultToggle(e.target.checked)}
                     />
-                    <label htmlFor="address-default" className="text-sm">Đặt làm địa chỉ mặc định</label>
+                    <label htmlFor="address-default" className="text-sm">
+                      {translate('profile.address.form.defaultCheckbox', 'Đặt làm địa chỉ mặc định')}
+                    </label>
                   </div>
                   <div className="flex justify-end gap-3">
                     <button
@@ -1161,7 +1401,7 @@ function ProfileSection() {
                       onClick={handleToggleAddressForm}
                       disabled={savingAddress}
                     >
-                      Hủy
+                      {translate('profile.common.cancel', 'Hủy')}
                     </button>
                     <button
                       type="button"
@@ -1169,13 +1409,15 @@ function ProfileSection() {
                       onClick={handleAddAddress}
                       disabled={savingAddress}
                     >
-                      {savingAddress ? 'Đang lưu...' : 'Lưu địa chỉ'}
+                      {savingAddress
+                        ? translate('profile.address.form.saving', 'Đang lưu...')
+                        : translate('profile.address.form.saveButton', 'Lưu địa chỉ')}
                     </button>
                   </div>
                 </div>
               )}
             </div>
-          </>
+          </React.Fragment>
         ) : activeSection === 'wishlist' ? (
           <div>
             <h2 className="text-[#9e211f] text-3xl font-bold mb-8">Sản phẩm đã thích</h2>
@@ -1221,7 +1463,7 @@ function ProfileSection() {
         ) : activeSection === 'changePassword' ? (
           <ChangePasswordSection email={profile.email} />
         ) : activeSection === 'artisanRegistration' ? (
-          <>
+          <React.Fragment>
             {applicationInfo && (
               <div className="bg-white rounded-2xl shadow-lg p-8 max-w-3xl space-y-6 mb-8">
                 <div className="p-4 bg-[#FFF8E7] border border-[#EFD8B1] rounded-xl">
@@ -1265,7 +1507,7 @@ function ProfileSection() {
                 </div>
 
                 {applicationInfo.status !== 'REJECTED' && (
-                  <>
+                  <React.Fragment>
                     <h2 className="text-[#9e211f] text-3xl font-bold mb-6">Trạng thái đơn đăng ký</h2>
                     <div className="flex flex-wrap items-center gap-3 mb-4">
                       {(() => {
@@ -1319,7 +1561,7 @@ function ProfileSection() {
                         <p>{applicationInfo.adminNote}</p>
                       </div>
                     )}
-                  </>
+                  </React.Fragment>
                 )}
               </div>
             )}
@@ -1340,7 +1582,7 @@ function ProfileSection() {
                 }}
               />
             )}
-          </>
+          </React.Fragment>
         ) : null}
       </main>
 
@@ -1369,7 +1611,9 @@ function ProfileSection() {
         <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Xoa dia chi</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                {translate('profile.address.deleteModal.title', 'Xóa địa chỉ')}
+              </h3>
               <button
                 type="button"
                 className="text-gray-400 hover:text-gray-600"
@@ -1380,7 +1624,7 @@ function ProfileSection() {
             </div>
             <div className="p-6 space-y-3">
               <p className="text-gray-700">
-                Ban co chac muon xoa dia chi nay? Hanh dong nay khong the hoan tac.
+                {translate('profile.address.deleteModal.message', 'Bạn có chắc muốn xóa địa chỉ này? Hành động này không thể hoàn tác.')}
               </p>
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3">
@@ -1389,7 +1633,7 @@ function ProfileSection() {
                 className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
                 onClick={() => setDeleteAddressId(null)}
               >
-                Huy
+                {translate('profile.address.deleteModal.cancel', 'Hủy')}
               </button>
               <button
                 type="button"
@@ -1397,22 +1641,21 @@ function ProfileSection() {
                 onClick={async () => {
                   try {
                     await UserService.deleteAddress(deleteAddressId);
-                    toast.success('Xoa dia chi thanh cong');
+                    toast.success(translate('profile.address.deleteSuccess', 'Xóa địa chỉ thành công.'));
                     await refreshUserProfile();
                   } catch (err) {
                     console.error('Delete address error:', err);
                     const message =
                       err?.response?.data?.message
-                      || err?.message
-                      || 'Khong the xoa dia chi.';
-                    toast.error(message);
+                      || err?.message;
+                    toast.error(message || translate('profile.address.deleteError', 'Không thể xóa địa chỉ.'));
                   } finally {
                     setDeleteAddressId(null);
                   }
                 }}
                 
               >
-                Xoa
+                {translate('profile.address.deleteModal.confirm', 'Xóa')}
               </button>
             </div>
           </div>

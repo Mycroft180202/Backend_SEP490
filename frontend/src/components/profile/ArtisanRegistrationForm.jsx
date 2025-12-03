@@ -1,7 +1,14 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { FaSpinner } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { ArtisanApplicationService } from "../../services/modules/artisan/artisanApplicationService";
+
+const buildDateString = (day, month, year) => {
+  if (!day || !month || !year) return "";
+  const paddedDay = String(day).padStart(2, "0");
+  const paddedMonth = String(month).padStart(2, "0");
+  return `${year}-${paddedMonth}-${paddedDay}T00:00`;
+};
 
 function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -28,6 +35,19 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
     identityBackImageFile: "No file chosen",
   });
 
+  const [previewUrls, setPreviewUrls] = useState({
+    identityFrontImageFile: "",
+    identityBackImageFile: "",
+  });
+
+  useEffect(() => () => {
+    Object.values(previewUrls).forEach((url) => {
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
+    });
+  }, [previewUrls]);
+
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -39,6 +59,16 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
   const handleFileChange = useCallback((e) => {
     const { name, files } = e.target;
     if (files && files[0]) {
+      setPreviewUrls((prev) => {
+        const nextUrl = URL.createObjectURL(files[0]);
+        if (prev[name]) {
+          URL.revokeObjectURL(prev[name]);
+        }
+        return {
+          ...prev,
+          [name]: nextUrl,
+        };
+      });
       setFormData((prev) => ({
         ...prev,
         [name]: files[0],
@@ -52,17 +82,20 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
 
   const validateForm = () => {
     const requiredFields = [
-      "fullName",
-      "email",
-      "phoneNumber",
-      "identityNumber",
-      "skillDescription",
-      "workshopAddress",
+      { key: "fullName", label: "họ và tên" },
+      { key: "email", label: "email" },
+      { key: "phoneNumber", label: "số điện thoại" },
+      { key: "identityNumber", label: "CMND/CCCD" },
+      { key: "identityFrontImageFile", label: "ảnh mặt trước CMND/CCCD" },
+      { key: "identityBackImageFile", label: "ảnh mặt sau CMND/CCCD" },
+      { key: "skillDescription", label: "mô tả kỹ năng" },
+      { key: "workshopAddress", label: "địa chỉ xưởng/cửa hàng" },
     ];
 
     for (const field of requiredFields) {
-      if (!formData[field] || formData[field].toString().trim() === "") {
-        toast.warning(`Vui lòng điền ${field}`);
+      const value = formData[field.key];
+      if (!value || (typeof value === "string" && value.trim() === "")) {
+        toast.warning(`Vui lòng cung cấp ${field.label}`);
         return false;
       }
     }
@@ -117,6 +150,17 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
       setFileNames({
         identityFrontImageFile: "No file chosen",
         identityBackImageFile: "No file chosen",
+      });
+      setPreviewUrls((prev) => {
+        Object.values(prev).forEach((url) => {
+          if (url) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        return {
+          identityFrontImageFile: "",
+          identityBackImageFile: "",
+        };
       });
 
       if (onSuccess) {
@@ -264,7 +308,7 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
             {/* Identity Front Image */}
             <div>
               <label className="block text-sm font-nunito font-semibold text-gray-700 mb-2">
-                Ảnh mặt trước CMND/CCCD
+                Ảnh mặt trước CMND/CCCD <span className="text-red-500">*</span>
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -286,12 +330,21 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                   {fileNames.identityFrontImageFile}
                 </span>
               </div>
+              {previewUrls.identityFrontImageFile && (
+                <div className="mt-3">
+                  <img
+                    src={previewUrls.identityFrontImageFile}
+                    alt="Xem trước ảnh mặt trước CMND/CCCD"
+                    className="h-28 w-auto rounded-md border border-gray-200 object-cover"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Identity Back Image */}
             <div>
               <label className="block text-sm font-nunito font-semibold text-gray-700 mb-2">
-                Ảnh mặt sau CMND/CCCD
+                Ảnh mặt sau CMND/CCCD <span className="text-red-500">*</span>
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -313,6 +366,15 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                   {fileNames.identityBackImageFile}
                 </span>
               </div>
+              {previewUrls.identityBackImageFile && (
+                <div className="mt-3">
+                  <img
+                    src={previewUrls.identityBackImageFile}
+                    alt="Xem trước ảnh mặt sau CMND/CCCD"
+                    className="h-28 w-auto rounded-md border border-gray-200 object-cover"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Skill Description */}
@@ -418,9 +480,3 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
 }
 
 export default ArtisanRegistrationForm;
-  const buildDateString = (day, month, year) => {
-    if (!day || !month || !year) return "";
-    const paddedDay = String(day).padStart(2, "0");
-    const paddedMonth = String(month).padStart(2, "0");
-    return `${year}-${paddedMonth}-${paddedDay}T00:00`;
-  };

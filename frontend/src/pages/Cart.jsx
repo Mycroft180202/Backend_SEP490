@@ -97,16 +97,47 @@ const Cart = () => {
     };
   }, [fetchCart, navigate, t, token]);
 
-  const handleQuantityChange = async (cartItemId, quantity) => {
-    if (quantity <= 0) {
-      await handleRemoveItem(cartItemId);
-      return;
+  const handleQuantityChange = async (cartItemId, quantity, options = {}) => {
+    const targetItem = items.find(
+      (item) => (item.cartItemId || item.id) === cartItemId,
+    );
+
+    if (!targetItem) {
+      toast.error('Sản phẩm không tồn tại trong giỏ hàng.');
+      return { success: false, quantity: 1 };
     }
+
+    if (Number.isNaN(Number(quantity))) {
+      toast.warning('Vui lòng nhập số lượng hợp lệ.');
+      return { success: false, quantity: targetItem.quantity ?? 1 };
+    }
+
+    const normalizedQuantity = Math.floor(Number(quantity));
+
+    if (normalizedQuantity <= 0) {
+      toast.warning('Số lượng tối thiểu là 1. Nếu muốn xoá sản phẩm, vui lòng dùng nút Xóa.');
+      return { success: false, quantity: targetItem.quantity ?? 1 };
+    }
+
+    const stockLimit = Number(targetItem.stock);
+    if (Number.isFinite(stockLimit) && stockLimit > 0 && normalizedQuantity > stockLimit) {
+      const fallback = Math.max(1, Math.min(stockLimit, targetItem.quantity ?? 1));
+      toast.warning(`Không thể thêm vào giỏ hàng vì sản phẩm này chỉ còn ${stockLimit} trong kho.`);
+      return { success: false, quantity: fallback };
+    }
+
+    if (normalizedQuantity === (targetItem.quantity ?? 0)) {
+      return { success: true, quantity: normalizedQuantity };
+    }
+
     setUpdatingItemId(cartItemId);
     try {
-      await CartService.updateItem(cartItemId, quantity);
-      toast.success(t('messages.cartUpdateSuccess'));
-      fetchCart();
+      await CartService.updateItem(cartItemId, normalizedQuantity);
+      if (!options?.manual) {
+        toast.success(t('messages.cartUpdateSuccess'));
+      }
+      await fetchCart();
+      return { success: true, quantity: normalizedQuantity };
     } catch (error) {
       console.error(error);
       const message =
@@ -115,6 +146,7 @@ const Cart = () => {
         || error?.message
         || t('messages.cartUpdateError');
       toast.error(message);
+      return { success: false, quantity: targetItem.quantity ?? 1 };
     } finally {
       setUpdatingItemId(null);
     }
