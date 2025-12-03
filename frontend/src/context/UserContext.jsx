@@ -26,8 +26,10 @@ const UserProvider = ({ children }) => {
     try {
       const data = await AuthService.getUserInfo();
       setUserInfo(data);
+      return data;
     } catch (error) {
       console.error('Lỗi khi cập nhật thông tin người dùng:', error.message);
+      return null;
     }
   };
 

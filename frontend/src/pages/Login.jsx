@@ -40,6 +40,15 @@ const Login = () => {
     try {
       const res = await AuthService.login({ Username: username, Password: password });
       console.log('AuthService.login response:', res);
+      const responseIsActive = res?.user?.isActive ?? res?.isActive;
+      if (responseIsActive === false) {
+        toast.error(t('auth.login.toastInactive'), {
+          position: "top-right",
+          autoClose: 5000
+        });
+        return;
+      }
+
       if (res && res.accessToken) {
         localStorage.setItem('accessToken', res.accessToken);
         if (rememberMe) {
@@ -47,7 +56,15 @@ const Login = () => {
         } else {
           localStorage.removeItem('rememberMeUsername');
         }
-        await updateUserInfo();
+        const user = await updateUserInfo();
+        if (user?.isActive === false) {
+          localStorage.removeItem('accessToken');
+          toast.error(t('auth.login.toastInactive'), {
+            position: "top-right",
+            autoClose: 5000
+          });
+          return;
+        }
         toast.success(t('auth.login.toastSuccess'), {
           position: "top-right",
           autoClose: 1000,

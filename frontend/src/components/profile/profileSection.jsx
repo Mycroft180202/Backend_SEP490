@@ -330,7 +330,15 @@ function ProfileSection() {
       setWishlistLoading(true);
       const res = await WishlistService.getList(1, 50);
       const items = res?.items || res?.Items || [];
-      setWishlist(items);
+      const filtered = items.filter((entry) => {
+        const product = entry?.product ?? entry;
+        if (!product) return false;
+        if (product.isActive === false) {
+          return false;
+        }
+        return true;
+      });
+      setWishlist(filtered);
     } catch (err) {
       console.error('Load wishlist error:', err);
       toast.error(err?.response?.data?.message || 'Không thể tải sản phẩm yêu thích.');

@@ -399,6 +399,7 @@ const translations = {
         toastSuccess: 'Đăng nhập thành công!',
         toastInvalid: 'Tên đăng nhập hoặc mật khẩu không đúng.',
         toastError: 'Không thể đăng nhập. Vui lòng thử lại.',
+        toastInactive: 'Tài khoản đã bị khóa do vi phạm chính sách của website. Vui lòng liên hệ Hoalachandicraft@gmail.com để biết thêm thông tin.',
       },
       register: {
         heroBadge: 'HoaLacHandicraft',
@@ -866,6 +867,7 @@ const translations = {
         toastSuccess: 'Signed in successfully!',
         toastInvalid: 'Incorrect username or password.',
         toastError: 'Unable to sign in. Please try again.',
+        toastInactive: 'Your account has been locked for violating our policies. Please contact Hoalachandicraft@gmail.com for more information.',
       },
       register: {
         heroBadge: 'HoaLacHandicraft',

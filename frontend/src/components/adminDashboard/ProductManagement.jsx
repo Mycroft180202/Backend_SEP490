@@ -160,7 +160,7 @@ const ProductManagement = () => {
     if (statusFilter === 'active') {
       return product?.isActive;
     }
-    return Boolean(product?.isActive);
+    return true;
   }), [products, statusFilter]);
 
   return (
