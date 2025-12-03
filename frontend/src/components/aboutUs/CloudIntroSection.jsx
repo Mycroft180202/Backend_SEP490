@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { LanguageContext } from '../../context/LanguageContext';
 
-const CloudIntroSection = ({ assets }) => (
-  <div
+const CloudIntroSection = () => {
+  const { t } = useContext(LanguageContext);
+
+  return (
+    <div
        className="relative w-full -mt-[100px] md:-mt-[1500px] lg:-mt-[50px] z-30"
        >
         {/* Container for all wave decorations */}
@@ -63,7 +67,7 @@ const CloudIntroSection = ({ assets }) => (
             {/* Main text content */}
             <div className="max-w-[956px] mx-auto text-center relative" style={{ paddingTop: '29px' }}>
               <h2 className="font-alata text-base md:text-xl lg:text-2xl text-black leading-relaxed md:leading-[48px]">
-                Hòa Lạc – không chỉ là một địa danh, mà còn là nơi hội tụ tinh hoa của những đôi bàn tay tài hoa, nơi mỗi thớ gỗ, sợi tre, hay mảnh gốm đều được thổi hồn, mang theo câu chuyện của người nghệ nhân và văn hóa truyền thống.
+                              {t('about.cloudIntro.description')}
               </h2>
             </div>
 
@@ -88,6 +92,7 @@ const CloudIntroSection = ({ assets }) => (
           </div>
         </div>
         </div>
-);
+  );
+};
 
 export default CloudIntroSection;

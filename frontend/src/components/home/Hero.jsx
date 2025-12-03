@@ -1,16 +1,37 @@
-import React from 'react';
+import React, { useContext, useMemo } from 'react';
 import { Link } from "react-router-dom";
 import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS, PRIMARY_BUTTON_CLASS } from '../../utils/homeTheme';
 import heroBg from '../../assets/images/hero-bg.jpg';
 import slideOneImg from '../../assets/images/products/Slide1.jpg';
 import slideTwoImg from '../../assets/images/products/slide2.jpg';
-import slideThreeImg from '../../assets/images/products/slide3.jpg'
+import slideThreeImg from '../../assets/images/products/slide3.jpg';
 import dragonfly1 from '../../assets/images/dragonfly1.png';
 import dragonfly2 from '../../assets/images/dragonfly2.png';
 import lantern1 from '../../assets/images/lantern1.png';
 import lantern2 from '../../assets/images/lantern2.png';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const Hero = () => {
+  const { t } = useContext(LanguageContext);
+  const overlayTitleLines = useMemo(() => t('home.hero.overlayTitle').split('\n'), [t]);
+  const heroValues = useMemo(
+    () => [
+      {
+        title: t('home.hero.values.heritage.title'),
+        description: t('home.hero.values.heritage.description'),
+      },
+      {
+        title: t('home.hero.values.culture.title'),
+        description: t('home.hero.values.culture.description'),
+      },
+      {
+        title: t('home.hero.values.contemporary.title'),
+        description: t('home.hero.values.contemporary.description'),
+      },
+    ],
+    [t],
+  );
+
   return (
     <section className="relative w-full bg-background pb-0">
       {/* Hero Section */}
@@ -60,13 +81,10 @@ const Hero = () => {
         >
           <div className="text-center px-4 max-w-4xl">
             <h2 className="font-nunito text-3xl md:text-4xl lg:text-5xl text-white leading-relaxed font-bold">
-              Nghệ thuật truyền thống Hòa Lạc
+              {t('home.hero.initialTitle')}
             </h2>
             <p className="mt-4 font-nunito text-lg md:text-xl text-white/90">
-              Nơi hội tụ tinh hoa của những đôi bàn tay tài hoa, nơi mỗi đường nét được tạo nên
-              từ ký ức làng nghề và khát vọng đưa bản sắc Việt vươn xa. Chúng tôi trân trọng từng
-              câu chuyện phía sau sản phẩm, để bạn cảm nhận rõ hơi thở truyền thống trong không
-              gian hiện đại.
+              {t('home.hero.initialDescription')}
             </p>
           </div>
         </div>
@@ -77,13 +95,17 @@ const Hero = () => {
           <div className="max-w-[1000px] flex flex-col items-center gap-8 sm:gap-10 px-4 sm:px-6">
             <div className="flex flex-col items-center gap-5 text-center">
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[55px] leading-[1.2em] sm:leading-[1.3em] md:leading-[1.4em] lg:leading-[1.5em] text-white drop-shadow-lg font-bold">
-                Chào mừng đến với<br />
-                Website thủ công mỹ nghệ Hòa Lạc
+                {overlayTitleLines.map((line, index) => (
+                  <React.Fragment key={`${line}-${index}`}>
+                    {line}
+                    {index < overlayTitleLines.length - 1 && <br />}
+                  </React.Fragment>
+                ))}
               </h2>
               
             </div>
              <Link to="/shop">
-               <button className={`${PRIMARY_BUTTON_CLASS} sm:px-6 md:px-7 md:py-3 text-sm sm:text-base md:text-lg`}>Khám phá</button>
+               <button className={`${PRIMARY_BUTTON_CLASS} sm:px-6 md:px-7 md:py-3 text-sm sm:text-base md:text-lg`}>{t('home.hero.cta')}</button>
              </Link>
           </div>
         </div>
@@ -201,37 +223,30 @@ const Hero = () => {
           <div className="max-w-5xl mx-auto text-center space-y-12 ">
             <div className="space-y-6">
               <h2 className={`${SECTION_TITLE_CLASS} leading-relaxed md:leading-[1.3]`}>
-                Từng nhịp thở của làng nghề, từng câu chuyện của người nghệ nhân được dệt nên bằng sự nâng niu và lòng tự hào.
+                {t('home.hero.introTitle')}
               </h2>
               <p className={`${SECTION_SUBTITLE_CLASS} text-[#25344F] leading-relaxed md:leading-[1.95]`}>
-                Từ những ngày đầu đặt nền móng, người dân Hòa Lạc đã gìn giữ tinh thần sáng tạo, để mỗi sản phẩm không chỉ là vật dụng mà còn là ký ức của một vùng đất. Những đôi tay tài hoa đã truyền nhau kỹ thuật, hơi thở văn hóa và cả niềm tin rằng nghề truyền thống là sợi dây gắn kết quá khứ với hiện tại.
+                {t('home.hero.introDescription')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              <div className="bg-white/80 border border-white/60 rounded-3xl p-6 md:p-8 text-left shadow-[0_20px_40px_rgba(28,53,94,0.08)]">
-                <h3 className="font-alata text-xl text-[#1C355E] mb-4">Nếp Nghề Truyền Lại</h3>
-                <p className="font-nunito text-sm sm:text-base text-[#3C4A66] leading-relaxed">
-                  Qua từng thế hệ, những bí quyết chế tác được truyền dạy bên bếp lửa ấm. Họ kể cho nhau nghe về nhịp chày, về mùi hương tre phơi nắng và niềm tự hào khi sản phẩm hoàn thiện.
-                </p>
-              </div>
-              <div className="bg-white/80 border border-white/60 rounded-3xl p-6 md:p-8 text-left shadow-[0_20px_40px_rgba(28,53,94,0.08)]">
-                <h3 className="font-alata text-xl text-[#1C355E] mb-4">Sắc Màu Văn Hóa</h3>
-                <p className="font-nunito text-sm sm:text-base text-[#3C4A66] leading-relaxed">
-                  Mỗi họa tiết là một biểu tượng, kể về mùa vụ, tín ngưỡng, nếp sống. Người nghệ nhân chọn màu sắc theo cảm xúc, tạo nên những tác phẩm rực rỡ nhưng hài hòa như chính nhịp sống làng nghề.
-                </p>
-              </div>
-              <div className="bg-white/80 border border-white/60 rounded-3xl p-6 md:p-8 text-left shadow-[0_20px_40px_rgba(28,53,94,0.08)]">
-                <h3 className="font-alata text-xl text-[#1C355E] mb-4">Hơi Thở Đương Đại</h3>
-                <p className="font-nunito text-sm sm:text-base text-[#3C4A66] leading-relaxed">
-                  Khi thế giới đổi thay, Hòa Lạc vẫn giữ linh hồn truyền thống nhưng không ngừng cải tiến. Những thiết kế mới mang tính ứng dụng cao, đưa làng nghề tiến gần hơn tới cuộc sống hiện đại.
-                </p>
-              </div>
+              {heroValues.map((item) => (
+                <div
+                  key={item.title}
+                  className="bg-white/80 border border-white/60 rounded-3xl p-6 md:p-8 text-left shadow-[0_20px_40px_rgba(28,53,94,0.08)]"
+                >
+                  <h3 className="font-alata text-xl text-[#1C355E] mb-4">{item.title}</h3>
+                  <p className="font-nunito text-sm sm:text-base text-[#3C4A66] leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <div className="font-nunito text-base sm:text-lg md:text-xl text-[#1C355E] leading-relaxed">
               <p>
-                Hành trình của chúng tôi là hành trình kể lại những câu chuyện chân thật nhất về con người Hòa Lạc – những người đã chọn gắn bó cả đời với nghề để bảo tồn bản sắc Việt.
+                {t('home.hero.closing')}
               </p>
             </div>
           </div>

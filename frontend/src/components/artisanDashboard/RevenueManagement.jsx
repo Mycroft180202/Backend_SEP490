@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   FaFileExport,
   FaChartLine,
@@ -6,22 +6,130 @@ import {
   FaWallet,
   FaCalendarAlt,
 } from 'react-icons/fa';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from 'recharts';
 
-const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-}).format(Number(amount) || 0);
+const formatCurrency = (amount) => {
+  const numeric = Number(amount) || 0;
+  return `${new Intl.NumberFormat('vi-VN').format(numeric)} VND`;
+};
 
-const RevenueManagement = ({ monthlyRevenue = [], weeklyRevenue = [] }) => {
+const formatMonthLabelValue = (month) => {
+  if (!month) return '--';
+  return `Tháng ${month}`;
+};
+
+const formatDateValue = (value) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('vi-VN');
+};
+
+const formatNumberValue = (value) => (Number(value) || 0).toLocaleString('vi-VN');
+
+const resolveOrderCount = (item = {}) => {
+  const candidates = [
+    item.totalOrderNumber,
+    item.totalOrders,
+    item.orderCount,
+    item.totalOrdersCount,
+    item.totalQuantity,
+    item.totalOrderAmount,
+  ];
+  const found = candidates.find((candidate) => Number.isFinite(Number(candidate)) && Number(candidate) >= 0);
+  return Number(found || 0);
+};
+
+const RevenueManagement = ({
+  monthlyRevenue = [],
+  weeklyRevenue = [],
+  selectedYear,
+  onYearChange,
+  selectedMonth = new Date().getMonth() + 1,
+  onMonthChange,
+}) => {
   const safeMonthly = Array.isArray(monthlyRevenue) ? monthlyRevenue : [];
   const safeWeekly = Array.isArray(weeklyRevenue) ? weeklyRevenue : [];
+
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const yearOptions = useMemo(
+    () => Array.from({ length: 5 }, (_, index) => currentYear - index),
+    [currentYear],
+  );
+
+  const monthNames = useMemo(
+    () => [
+      'Tháng 1',
+      'Tháng 2',
+      'Tháng 3',
+      'Tháng 4',
+      'Tháng 5',
+      'Tháng 6',
+      'Tháng 7',
+      'Tháng 8',
+      'Tháng 9',
+      'Tháng 10',
+      'Tháng 11',
+      'Tháng 12',
+    ],
+    [],
+  );
+
+  const monthOptions = useMemo(
+    () => monthNames.map((label, index) => ({ value: index + 1, label })),
+    [monthNames],
+  );
+
+  const normalizedSelectedMonth = useMemo(() => {
+    const parsed = Number(selectedMonth);
+    if (Number.isNaN(parsed) || parsed < 1 || parsed > 12) {
+      return new Date().getMonth() + 1;
+    }
+    return parsed;
+  }, [selectedMonth]);
+
+  const selectedMonthLabel = monthOptions.find((option) => option.value === normalizedSelectedMonth)?.label
+    || `Tháng ${normalizedSelectedMonth}`;
+
+  const monthlyChartData = useMemo(() => (
+    safeMonthly
+      .slice()
+      .sort((a, b) => Number(a.month || 0) - Number(b.month || 0))
+      .map((item) => ({
+        label: formatMonthLabelValue(item.month),
+        revenue: Number(item.revenue || item.totalRevenue || 0),
+        orders: resolveOrderCount(item),
+      }))
+  ), [safeMonthly]);
+
+  const weeklyChartData = useMemo(() => (
+    safeWeekly
+      .slice()
+      .sort((a, b) => Number(a.weekNumber || 0) - Number(b.weekNumber || 0))
+      .map((item) => ({
+        label: item.weekNumber ? `Tuần ${item.weekNumber}` : 'Tuần',
+        revenue: Number(item.revenue || item.totalRevenue || 0),
+        orders: resolveOrderCount(item),
+        startDate: item.startDate || item.fromDate || null,
+        endDate: item.endDate || item.toDate || null,
+      }))
+  ), [safeWeekly]);
 
   const totalRevenue = safeMonthly.reduce(
     (sum, item) => sum + Number(item.revenue || item.totalRevenue || 0),
     0,
   );
-  const totalOrderAmount = safeMonthly.reduce(
-    (sum, item) => sum + Number(item.totalOrderAmount || 0),
+  const totalOrderCount = safeMonthly.reduce(
+    (sum, item) => sum + resolveOrderCount(item),
     0,
   );
 
@@ -38,18 +146,6 @@ const RevenueManagement = ({ monthlyRevenue = [], weeklyRevenue = [] }) => {
     }
     return best;
   }, null);
-
-  const formatMonthLabel = (month) => {
-    if (!month) return '--';
-    return `Tháng ${month}`;
-  };
-
-  const formatDate = (value) => {
-    if (!value) return '--';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('vi-VN');
-  };
 
   return (
     <div className="space-y-6">
@@ -70,9 +166,9 @@ const RevenueManagement = ({ monthlyRevenue = [], weeklyRevenue = [] }) => {
         <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-nunito">Giá trị đơn hàng</p>
-              <h3 className="text-2xl font-bold text-gray-800 mt-2">{formatCurrency(totalOrderAmount)}</h3>
-              <p className="text-xs text-gray-500 mt-1">Tổng giá trị đã bán</p>
+              <p className="text-gray-600 text-sm font-nunito">Tổng số đơn hàng</p>
+              <h3 className="text-2xl font-bold text-gray-800 mt-2">{`${formatNumberValue(totalOrderCount)} đơn`}</h3>
+              <p className="text-xs text-gray-500 mt-1">Tổng số đơn đã bán</p>
             </div>
             <div className="bg-green-100 p-4 rounded-full">
               <FaWallet className="text-green-600 text-2xl" />
@@ -85,7 +181,7 @@ const RevenueManagement = ({ monthlyRevenue = [], weeklyRevenue = [] }) => {
             <div>
               <p className="text-gray-600 text-sm font-nunito">Tháng cao nhất</p>
               <h3 className="text-2xl font-bold text-gray-800 mt-2">
-                {formatMonthLabel(bestMonth?.month)}
+                {formatMonthLabelValue(bestMonth?.month)}
               </h3>
               <p className="text-xs text-gray-500 mt-1">{formatCurrency(bestMonth?.revenue || 0)}</p>
             </div>
@@ -112,81 +208,176 @@ const RevenueManagement = ({ monthlyRevenue = [], weeklyRevenue = [] }) => {
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-gray-800 font-alata">Doanh thu theo tháng</h2>
-            <p className="text-sm text-gray-600 mt-1">Theo dõi hiệu suất 12 tháng</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Hiển thị 12 tháng trong năm {selectedYear || currentYear}
+            </p>
           </div>
-          <button
-            type="button"
-            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <FaFileExport /> Xuất báo cáo
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={selectedYear || currentYear}
+              onChange={(event) => onYearChange?.(Number(event.target.value))}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <FaFileExport /> Xuất báo cáo
+            </button>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 text-gray-600 text-sm">
-                <th className="text-left py-3 px-4 font-semibold">Tháng</th>
-                <th className="text-left py-3 px-4 font-semibold">Tổng đơn hàng</th>
-                <th className="text-left py-3 px-4 font-semibold">Doanh thu</th>
-              </tr>
-            </thead>
-            <tbody>
-              {safeMonthly.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="py-4 text-center text-gray-500">
-                    Chưa có dữ liệu doanh thu theo tháng.
-                  </td>
-                </tr>
-              ) : (
-                safeMonthly.map((item) => (
-                  <tr key={item.month} className="border-b border-gray-100 hover:bg-gray-50 text-sm">
-                    <td className="py-3 px-4 font-semibold text-gray-800">{formatMonthLabel(item.month)}</td>
-                    <td className="py-3 px-4">{formatCurrency(item.totalOrderAmount || 0)}</td>
-                    <td className="py-3 px-4 text-primary font-semibold">{formatCurrency(item.revenue || 0)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="mt-4 h-72">
+          {monthlyChartData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlyChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} interval={0} angle={-30} textAnchor="end" height={60} />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${(Number(value) / 1_000_000).toFixed(1)} tr`}
+                  width={80}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 12 }}
+                  allowDecimals={false}
+                  width={50}
+                />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === 'Doanh thu') {
+                      return [formatCurrency(value), name];
+                    }
+                    return [`${formatNumberValue(value)} đơn`, name];
+                  }}
+                  labelFormatter={(label) => label}
+                />
+                <Legend />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Doanh thu"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="orders"
+                  name="Số đơn"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-gray-500">
+              Chưa có dữ liệu doanh thu theo tháng.
+            </div>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6 font-alata">Doanh thu theo tuần</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 text-gray-600 text-sm">
-                <th className="text-left py-3 px-4 font-semibold">Tuần</th>
-                <th className="text-left py-3 px-4 font-semibold">Bắt đầu</th>
-                <th className="text-left py-3 px-4 font-semibold">Kết thúc</th>
-                <th className="text-left py-3 px-4 font-semibold">Tổng đơn hàng</th>
-                <th className="text-left py-3 px-4 font-semibold">Doanh thu</th>
-              </tr>
-            </thead>
-            <tbody>
-              {safeWeekly.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-4 text-center text-gray-500">
-                    Chưa có dữ liệu doanh thu theo tuần.
-                  </td>
-                </tr>
-              ) : (
-                safeWeekly.map((week) => (
-                  <tr key={week.weekNumber} className="border-b border-gray-100 hover:bg-gray-50 text-sm">
-                    <td className="py-3 px-4 font-semibold text-gray-800">Tuần {week.weekNumber}</td>
-                    <td className="py-3 px-4">{formatDate(week.startDate)}</td>
-                    <td className="py-3 px-4">{formatDate(week.endDate)}</td>
-                    <td className="py-3 px-4">{formatCurrency(week.totalOrderAmount || 0)}</td>
-                    <td className="py-3 px-4 text-primary font-semibold">{formatCurrency(week.revenue || 0)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 font-alata">Doanh thu theo tuần</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Theo dõi tuần trong {selectedMonthLabel} {selectedYear || currentYear}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={normalizedSelectedMonth}
+              onChange={(event) => onMonthChange?.(Number(event.target.value))}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {monthOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 h-72">
+          {weeklyChartData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={weeklyChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} interval={0} angle={-20} textAnchor="end" height={50} />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${(Number(value) / 1_000_000).toFixed(1)} tr`}
+                  width={80}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 12 }}
+                  allowDecimals={false}
+                  width={50}
+                />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === 'Doanh thu') {
+                      return [formatCurrency(value), name];
+                    }
+                    return [`${formatNumberValue(value)} đơn`, name];
+                  }}
+                  labelFormatter={(_, payload) => {
+                    if (!payload || !payload.length) return '';
+                    const { payload: data } = payload[0];
+                    const start = formatDateValue(data.startDate);
+                    const end = formatDateValue(data.endDate);
+                    return `${data.label}${start !== '--' || end !== '--' ? ` • ${start} - ${end}` : ''}`;
+                  }}
+                />
+                <Legend />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Doanh thu"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="orders"
+                  name="Số đơn"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-gray-500">
+              Chưa có dữ liệu doanh thu theo tuần.
+            </div>
+          )}
         </div>
       </div>
     </div>

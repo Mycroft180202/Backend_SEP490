@@ -1,11 +1,12 @@
 import React, {
-  useState, useRef, useEffect,
+  useState, useRef, useEffect, useContext,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaEnvelope, FaUser, FaPhoneAlt, FaIdCard, FaBirthdayCake, FaLock } from 'react-icons/fa';
 import { AuthService } from '../services/modules/auth/authService';
 import { toast } from 'react-toastify';
+import { LanguageContext } from '../context/LanguageContext';
 
 const DatePartSelect = ({
   options,
@@ -121,6 +122,11 @@ const Register = () => {
   const [resendCountdown, setResendCountdown] = useState(0);
   const navigate = useNavigate();
   const otpRefs = useRef([]);
+  const { language, changeLanguage, t } = useContext(LanguageContext);
+  const languageOptions = [
+    { code: 'vi', label: t('auth.common.viLabel'), flag: '/images/VNFlag.png' },
+    { code: 'en', label: t('auth.common.enLabel'), flag: '/images/Engflag.png' },
+  ];
   const days = Array.from({ length: 31 }, (_, idx) => idx + 1);
   const months = Array.from({ length: 12 }, (_, idx) => idx + 1);
   const currentYear = new Date().getFullYear();
@@ -159,14 +165,14 @@ const Register = () => {
 
     if (!isValidDate) {
       setDob('');
-      toast.error('Ngày sinh không tồn tại. Vui lòng chọn lại.');
+      toast.error(t('auth.register.errors.dobNonexistent'));
       return;
     }
 
     const now = new Date();
     if (testDate > now ) {
       setDob('');
-      toast.error('Ngày sinh không thể ở tương lai.');
+      toast.error(t('auth.register.errors.dobFuture'));
       return;
     }
 
@@ -199,51 +205,63 @@ const Register = () => {
     const errors = [];
     const usernameTrim = username.trim();
     if (!usernameTrim || usernameTrim.length < 3 || usernameTrim.length > 30) {
-      errors.push('Tên đăng nhập phải từ 3–30 ký tự');
+      errors.push(t('auth.register.errors.usernameLength'));
     }
     if (!password || password.length < 6) {
-      errors.push('Mật khẩu phải có ít nhất 6 ký tự');
+      errors.push(t('auth.register.errors.passwordLength'));
     }
     if (password !== confirmPassword) {
-      errors.push('Mật khẩu xác nhận không khớp');
+      errors.push(t('auth.register.errors.passwordMismatch'));
     }
     const emailTrim = email.trim();
     if (!emailTrim) {
-      errors.push('Email không hợp lệ');
+      errors.push(t('auth.register.errors.emailInvalid'));
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailTrim)) {
-        errors.push('Email không hợp lệ');
+        errors.push(t('auth.register.errors.emailInvalid'));
       }
     }
 
-    if (phoneNumber) {
-      // loại bỏ khoảng trắng và dấu gạch ngang trước khi kiểm tra
-      const phoneTrim = phoneNumber.trim().replace(/[\s-]/g, '');
-      const phoneRegex = /^\+?\d{1,15}$/;
-      if (phoneTrim.length > 15 || !phoneRegex.test(phoneTrim)) {
-        errors.push('Số điện thoại không hợp lệ');
-      }
+    const phoneTrim = phoneNumber.trim();
+    const localPhonePattern = /^(?:0[35789]\d{8}|084\d{8})$/;
+    const internationalPhonePattern = /^\+\d{8,14}$/;
+    const vnInternationalPattern = /^\+84[35789]\d{8}$/;
+
+    if (!phoneTrim) {
+      errors.push(t('auth.register.errors.phoneRequired'));
+    } else if (
+      !localPhonePattern.test(phoneTrim)
+      && !internationalPhonePattern.test(phoneTrim)
+    ) {
+      errors.push(t('auth.register.errors.phoneInvalid'));
+    } else if (
+      phoneTrim.startsWith('+84')
+      && !vnInternationalPattern.test(phoneTrim)
+    ) {
+      errors.push(t('auth.register.errors.phoneInvalid84'));
     }
+
     if (displayName && displayName.length > 50) {
-      errors.push('Tên hiển thị không được dài quá 50 ký tự');
+      errors.push(t('auth.register.errors.displayNameLength'));
     }
-    if ((dobDay || dobMonth || dobYear) && (!dobDay || !dobMonth || !dobYear)) {
-      errors.push('Vui lòng chọn đầy đủ Ngày/Tháng/Năm');
-    }
-    if (dob) {
+    if (!dobDay || !dobMonth || !dobYear) {
+      errors.push(t('auth.register.errors.dobIncomplete'));
+    } else if (!dob) {
+      errors.push(t('auth.register.errors.dobInvalid'));
+    } else {
       const dobDate = new Date(dob);
       if (Number.isNaN(dobDate.getTime())) {
-        errors.push('Ngày sinh không hợp lệ');
+        errors.push(t('auth.register.errors.dobInvalid'));
       } else {
         const now = new Date();
         const oldest = new Date();
         oldest.setFullYear(oldest.getFullYear() - 120);
         if (dobDate > now) {
-          errors.push('Ngày sinh không thể ở tương lai');
+          errors.push(t('auth.register.errors.dobFuture'));
         }
         if (dobDate < oldest) {
-          errors.push('Ngày sinh không hợp lệ');
+          errors.push(t('auth.register.errors.dobTooOld'));
         }
       }
     }
@@ -255,16 +273,22 @@ const Register = () => {
 
     setLoading(true);
     try {
+      const sanitizedPhone = phoneTrim;
       // Log để kiểm tra giá trị trước khi gửi
       console.log('Form values:', {
-        email, username, password, phoneNumber, displayName, dob
+        email,
+        username,
+        password,
+        phoneNumber: sanitizedPhone,
+        displayName,
+        dob,
       });
 
       const formData = new FormData();
       formData.append('Email', email);
       formData.append('Username', username);
       formData.append('PasswordHash', password);
-      formData.append('PhoneNumber', phoneNumber);
+      formData.append('PhoneNumber', sanitizedPhone);
       formData.append('DisplayName', displayName);
       if (dob) {
         formData.append('Dob', dob);
@@ -274,35 +298,36 @@ const Register = () => {
         Email: email,
         Username: username,
         PasswordHash: password,
-        PhoneNumber: phoneNumber,
+        PhoneNumber: sanitizedPhone,
         DisplayName: displayName,
         Dob: dob
       });
       if (response.status === 200) {
         setShowOtpInput(true);
-        toast.success('Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.', {
+        toast.success(t('auth.register.toasts.registerSuccess'), {
           position: "top-right",
           autoClose: 3000
         });
       }
     } catch (error) {
       console.error('Registration failed:', error);
-      const errorMessage = error.response?.data?.message || 'Email hoặc tên đăng nhập đã tồn tại!';
-      
-      // Hiển thị thông báo lỗi cụ thể
-      if (errorMessage.includes('Username or email already exists!')) {
-        toast.error('Email hoặc tên đăng nhập đã tồn tại!', {
+      const duplicateMessage = t('auth.register.toasts.duplicate');
+      const defaultRegisterError = t('auth.register.toasts.registerError');
+      const backendMessage = error.response?.data?.message || '';
+
+      if (backendMessage.includes('Username or email already exists!')) {
+        toast.error(duplicateMessage, {
           position: "top-right",
           autoClose: 3000
         });
       } else {
-        toast.error(errorMessage, {
+        toast.error(backendMessage || defaultRegisterError, {
           position: "top-right",
           autoClose: 3000
         });
       }
 
-      // Kiểm tra lỗi validation
+      // Surface validation errors returned from backend validation
       const validationErrors = error.response?.data?.errors;
       if (validationErrors) {
         Object.values(validationErrors).forEach(errors => {
@@ -319,13 +344,14 @@ const Register = () => {
 
   const handleVerifyOtp = async () => {
       try {
+      const sanitizedPhone = phoneNumber.trim();
       // Chuẩn bị dữ liệu theo đúng format backend yêu cầu
       const verifyOtpData = {
         registerDto: {
           username: username,
           passwordHash: password,
           email: email,
-          phoneNumber: phoneNumber || '',
+          phoneNumber: sanitizedPhone || '',
           displayName: displayName || '',
           dob: dob ? new Date(dob).toISOString() : null
         },
@@ -335,7 +361,7 @@ const Register = () => {
       const response = await AuthService.verifyOTP(verifyOtpData);
       
       if (response.status === 200) {
-        toast.success('Mã OTP đúng, đăng ký thành công! Vui lòng đăng nhập để tiếp tục.', {
+        toast.success(t('auth.register.toasts.otpSuccess'), {
           position: "top-right",
           autoClose: 2500,
           onClose: () => {
@@ -344,8 +370,9 @@ const Register = () => {
         });
       }
     } catch (error) {
-      console.error('Lỗi xác thực OTP:', error);
-      toast.error(error.response?.data?.message || 'Xác thực OTP thất bại', {
+      console.error('OTP verification error:', error);
+      const fallback = t('auth.register.toasts.otpError');
+      toast.error(error.response?.data?.message || fallback, {
         position: "top-right",
         autoClose: 3000
       });
@@ -381,29 +408,30 @@ const Register = () => {
 
   const handleResendOtp = async () => {
     if (resendCountdown > 0) {
-      toast.info(`Vui lòng chờ ${resendCountdown}s trước khi gửi lại mã.`, {
+      toast.info(t('auth.register.toasts.waitBeforeResend', { seconds: resendCountdown }), {
         position: "top-right",
         autoClose: 2000
       });
       return;
     }
     try {
-      toast.info('Đang gửi lại mã OTP...', {
+      toast.info(t('auth.register.toasts.resendInfo'), {
         position: "top-right",
         autoClose: 2000
       });
+      const sanitizedPhone = phoneNumber.trim();
 
       const response = await AuthService.register({
         Email: email,
         Username: username,
         PasswordHash: password,
-        PhoneNumber: phoneNumber,
+        PhoneNumber: sanitizedPhone,
         DisplayName: displayName,
         Dob: dob
       });
 
       if (response.status === 200) {
-        toast.success('Đã gửi lại mã OTP thành công!', {
+        toast.success(t('auth.register.toasts.resendSuccess'), {
           position: "top-right",
           autoClose: 3000
         });
@@ -411,7 +439,7 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Resend OTP failed:', error);
-      toast.error('Không thể gửi lại mã OTP. Vui lòng thử lại sau.', {
+      toast.error(t('auth.register.toasts.resendError'), {
         position: "top-right",
         autoClose: 3000
       });
@@ -443,7 +471,7 @@ const Register = () => {
             <button 
               onClick={() => setShowOtpInput(false)}
               className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Đóng"
+              aria-label={t('auth.register.otp.closeAria')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -453,8 +481,8 @@ const Register = () => {
             <div className="flex items-center justify-center mb-6">
               <img src="/images/OnlyLogo.png" alt="logo" className="w-12 h-12" />
               <div className="ml-4">
-                <h2 className="text-2xl font-bold text-gray-800">Xác thực OTP</h2>
-                <p className="text-gray-600 text-sm mt-1">Vui lòng nhập mã xác thực được gửi đến email của bạn</p>
+                <h2 className="text-2xl font-bold text-gray-800">{t('auth.register.otp.title')}</h2>
+                <p className="text-gray-600 text-sm mt-1">{t('auth.register.otp.description')}</p>
               </div>
             </div>
             
@@ -483,13 +511,15 @@ const Register = () => {
               </div>
               
               <div className="text-center">
-                <p className="text-gray-500 text-sm mb-2">Không nhận được mã?</p>
+                <p className="text-gray-500 text-sm mb-2">{t('auth.register.otp.notReceived')}</p>
                 <button 
                   className={`text-sm font-medium ${resendCountdown > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-[#9E211F] hover:underline'}`}
                   onClick={handleResendOtp}
                   disabled={resendCountdown > 0}
                 >
-                  {resendCountdown > 0 ? `Gửi lại mã (${resendCountdown}s)` : 'Gửi lại mã'}
+                  {resendCountdown > 0
+                    ? t('auth.register.otp.resendCountdown', { seconds: resendCountdown })
+                    : t('auth.register.otp.resendReady')}
                 </button>
               </div>
 
@@ -501,7 +531,7 @@ const Register = () => {
                              ? 'bg-[#9E211F] hover:bg-opacity-90' 
                              : 'bg-gray-400 cursor-not-allowed'}`}
               >
-                Xác nhận
+                {t('auth.register.otp.confirmButton')}
               </button>
             </div>
           </div>
@@ -514,31 +544,55 @@ const Register = () => {
             <img src="/images/login-illustration.svg" alt="illustration" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-[rgba(9,8,6,0.25)] via-[rgba(9,6,2,0.45)] to-[rgba(6,4,2,0.75)]" />
             <div className="absolute inset-x-0 top-10 p-10 text-white space-y-4">
-              <p className="uppercase tracking-[0.3em] text-sm text-[#F9D9A7]">HoaLacHandicraft</p>
-              <h1 className="font-bold text-3xl leading-snug drop-shadow-lg">Chào mừng đến với cộng đồng thủ công Việt</h1>
+              <p className="uppercase tracking-[0.3em] text-sm text-[#F9D9A7]">{t('auth.register.heroBadge')}</p>
+              <h1 className="font-bold text-3xl leading-snug drop-shadow-lg">{t('auth.register.heroTitle')}</h1>
               <p className="text-sm text-white/80 max-w-xs">
-                Kết nối cùng nghệ nhân Hòa Lạc, khám phá tinh hoa làng nghề và lưu giữ nét đẹp truyền thống.
+                {t('auth.register.heroSubtitle')}
               </p>
             </div>
           </div>
         <div className="relative p-6 sm:p-8 bg-[#FFFDF7] flex flex-col justify-center">
-          <div className="absolute top-4 right-4 hidden lg:flex items-center gap-2 text-sm text-[#746355]">
-            <span>Trở về</span>
-            <Link to="/" className="text-[#9E211F] font-semibold hover:underline">Trang chủ</Link>
+          <div className="absolute top-4 right-4 flex flex-col items-end gap-3">
+            <div className="flex items-center gap-2 bg-white border border-[#efe7db] rounded-full px-3 py-1 shadow-sm">
+              {languageOptions.map((option) => (
+                <button
+                  key={option.code}
+                  type="button"
+                  onClick={() => changeLanguage(option.code)}
+                  aria-pressed={language === option.code}
+                  className={`w-9 h-9 rounded-full border transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#9E211F] ${
+                    language === option.code
+                      ? 'border-[#9E211F] shadow-md'
+                      : 'border-transparent hover:border-[#c29b6c]'
+                  }`}
+                  title={option.label}
+                >
+                  <img
+                    src={option.flag}
+                    alt={`${option.label} flag`}
+                    className="w-6 h-6 object-cover rounded-full"
+                  />
+                </button>
+              ))}
+            </div>
+            <div className="hidden lg:flex items-center gap-2 text-sm text-[#746355]">
+              <span>{t('auth.common.backLabel')}</span>
+              <Link to="/" className="text-[#9E211F] font-semibold hover:underline">{t('auth.common.homeLink')}</Link>
+            </div>
           </div>
             <div className="mb-8 text-center lg:text-left">
-              <p className="text-xs uppercase tracking-[0.4em] text-[#c29b6c] font-semibold">Bắt đầu hành trình</p>
-              <h2 className="text-3xl font-bold text-[#331c11] mt-2">Tạo tài khoản mới</h2>
-              <p className="text-sm text-[#746355] mt-2">Nhập thông tin dưới đây để gia nhập cộng đồng HoaLacHandicraft.</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-[#c29b6c] font-semibold">{t('auth.register.startTag')}</p>
+              <h2 className="text-3xl font-bold text-[#331c11] mt-2">{t('auth.register.title')}</h2>
+              <p className="text-sm text-[#746355] mt-2">{t('auth.register.subtitle')}</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Email</label>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.register.form.emailLabel')}</label>
                 <div className="relative group">
                   <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                   <input
                     type="email"
-                    placeholder="Email của bạn"
+                    placeholder={t('auth.register.form.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -547,12 +601,12 @@ const Register = () => {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Tên đăng nhập</label>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.register.form.usernameLabel')}</label>
                 <div className="relative group">
                   <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                   <input
                     type="text"
-                    placeholder="Tên đăng nhập của bạn"
+                    placeholder={t('auth.register.form.usernamePlaceholder')}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
@@ -561,12 +615,12 @@ const Register = () => {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Số điện thoại</label>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.register.form.phoneLabel')}</label>
                 <div className="relative group">
                   <FaPhoneAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                   <input
                     type="tel"
-                    placeholder="Số điện thoại của bạn"
+                    placeholder={t('auth.register.form.phonePlaceholder')}
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     required
@@ -575,12 +629,12 @@ const Register = () => {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Họ và tên</label>
+                <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.register.form.displayNameLabel')}</label>
                 <div className="relative group">
                   <FaIdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                   <input
                     type="text"
-                    placeholder="Họ và tên của bạn"
+                    placeholder={t('auth.register.form.displayNamePlaceholder')}
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     required
@@ -591,13 +645,13 @@ const Register = () => {
               <div>
                 <label className="text-sm font-semibold text-[#4a3c32] flex items-center gap-2 mb-2">
                   <FaBirthdayCake className="text-[#c5b29a]" />
-                  Ngày sinh
+                  {t('auth.register.form.dobLabel')}
                 </label>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <DatePartSelect
                     options={dayOptions}
                     value={dobDay}
-                    placeholder="Ngày"
+                    placeholder={t('auth.register.form.dobDay')}
                     onChange={(value) => {
                       setDobDay(value);
                       updateDobFromParts(value, dobMonth, dobYear);
@@ -606,7 +660,7 @@ const Register = () => {
                   <DatePartSelect
                     options={monthOptions}
                     value={dobMonth}
-                    placeholder="Tháng"
+                    placeholder={t('auth.register.form.dobMonth')}
                     onChange={(value) => {
                       setDobMonth(value);
                       updateDobFromParts(dobDay, value, dobYear);
@@ -615,7 +669,7 @@ const Register = () => {
                   <DatePartSelect
                     options={yearOptions}
                     value={dobYear}
-                    placeholder="Năm"
+                    placeholder={t('auth.register.form.dobYear')}
                     onChange={(value) => {
                       setDobYear(value);
                       updateDobFromParts(dobDay, dobMonth, value);
@@ -625,12 +679,12 @@ const Register = () => {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Mật khẩu</label>
+                  <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.register.form.passwordLabel')}</label>
                   <div className="relative group">
                     <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Mật khẩu"
+                      placeholder={t('auth.register.form.passwordPlaceholder')}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -646,19 +700,19 @@ const Register = () => {
                   >
                       <img
                         src={showPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
-                        alt={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        alt={showPassword ? t('auth.common.hidePassword') : t('auth.common.showPassword')}
                         className="w-5 h-5 object-contain"
                       />
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-[#4a3c32] block mb-2">Xác nhận mật khẩu</label>
+                  <label className="text-sm font-semibold text-[#4a3c32] block mb-2">{t('auth.register.form.confirmPasswordLabel')}</label>
                   <div className="relative group">
                     <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c5b29a] group-focus-within:text-[#9E211F] transition-colors" />
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Xác nhận mật khẩu"
+                      placeholder={t('auth.register.form.confirmPasswordPlaceholder')}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
@@ -674,7 +728,7 @@ const Register = () => {
                   >
                       <img
                         src={showConfirmPassword ? '/images/eye-icon.svg' : '/images/eye-icon-2.svg'}
-                        alt={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        alt={showConfirmPassword ? t('auth.common.hidePassword') : t('auth.common.showPassword')}
                         className="w-5 h-5 object-contain"
                       />
                     </button>
@@ -686,11 +740,11 @@ const Register = () => {
                 disabled={loading}
                 className="w-full py-3 rounded-[16px] font-semibold text-white bg-gradient-to-r from-[#BB4B3E] to-[#9E211F] shadow-[0_20px_40px_rgba(158,33,31,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_45px_rgba(158,33,31,0.45)] disabled:opacity-70 disabled:hover:-translate-y-0"
               >
-                {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+                {loading ? t('auth.register.buttons.submitting') : t('auth.register.buttons.submit')}
               </button>
               <div className="text-center text-sm text-[#746355]">
-                Đã có tài khoản?{' '}
-                <Link to="/login" className="text-[#9E211F] font-semibold hover:underline">Đăng nhập</Link>
+                {t('auth.register.cta.haveAccount')}{' '}
+                <Link to="/login" className="text-[#9E211F] font-semibold hover:underline">{t('auth.register.cta.loginLink')}</Link>
               </div>
             </form>
           </div>

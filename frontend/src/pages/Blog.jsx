@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
@@ -7,21 +7,22 @@ import Breadcrumb from '../components/shared/Breadcrumb';
 import Pagination from '../components/shared/Pagination';
 import { BlogService } from '../services/modules/blog/blogService';
 import { UserService } from '../services/modules/users/userService';
+import { LanguageContext } from '../context/LanguageContext';
 
 const API_PAGE_SIZE = 9;
 const GRID_PAGE_SIZE = 6;
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1600&q=80';
 
-const formatDate = (value) => {
-  if (!value) return 'Updating';
+const formatDate = (value, locale = 'vi-VN', fallback = '') => {
+  if (!value) return fallback;
   try {
-    return new Date(value).toLocaleDateString('vi-VN', {
+    return new Date(value).toLocaleDateString(locale, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     });
   } catch (error) {
-    return value;
+    return fallback || value || '';
   }
 };
 
@@ -41,9 +42,12 @@ const resolveImage = (blog) => (
 
 const Blog = () => {
   const navigate = useNavigate();
+  const { t, language } = useContext(LanguageContext);
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gridPage, setGridPage] = useState(1);
+  const fallbackAuthor = t('blog.authorFallback');
+  const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
 
   useEffect(() => {
     let isMounted = true;
@@ -126,7 +130,7 @@ const Blog = () => {
                 authorMap.get(resolvedAuthorId)
                 || item.authorName
                 || item.author
-                || 'G90 Editorial',
+                || fallbackAuthor,
             };
           });
 
@@ -135,11 +139,11 @@ const Blog = () => {
       } catch (error) {
         console.error('Fetch blogs error:', error);
         if (isMounted) {
-          toast.error(
+          const message =
             error?.response?.data?.message
-              || error?.message
-              || 'Không thể tải các bài viết.',
-          );
+            || error?.message
+            || t('blog.loadError');
+          toast.error(message);
         }
       } finally {
         if (isMounted) {
@@ -153,7 +157,7 @@ const Blog = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t, fallbackAuthor]);
 
   const featuredSections = useMemo(() => {
     if (!blogs.length) {
@@ -202,8 +206,8 @@ const Blog = () => {
           <div className="absolute left-6 top-6 z-10">
             <Breadcrumb
               items={[
-                { label: 'Trang chủ', href: '/' },
-                { label: 'Bài viết' },
+                { label: t('nav.home'), href: '/' },
+                { label: t('nav.blog') },
               ]}
               floating
             />
@@ -211,7 +215,7 @@ const Blog = () => {
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex items-center gap-3 text-xs uppercase tracking-[0.5em] text-amber-600">
               <span className="h-px flex-1 bg-amber-200" />
-              Tin tức làng nghề
+              {t('blog.hero.badge')}
               <span className="h-px flex-1 bg-amber-200" />
             </div>
 
@@ -240,9 +244,9 @@ const Blog = () => {
                   </div>
                   <div className="p-6 md:p-8 lg:p-10 space-y-4">
                     <span className="text-xs uppercase tracking-[0.3em] text-amber-700 block">
-                      {formatDate(heroBlog.publishedAt || heroBlog.updatedAt)}
+                      {formatDate(heroBlog.publishedAt || heroBlog.updatedAt, dateLocale, t('blog.updating'))}
                       {' -- '}
-                      {heroBlog.displayName || 'G90 Editorial'}
+                      {heroBlog.authorDisplayName || heroBlog.displayName || fallbackAuthor}
                     </span>
                     <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold leading-tight text-gray-900">
                       {heroBlog.title}
@@ -270,7 +274,7 @@ const Blog = () => {
                         </div>
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.4em] text-amber-600">
-                            {formatDate(blog.publishedAt || blog.updatedAt)}
+                            {formatDate(blog.publishedAt || blog.updatedAt, dateLocale, t('blog.updating'))}
                           </p>
                           <h3 className="text-base md:text-lg font-semibold mt-1 leading-snug text-gray-900">
                             {blog.title}
@@ -283,14 +287,14 @@ const Blog = () => {
                     ))
                   ) : (
                     <div className="h-full flex items-center justify-center rounded-2xl border border-dashed border-amber-200 text-gray-500 text-sm">
-                      Các bài viết sẽ được nổi bật trong thời gian tới.
+                      {t('blog.hero.emptyHighlights')}
                     </div>
                   )}
                 </div>
               </div>
             ) : (
               <div className="text-center py-20 text-gray-500">
-                Chưa có bài viết nào được xuất bản. Vui lòng quay lại sau.
+                {t('blog.hero.emptyList')}
               </div>
             )}
           </div>
@@ -300,21 +304,16 @@ const Blog = () => {
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10">
               <div>
-                <p className="text-xs uppercase tracking-[0.5em] text-amber-600">Bài viết nổi bật</p>
+                <p className="text-xs uppercase tracking-[0.5em] text-amber-600">{t('blog.featured.badge')}</p>
                 <h2 className="text-3xl md:text-4xl font-alata text-gray-900 mt-3">
-                  Các bài viết gần đây
+                  {t('blog.featured.title')}
                 </h2>
               </div>
               <p className="text-sm text-gray-500">
-                Hiển thị
-                {' '}
-                {paginatedArchive.length}
-                {' '}
-                trên
-                {' '}
-                {archiveItems.length}
-                {' '}
-                bài viết
+                {t('blog.featured.countLabel', {
+                  count: paginatedArchive.length,
+                  total: archiveItems.length,
+                })}
               </p>
             </div>
 
@@ -346,7 +345,7 @@ const Blog = () => {
                       </div>
                       <div className="p-5 flex flex-col gap-3 flex-1">
                         <span className="text-[11px] uppercase tracking-[0.4em] text-amber-600">
-                          {formatDate(blog.publishedAt || blog.updatedAt)}
+                          {formatDate(blog.publishedAt || blog.updatedAt, dateLocale, t('blog.updating'))}
                         </span>
                         <h3 className="text-lg font-semibold text-gray-900 leading-snug">
                           {blog.title}
@@ -362,7 +361,7 @@ const Blog = () => {
                           }}
                           className="text-sm font-semibold text-[#8B4513] inline-flex items-center gap-2 mt-2"
                         >
-                          Đọc bài viết
+                          {t('blog.featured.readMore')}
                           <span aria-hidden="true">-&gt;</span>
                         </button>
                       </div>
@@ -380,7 +379,7 @@ const Blog = () => {
               </>
             ) : (
               <div className="text-center py-16 text-gray-500 border border-dashed border-amber-200 rounded-3xl">
-                More stories will be published soon.
+                {t('blog.featured.empty')}
               </div>
             )}
           </div>

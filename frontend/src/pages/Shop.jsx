@@ -17,6 +17,13 @@ const Shop = () => {
   const navigate = useNavigate();
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
+  const resolveMessage = (key, fallback) => {
+    const value = t(key);
+    if (value && value !== key) {
+      return value;
+    }
+    return fallback || key;
+  };
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [products, setProducts] = useState([]);
@@ -29,11 +36,11 @@ const Shop = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
   const [wishlistMap, setWishlistMap] = useState(new Map());
-  const ensureAuthenticated = (customMessage) => {
+  const ensureAuthenticated = (messageKey, fallbackMessage) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (token) return true;
     if (!userInfo) {
-      toast.info(customMessage || t('messages.loginRequired'));
+      toast.info(resolveMessage(messageKey || 'messages.loginRequired', fallbackMessage));
       setTimeout(() => {
         navigate('/login', { replace: true });
       }, 500);
@@ -42,11 +49,7 @@ const Shop = () => {
   };
 
   const handleAddToCart = async (productId, price, quantity = 1, redirect = false) => {
-    const msg = t('messages.loginToAddCart');
-    const fallbackMsg = msg && msg.includes('messages.loginToAddCart')
-      ? 'Đăng nhập để thêm vào giỏ hàng.'
-      : msg;
-    if (!ensureAuthenticated(fallbackMsg)) return;
+    if (!ensureAuthenticated('messages.loginToAddCart', 'Đăng nhập để thêm vào giỏ hàng.')) return;
     try {
       await CartService.addItem(productId, price, quantity);
       toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
@@ -56,7 +59,7 @@ const Shop = () => {
     } catch (err) {
       console.error(err);
       if (err?.response?.status === 401) {
-        const loginMsg = fallbackMsg || t('messages.loginRequired');
+        const loginMsg = resolveMessage('messages.loginRequired', 'Vui lòng đăng nhập để tiếp tục.');
         toast.error(loginMsg);
         return;
       }
@@ -64,17 +67,13 @@ const Shop = () => {
         err?.response?.data?.message
         || err?.response?.data?.title
         || err?.message
-        || t('messages.addToCartError');
+        || resolveMessage('messages.addToCartError', 'Không thể thêm sản phẩm vào giỏ hàng.');
       toast.error(message);
     }
   };
 
   const handleBuyNow = async (productId, price) => {
-    const msg = t('messages.loginToBuyNow');
-    const fallbackMsg = msg && msg.includes('messages.loginToBuyNow')
-      ? 'Đăng nhập để mua ngay.'
-      : msg;
-    if (!ensureAuthenticated(fallbackMsg)) return;
+    if (!ensureAuthenticated('messages.loginToBuyNow', 'Đăng nhập để mua ngay.')) return;
     await handleAddToCart(productId, price, 1, true);
   };
 
@@ -101,7 +100,7 @@ const Shop = () => {
   };
 
   const toggleWishlist = async (productId) => {
-    if (!ensureAuthenticated()) return;
+    if (!ensureAuthenticated('messages.wishlistLoginRequired', 'Đăng nhập để quản lý danh sách yêu thích.')) return;
     try {
       if (wishlistMap.has(productId)) {
         const itemId = wishlistMap.get(productId);
@@ -111,15 +110,18 @@ const Shop = () => {
         const newMap = new Map(wishlistMap);
         newMap.delete(productId);
         setWishlistMap(newMap);
-        toast.success('Đã xoá khỏi yêu thích');
+        toast.success(resolveMessage('messages.wishlistRemoved', 'Đã xóa khỏi yêu thích.'));
       } else {
         await WishlistService.add(productId);
         await refreshWishlist();
-        toast.success('Đã thêm vào yêu thích');
+        toast.success(resolveMessage('messages.wishlistAdded', 'Đã thêm vào yêu thích.'));
       }
     } catch (err) {
       console.error('Toggle wishlist error:', err);
-      toast.error(err?.response?.data?.message || 'Đăng nhập để thêm vào yêu thích.');
+      toast.error(
+        err?.response?.data?.message
+        || resolveMessage('messages.wishlistLoginRequired', 'Đăng nhập để quản lý danh sách yêu thích.'),
+      );
     }
   };
 
@@ -177,7 +179,7 @@ const Shop = () => {
         );
       } catch (err) {
         if (!isMounted) return;
-        setError(err?.message || 'Unknown error');
+        setError(err?.message || t('general.unknownError'));
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -190,7 +192,7 @@ const Shop = () => {
     return () => {
       isMounted = false;
     };
-  }, [pageIndex, pageSize, selectedCategory, searchQuery, sortOption]);
+  }, [pageIndex, pageSize, selectedCategory, searchQuery, sortOption, t]);
 
   useEffect(() => {
     if (userInfo) {
@@ -206,8 +208,8 @@ const Shop = () => {
       <ShopBanner
         onSelect={(label) => setSelectedCategory(label)}
         breadcrumbItems={[
-          { label: 'Trang chủ', href: '/' },
-          { label: 'Cửa hàng' },
+          { label: t('nav.home'), href: '/' },
+          { label: t('nav.shop') },
         ]}
       />
 

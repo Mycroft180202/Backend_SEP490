@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { LanguageContext } from '../../context/LanguageContext';
 
-const formatCurrency = (value, suffix = 'đ') => {
+const formatCurrency = (value, suffix = 'đ', locale = 'vi-VN') => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return `0${suffix}`;
   }
-  return `${Number(value).toLocaleString('vi-VN')}${suffix}`;
+  return `${Number(value).toLocaleString(locale)}${suffix}`;
 };
 
 const ProductReview = ({
@@ -13,6 +14,9 @@ const ProductReview = ({
   loading = false,
   currencySuffix = 'đ',
 }) => {
+  const { t, language } = useContext(LanguageContext);
+  const locale = useMemo(() => (language === 'vi' ? 'vi-VN' : 'en-US'), [language]);
+
   const renderSkeleton = () => (
     <div className="flex flex-col gap-4">
       {Array.from({ length: 3 }).map((_, idx) => (
@@ -39,7 +43,7 @@ const ProductReview = ({
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
         <h2 className="font-alata text-2xl text-black mb-6">
-          Kiểm tra đơn hàng
+          {t('checkout.review.title')}
         </h2>
         {renderSkeleton()}
       </div>
@@ -50,10 +54,10 @@ const ProductReview = ({
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
         <h2 className="font-alata text-2xl text-black mb-2">
-          Kiểm tra đơn hàng
+          {t('checkout.review.title')}
         </h2>
         <p className="text-center text-gray-500 py-6">
-          Không có sản phẩm nào trong giỏ hàng.
+          {t('checkout.review.empty')}
         </p>
       </div>
     );
@@ -62,29 +66,29 @@ const ProductReview = ({
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm checkout-card">
       <h2 className="font-alata text-2xl text-black mb-6">
-        Kiểm tra đơn hàng
+        {t('checkout.review.title')}
       </h2>
 
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-12 gap-4 pb-3 border-b border-gray-200">
           <div className="col-span-6">
             <span className="font-nunito text-lg font-semibold text-black">
-              Sản phẩm
+              {t('checkout.review.headers.product')}
             </span>
           </div>
           <div className="col-span-2 text-center">
             <span className="font-nunito text-lg font-semibold text-black">
-              Đơn giá
+              {t('checkout.review.headers.unitPrice')}
             </span>
           </div>
           <div className="col-span-2 text-center">
             <span className="font-nunito text-lg font-semibold text-black">
-              Số lượng
+              {t('checkout.review.headers.quantity')}
             </span>
           </div>
           <div className="col-span-2 text-right">
             <span className="font-nunito text-lg font-semibold text-black">
-              Thành tiền
+              {t('checkout.review.headers.subtotal')}
             </span>
           </div>
         </div>
@@ -121,19 +125,19 @@ const ProductReview = ({
                   </h3>
                   {productCode && (
                     <p className="font-nunito text-xs text-gray-500">
-                      Ma hang: {productCode}
+                      {`${t('checkout.review.productCode')}: ${productCode}`}
                     </p>
                   )}
                   {item.product?.artisanName && (
                     <p className="font-nunito text-xs text-gray-500">
-                      Nguoi ban: {item.product.artisanName}
+                      {`${t('checkout.review.artisan')}: ${item.product.artisanName}`}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="col-span-2 text-center font-nunito text-base text-black">
-                {formatCurrency(item.price, currencySuffix)}
+                {formatCurrency(item.price, currencySuffix, locale)}
               </div>
 
               <div className="col-span-2 text-center font-nunito text-base text-black">
@@ -141,7 +145,7 @@ const ProductReview = ({
               </div>
 
               <div className="col-span-2 text-right font-alata text-lg font-semibold text-primary">
-                {formatCurrency(subtotal, currencySuffix)}
+                {formatCurrency(subtotal, currencySuffix, locale)}
               </div>
             </div>
           );

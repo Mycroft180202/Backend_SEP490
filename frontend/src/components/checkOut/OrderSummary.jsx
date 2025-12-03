@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { LanguageContext } from '../../context/LanguageContext';
 
-const formatCurrency = (value, suffix = 'đ') => {
+const formatCurrency = (value, suffix = 'đ', locale = 'vi-VN') => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return `0${suffix}`;
   }
-  return `${Number(value).toLocaleString('vi-VN')}${suffix}`;
+  return `${Number(value).toLocaleString(locale)}${suffix}`;
 };
 
 const OrderSummary = ({
@@ -23,12 +24,18 @@ const OrderSummary = ({
   onVoucherSelect = () => {},
   voucherLoading = false,
 }) => {
-  const normalizedShared = Array.isArray(vouchers?.shared) ? vouchers.shared : [];
-  const normalizedPersonal = Array.isArray(vouchers?.personal) ? vouchers.personal : [];
-  const allVouchers = useMemo(
-    () => [...normalizedPersonal, ...normalizedShared],
-    [normalizedPersonal, normalizedShared],
-  );
+  const { t, language } = useContext(LanguageContext);
+  const locale = useMemo(() => (language === 'vi' ? 'vi-VN' : 'en-US'), [language]);
+  const normalizedVouchers = useMemo(() => {
+    const shared = Array.isArray(vouchers?.shared) ? vouchers.shared : [];
+    const personal = Array.isArray(vouchers?.personal) ? vouchers.personal : [];
+    return {
+      shared,
+      personal,
+      all: [...personal, ...shared],
+    };
+  }, [vouchers]);
+  const { shared: normalizedShared, personal: normalizedPersonal, all: allVouchers } = normalizedVouchers;
   const normalizedDiscount = Number(discount) || 0;
   const normalizedSubtotal = Number(subtotal) || 0;
   const normalizedShipping = Number(shipping) || 0;
@@ -61,25 +68,25 @@ const OrderSummary = ({
     let discountText = '';
     if (type === 'percent') {
       const percent = Number.isFinite(Number(voucher.discountValue)) ? Number(voucher.discountValue) : 0;
-      discountText = `Giảm ${percent}%`;
+      discountText = `${t('checkout.summary.discount')} ${percent}%`;
     }
     const value = voucher.discountValue ?? 0;
     if (!discountText) {
-      discountText = `Giảm ${formatCurrency(value, currencySuffix)}`;
+      discountText = `${t('checkout.summary.discount')} ${formatCurrency(value, currencySuffix, locale)}`;
     }
 
     const minAmount = Number(voucher.minOrderAmount) || 0;
     const maxDiscountAmount = Number(voucher.maxDiscountAmount) || 0;
     const details = [];
     if (minAmount > 0) {
-      details.push(`ĐH tối thiểu ${formatCurrency(minAmount, currencySuffix)}`);
+      details.push(`${t('checkout.summary.voucherMin', { amount: formatCurrency(minAmount, currencySuffix, locale) })}`);
     }
     if (maxDiscountAmount > 0) {
-      details.push(`Giảm tối đa ${formatCurrency(maxDiscountAmount, currencySuffix)}`);
+      details.push(`${t('checkout.summary.voucherMax', { amount: formatCurrency(maxDiscountAmount, currencySuffix, locale) })}`);
     }
     const detailText = details.length ? details.join(' | ') : '';
     const eligible = isVoucherEligible(voucher);
-    const requirementText = !eligible && minAmount > 0 ? 'Chưa đạt giá trị tối thiểu' : '';
+    const requirementText = !eligible && minAmount > 0 ? t('checkout.summary.voucherNotEligible') : '';
 
     const secondaryParts = [discountText];
     if (detailText) secondaryParts.push(detailText);
@@ -87,7 +94,7 @@ const OrderSummary = ({
     const secondary = secondaryParts.filter(Boolean).join(' - ');
 
     return {
-      primary: voucher.code || 'Voucher',
+      primary: voucher.code || t('checkout.summary.voucherDefault'),
       secondary,
     };
   };
@@ -112,33 +119,33 @@ const OrderSummary = ({
   return (
     <div className="bg-gradient-to-br from-[#faded5] via-[#f7cfc5] to-[#faded5] rounded-xl p-6 shadow-sm checkout-card sticky top-24">
       <h2 className="font-alata text-2xl text-black text-center mb-6">
-        Đơn hàng của bạn
+        {t('checkout.summary.title')}
       </h2>
 
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <span className="font-nunito text-lg text-black">Tạm tính</span>
+          <span className="font-nunito text-lg text-black">{t('checkout.summary.subtotal')}</span>
           <span className="font-nunito text-lg text-black">
-            {formatCurrency(subtotal, currencySuffix)}
+            {formatCurrency(subtotal, currencySuffix, locale)}
           </span>
         </div>
 
         <div className="flex justify-between items-center">
-          <span className="font-nunito text-lg text-black">Phí vận chuyển</span>
+          <span className="font-nunito text-lg text-black">{t('checkout.summary.shipping')}</span>
           <span className="font-nunito text-lg text-black">
             {shippingLoading ? (
               <span className="inline-block h-5 w-20 bg-gray-200 animate-pulse rounded" />
             ) : (
-              formatCurrency(shipping, currencySuffix)
+              formatCurrency(shipping, currencySuffix, locale)
             )}
           </span>
         </div>
 
         {normalizedDiscount > 0 && (
           <div className="flex justify-between items-center">
-            <span className="font-nunito text-lg text-black">Giảm giá</span>
+            <span className="font-nunito text-lg text-black">{t('checkout.summary.discount')}</span>
             <span className="font-nunito text-lg text-primary">
-              -{formatCurrency(normalizedDiscount, currencySuffix)}
+              -{formatCurrency(normalizedDiscount, currencySuffix, locale)}
             </span>
           </div>
         )}
@@ -147,20 +154,20 @@ const OrderSummary = ({
 
         <div className="flex justify-between items-center">
           <span className="font-nunito text-xl font-semibold text-black">
-            Tổng cộng
+            {t('checkout.summary.total')}
           </span>
           <span className="font-alata text-2xl font-semibold text-primary">
             {shippingLoading ? (
               <span className="inline-block h-8 w-32 bg-gray-200 animate-pulse rounded" />
             ) : (
-              formatCurrency(computedTotal, currencySuffix)
+              formatCurrency(computedTotal, currencySuffix, locale)
             )}
           </span>
         </div>
 
         <div className="flex flex-col gap-2 mt-2">
           <label htmlFor="voucher-select" className="font-nunito text-base text-black">
-            Voucher của bạn
+            {t('checkout.summary.voucherLabel')}
           </label>
           {voucherLoading ? (
             <div className="h-11 rounded-lg bg-gray-200 animate-pulse" />
@@ -173,9 +180,9 @@ const OrderSummary = ({
                 onChange={handleVoucherChange}
                 disabled={!allVouchers.length}
               >
-                <option value="">Không sử dụng Voucher</option>
+                <option value="">{t('checkout.summary.voucherNone')}</option>
                 {normalizedPersonal.length > 0 && (
-                  <optgroup label="Voucher cá nhân">
+                  <optgroup label={t('checkout.summary.voucherPersonal')}>
                     {normalizedPersonal.map((voucher) => {
                       const eligible = isVoucherEligible(voucher);
                       const label = voucherLabel(voucher);
@@ -196,7 +203,7 @@ const OrderSummary = ({
                   </optgroup>
                 )}
                 {normalizedShared.length > 0 && (
-                  <optgroup label="Voucher chung">
+                  <optgroup label={t('checkout.summary.voucherShared')}>
                     {normalizedShared.map((voucher) => {
                       const eligible = isVoucherEligible(voucher);
                       const label = voucherLabel(voucher);
@@ -219,7 +226,7 @@ const OrderSummary = ({
               </select>
               {!allVouchers.length && (
                 <p className="text-sm text-text-gray">
-                  Bạn chưa có Voucher hợp lệ.
+                  {t('checkout.summary.voucherEmpty')}
                 </p>
               )}
               {selectedVoucherCode && (
@@ -228,7 +235,7 @@ const OrderSummary = ({
                   onClick={handleClearVoucher}
                   className="self-start text-sm text-primary hover:underline"
                 >
-                  Bỏ chọn Voucher
+                  {t('checkout.summary.voucherClear')}
                 </button>
               )}
             </>
@@ -245,13 +252,13 @@ const OrderSummary = ({
           }`}
           disabled={disabled || placingOrder}
         >
-          {placingOrder ? 'Đang đặt hàng...' : 'Đặt hàng'}
+          {placingOrder ? t('checkout.summary.placing') : t('checkout.summary.placeOrder')}
         </button>
 
         <p className="font-nunito text-sm text-text-gray text-center mt-2">
-          Bằng việc đặt hàng, bạn đồng ý với{' '}
+          {t('checkout.summary.agreement')}
           <a href="/policy" className="text-primary hover:underline">
-            điều khoản sử dụng
+            {t('checkout.summary.agreementLink')}
           </a>
           .
         </p>

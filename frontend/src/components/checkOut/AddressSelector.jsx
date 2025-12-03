@@ -1,4 +1,5 @@
 import React, {
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -6,6 +7,7 @@ import React, {
 } from 'react';
 import PropTypes from 'prop-types';
 import { FaMapMarkerAlt, FaPlus, FaChevronDown } from 'react-icons/fa';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const getAddressId = (address, fallback) => (
   address?.id
@@ -23,6 +25,7 @@ const AddressSelector = ({
   isLoading = false,
   allowManage = true,
 }) => {
+  const { t } = useContext(LanguageContext);
   const normalizedAddresses = useMemo(
     () => addresses.map((address, index) => ({
       ...address,
@@ -104,7 +107,7 @@ const AddressSelector = ({
   const renderEmptyState = () => (
     <div className="border border-dashed border-gray-300 rounded-xl p-6 text-center">
       <p className="font-nunito text-base text-gray-600 mb-4">
-        Chua co dia chi giao hang duoc luu.
+        {t('checkout.address.empty')}
       </p>
       {allowManage && (
         <button
@@ -113,7 +116,7 @@ const AddressSelector = ({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-[#7a1a18] transition-colors"
         >
           <FaPlus />
-          Quan ly dia chi
+          {t('checkout.address.manageCta')}
         </button>
       )}
     </div>
@@ -124,11 +127,11 @@ const AddressSelector = ({
     const receiverName = address.contactName
       || address.name
       || address.receiverName
-      || 'Nguoi nhan';
+      || t('checkout.address.fallbackName');
     const phoneDisplay = address.contactPhone
       || address.phone
       || address.phoneNumber
-      || 'Chua co so dien thoai';
+      || t('checkout.address.fallbackPhone');
     const detailAddress = address.detailAddress
       || address.address
       || address.line1
@@ -140,7 +143,7 @@ const AddressSelector = ({
       || [detailAddress, ward, district, province]
         .filter(Boolean)
         .join(', ')
-      || 'Chua co dia chi chi tiet';
+      || t('checkout.address.fallbackAddress');
 
     return { receiverName, phoneDisplay, fullAddress };
   };
@@ -158,7 +161,7 @@ const AddressSelector = ({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="font-alata text-2xl text-black flex items-center gap-2">
           <FaMapMarkerAlt className="text-primary" />
-          Địa chỉ giao hàng
+          {t('checkout.address.title')}
         </h2>
         {allowManage && normalizedAddresses.length > 0 && (
           <button
@@ -167,7 +170,7 @@ const AddressSelector = ({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary font-semibold hover:bg-primary hover:text-white transition-colors"
           >
             <FaPlus />
-            Quản lý
+            {t('checkout.address.manage')}
           </button>
         )}
       </div>
@@ -189,11 +192,11 @@ const AddressSelector = ({
                   <span className="text-sm text-gray-600">{selectedDisplay.phoneDisplay}</span>
                   <span className="text-sm text-gray-700">{selectedDisplay.fullAddress}</span>
                   {selectedAddress?.isDefault && (
-                    <span className="text-xs text-green-700 font-semibold">Mặc định</span>
+                    <span className="text-xs text-green-700 font-semibold">{t('checkout.address.defaultBadge')}</span>
                   )}
                 </div>
               ) : (
-                <span className="text-sm text-gray-500">Chưa chọn địa chỉ</span>
+                <span className="text-sm text-gray-500">{t('checkout.address.placeholder')}</span>
               )}
               <FaChevronDown
                 className={`absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''
@@ -221,7 +224,7 @@ const AddressSelector = ({
                       <span className="text-sm text-gray-600">{info.phoneDisplay}</span>
                       <span className="text-sm text-gray-700">{info.fullAddress}</span>
                       {address.isDefault && (
-                        <span className="text-xs text-green-700 font-semibold">Mặc định</span>
+                        <span className="text-xs text-green-700 font-semibold">{t('checkout.address.defaultBadge')}</span>
                       )}
                     </button>
                   );

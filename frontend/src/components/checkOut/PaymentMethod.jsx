@@ -1,23 +1,25 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import { FaMoneyBillWave, FaWallet } from 'react-icons/fa';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const PaymentMethod = ({
   selectedMethod = 'cod',
   onChange = () => {},
   disabled = false,
 }) => {
+  const { t } = useContext(LanguageContext);
   const paymentMethods = [
     {
       id: 'cod',
-      name: 'Thanh toán khi nhận hàng (COD)',
-      description: 'Trả tiền mặt khi nhận hàng',
+      name: t('checkout.payment.methods.cod.name'),
+      description: t('checkout.payment.methods.cod.description'),
       icon: <FaMoneyBillWave className="text-2xl text-[#9E211F]" />,
     },
     {
       id: 'vnpay',
-      name: 'VNPay',
-      description: 'Thanh toán trực tuyến qua VNPay',
+      name: t('checkout.payment.methods.vnpay.name'),
+      description: t('checkout.payment.methods.vnpay.description'),
       icon: <FaWallet className="text-2xl text-[#9E211F]" />,
     },
   ];
@@ -30,7 +32,7 @@ const PaymentMethod = ({
   return (
     <div className="bg-white rounded-[20px] p-6 shadow-lg border border-[#efe7db] checkout-card">
       <h2 className="font-alata text-2xl text-[#331c11] mb-6">
-        Phương thức thanh toán
+        {t('checkout.payment.title')}
       </h2>
 
       <div className="flex flex-col gap-4">

@@ -25,14 +25,14 @@ const Collections = () => {
         setCollections(res || []);
       } catch (err) {
         if (!isMounted) return;
-        setError(err?.message || 'Không thể tải bộ sưu tập');
+        setError(err?.message || t('home.collections.error'));
       } finally {
         if (isMounted) setLoading(false);
       }
     };
     fetchCollections();
     return () => { isMounted = false; };
-  }, []);
+  }, [t]);
 
   const activeCollections = collections.filter((item) => item.isActive !== false);
   const totalPages = Math.max(1, Math.ceil(activeCollections.length / pageSize));
@@ -44,13 +44,13 @@ const Collections = () => {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
           <div className="space-y-3">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 text-[#8B4513] text-xs font-semibold uppercase tracking-[0.2em]">
-              Bộ sưu tập
+              {t('home.collections.badge')}
             </span>
             <h2 className={SECTION_TITLE_CLASS}>
-              Bộ sưu tập sản phẩm
+              {t('home.collections.title')}
             </h2>
             <p className={`${SECTION_SUBTITLE_CLASS} max-w-2xl`}>
-              Khám phá những bộ sưu tập được tuyển chọn kỹ lưỡng, nơi mỗi thiết kế đều mang dấu ấn của làng nghề Hòa Lạc.
+              {t('home.collections.description')}
             </p>
           </div>
           {activeCollections.length > pageSize && (
@@ -95,7 +95,7 @@ const Collections = () => {
                       {item.title}
                     </h3>
                     <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-white/85 text-[#8B4513] rounded-full text-sm font-semibold shadow-sm backdrop-blur-sm transition-transform duration-500 group-hover:translate-y-[-2px]">
-                      Khám phá ngay
+                        {t('home.collections.cta')}
                       <span aria-hidden className="transition-transform duration-500 group-hover:translate-x-1">→</span>
                     </div>
                   </div>

@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../shared/Pagination';
 import { BlogService } from '../../services/modules/blog/blogService';
 import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS, PRIMARY_BUTTON_CLASS } from '../../utils/homeTheme';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const PAGE_SIZE = 4;
 
 const NewsCard = ({
-  image, date, title, onClick,
+  image, date, title, tagLabel, onClick,
 }) => {
   return (
     <button
@@ -23,7 +24,7 @@ const NewsCard = ({
         />
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         <span className="absolute bottom-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/85 text-[#8B4513] text-xs font-semibold shadow-sm">
-          Khám phá
+          {tagLabel}
           <span aria-hidden className="translate-x-0 group-hover:translate-x-1 transition-transform">→</span>
         </span>
       </div>
@@ -37,6 +38,7 @@ const NewsCard = ({
 
 const DiscoverHoaLac = () => {
   const navigate = useNavigate();
+  const { t, language } = useContext(LanguageContext);
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(1);
@@ -66,6 +68,7 @@ const DiscoverHoaLac = () => {
     () => blogs.slice((pageIndex - 1) * PAGE_SIZE, (pageIndex - 1) * PAGE_SIZE + PAGE_SIZE),
     [blogs, pageIndex],
   );
+  const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
 
   return (
     <section className="relative overflow-hidden bg-[#FFF6E9] pt-20 pb-24">
@@ -73,12 +76,12 @@ const DiscoverHoaLac = () => {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div className="space-y-3">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 text-[#8B4513] text-xs font-semibold uppercase tracking-[0.25em]">
-              Góc truyện làng nghề
+              {t('home.discover.badge')}
             </span>
             <div>
-              <h2 className={SECTION_TITLE_CLASS}>Khám phá Hòa Lạc</h2>
+              <h2 className={SECTION_TITLE_CLASS}>{t('home.discover.title')}</h2>
               <p className={`mt-3 ${SECTION_SUBTITLE_CLASS} max-w-2xl`}>
-                Những câu chuyện, sự kiện và cảm hứng xoay quanh hành trình gìn giữ và phát triển nghề thủ công truyền thống.
+                {t('home.discover.description')}
               </p>
             </div>
           </div>
@@ -88,7 +91,7 @@ const DiscoverHoaLac = () => {
             onClick={() => navigate('/blog')}
             className={`${PRIMARY_BUTTON_CLASS} self-start md:self-end`}
           >
-            Xem tất cả bài viết
+            {t('home.discover.cta')}
             <span aria-hidden className="text-lg">→</span>
           </button>
         </div>
@@ -101,12 +104,14 @@ const DiscoverHoaLac = () => {
               ))
               : display.map((item) => {
                 const blogId = item.id || item.blogId;
+                const formattedDate = new Date(item.updateAt || item.createAt || Date.now()).toLocaleDateString(dateLocale);
                 return (
                   <NewsCard
                     key={blogId || item.title}
                     image={item.image || '/images/default-product.png'}
-                    date={new Date(item.updateAt || item.createAt || Date.now()).toLocaleDateString('vi-VN')}
+                    date={formattedDate}
                     title={item.title}
+                    tagLabel={t('home.discover.cardTag')}
                     onClick={() => blogId && navigate(`/blog/${blogId}`)}
                   />
                 );

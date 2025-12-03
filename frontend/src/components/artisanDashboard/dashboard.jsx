@@ -17,6 +17,7 @@ import RevenueManagement from './RevenueManagement';
 import SettingsManagement from './SettingsManagement';
 import { UserContext } from '../../context/UserContext';
 import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
+import { UserService } from '../../services/modules/users/userService';
 
 const ArtisanDashboard = () => {
   const { userInfo } = useContext(UserContext);
@@ -43,6 +44,71 @@ const ArtisanDashboard = () => {
   const [topProductPeriod, setTopProductPeriod] = useState('month');
   const [topProductLoading, setTopProductLoading] = useState(false);
   const [latestOrders, setLatestOrders] = useState([]);
+
+  const enrichOrdersWithProfiles = useCallback(async (orders) => {
+    if (!Array.isArray(orders) || orders.length === 0) {
+      return orders || [];
+    }
+
+    const uniqueCustomerIds = Array.from(
+      new Set(
+        orders
+          .map((order) => order.customerId || order.customerID)
+          .filter((id) => typeof id === 'string' && id.trim()),
+      ),
+    );
+
+    if (uniqueCustomerIds.length === 0) {
+      return orders;
+    }
+
+    const profileEntries = await Promise.all(
+      uniqueCustomerIds.map(async (customerId) => {
+        try {
+          const profile = await UserService.getById(customerId);
+          return [customerId, profile];
+        } catch (error) {
+          console.warn('Không thể lấy thông tin khách hàng:', customerId, error);
+          return [customerId, null];
+        }
+      }),
+    );
+
+    const profileMap = new Map(profileEntries);
+
+    return orders.map((order) => {
+      const customerId = order.customerId || order.customerID;
+      if (!customerId) {
+        return order;
+      }
+
+      const profile = profileMap.get(customerId);
+      if (!profile) {
+        return order;
+      }
+
+      const resolvedName =
+        profile.displayName
+        || profile.fullName
+        || profile.name
+        || profile.userName
+        || profile.username
+        || null;
+
+      if (!resolvedName) {
+        return order;
+      }
+
+      if (order.customerName === resolvedName) {
+        return order;
+      }
+
+      return {
+        ...order,
+        customerName: resolvedName,
+      };
+    });
+  }, []);
 
   const handleYearChange = useCallback((value) => {
     const numericYear = Number(value);
@@ -74,7 +140,10 @@ const ArtisanDashboard = () => {
     { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/artisan/settings' },
   ];
 
-  const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+  const formatCurrency = (amount, suffix = ' VND') => {
+    const numeric = Number(amount) || 0;
+    return `${new Intl.NumberFormat('vi-VN').format(numeric)}${suffix}`;
+  };
 
   const loadDashboardData = useCallback(async () => {
     if (!userInfo?.userID && !userInfo?.userId) {
@@ -264,36 +333,66 @@ const ArtisanDashboard = () => {
           : Array.isArray(source)
             ? source
             : source?.data || [];
-        return list.slice(0, 10).map((order, index) => ({
-          id: order?.orderNumber ?? order?.id ?? order?.orderId ?? `order-${index}`,
-          customerName:
-            order?.customerName
-            ?? order?.customer
-            ?? order?.buyerName
-            ?? order?.userName
-            ?? order?.customerId
-            ?? 'Khách hàng',
-          totalAmount: Number(order?.totalAmount ?? order?.amount ?? order?.total ?? 0),
-          status: order?.status ?? order?.orderStatus ?? order?.statusName ?? 'Không rõ',
-          paymentMethod: order?.paymentMethod ?? order?.paymentType ?? order?.paymentStatus ?? '',
-          createdAt:
-            order?.createdAt
-            ?? order?.createAt
-            ?? order?.orderDate
-            ?? order?.createdDate
-            ?? order?.date
-            ?? null,
-        }));
+        return list.slice(0, 10).map((order, index) => {
+          const nestedCustomer =
+            order?.customer
+            ?? order?.buyer
+            ?? order?.user
+            ?? null;
+
+          const nestedCustomerName = typeof nestedCustomer === 'string'
+            ? nestedCustomer
+            : nestedCustomer?.displayName
+              ?? nestedCustomer?.fullName
+              ?? nestedCustomer?.name
+              ?? nestedCustomer?.username
+              ?? null;
+
+          return {
+            id: order?.orderNumber ?? order?.id ?? order?.orderId ?? `order-${index}`,
+            customerId:
+              order?.customerId
+              ?? nestedCustomer?.id
+              ?? nestedCustomer?.userId
+              ?? nestedCustomer?.userID
+              ?? order?.userId
+              ?? order?.userID
+              ?? null,
+            customerName:
+              order?.customerDisplayName
+              ?? order?.buyerDisplayName
+              ?? order?.userDisplayName
+              ?? order?.customerName
+              ?? order?.buyerName
+              ?? order?.userName
+              ?? nestedCustomerName
+              ?? order?.customerId
+              ?? 'Khách hàng',
+            totalAmount: Number(order?.totalAmount ?? order?.amount ?? order?.total ?? 0),
+            status: order?.status ?? order?.orderStatus ?? order?.statusName ?? 'Không rõ',
+            paymentMethod: order?.paymentMethod ?? order?.paymentType ?? order?.paymentStatus ?? '',
+            createdAt:
+              order?.createdAt
+              ?? order?.createAt
+              ?? order?.orderDate
+              ?? order?.createdDate
+              ?? order?.date
+              ?? null,
+          };
+        });
       };
 
-      setLatestOrders(normalizeOrders(latestOrdersRes));
+      const normalizedOrders = normalizeOrders(latestOrdersRes);
+      const enrichedOrders = await enrichOrdersWithProfiles(normalizedOrders)
+        .catch(() => normalizedOrders);
+      setLatestOrders(enrichedOrders);
     } catch (error) {
       console.error('Không thể tải dữ liệu artisan dashboard:', error);
       toast.error(error?.response?.data?.message || 'Không thể tải dữ liệu artisan dashboard');
     } finally {
       setLoading(false);
     }
-  }, [userInfo, selectedYear, selectedMonth]);
+  }, [userInfo, selectedYear, selectedMonth, enrichOrdersWithProfiles]);
 
   const loadTopProducts = useCallback(async () => {
     if (!userInfo?.userID && !userInfo?.userId) {
@@ -304,13 +403,17 @@ const ArtisanDashboard = () => {
       const now = new Date();
       const metric = topProductMode;
       const fallbackYear = now.getFullYear();
+      const fallbackMonth = now.getMonth() + 1;
       const targetYear = selectedYear || fallbackYear;
+      const targetMonth = (selectedMonth && Number(selectedMonth) >= 1 && Number(selectedMonth) <= 12)
+        ? Number(selectedMonth)
+        : fallbackMonth;
 
       const response = await ArtisanDashboardService.getTopProducts({
         metric,
         period: topProductPeriod,
-        year: topProductPeriod === 'day' ? undefined : targetYear,
-        month: topProductPeriod === 'month' ? selectedMonth : undefined,
+        year: targetYear,
+        month: topProductPeriod === 'month' ? targetMonth : undefined,
       });
 
       const list = Array.isArray(response?.items)
@@ -418,6 +521,7 @@ const ArtisanDashboard = () => {
                 topProductLoading={topProductLoading}
                 latestOrders={latestOrders}
                 formatCurrency={formatCurrency}
+                onNavigateToProducts={() => setActiveTab('products')}
               />
             )
           )}
@@ -430,6 +534,10 @@ const ArtisanDashboard = () => {
             <RevenueManagement
               monthlyRevenue={monthlyRevenue}
               weeklyRevenue={weeklyRevenue}
+              selectedYear={selectedYear}
+              onYearChange={handleYearChange}
+              selectedMonth={selectedMonth}
+              onMonthChange={handleMonthChange}
             />
           )}
 

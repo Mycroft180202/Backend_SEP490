@@ -26,7 +26,7 @@ import ArtisanDashboardService from '../../services/modules/artisan/artisanDashb
 
 const ITEMS_PER_PAGE = 8;
 const LOW_STOCK_THRESHOLD = 10;
-const BEST_SELLER_COUNT = 3;
+const BEST_SELLER_COUNT = 5;
 
 const ViewProductModal = ({ product, onClose, formatCurrency, categoryLabel }) => {
   if (!product) return null;
@@ -138,7 +138,10 @@ const ProductManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [categories, setCategories] = useState([]);
 
-  const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(amount) || 0);
+  const formatCurrency = (amount, suffix = ' VND') => {
+    const numeric = Number(amount) || 0;
+    return `${new Intl.NumberFormat('vi-VN').format(numeric)}${suffix}`;
+  };
 
   const getStatusColor = (isActive) => (isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
 
@@ -196,6 +199,17 @@ const ProductManagement = () => {
     () => products.filter((product) => (product.stock ?? 0) > 0 && product.stock < LOW_STOCK_THRESHOLD),
     [products],
   );
+
+  const outOfStockProducts = useMemo(
+    () => products.filter((product) => (product.stock ?? 0) <= 0),
+    [products],
+  );
+
+  const focusProduct = useCallback((product) => {
+    if (!product) return;
+    setEditingProduct(product);
+    setIsAddFormOpen(true);
+  }, []);
 
   const topSellingProducts = useMemo(() => {
     if (!products.length) return [];
@@ -347,21 +361,75 @@ const ProductManagement = () => {
         </select>
       </div>
 
-      {lowStockProducts.length > 0 && (
-        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-semibold uppercase tracking-wide">Sản phẩm sắp hết hàng</p>
-          <ul className="mt-2 space-y-1 pl-4">
-            {lowStockProducts.slice(0, 5).map((item) => (
-              <li key={`low-stock-${item.id}`} className="list-disc">
-                {item.name} — còn {item.stock} sản phẩm
-              </li>
-            ))}
-          </ul>
-          {lowStockProducts.length > 5 && (
-            <p className="mt-2 text-xs italic">
-              ... và {lowStockProducts.length - 5} sản phẩm khác cũng gần hết hàng.
-            </p>
-          )}
+      {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold uppercase tracking-wide">Sản phẩm sắp hết hàng</p>
+              <span className="rounded-full bg-white/60 px-2 py-0.5 text-xs font-bold text-amber-700">
+                {lowStockProducts.length}
+              </span>
+            </div>
+            {lowStockProducts.length === 0 ? (
+              <p className="mt-3 text-xs italic text-amber-700">Không có sản phẩm nào sắp hết hàng.</p>
+            ) : (
+              <>
+                <ul className="mt-2 space-y-1 pl-4">
+                  {lowStockProducts.slice(0, 5).map((item) => (
+                    <li key={`low-stock-${item.id}`} className="flex items-center justify-between gap-2">
+                      <span className="list-disc flex-1 text-left">{item.name} — còn {item.stock} sản phẩm</span>
+                      <button
+                        type="button"
+                        onClick={() => focusProduct(item)}
+                        className="shrink-0 rounded-full border border-amber-500 px-3 py-1 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-500 hover:text-white"
+                      >
+                        Quản lý
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {lowStockProducts.length > 5 && (
+                  <p className="mt-2 text-xs italic">
+                    ... và {lowStockProducts.length - 5} sản phẩm khác cũng gần hết hàng.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold uppercase tracking-wide">Sản phẩm đã hết hàng</p>
+              <span className="rounded-full bg-white/60 px-2 py-0.5 text-xs font-bold text-red-700">
+                {outOfStockProducts.length}
+              </span>
+            </div>
+            {outOfStockProducts.length === 0 ? (
+              <p className="mt-3 text-xs italic text-red-700">Không có sản phẩm nào đang hết hàng.</p>
+            ) : (
+              <>
+                <ul className="mt-2 space-y-1 pl-4">
+                  {outOfStockProducts.slice(0, 5).map((item) => (
+                    <li key={`out-stock-${item.id}`} className="flex items-center justify-between gap-2">
+                      <span className="list-disc flex-1 text-left">{item.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => focusProduct(item)}
+                        className="shrink-0 rounded-full border border-red-500 px-3 py-1 text-[11px] font-semibold text-red-700 transition hover:bg-red-500 hover:text-white"
+                      >
+                        Quản lý
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {outOfStockProducts.length > 5 && (
+                  <p className="mt-2 text-xs italic">
+                    ... và {outOfStockProducts.length - 5} sản phẩm khác đã hết hàng.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -371,10 +439,10 @@ const ProductManagement = () => {
             <tr className="border-b border-gray-200">
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Sản phẩm</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Danh mục</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Giá</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Giá (VND)</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Tồn kho</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Đã bán</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Doanh thu</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Doanh thu (VND)</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Thao tác</th>
             </tr>

@@ -1,22 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { BlogService } from '../services/modules/blog/blogService';
+import { LanguageContext } from '../context/LanguageContext';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1600&q=80';
 
-const formatDate = (value) => {
-  if (!value) return 'Updating';
+const formatDate = (value, locale = 'vi-VN', fallback = '') => {
+  if (!value) return fallback;
   try {
-    return new Date(value).toLocaleDateString('vi-VN', {
+    return new Date(value).toLocaleDateString(locale, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     });
   } catch (error) {
-    return value;
+    return fallback || value || '';
   }
 };
 
@@ -30,14 +31,16 @@ const resolveImage = (blog) => (
 const BlogDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t, language } = useContext(LanguageContext);
   const [blog, setBlog] = useState(null);
   const [relatedBlogs, setRelatedBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
 
   useEffect(() => {
     if (!id) {
-      setError('Blog không tồn tại.');
+      setError(t('blogDetail.missing'));
       setLoading(false);
       return;
     }
@@ -55,7 +58,11 @@ const BlogDetail = () => {
 
         const listResponse = await BlogService.getAll({ pageIndex: 1, pageSize: 9 });
         const candidates = (listResponse.items || [])
-          .filter((item) => item.id !== id && item.postStatus === 'Active')
+          .filter((item) => {
+            if (item.id === id) return false;
+            const normalizedStatus = (item.postStatus || '').toString().toLowerCase();
+            return normalizedStatus === 'active' || normalizedStatus === 'published';
+          })
           .slice(0, 3);
         if (isMounted) {
           setRelatedBlogs(candidates);
@@ -64,7 +71,7 @@ const BlogDetail = () => {
         console.error('Fetch blog detail error:', fetchError);
         const message = fetchError?.response?.data?.message
           || fetchError?.message
-          || 'Không thể tải bài viết.';
+          || t('blogDetail.loadError');
         if (isMounted) {
           setError(message);
         }
@@ -81,7 +88,7 @@ const BlogDetail = () => {
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, t]);
 
   const authorName = useMemo(() => {
     if (!blog) return '';
@@ -91,9 +98,9 @@ const BlogDetail = () => {
       || blog.authorName
       || blog.author
       || blog.authorId
-      || 'G90 Editorial'
+      || t('blog.authorFallback')
     );
-  }, [blog]);
+  }, [blog, t]);
 
   const handleOpenBlog = (blogId) => {
     if (!blogId || blogId === id) return;
@@ -123,13 +130,13 @@ const BlogDetail = () => {
     if (error || !blog) {
       return (
         <div className="text-center py-20">
-          <p className="text-gray-500 mb-6">{error || 'Bài viết không tồn tại.'}</p>
+          <p className="text-gray-500 mb-6">{error || t('blogDetail.missing')}</p>
           <button
             type="button"
             onClick={() => navigate('/blog')}
             className="px-6 py-3 rounded-full bg-[#8B4513] text-white font-semibold hover:bg-[#A25C2B] transition"
           >
-            Quay lại trang blog
+            {t('blogDetail.backToBlog')}
           </button>
         </div>
       );
@@ -148,19 +155,23 @@ const BlogDetail = () => {
           </div>
           <div className="relative z-10 max-w-5xl mx-auto px-4 md:px-10 lg:px-36 py-24 text-white space-y-4">
             <p className="text-xs uppercase tracking-[0.5em] text-amber-200">
-              {formatDate(blog.publishedAt || blog.updatedAt || blog.createdAt)}
+              {formatDate(blog.publishedAt || blog.updatedAt || blog.createdAt, dateLocale, t('blog.updating'))}
             </p>
             <h1 className="text-3xl md:text-5xl font-semibold leading-tight">
               {blog.title}
             </h1>
             <div className="flex flex-wrap gap-4 text-sm text-white/90">
               <span>
-                Bởi
+                {t('blogDetail.byLabel')}
                 {' '}
                 <strong>{authorName}</strong>
               </span>
               <span className="w-1 h-1 rounded-full bg-white/60" />
-              <span>Đăng ở: {blog.category || 'Tin tức'}</span>
+              <span>
+                {t('blogDetail.postedIn')}
+                {': '}
+                {blog.category || t('blogDetail.categoryFallback')}
+              </span>
             </div>
           </div>
         </section>
@@ -168,22 +179,22 @@ const BlogDetail = () => {
         <section className="max-w-6xl mx-auto px-4 sm:px-8 md:px-14 lg:px-24 xl:px-32 py-12 space-y-10">
           <article className="bg-white rounded-[32px] shadow-xl p-8 md:px-16 md:py-12 xl:px-20 space-y-6">
             <div className="text-sm text-amber-700 uppercase tracking-[0.5em]">
-              Nội dung chính
+              {t('blogDetail.mainContent')}
             </div>
             <div
               className="prose prose-2xl max-w-none text-gray-800 leading-relaxed blog-detail-content"
-              dangerouslySetInnerHTML={{ __html: blog.content || '<p>Nội dung sẽ được cập nhật.</p>' }}
+              dangerouslySetInnerHTML={{ __html: blog.content || `<p>${t('blogDetail.contentUpdating')}</p>` }}
             />
             <div className="pt-6 border-t border-amber-50 flex flex-wrap gap-4 text-sm text-gray-500">
               <span>
-                Tình trạng:
-                {' '}
-                <strong>{blog.postStatus || 'Active'}</strong>
+                {t('blogDetail.statusLabel')}
+                {': '}
+                <strong>{blog.postStatus || t('blogDetail.statusFallback')}</strong>
               </span>
               <span className="w-1 h-1 rounded-full bg-gray-300" />
               <span>
-                Mã bài viết:
-                {' '}
+                {t('blogDetail.idLabel')}
+                {': '}
                 {blog.id}
               </span>
             </div>
@@ -195,9 +206,9 @@ const BlogDetail = () => {
             <div className="max-w-5xl mx-auto">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.5em] text-amber-600">Có thể bạn sẽ thích</p>
+                  <p className="text-xs uppercase tracking-[0.5em] text-amber-600">{t('blogDetail.relatedBadge')}</p>
                   <h2 className="text-3xl font-semibold text-gray-900 mt-3">
-                    Bài viết liên quan
+                    {t('blogDetail.relatedTitle')}
                   </h2>
                 </div>
                 <button
@@ -205,7 +216,7 @@ const BlogDetail = () => {
                   onClick={() => navigate('/blog')}
                   className="text-sm font-semibold text-[#8B4513] hover:underline"
                 >
-                  Xem tất cả
+                  {t('blogDetail.viewAll')}
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -224,7 +235,7 @@ const BlogDetail = () => {
                     </div>
                     <div className="p-5 space-y-2 flex-1 flex flex-col">
                       <span className="text-[11px] uppercase tracking-[0.4em] text-amber-600">
-                        {formatDate(item.publishedAt || item.updatedAt)}
+                        {formatDate(item.publishedAt || item.updatedAt, dateLocale, t('blog.updating'))}
                       </span>
                       <h3 className="text-lg font-semibold text-gray-900 flex-1">
                         {item.title}
@@ -232,7 +243,7 @@ const BlogDetail = () => {
                       <p className="text-sm text-gray-600">
                         {item.summary
                           || item.description
-                          || 'Khám phá thêm về câu chuyện thủ công truyền thống.'}
+                          || t('blogDetail.relatedSummaryFallback')}
                       </p>
                     </div>
                   </article>

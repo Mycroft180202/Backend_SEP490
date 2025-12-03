@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS, PRIMARY_BUTTON_CLASS } from '../../utils/homeTheme';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const ContactSection = () => {
+  const { t } = useContext(LanguageContext);
   return (
     <section className="relative overflow-hidden bg-[#FFF6E9] pt-20 pb-24">
       <div className="relative max-w-[820px] mx-auto px-4 sm:px-6 lg:px-0">
@@ -9,13 +11,13 @@ const ContactSection = () => {
         <div className="relative flex flex-col gap-8 p-8 sm:p-10 rounded-[32px] bg-white/90 backdrop-blur-md border border-white/40 shadow-[0_32px_60px_-28px_rgba(54,26,0,0.6)]">
           <div className="text-center flex flex-col items-center gap-4 text-[#1C355E]">
             <span className="inline-flex items-center justify-center px-5 py-1.5 rounded-full bg-[#FBC04C]/30 text-xs font-semibold tracking-[0.25em] uppercase">
-              Kết nối với Hòa Lạc
+              {t('home.contactSection.badge')}
             </span>
             <h2 className={`${SECTION_TITLE_CLASS} md:whitespace-nowrap`}>
-              Liên hệ để chạm vào tinh hoa nghề Việt
+              {t('home.contactSection.title')}
             </h2>
             <p className={`${SECTION_SUBTITLE_CLASS} text-[#1C355E]/85 max-w-3xl`}>
-              Chúng tôi luôn sẵn sàng đồng hành cùng bạn trong hành trình khám phá và gìn giữ giá trị thủ công truyền thống.
+              {t('home.contactSection.description')}
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -24,7 +26,7 @@ const ContactSection = () => {
                 <path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <input type="email" placeholder="Email" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" className="flex-1 font-nunito text-sm sm:text-base lg:text-lg text-[#1C355E] bg-transparent outline-none placeholder:text-[#60729a]" />
+              <input type="email" placeholder={t('home.contactSection.emailPlaceholder')} required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" className="flex-1 font-nunito text-sm sm:text-base lg:text-lg text-[#1C355E] bg-transparent outline-none placeholder:text-[#60729a]" />
             </div>
 
             <div className="flex items-center gap-3 py-3 px-5 rounded-2xl border border-[#D4A574]/40 bg-white/80 focus-within:border-[#8B4513] focus-within:ring-1 focus-within:ring-[#8B4513]/30 transition">
@@ -33,12 +35,12 @@ const ContactSection = () => {
                 <path d="M18.5 9C18.5 8.4 18.03 7.48 17.33 6.73C16.69 6.04 15.84 5.5 15 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M22 9C22 5.13 18.87 2 15 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <input type="tel" placeholder="Số điện thoại" required pattern="[0-9]{10}" className="flex-1 font-nunito text-sm sm:text-base lg:text-lg text-[#1C355E] bg-transparent outline-none placeholder:text-[#60729a]" />
+              <input type="tel" placeholder={t('home.contactSection.phonePlaceholder')} required pattern="[0-9]{10}" className="flex-1 font-nunito text-sm sm:text-base lg:text-lg text-[#1C355E] bg-transparent outline-none placeholder:text-[#60729a]" />
             </div>
 
             <div className="lg:col-span-2 relative">
               <div className="relative w-full rounded-2xl border border-[#D4A574]/40 bg-white/80 focus-within:border-[#8B4513] focus-within:ring-1 focus-within:ring-[#8B4513]/30 transition">
-                <textarea placeholder="Viết đôi lời cùng chúng tôi" rows="3" className="w-full py-3 pl-12 pr-4 font-nunito text-sm sm:text-base lg:text-lg text-[#1C355E] bg-transparent outline-none placeholder:text-[#60729a] resize-none" />
+                <textarea placeholder={t('home.contactSection.messagePlaceholder')} rows="3" className="w-full py-3 pl-12 pr-4 font-nunito text-sm sm:text-base lg:text-lg text-[#1C355E] bg-transparent outline-none placeholder:text-[#60729a] resize-none" />
                 <svg className="absolute top-3 left-4 w-6 h-6 text-[#8B4513]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M11.5 3.5L2.5 12.5L5.5 15.5L14.5 6.5L11.5 3.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M11.5 3.5L14.5 6.5L15.75 5.25C16.4404 4.55964 16.4404 3.44036 15.75 2.75V2.75C15.0596 2.05964 13.9404 2.05964 13.25 2.75L11.5 3.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -53,13 +55,13 @@ const ContactSection = () => {
           </div>
 
           <button className={`${PRIMARY_BUTTON_CLASS} self-center text-base md:text-lg px-6 md:px-8 md:py-3`}>
-            Liên hệ ngay
+            {t('home.contactSection.cta')}
             <span aria-hidden className="text-xl">→</span>
           </button>
 
           <div className="text-center space-y-3">
             <p className="font-nunito text-base sm:text-lg text-[#1C355E]">
-              Hoặc quý khách có thể kết nối trực tiếp qua các kênh dưới đây
+              {t('home.contactSection.note')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
               <a href="https://www.facebook.com/BambooWindchimesHoaLac" target="_blank" rel="noopener noreferrer" className="w-11 h-11 bg-[#0866FF] rounded-full flex items-center justify-center hover:opacity-90 transition-opacity">
@@ -81,7 +83,7 @@ const ContactSection = () => {
                   </svg>
                 </a>
                 <div className="flex flex-col items-start">
-                  <span className="font-nunito text-sm text-[#1C355E]">Hotline</span>
+                  <span className="font-nunito text-sm text-[#1C355E]">{t('home.contactSection.hotlineLabel')}</span>
                   <a href="tel:+84266211366" className="font-nunito text-lg font-semibold text-[#1C355E] hover:text-[#0f254a] transition-colors">
                     0266 211 366
                   </a>

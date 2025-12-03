@@ -57,7 +57,8 @@ const Cart = () => {
         || error?.response?.data?.title
         || error?.message
         || t('messages.cartLoadError');
-      toast.info("Giỏ của bạn đang trống đó! Mua ngay thôi nào!");
+      toast.error(message);
+      toast.info(t('cart.emptyInfo'));
     } finally {
       setLoading(false);
     }
@@ -158,10 +159,10 @@ const Cart = () => {
     if (unavailableItems.length) {
       const availableExists = items.some((item) => !isUnavailable(item));
       if (!availableExists) {
-        toast.error('Giỏ hàng của bạn hiện chỉ chứa các sản phẩm đã hết hàng. Vui lòng xóa chúng trước khi tiếp tục.');
+        toast.error(t('cart.unavailableOnly'));
         return;
       }
-      const confirmMessage = 'Một số sản phẩm trong giỏ hàng đã hết hàng. Tiếp tục thanh toán với các sản phẩm còn hàng thôi nhé?';
+      const confirmMessage = t('cart.unavailableConfirm');
       // in case window undefined (SSR), fallback to proceed automatically
       const confirmProceed = typeof window !== 'undefined' ? window.confirm(confirmMessage) : true;
       if (!confirmProceed) {
@@ -179,7 +180,7 @@ const Cart = () => {
       <Header />
       <CartBanner
         breadcrumbItems={[
-          { label: 'Trang chủ', href: '/' },
+          { label: t('nav.home'), href: '/' },
           { label: t('cart.title') || 'Giỏ hàng' },
         ]}
       />

@@ -6,7 +6,6 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaBoxOpen,
-  FaExclamationTriangle,
   FaSpinner,
 } from 'react-icons/fa';
 import {
@@ -36,6 +35,7 @@ const OverviewSection = ({
   topProductLoading = false,
   latestOrders = [],
   formatCurrency,
+  onNavigateToProducts,
 }) => {
   const monthNames = useMemo(
     () => [
@@ -95,6 +95,17 @@ const OverviewSection = ({
     return parsed;
   }, [selectedMonth, currentMonth]);
 
+  const resolveCount = (value, fallback) => {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric >= 0) {
+      return numeric;
+    }
+    if (Array.isArray(fallback)) {
+      return fallback.length;
+    }
+    return 0;
+  };
+
   const growth = Number(summary.monthGrowthPercent ?? 0);
   const growthState = growth > 0 ? 'up' : growth < 0 ? 'down' : 'flat';
   const growthColor =
@@ -108,12 +119,13 @@ const OverviewSection = ({
   const formatVND = useCallback(
     (value) => {
       if (typeof formatCurrency === 'function') {
-        return formatCurrency(value);
+        const formatted = formatCurrency(value);
+        if (typeof formatted === 'string' && formatted.trim()) {
+          return formatted;
+        }
       }
-      return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-      }).format(Number(value) || 0);
+      const numeric = Number(value) || 0;
+      return `${new Intl.NumberFormat('vi-VN').format(numeric)} VND`;
     },
     [formatCurrency],
   );
@@ -133,23 +145,12 @@ const OverviewSection = ({
     });
   }, []);
 
-  const lowStock = Array.isArray(stockAlerts.low) ? stockAlerts.low : [];
-  const outStock = Array.isArray(stockAlerts.out) ? stockAlerts.out : [];
-  const lowCount = Number(stockAlerts.lowCount ?? lowStock.length ?? 0);
-  const outCount = Number(stockAlerts.outCount ?? outStock.length ?? 0);
+  const lowCount = resolveCount(stockAlerts.lowCount, stockAlerts.low);
+  const outCount = resolveCount(stockAlerts.outCount, stockAlerts.out);
   const stockTotal = lowCount + outCount;
   const isCurrentMonth = normalizedSelectedMonth === currentMonth;
   const selectedMonthLabel = monthOptions.find((option) => option.value === normalizedSelectedMonth)?.label
     || `Tháng ${normalizedSelectedMonth}`;
-
-  const topPeriodOptions = useMemo(
-    () => [
-      { key: 'day', label: 'Ngày' },
-      { key: 'month', label: 'Tháng' },
-      { key: 'year', label: 'Năm' },
-    ],
-    [],
-  );
 
   const topMetricOptions = useMemo(
     () => [
@@ -323,59 +324,36 @@ const OverviewSection = ({
         <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-gray-800">Sản phẩm sắp hết hàng</h2>
-              <p className="text-xs text-gray-500">Tối đa 5 sản phẩm</p>
+              <h2 className="text-lg font-bold text-gray-800">Tình trạng tồn kho</h2>
+              <p className="text-xs text-gray-500">Số lượng sản phẩm theo cảnh báo</p>
             </div>
-            <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700">
-              {formatNumber(lowCount)} mục
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+              {formatNumber(stockTotal)} mục
             </span>
           </div>
-          <div className="mt-4 space-y-3">
-            {lowStock.slice(0, 5).map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-                  <p className="text-xs text-gray-500">Tồn kho: {formatNumber(item.stock)}</p>
-                </div>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-yellow-700">
-                  <FaExclamationTriangle /> Sắp hết
-                </span>
-              </div>
-            ))}
-            {lowStock.length === 0 && (
-              <p className="text-sm text-gray-500">
-                {lowCount > 0
-                  ? `Có ${formatNumber(lowCount)} sản phẩm sắp hết, dữ liệu chi tiết đang được cập nhật.`
-                  : 'Không có sản phẩm nào sắp hết hàng.'}
-              </p>
-            )}
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1 rounded-lg border border-yellow-100 bg-yellow-50 px-4 py-4">
+              <span className="text-xs font-semibold uppercase text-yellow-700">
+                Sản phẩm sắp hết hàng
+              </span>
+              <span className="text-3xl font-bold text-gray-800">{formatNumber(lowCount)}</span>
+              <span className="text-xs text-gray-500">Cần nhập thêm để tránh đứt hàng.</span>
+            </div>
+            <div className="flex flex-col gap-1 rounded-lg border border-red-100 bg-red-50 px-4 py-4">
+              <span className="text-xs font-semibold uppercase text-red-700">
+                Sản phẩm đã hết hàng
+              </span>
+              <span className="text-3xl font-bold text-gray-800">{formatNumber(outCount)}</span>
+              <span className="text-xs text-gray-500">Nên khôi phục tồn kho sớm.</span>
+            </div>
           </div>
-          <div className="mt-6 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-800">Sản phẩm đã hết hàng</h2>
-            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-              {formatNumber(outCount)} mục
-            </span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {outStock.slice(0, 5).map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-                  <p className="text-xs text-gray-500">Tồn kho: {formatNumber(item.stock)}</p>
-                </div>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700">
-                  <FaExclamationTriangle /> Hết hàng
-                </span>
-              </div>
-            ))}
-            {outStock.length === 0 && (
-              <p className="text-sm text-gray-500">
-                {outCount > 0
-                  ? `Có ${formatNumber(outCount)} sản phẩm hết hàng, dữ liệu chi tiết đang được cập nhật.`
-                  : 'Không có sản phẩm nào đang hết hàng.'}
-              </p>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => onNavigateToProducts?.()}
+            className="mt-6 inline-flex items-center justify-center rounded-full border border-primary px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
+          >
+            Quản lý
+          </button>
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-md xl:col-span-2">
@@ -383,24 +361,8 @@ const OverviewSection = ({
             <div>
               <h2 className="text-lg font-bold text-gray-800">Top 5 sản phẩm nổi bật</h2>
               <p className="text-xs text-gray-500">
-                Theo {topProductMode === 'revenue' ? 'doanh thu' : 'số lượng bán ra'} • {topProductPeriod === 'day' ? 'Hôm nay' : topProductPeriod === 'month' ? selectedMonthLabel : `Năm ${activeYear}`}
+                Theo {topProductMode === 'revenue' ? 'doanh thu' : 'số lượng bán ra'} • {topProductPeriod === 'month' ? selectedMonthLabel : `Năm ${activeYear}`}
               </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {topPeriodOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => onTopProductPeriodChange?.(option.key)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                    topProductPeriod === option.key
-                      ? 'border-primary bg-primary text-white'
-                      : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {topMetricOptions.map((option) => (
@@ -417,19 +379,6 @@ const OverviewSection = ({
                   {option.label}
                 </button>
               ))}
-              {topProductPeriod === 'month' && (
-                <select
-                  value={normalizedSelectedMonth}
-                  onChange={(event) => onMonthChange?.(Number(event.target.value))}
-                  className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {monthOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
             </div>
           </div>
           <div className="mt-4 space-y-3">

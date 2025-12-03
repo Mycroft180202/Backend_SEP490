@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import ProductCard from '../shared/ProductCard';
 import Pagination from '../shared/Pagination';
 import { ProductService } from '../../services/modules/products/productService';
 import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS, PRIMARY_BUTTON_CLASS } from '../../utils/homeTheme';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const PAGE_SIZE = 4;
 
 const FeaturedProducts = () => {
+  const { t } = useContext(LanguageContext);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(1);
@@ -40,12 +42,12 @@ const FeaturedProducts = () => {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div className="space-y-3">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 text-[#8B4513] text-xs font-semibold uppercase tracking-[0.25em]">
-              Tinh hoa chọn lọc
+              {t('home.featured.badge')}
             </span>
             <div>
-              <h2 className={SECTION_TITLE_CLASS}>Sản phẩm nổi bật</h2>
+              <h2 className={SECTION_TITLE_CLASS}>{t('home.featured.title')}</h2>
               <p className={`mt-3 ${SECTION_SUBTITLE_CLASS} max-w-2xl`}>
-                Những tác phẩm thủ công được yêu thích nhất, hội tụ sự tỉ mỉ của người nghệ nhân Hòa Lạc và chất liệu truyền thống.
+                {t('home.featured.description')}
               </p>
             </div>
           </div>
@@ -55,7 +57,7 @@ const FeaturedProducts = () => {
             onClick={() => window.location.assign('/shop')}
             className={`${PRIMARY_BUTTON_CLASS} self-start md:self-end`}
           >
-            Xem cửa hàng
+            {t('home.featured.cta')}
             <span aria-hidden className="text-lg">→</span>
           </button>
         </div>

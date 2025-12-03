@@ -1,42 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { SECTION_TITLE_CLASS, SECTION_SUBTITLE_CLASS } from '../../utils/homeTheme';
 import slideOneImg from '../../assets/images/products/Slide1.jpg';
 import slideTwoImg from '../../assets/images/products/slide2.jpg';
 import slideThreeImg from '../../assets/images/products/slide3.jpg';
-
-const slides = [
-  {
-    title: 'Khám phá làng nghề',
-    subtitle: 'Tinh hoa thủ công Việt',
-    content: 'Mỗi sản phẩm là câu chuyện về bàn tay nghệ nhân, về những giá trị truyền thống được gìn giữ và sáng tạo.',
-    image: slideOneImg,
-  },
-  {
-    title: 'Kết nối thợ thủ công',
-    subtitle: 'Từ bàn tay đến trái tim',
-    content: 'Gặp gỡ những người thợ tài hoa, mang sản phẩm thủ công đến gần hơn với cuộc sống hiện đại.',
-    image: slideTwoImg,
-  },
-  {
-    title: 'Bảo tồn và phát triển',
-    subtitle: 'Di sản sống động',
-    content: 'Cùng tiếp sức để làng nghề phát triển bền vững, đưa sản phẩm thủ công Việt vươn xa thế giới.',
-    image: slideThreeImg,
-  },
-];
+import { LanguageContext } from '../../context/LanguageContext';
 
 const ArtisanCraft = () => {
+  const { t } = useContext(LanguageContext);
   const [current, setCurrent] = useState(0);
-
-  const nextSlide = () => setCurrent((prev) => (prev + 1) % slides.length);
-  const prevSlide = () => setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
+  const slides = useMemo(
+    () => [
+      {
+        title: t('home.artisanCraft.slides.first.title'),
+        subtitle: t('home.artisanCraft.slides.first.subtitle'),
+        content: t('home.artisanCraft.slides.first.content'),
+        image: slideOneImg,
+      },
+      {
+        title: t('home.artisanCraft.slides.second.title'),
+        subtitle: t('home.artisanCraft.slides.second.subtitle'),
+        content: t('home.artisanCraft.slides.second.content'),
+        image: slideTwoImg,
+      },
+      {
+        title: t('home.artisanCraft.slides.third.title'),
+        subtitle: t('home.artisanCraft.slides.third.subtitle'),
+        content: t('home.artisanCraft.slides.third.content'),
+        image: slideThreeImg,
+      },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
   const slide = slides[current];
 
@@ -46,11 +47,11 @@ const ArtisanCraft = () => {
       <div className="relative max-w-6xl mx-auto px-4 md:px-10 lg:px-16">
         <div className="text-center space-y-4">
           <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-white/70 text-[#8B4513] text-xs font-semibold tracking-[0.25em] uppercase">
-            Hành trình làng nghề
+            {t('home.artisanCraft.badge')}
           </span>
-          <h2 className={SECTION_TITLE_CLASS}>Không gian nghệ nhân Hòa Lạc</h2>
+          <h2 className={SECTION_TITLE_CLASS}>{t('home.artisanCraft.title')}</h2>
           <p className={`${SECTION_SUBTITLE_CLASS} max-w-3xl mx-auto`}>
-            Dõi theo nhịp sống của những nghệ nhân, nơi từng đường khắc và nét vẽ đều được nâng niu để giữ trọn tinh hoa truyền thống.
+            {t('home.artisanCraft.description')}
           </p>
         </div>
 
@@ -84,7 +85,7 @@ const ArtisanCraft = () => {
                 <p className="text-sm md:text-base leading-relaxed text-[#2E3C57]">{slide.content}</p>
                 <div className="flex items-center gap-3 pt-2">
                   <div className="w-12 h-[3px] rounded-full bg-[#C2762B]" />
-                  <span className="text-xs uppercase tracking-[0.2em] text-[#9E211F]/80">Truyền thống & Hiện đại</span>
+                  <span className="text-xs uppercase tracking-[0.2em] text-[#9E211F]/80">{t('home.artisanCraft.sliderTag')}</span>
                 </div>
               </div>
             </div>

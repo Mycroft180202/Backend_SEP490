@@ -57,6 +57,13 @@ class ArtisanDashboardService {
     const response = await axiosClient.get('/newest-orders');
     return response.data;
   }
+
+  async getOrders({ pageIndex = 1, pageSize = 10 } = {}) {
+    const response = await axiosClient.get('/artisan/orders', {
+      params: { pageIndex, pageSize },
+    });
+    return response.data;
+  }
 }
 
 export const ArtisanDashboardServiceInstance = new ArtisanDashboardService();
