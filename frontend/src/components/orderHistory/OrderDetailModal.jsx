@@ -100,6 +100,34 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
 
   if (!isOpen) return null;
 
+  // Derive monetary breakdown for order summary
+  const subtotal = orderDetail?.items?.reduce((sum, item) => (
+    sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)
+  ), 0) || 0;
+
+  const shippingFee = (() => {
+    if (!orderDetail) return 0;
+    const candidateFees = [
+      orderDetail.shippingFee,
+      orderDetail.shipingFee,
+      orderDetail.deliveryFee,
+      orderDetail.shippingCost,
+    ];
+    const fee = candidateFees.find((value) => value !== undefined && value !== null);
+    return Number.isFinite(Number(fee)) ? Number(fee) : 0;
+  })();
+
+  const discountAmount = (() => {
+    if (!orderDetail) return 0;
+    const candidateDiscounts = [orderDetail.discountAmount, orderDetail.discount, orderDetail.promotionAmount];
+    const discount = candidateDiscounts.find((value) => value !== undefined && value !== null);
+    return Number.isFinite(Number(discount)) ? Number(discount) : 0;
+  })();
+
+  const grandTotal = Number.isFinite(Number(orderDetail?.totalAmount))
+    ? Number(orderDetail.totalAmount)
+    : subtotal + shippingFee - discountAmount;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -234,11 +262,25 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
             </div>
 
             {/* Order Summary */}
-            <div className="bg-gray-50 rounded-lg p-4 border-t-2 border-gray-200">
-              <div className="flex justify-between items-center">
-                <p className="font-alata text-lg font-bold text-gray-800">Tổng cộng:</p>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
+              <div className="flex justify-between text-sm font-nunito">
+                <span className="text-gray-600">Tạm tính</span>
+                <span className="text-gray-800 font-semibold">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-nunito">
+                <span className="text-gray-600">Phí vận chuyển</span>
+                <span className="text-gray-800 font-semibold">{formatCurrency(shippingFee)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm font-nunito text-red-600">
+                  <span>Giảm giá</span>
+                  <span>-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+              <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
+                <p className="font-alata text-lg font-bold text-gray-800">Tổng cộng</p>
                 <p className="font-alata text-2xl font-bold text-primary">
-                  {formatCurrency(orderDetail.totalAmount)}
+                  {formatCurrency(grandTotal)}
                 </p>
               </div>
             </div>

@@ -497,6 +497,36 @@ const CheckOut = () => {
 
     const paymentMethod = selectedPaymentMethod === 'vnpay' ? 'VNPAY' : 'COD';
 
+    const ensureNumber = (value, fallback = 0) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    };
+
+    const latestShippingFee = (() => {
+      const current = shippingFeeRef.current;
+      if (Number.isFinite(current) && current >= 0) {
+        return current;
+      }
+      if (Number.isFinite(shippingFee) && shippingFee >= 0) {
+        return shippingFee;
+      }
+      if (Number.isFinite(cartSummary.shipping) && cartSummary.shipping >= 0) {
+        return cartSummary.shipping;
+      }
+      return 0;
+    })();
+
+    const summaryBeforeDiscount = ensureNumber(cartSummary.subtotal) + latestShippingFee;
+    const discountValue = ensureNumber(voucherDiscount);
+    const computedTotal = Math.max(summaryBeforeDiscount - discountValue, 0);
+
+    const clientSummary = {
+      subtotal: ensureNumber(cartSummary.subtotal),
+      shippingFee: latestShippingFee,
+      discount: discountValue,
+      total: computedTotal,
+    };
+
     // Build new order payload format
     const payload = {
       cartItems: cartItemsPayload,
@@ -508,6 +538,10 @@ const CheckOut = () => {
       serviceTypeId: 2,
       bankCode: 'NCB',
       requiredNote: 'KHONGCHOXEMHANG',
+      subtotal: clientSummary.subtotal,
+      shippingFee: clientSummary.shippingFee,
+      discountAmount: clientSummary.discount,
+      totalAmount: clientSummary.total,
     };
     if (selectedVoucherCode) {
       payload.voucherCodeId = selectedVoucherCode;
@@ -521,22 +555,51 @@ const CheckOut = () => {
       if (response?.data?.success || response?.success) {
         const orderData = response.data || response;
 
+        const enrichedOrderData = {
+          ...orderData,
+          clientSummary,
+        };
+
+        if (enrichedOrderData.subtotal === undefined) {
+          enrichedOrderData.subtotal = clientSummary.subtotal;
+        }
+        if (
+          enrichedOrderData.shippingFee === undefined
+          && enrichedOrderData.shipingFee === undefined
+          && enrichedOrderData.deliveryFee === undefined
+          && enrichedOrderData.shippingCost === undefined
+        ) {
+          enrichedOrderData.shippingFee = clientSummary.shippingFee;
+        }
+        if (
+          enrichedOrderData.discount === undefined
+          && enrichedOrderData.discountAmount === undefined
+          && enrichedOrderData.promotionAmount === undefined
+        ) {
+          enrichedOrderData.discount = clientSummary.discount;
+        }
+        if (enrichedOrderData.total === undefined && enrichedOrderData.totalAmount === undefined) {
+          enrichedOrderData.total = clientSummary.total;
+        }
+
         // For COD: Show success page
-        if (orderData.paymentMethod === 'COD') {
+        if (enrichedOrderData.paymentMethod === 'COD') {
           toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
-          navigate('/order-success', { state: { order: orderData } });
+          sessionStorage.setItem('lastOrderSuccess', JSON.stringify(enrichedOrderData));
+          navigate('/order-success', { state: { order: enrichedOrderData } });
         }
         // For VNPAY: Redirect to payment URL
-        else if (orderData.paymentMethod === 'VNPAY' && orderData.paymentUrl) {
+        else if (enrichedOrderData.paymentMethod === 'VNPAY' && enrichedOrderData.paymentUrl) {
           toast.info('Đang chuyển hướng đến VNPAY...');
           // Store order data in session storage for later retrieval
-          sessionStorage.setItem('vnpayOrderData', JSON.stringify(orderData));
+          sessionStorage.setItem('vnpayOrderData', JSON.stringify(enrichedOrderData));
           // Redirect to payment URL
-          window.location.href = orderData.paymentUrl;
+          window.location.href = enrichedOrderData.paymentUrl;
         } else {
           // Fallback: show success page anyway
           toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
-          navigate('/order-success', { state: { order: orderData } });
+          sessionStorage.setItem('lastOrderSuccess', JSON.stringify(enrichedOrderData));
+          navigate('/order-success', { state: { order: enrichedOrderData } });
         }
       } else {
         // Unexpected response format

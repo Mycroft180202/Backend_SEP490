@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -11,28 +11,113 @@ const OrderSuccess = () => {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    const orderData = location.state?.order;
-    if (!orderData) {
-      // If no order data, redirect to home
-      navigate('/');
+    const fromState = location.state?.order;
+    const storedFallback = () => {
+      try {
+        const stored = sessionStorage.getItem('lastOrderSuccess')
+          || sessionStorage.getItem('vnpayOrderData');
+        if (!stored) return null;
+        return JSON.parse(stored);
+      } catch (error) {
+        console.error('Parse stored order error:', error);
+        return null;
+      }
+    };
+
+    if (fromState) {
+      sessionStorage.setItem('lastOrderSuccess', JSON.stringify(fromState));
+      setOrder(fromState);
       return;
     }
-    setOrder(orderData);
+
+    const restored = storedFallback();
+    if (restored) {
+      setOrder(restored);
+      return;
+    }
+
+    navigate('/');
   }, [location, navigate]);
 
-  if (!order) {
-    return null;
-  }
-
-  const isSuccess = order.success === true;
-  const isCOD = order.paymentMethod === 'COD';
-  const isVNPay = order.paymentMethod === 'VNPAY';
+  const isSuccess = order?.success === true;
+  const isCOD = order?.paymentMethod === 'COD';
+  const isVNPay = order?.paymentMethod === 'VNPAY';
 
   const priceSuffix = t('productCard.priceSuffix') || '₫';
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('vi-VN').format(value);
   };
+
+  const parseNumber = (value) => {
+    if (value === null || value === undefined) return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  };
+
+  const { subtotal, shippingFee, discount, total } = useMemo(() => {
+    if (!order) {
+      return {
+        subtotal: 0,
+        shippingFee: 0,
+        discount: 0,
+        total: 0,
+      };
+    }
+    const clientSummary = order.clientSummary || {};
+    const pickNumber = (...candidates) => {
+      for (const candidate of candidates) {
+        const numeric = parseNumber(candidate);
+        if (numeric !== null) {
+          return numeric;
+        }
+      }
+      return 0;
+    };
+
+    const computedSubtotal = pickNumber(
+      order.subtotal,
+      order.totalBeforeDiscount,
+      order.amountBeforeDiscount,
+      order.orderSubtotal,
+      clientSummary.subtotal,
+    );
+
+    const computedShipping = pickNumber(
+      order.shippingFee,
+      order.shipingFee,
+      order.deliveryFee,
+      order.shippingCost,
+      clientSummary.shippingFee,
+    );
+
+    const computedDiscount = pickNumber(
+      order.discount,
+      order.discountAmount,
+      order.promotionAmount,
+      clientSummary.discount,
+    );
+
+    const computedTotal = pickNumber(
+      order.total,
+      order.totalAmount,
+      order.amount,
+      order.grandTotal,
+      clientSummary.total,
+      computedSubtotal + computedShipping - computedDiscount,
+    );
+
+    return {
+      subtotal: computedSubtotal,
+      shippingFee: computedShipping,
+      discount: computedDiscount,
+      total: Math.max(computedTotal, 0),
+    };
+  }, [order]);
+
+  if (!order) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -133,22 +218,22 @@ const OrderSuccess = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Tạm tính:</span>
                     <span className="text-gray-800">
-                      {formatCurrency(order.subtotal)} {priceSuffix}
+                      {formatCurrency(subtotal)} {priceSuffix}
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span className="text-gray-600">Phí vận chuyển:</span>
                     <span className="text-gray-800">
-                      {formatCurrency(order.shippingFee)} {priceSuffix}
+                      {formatCurrency(shippingFee)} {priceSuffix}
                     </span>
                   </div>
 
-                  {order.discount > 0 && (
+                  {discount > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Giảm giá:</span>
                       <span className="text-red-600">
-                        -{formatCurrency(order.discount)} {priceSuffix}
+                        -{formatCurrency(discount)} {priceSuffix}
                       </span>
                     </div>
                   )}
@@ -156,7 +241,7 @@ const OrderSuccess = () => {
                   <div className="border-t border-gray-300 pt-2 flex justify-between font-semibold">
                     <span className="text-gray-800">Tổng cộng:</span>
                     <span className="text-primary text-lg">
-                      {formatCurrency(order.total)} {priceSuffix}
+                      {formatCurrency(total)} {priceSuffix}
                     </span>
                   </div>
                 </div>
@@ -183,7 +268,7 @@ const OrderSuccess = () => {
               {order.expectedDelivery && (
                 <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-green-800">
-                    📦 <strong>{t('order.expectedDelivery') || 'Thời gian giao hàng dự kiến'}</strong>: {order.expectedDelivery}
+                     <strong>{t('order.expectedDelivery') || 'Thời gian giao hàng dự kiến'}</strong>: {order.expectedDelivery}
                   </p>
                 </div>
               )}

@@ -383,6 +383,51 @@ const OrderManagement = () => {
     fetchProductDetails(selectedOrder.items.map((item) => item.productID));
   }, [selectedOrder, fetchProductDetails]);
 
+  const orderSummary = useMemo(() => {
+    if (!selectedOrder) {
+      return {
+        subtotal: 0,
+        shippingFee: 0,
+        discountAmount: 0,
+        total: 0,
+      };
+    }
+
+    const subtotal = (selectedOrder.items || []).reduce((accumulator, item) => {
+      const unitPrice = Number(item.unitPrice) || 0;
+      const quantity = Number(item.quantity) || 0;
+      return accumulator + unitPrice * quantity;
+    }, 0);
+
+    const shippingCandidates = [
+      selectedOrder.shippingFee,
+      selectedOrder.shipingFee,
+      selectedOrder.deliveryFee,
+      selectedOrder.shippingCost,
+    ];
+    const rawShipping = shippingCandidates.find((value) => value !== undefined && value !== null);
+    const shippingFee = Number.isFinite(Number(rawShipping)) ? Number(rawShipping) : 0;
+
+    const discountCandidates = [
+      selectedOrder.discountAmount,
+      selectedOrder.discount,
+      selectedOrder.promotionAmount,
+    ];
+    const rawDiscount = discountCandidates.find((value) => value !== undefined && value !== null);
+    const discountAmount = Number.isFinite(Number(rawDiscount)) ? Number(rawDiscount) : 0;
+
+    const total = Number.isFinite(Number(selectedOrder.totalAmount))
+      ? Number(selectedOrder.totalAmount)
+      : subtotal + shippingFee - discountAmount;
+
+    return {
+      subtotal,
+      shippingFee,
+      discountAmount,
+      total,
+    };
+  }, [selectedOrder]);
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -650,9 +695,25 @@ const OrderManagement = () => {
                     })}
                   </div>
               </div>
-              <div className="flex items-center justify-between text-base font-semibold text-gray-900 pt-2">
-                <span>Tổng tiền</span>
-                <span>{formatCurrency(selectedOrder.totalAmount)}</span>
+              <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>Tạm tính</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(orderSummary.subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>Phí vận chuyển</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(orderSummary.shippingFee)}</span>
+                </div>
+                {orderSummary.discountAmount > 0 && (
+                  <div className="flex items-center justify-between text-sm text-red-600">
+                    <span>Giảm giá</span>
+                    <span>-{formatCurrency(orderSummary.discountAmount)}</span>
+                  </div>
+                )}
+                <div className="border-t border-gray-200 pt-3 flex items-center justify-between text-base font-semibold text-gray-900">
+                  <span>Tổng tiền</span>
+                  <span>{formatCurrency(orderSummary.total)}</span>
+                </div>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
