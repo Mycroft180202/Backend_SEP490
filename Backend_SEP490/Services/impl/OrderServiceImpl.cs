@@ -640,6 +640,67 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return message;
     }
 
+    public async Task<(bool Success, string Message)> ConfirmOrderReceivedAsync(string? userId, string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return (false, "User id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return (false, "Order number is required.");
+        }
+
+        var order = await _context.Order.GetAllOrderByNumberAsync(orderNumber);
+        if (order == null || !string.Equals(order.CustomerId, userId, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order not found!");
+        }
+
+        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order already cancelled!");
+        }
+
+        if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order already completed!");
+        }
+
+        var eligibleStatuses = new[] { "Shipping", "Paid" };
+        var canConfirm = eligibleStatuses.Any(status =>
+            string.Equals(order.Status, status, StringComparison.OrdinalIgnoreCase));
+
+        if (!canConfirm)
+        {
+            return (false, "Only orders in Shipping or Paid status can be confirmed as received.");
+        }
+
+        var shipments = await _context.Shipment.GetByOrderIdAsync(order.Id) ?? new List<Shipment>();
+        var updatedShipments = new List<Shipment>();
+        foreach (var shipment in shipments)
+        {
+            shipment.ShippingStatus = "delivered";
+            shipment.DeliveredAt ??= DateTime.UtcNow;
+            await AddShipmentHistoryEntryAsync(shipment, "delivered", "Confirmed received by customer");
+            updatedShipments.Add(shipment);
+        }
+
+        order.Status = "Completed";
+        await _context.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            foreach (var shipment in updatedShipments)
+            {
+                await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment delivered (confirmed by customer)");
+            }
+        }
+
+        return (true, "Confirm received successfully!");
+    }
+
     public async Task<bool> CreateShipmentsAfterPaymentAsync(string orderId)
     {
         if (string.IsNullOrWhiteSpace(orderId))
