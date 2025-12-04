@@ -9,9 +9,66 @@ import { ShopService } from '../services/modules/shop/shopService';
 import Pagination from '../components/shared/Pagination';
 import ProductCard from '../components/shared/ProductCard';
 import FilterSection from '../components/artisanShop/FilterSection';
+import ShopFilter from '../components/shop/ShopFilter';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
 import { UserContext } from '../context/UserContext';
+
+const extractAddress = (addresses, fallbackAddress) => {
+  if (fallbackAddress) return fallbackAddress;
+  if (Array.isArray(addresses) && addresses.length) {
+    const primary = addresses.find((addr) => addr?.isDefault) || addresses[0];
+    return (
+      primary?.city
+      || primary?.district
+      || primary?.line1
+      || primary?.addressLine
+      || primary?.fullAddress
+      || ''
+    );
+  }
+  return '';
+};
+
+const normalizeShopInfo = (data, fallback = {}) => {
+  if (!data && !fallback) return null;
+  return {
+    title: data?.shopName || data?.displayName || fallback.title || 'Gian hàng',
+    author: data?.displayName || fallback.author || '',
+    subtitle: data?.bio || fallback.subtitle || '',
+    rating: data?.rating ?? fallback.rating ?? null,
+    phone: data?.phoneNumber || fallback.phone || '',
+    image: data?.shopUrlImage || fallback.image || '',
+    address: extractAddress(data?.addresses, fallback.address),
+    artisanId: data?.userID || data?.userId || fallback.artisanId || null,
+  };
+};
+
+const resolveProductCategoryId = (product) => {
+  if (!product) return null;
+  const candidate =
+    product.categoryId
+    ?? product.categoryID
+    ?? product.category?.id
+    ?? product.category?.categoryId
+    ?? product.category?.categoryID
+    ?? product.categoryCode
+    ?? (Array.isArray(product.categories) ? product.categories[0] : null)
+    ?? product.category
+    ?? null;
+
+  if (candidate && typeof candidate === 'object') {
+    return (
+      candidate.id
+      ?? candidate.categoryId
+      ?? candidate.categoryID
+      ?? candidate.value
+      ?? null
+    );
+  }
+
+  return candidate ?? null;
+};
 
 const ArtisanShop = () => {
   const { t } = useContext(LanguageContext);
@@ -30,37 +87,11 @@ const ArtisanShop = () => {
   const [pageSize] = useState(12);
   const [totalPages, setTotalPages] = useState(0);
   const [shopInfo, setShopInfo] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [searchValue, setSearchValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('');
   const currentUserId = userInfo?.userID || userInfo?.userId;
-
-  const extractAddress = (addresses, fallbackAddress) => {
-    if (fallbackAddress) return fallbackAddress;
-    if (Array.isArray(addresses) && addresses.length) {
-      const primary = addresses.find((addr) => addr?.isDefault) || addresses[0];
-      return (
-        primary?.city
-        || primary?.district
-        || primary?.line1
-        || primary?.addressLine
-        || primary?.fullAddress
-        || ''
-      );
-    }
-    return '';
-  };
-
-  const normalizeShopInfo = (data, fallback = {}) => {
-    if (!data && !fallback) return null;
-    return {
-      title: data?.shopName || data?.displayName || fallback.title || 'Gian hàng',
-      author: data?.displayName || fallback.author || '',
-      subtitle: data?.bio || fallback.subtitle || '',
-      rating: data?.rating ?? fallback.rating ?? null,
-      phone: data?.phoneNumber || fallback.phone || '',
-      image: data?.shopUrlImage || fallback.image || '',
-      address: extractAddress(data?.addresses, fallback.address),
-      artisanId: data?.userID || data?.userId || fallback.artisanId || null,
-    };
-  };
 
   const ensureAuthenticated = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -146,12 +177,79 @@ const ArtisanShop = () => {
     };
   }, [shopInfo?.artisanId]);
 
+  const handleCategoryChange = (categoryId) => {
+    setSelectedCategory(categoryId ?? null);
+    setPageIndex(1);
+  };
+
+  const handleSearchSubmit = () => {
+    setSearchQuery(searchValue.trim());
+    setPageIndex(1);
+  };
+
+  const handleSortChange = (value) => {
+    setSortOption(value);
+    setPageIndex(1);
+  };
+
+  const filteredProducts = useMemo(() => {
+    let working = Array.isArray(allProducts) ? [...allProducts] : [];
+
+    if (selectedCategory !== null && selectedCategory !== undefined && selectedCategory !== '') {
+      working = working.filter((product) => {
+        const categoryValue = resolveProductCategoryId(product);
+        if (categoryValue == null) {
+          return false;
+        }
+        return String(categoryValue) === String(selectedCategory);
+      });
+    }
+
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    if (normalizedSearch) {
+      working = working.filter((product) => {
+        const name = (product?.name || '').toLowerCase();
+        const description = (product?.shortDescription || product?.description || '').toLowerCase();
+        const sku = (product?.sku || '').toLowerCase();
+        return (
+          name.includes(normalizedSearch)
+          || description.includes(normalizedSearch)
+          || sku.includes(normalizedSearch)
+        );
+      });
+    }
+
+    switch (sortOption) {
+      case 'lowToHigh':
+        working.sort((a, b) => (Number(a?.price) || 0) - (Number(b?.price) || 0));
+        break;
+      case 'highToLow':
+        working.sort((a, b) => (Number(b?.price) || 0) - (Number(a?.price) || 0));
+        break;
+      case 'aToZ':
+        working.sort((a, b) => (a?.name || '').localeCompare(b?.name || '', undefined, { sensitivity: 'base' }));
+        break;
+      case 'zToA':
+        working.sort((a, b) => (b?.name || '').localeCompare(a?.name || '', undefined, { sensitivity: 'base' }));
+        break;
+      default:
+        break;
+    }
+
+    return working;
+  }, [allProducts, searchQuery, selectedCategory, sortOption]);
+
   useEffect(() => {
+    const maxPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+    setTotalPages(maxPages);
+    if (pageIndex > maxPages) {
+      setPageIndex(1);
+      return;
+    }
     const start = (pageIndex - 1) * pageSize;
-    const paginated = allProducts.slice(start, start + pageSize);
+    const paginated = filteredProducts.slice(start, start + pageSize);
     setProducts(paginated);
-    setTotalPages(Math.max(1, Math.ceil(allProducts.length / pageSize)));
-  }, [allProducts, pageIndex, pageSize]);
+  }, [filteredProducts, pageIndex, pageSize]);
 
   useEffect(() => {
     const loadShop = async () => {
@@ -159,6 +257,10 @@ const ArtisanShop = () => {
       setProducts([]);
       setTotalPages(1);
       setPageIndex(1);
+      setSelectedCategory(null);
+      setSearchValue('');
+      setSearchQuery('');
+      setSortOption('');
       try {
         if (externalArtisanId) {
           if (currentUserId && externalArtisanId === currentUserId) {
@@ -206,7 +308,7 @@ const ArtisanShop = () => {
       }
     };
     loadShop();
-  }, [externalArtisanId, currentUserId]);
+  }, [externalArtisanId, currentUserId, externalState]);
 
   const handlePageChange = (idx) => {
     setPageIndex(idx);
@@ -232,9 +334,22 @@ const ArtisanShop = () => {
           { label: 'Cửa hàng', href: '/shop' },
           { label: shopInfo?.title || 'Gian hàng' },
         ]}
+        showAddress={false}
+        showPhone={false}
+        showRating={false}
       />
       <FilterSection artisanId={shopInfo?.artisanId} />
       <main className="max-w-screen-xl mx-auto px-6 md:px-8 py-12">
+        <ShopFilter
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategoryChange}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onSearchSubmit={handleSearchSubmit}
+          sortOption={sortOption}
+          onSortChange={handleSortChange}
+          showHeading={false}
+        />
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {loading ? (
             Array.from({ length: 12 }).map((_, idx) => <ProductCard key={idx} loading />)

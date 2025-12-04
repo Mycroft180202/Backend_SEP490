@@ -102,7 +102,7 @@ const OverviewSection = ({
         <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Doanh thu tháng này</p>
+              <p className="text-sm text-gray-500">Lợi nhuận tháng này</p>
               <h3 className="mt-2 text-3xl font-bold text-gray-800">{formatVND(overview.monthRevenue)}</h3>
             </div>
             <div className="rounded-full bg-red-100 p-4 text-red-600">

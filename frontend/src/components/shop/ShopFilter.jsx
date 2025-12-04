@@ -3,6 +3,34 @@ import { CategoryService } from '../../services/modules/products/categoryService
 import { FaSearch, FaFilter, FaChevronDown } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 
+const resolveCategoryId = (category) => {
+  if (category == null) return null;
+  if (typeof category === 'string' || typeof category === 'number') return category;
+  return (
+    category.id
+    ?? category.categoryId
+    ?? category.categoryID
+    ?? category.code
+    ?? category.value
+    ?? category.category?.id
+    ?? category.category?.categoryId
+    ?? category.category?.categoryID
+    ?? null
+  );
+};
+
+const resolveCategoryName = (category) => {
+  if (category == null) return '';
+  if (typeof category === 'string') return category;
+  return (
+    category.name
+    ?? category.categoryName
+    ?? category.title
+    ?? category.label
+    ?? ''
+  );
+};
+
 const ShopFilter = ({
   selectedCategory,
   onCategoryChange,
@@ -11,6 +39,7 @@ const ShopFilter = ({
   onSearchSubmit,
   sortOption,
   onSortChange,
+  showHeading = true,
 }) => {
   const [categories, setCategories] = useState([]);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -22,9 +51,14 @@ const ShopFilter = ({
     const fetchCategories = async () => {
       try {
         const data = await CategoryService.getAllCategories();
-        setCategories(data || []);
+        const normalized = (data || []).map((item) => ({
+          id: resolveCategoryId(item),
+          name: resolveCategoryName(item),
+        })).filter((item) => item.id != null);
+        setCategories(normalized);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
+        setCategories([]);
       }
     };
     fetchCategories();
@@ -36,9 +70,20 @@ const ShopFilter = ({
     }
   };
 
-  const selectedCategoryName = selectedCategory
-    ? categories.find((cat) => cat.id === selectedCategory)?.name
-    : t('shop.filter.allProductsHeading');
+  const categoryOptions = [
+    { id: null, name: t('shop.filter.allLabel') },
+    ...categories.map((category) => ({
+      id: category.id,
+      name: category.name || t('shop.filter.unknownCategory'),
+    })),
+  ];
+
+  const selectedCategoryEntry = selectedCategory != null
+    ? categoryOptions.find((cat) => cat.id != null && String(cat.id) === String(selectedCategory))
+    : null;
+
+  const selectedCategoryName = selectedCategoryEntry?.name
+    || (selectedCategory != null ? t('shop.filter.unknownCategory') : t('shop.filter.allProductsHeading'));
 
   const sortOptions = [
     { value: '', label: t('shop.filter.sort.default') },
@@ -62,11 +107,6 @@ const ShopFilter = ({
       document.removeEventListener('mousedown', handler);
     };
   }, []);
-
-  const categoryOptions = [
-    { id: null, name: t('shop.filter.allLabel') },
-    ...categories,
-  ];
 
   return (
     <section className="mb-10">
@@ -104,15 +144,15 @@ const ShopFilter = ({
                 <div className="absolute left-0 right-0 mt-2 bg-white border border-[#efe7db] rounded-[20px] shadow-2xl z-10 max-h-64 overflow-auto">
                   {categoryOptions.map((category) => (
                     <button
-                      key={category.id ?? 'all'}
+                      key={category.id != null ? String(category.id) : 'all'}
                       type="button"
                       className={`w-full text-left px-5 py-3 font-['Nunito'] transition-colors ${
-                        selectedCategory === category.id
+                        String(selectedCategory ?? '') === String(category.id ?? '')
                           ? 'bg-[#9E211F]/10 text-[#9E211F]'
                           : 'hover:bg-[#FFF6EF] text-[#3b2c24]'
                       }`}
                       onClick={() => {
-                        onCategoryChange(category.id);
+                        onCategoryChange(category.id ?? null);
                         setCategoryOpen(false);
                       }}
                     >
@@ -162,7 +202,9 @@ const ShopFilter = ({
           </div>
         </div>
       </div>
-      <h2 className="font-['Nunito'] text-3xl font-bold text-[#8B4513] mt-10">{selectedCategoryName}</h2>
+      {showHeading && (
+        <h2 className="font-['Nunito'] text-3xl font-bold text-[#8B4513] mt-10">{selectedCategoryName}</h2>
+      )}
     </section>
   );
 };

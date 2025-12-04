@@ -10,10 +10,7 @@ const FilterSection = ({ artisanId }) => {
 
   return (
     <section className="bg-white shadow-sm border-b border-gray-100">
-      <div className="max-w-screen-xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between gap-4">
-        <h2 className="text-lg md:text-xl font-semibold text-[#8B4513]">
-          Tất cả sản phẩm của cửa hàng
-        </h2>
+      <div className="max-w-screen-xl mx-auto px-6 md:px-8 py-4 flex items-center justify-end gap-4">
         {isArtisan && isOwner && (
           <button
             type="button"
