@@ -90,7 +90,20 @@ const Detail = ({ product, categoryName }) => {
       fetchFeedbacks(1);
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      toast.error('Gửi đánh giá thất bại, vui lòng thử lại');
+      const rawMessage =
+        error?.response?.data?.message
+        || error?.response?.data?.title
+        || error?.message
+        || '';
+
+      const normalizedMessage = String(rawMessage).trim();
+      const fallbackMessage = 'Bạn chỉ có thể đánh giá sau khi mua sản phẩm thành công.';
+
+      const message = normalizedMessage
+        && normalizedMessage !== 'Request failed with status code 400'
+        ? normalizedMessage
+        : fallbackMessage;
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
