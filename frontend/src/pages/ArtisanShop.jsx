@@ -13,6 +13,7 @@ import ShopFilter from '../components/shop/ShopFilter';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
 import { UserContext } from '../context/UserContext';
+import { isOwnedByCurrentArtisan, resolveProductId } from '../utils/productOwnership';
 
 const extractAddress = (addresses, fallbackAddress) => {
   if (fallbackAddress) return fallbackAddress;
@@ -79,6 +80,14 @@ const ArtisanShop = () => {
   const externalArtisanId = searchParams.get('artisanId');
   const externalState = useMemo(() => location.state || {}, [location.state]);
 
+  const resolveMessage = (key, fallback) => {
+    const value = t(key);
+    if (value && value !== key) {
+      return value;
+    }
+    return fallback ?? key;
+  };
+
   const [allProducts, setAllProducts] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +114,26 @@ const ArtisanShop = () => {
     return false;
   };
 
-  const handleAddToCart = async (productId, price, quantity = 1, redirect = false) => {
+  const resolveOwnProductMessage = () => {
+    const message = t('messages.cannotBuyOwnProduct');
+    if (message && message !== 'messages.cannotBuyOwnProduct') {
+      return message;
+    }
+    return 'Bạn không thể mua sản phẩm của chính mình.';
+  };
+
+  const handleAddToCart = async (productOrId, price, quantity = 1, redirect = false) => {
+    const productId = resolveProductId(productOrId);
+    if (!productId) {
+      toast.error(resolveMessage('messages.productUnavailable', 'Sản phẩm không khả dụng.'));
+      return;
+    }
+
+    if (isOwnedByCurrentArtisan(productOrId && typeof productOrId === 'object' ? productOrId : null, userInfo)) {
+      toast.info(resolveOwnProductMessage());
+      return;
+    }
+
     if (!ensureAuthenticated()) return;
     try {
       await CartService.addItem(productId, price, quantity);
@@ -124,8 +152,8 @@ const ArtisanShop = () => {
     }
   };
 
-  const handleBuyNow = async (productId, price) => {
-    await handleAddToCart(productId, price, 1, true);
+  const handleBuyNow = async (productOrId, price) => {
+    await handleAddToCart(productOrId, price, 1, true);
   };
 
   useEffect(() => {
@@ -368,8 +396,8 @@ const ArtisanShop = () => {
                   price={product.price}
                   rating={product.rating || 0}
                   stock={product.stock}
-                onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}
-                onBuyNow={() => handleBuyNow(product.id, product.price ?? 0)}
+                onAddToCart={() => handleAddToCart(product, product.price ?? 0)}
+                onBuyNow={() => handleBuyNow(product, product.price ?? 0)}
                 onClick={() => navigate(`/product-detail/${product.id}`)}
               />
             ))

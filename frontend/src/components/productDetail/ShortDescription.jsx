@@ -22,6 +22,7 @@ import { UserContext } from '../../context/UserContext';
 import { CartService } from '../../services/modules/cart/cartService';
 import { WishlistService } from '../../services/modules/wishlist/wishlistService';
 import { ReportService } from '../../services/modules/report/reportService';
+import { isOwnedByCurrentArtisan } from '../../utils/productOwnership';
 
 const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -160,7 +161,19 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
 
   if (!product) return null;
 
+  const resolveMessage = (key, fallback) => {
+    const value = t(key);
+    if (value && value !== key) {
+      return value;
+    }
+    return fallback ?? key;
+  };
+
   const handleAddToCart = async (redirect = false) => {
+    if (isOwnedByCurrentArtisan(product, userInfo)) {
+      toast.info(resolveMessage('messages.cannotBuyOwnProduct', 'Bạn không thể mua sản phẩm của chính mình.'));
+      return;
+    }
     if (!validateQuantity()) return;
     if (!ensureAuthenticated()) return;
     try {

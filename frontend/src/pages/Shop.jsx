@@ -12,6 +12,7 @@ import { LanguageContext } from '../context/LanguageContext';
 import { CartService } from '../services/modules/cart/cartService';
 import { UserContext } from '../context/UserContext';
 import { WishlistService } from '../services/modules/wishlist/wishlistService';
+import { isOwnedByCurrentArtisan, resolveProductId } from '../utils/productOwnership';
 
 const Shop = () => {
   const navigate = useNavigate();
@@ -48,7 +49,26 @@ const Shop = () => {
     return false;
   };
 
-  const handleAddToCart = async (productId, price, quantity = 1, redirect = false) => {
+  const resolveOwnProductMessage = () => {
+    const message = t('messages.cannotBuyOwnProduct');
+    if (message && message !== 'messages.cannotBuyOwnProduct') {
+      return message;
+    }
+    return 'Bạn không thể mua sản phẩm của chính mình.';
+  };
+
+  const handleAddToCart = async (productOrId, price, quantity = 1, redirect = false) => {
+    const productId = resolveProductId(productOrId);
+    if (!productId) {
+      toast.error(resolveMessage('messages.productUnavailable', 'Sản phẩm không khả dụng.'));
+      return;
+    }
+
+    if (isOwnedByCurrentArtisan(productOrId && typeof productOrId === 'object' ? productOrId : null, userInfo)) {
+      toast.info(resolveOwnProductMessage());
+      return;
+    }
+
     if (!ensureAuthenticated('messages.loginToAddCart', 'Đăng nhập để thêm vào giỏ hàng.')) return;
     try {
       await CartService.addItem(productId, price, quantity);
@@ -72,9 +92,9 @@ const Shop = () => {
     }
   };
 
-  const handleBuyNow = async (productId, price) => {
+  const handleBuyNow = async (productOrId, price) => {
     if (!ensureAuthenticated('messages.loginToBuyNow', 'Đăng nhập để mua ngay.')) return;
-    await handleAddToCart(productId, price, 1, true);
+    await handleAddToCart(productOrId, price, 1, true);
   };
 
   const refreshWishlist = async () => {
@@ -251,8 +271,8 @@ const Shop = () => {
                     stock={product.stock}
                     isWished={wishlistMap.has(product.id)}
                     onToggleWishlist={() => toggleWishlist(product.id)}
-                    onAddToCart={() => handleAddToCart(product.id, product.price ?? 0)}
-                    onBuyNow={() => handleBuyNow(product.id, product.price ?? 0)}
+                    onAddToCart={() => handleAddToCart(product, product.price ?? 0)}
+                    onBuyNow={() => handleBuyNow(product, product.price ?? 0)}
                     onClick={() => navigate(`/product-detail/${product.id}`)}
                   />
                 ))
