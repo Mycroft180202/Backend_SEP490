@@ -12,7 +12,7 @@ const translations = {
     nav: {
       home: 'Trang chủ',
       about: 'Về chúng tôi',
-      shop: 'Cửa hàng',
+      shop: 'Mua sắm',
       blog: 'Bài viết',
       contact: 'Liên hệ',
       policy: 'Chính sách',
