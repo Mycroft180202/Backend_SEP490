@@ -168,19 +168,7 @@ namespace Backend_SEP490.Controllers
             return Ok(revenues);
         }
 
-        // GET /admin/weekly-revenue?year=2025&month=11
-        [Authorize(Roles = "Admin")]
-        [HttpGet("admin/weekly-revenue")]
-        public async Task<IActionResult> GetAdminWeeklyRevenue([FromQuery] int year, [FromQuery] int month)
-        {
-            var revenues = await _orderService.GetAdminRevenuePerWeekAllOrderAsync(year, month);
-            if (revenues == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(revenues);
-        }
+       
 
         // GET /admin/report-number
         [Authorize(Roles = "Admin")]
@@ -250,71 +238,18 @@ namespace Backend_SEP490.Controllers
             return Ok(revenues);
         }
 
-        // GET /artisan/weekly-revenue?year=2025&month=11
-        [Authorize(Roles = "Artisan")]
-        [HttpGet("artisan/weekly-revenue")]
-        public async Task<IActionResult> GetArtisanWeeklyRevenue([FromQuery] int year, [FromQuery] int month)
-        {
-            if (!TryGetUserId(out var userId))
-            {
-                return Unauthorized();
-            }
 
-            var revenues = await _orderService.GetArtisanRevenuePerWeekAllOrderAsync(userId, year, month);
-            if (revenues == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(revenues);
-        }
 
         [Authorize(Roles = "Artisan")]
         [HttpGet("artisan/product/top-product/revenue")]
-        public async Task<IActionResult> GetTopProductByRevenue()
+        public async Task<IActionResult> GetTopProductByRevenue([FromQuery] int? year = 0,[FromQuery] int? month = 0)
         {
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var users = await _productServices.GetTopProductsByRevenueAsync(userId);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(users);
-        }
-
-        [Authorize(Roles = "Artisan")]
-        [HttpGet("artisan/product/top-product/revenue/{year}/{month}")]
-        public async Task<IActionResult> GetTopProductByRevenueMonthly([FromRoute] int year,[FromRoute] int month)
-        {
-            if (!TryGetUserId(out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var users = await _productServices.GetTopProductsByRevenueMonthlyAsync(userId, year, month);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(users);
-        }
-
-        [Authorize(Roles = "Artisan")]
-        [HttpGet("artisan/product/top-product/revenue/{year}")]
-        public async Task<IActionResult> GetTopProductByRevenueInYear([FromRoute] int year)
-        {
-            if (!TryGetUserId(out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var users = await _productServices.GetTopProductsByRevenueInYearAsync(userId, year);
+            var users = await _productServices.GetTopProductsByRevenueAsync(userId, year, month);
             if (users == null)
             {
                 return NotFound();
@@ -325,50 +260,14 @@ namespace Backend_SEP490.Controllers
 
         [Authorize(Roles = "Artisan")]
         [HttpGet("artisan/product/top-product/total-sold")]
-        public async Task<IActionResult> GetTopProductByToTalSold()
+        public async Task<IActionResult> GetTopProductByToTalSold([FromQuery] int? year = 0,[FromQuery] int? month = 0)
         {
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var users = await _productServices.GetTopProductsByTotalSoldAsync(userId);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(users);
-        }
-
-        [Authorize(Roles = "Artisan")]
-        [HttpGet("artisan/product/top-product/total-sold/{year}/{month}")]
-        public async Task<IActionResult> GetTopProductByToTalSoldMonthly([FromRoute] int year,[FromRoute] int month)
-        {
-            if (!TryGetUserId(out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var users = await _productServices.GetTopProductsByTotalSoldMonthlyAsync(userId, year, month);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(users);
-        }
-
-        [Authorize(Roles = "Artisan")]
-        [HttpGet("artisan/product/top-product/total-sold/{year}")]
-        public async Task<IActionResult> GetTopProductByToTalSoldInYear([FromRoute] int year)
-        {
-            if (!TryGetUserId(out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var users = await _productServices.GetTopProductsByTotalSoldInYearAsync(userId, year);
+            var users = await _productServices.GetTopProductsByTotalSoldAsync(userId, year, month);
             if (users == null)
             {
                 return NotFound();

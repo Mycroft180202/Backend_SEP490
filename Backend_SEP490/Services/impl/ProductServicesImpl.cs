@@ -363,7 +363,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return $"{prefix}-{timestamp}";
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueDailyAsync(string? userId)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -398,7 +398,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueMonthlyAsync(string? userId, int year, int month)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueMonthlyAsync(string? userId, int year, int month)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -432,7 +432,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueInYearAsync(string? userId, int year)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueInYearAsync(string? userId, int year)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -465,9 +465,27 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId, int? year, int? month)
+    {
+        if (year == 0 && month == 0)
+        {
+            return await GetTopProductsByRevenueDailyAsync(userId);
+        }
+        if (year != 0 && month == 0)
+        {
+            return await GetTopProductsByRevenueInYearAsync(userId, (int)year);
+        }
+        if (month != 0 && year != 0)
+        {
+            return await GetTopProductsByRevenueMonthlyAsync(userId, (int)year, (int)month);
+        }
+        else
+        {
+            return null;
+        }
+    }
 
-
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldDailyAsync(string? userId)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -502,7 +520,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldMonthlyAsync(string? userId, int year, int month)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldMonthlyAsync(string? userId, int year, int month)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -536,7 +554,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldInYearAsync(string? userId, int year)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldInYearAsync(string? userId, int year)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -567,6 +585,26 @@ public class ProductServicesImpl: GenericServices, IProductServices
         .ToList();
 
         return result;
+    }
+
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId, int? year, int? month)
+    {
+        if (year == 0 && month == 0) 
+        {
+            return await GetTopProductsByTotalSoldDailyAsync(userId);
+        }
+        if(year != 0 && month == 0)
+        {
+            return await GetTopProductsByTotalSoldInYearAsync(userId, (int)year);
+        }
+        if(month != 0 && year != 0)
+        {
+            return await GetTopProductsByTotalSoldMonthlyAsync(userId, (int)year, (int)month);
+        }
+        else
+        {
+            return null;
+        }
     }
 
     public async Task<PagedResult<ResponseDTOProductDashboard>> GetProductsDashboardByUserIdAsync(string? userId, int pageIndex, int pageSize)

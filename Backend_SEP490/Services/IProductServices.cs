@@ -12,12 +12,8 @@ public interface IProductServices
     public Task<ResponseDTOProductDetail> GetProductByIdAsync(string id);
     public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAllProductsAsync();
     public Task<PagedResult<ResponseDTOProductDashboard>> GetProductsDashboardByUserIdAsync(string? userId, int pageIndex, int pageSize);
-    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId);
-    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueMonthlyAsync(string? userId, int year, int month);
-    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueInYearAsync(string? userId, int year);
-    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId);
-    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldMonthlyAsync(string? userId, int year, int month);
-    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldInYearAsync(string? userId, int year);
+    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId, int? year, int? month);
+    public Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId, int? year, int? month);
     public Task<bool> CreateProductAsync(RequestDTOProduct productDto);
     public Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetProductsByArtisanIdAsync(string artisanId);
     public Task<ResponseDTOOutOfStockProductNumber> GetProductsOutOfStockNumberByArtisanIdAsync(string artisanId);
