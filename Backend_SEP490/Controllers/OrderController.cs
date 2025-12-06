@@ -198,4 +198,28 @@ public class OrderController : ControllerBase
 
         return Ok(status);
     }
+
+    [Authorize]
+    [HttpPost("orders/{orderNumber}/confirm-received")]
+    public async Task<IActionResult> ConfirmOrderReceived([FromRoute] string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return BadRequest("Order number is required.");
+        }
+
+        var userId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _orderServices.ConfirmOrderReceivedAsync(userId, orderNumber);
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result.Message);
+    }
 }
