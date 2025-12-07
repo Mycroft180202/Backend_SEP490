@@ -1,4 +1,5 @@
 using System.Linq;
+using Backend_SEP490.Constants;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
@@ -151,9 +152,9 @@ public class OrderController : ControllerBase
             return BadRequest("This order is not configured for VNPay payments.");
         }
 
-        if (!string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(order.Status, OrderStatuses.WaitingForPickup, StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest("Only orders with Pending status can continue VNPay payment.");
+            return BadRequest("Only orders waiting for pickup can continue VNPay payment.");
         }
 
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
@@ -215,6 +216,30 @@ public class OrderController : ControllerBase
         }
 
         var result = await _orderServices.ConfirmOrderReceivedAsync(userId, orderNumber);
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result.Message);
+    }
+
+    [Authorize(Roles = "Artisan")]
+    [HttpPost("orders/{orderNumber}/mark-shipping")]
+    public async Task<IActionResult> MarkOrderAsShipping([FromRoute] string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return BadRequest("Order number is required.");
+        }
+
+        var artisanId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(artisanId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _orderServices.MarkOrderAsShippingByArtisanAsync(artisanId, orderNumber);
         if (!result.Success)
         {
             return BadRequest(result.Message);

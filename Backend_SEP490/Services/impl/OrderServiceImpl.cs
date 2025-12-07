@@ -147,7 +147,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 Id = orderId,
                 OrderNumber = GenerateId("ORDER"),
                 CustomerId = userId,
-                Status = "Pending",
+                Status = OrderStatuses.WaitingForPickup,
                 PaymentType = paymentType,
                 TotalAmount = totalAmount,
                 SubtotalAmount = subtotal,
@@ -620,7 +620,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             cancelledShipments.Add(shipment);
         }
 
-        order.Status = "Cancelled";
+        order.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(order);
         await _context.SaveChangesAsync();
         foreach (var shipment in cancelledShipments)
@@ -669,7 +669,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return (false, "Order already completed!");
         }
 
-        var eligibleStatuses = new[] { "Shipping", "Paid" };
+        var eligibleStatuses = new[] { OrderStatuses.Shipping, OrderStatuses.Paid };
         var canConfirm = eligibleStatuses.Any(status =>
             string.Equals(order.Status, status, StringComparison.OrdinalIgnoreCase));
 
@@ -688,7 +688,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             updatedShipments.Add(shipment);
         }
 
-        order.Status = "Completed";
+        order.Status = OrderStatuses.Completed;
         await _context.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(order.CustomerId))
@@ -700,6 +700,78 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         return (true, "Confirm received successfully!");
+    }
+
+    public async Task<(bool Success, string Message)> MarkOrderAsShippingByArtisanAsync(string? artisanId, string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(artisanId))
+        {
+            return (false, "Artisan id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return (false, "Order number is required.");
+        }
+
+        var order = await _context.Order.GetAllOrderByNumberAsync(orderNumber);
+        if (order == null)
+        {
+            return (false, "Order not found!");
+        }
+
+        if (string.Equals(order.Status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order already cancelled.");
+        }
+
+        if (string.Equals(order.Status, OrderStatuses.Completed, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order already completed.");
+        }
+
+        if (string.Equals(order.Status, OrderStatuses.Shipping, StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, "Order already in shipping status.");
+        }
+
+        var orderItems = await EnsureOrderItemsLoadedAsync(order);
+        if (orderItems == null || orderItems.Count == 0)
+        {
+            return (false, "Order has no items.");
+        }
+
+        var productIds = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .Select(item => item.ProductID!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (productIds.Count == 0)
+        {
+            return (false, "Order items missing product references.");
+        }
+
+        var products = await _context.Products.GetProductsByIdsAsync(productIds);
+        var ownsOrder = products.Any(product =>
+            !string.IsNullOrWhiteSpace(product.ArtisanId) &&
+            string.Equals(product.ArtisanId, artisanId, StringComparison.OrdinalIgnoreCase));
+
+        if (!ownsOrder)
+        {
+            return (false, "You are not authorized to update this order.");
+        }
+
+        if (!string.Equals(order.Status, OrderStatuses.WaitingForPickup, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(order.Status, OrderStatuses.Paid, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Only orders waiting for pickup or already paid can be marked as shipping.");
+        }
+
+        order.Status = OrderStatuses.Shipping;
+        await _context.SaveChangesAsync();
+
+        return (true, "Order marked as shipping.");
     }
 
     public async Task<bool> CreateShipmentsAfterPaymentAsync(string orderId)
@@ -720,9 +792,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
             var existingShipments = await _context.Shipment.GetByOrderIdAsync(order.Id);
             if (existingShipments != null && existingShipments.Any())
             {
-                if (!string.Equals(order.Status, "Shipping", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(order.Status, OrderStatuses.Shipping, StringComparison.OrdinalIgnoreCase))
                 {
-                    order.Status = "Shipping";
+                    order.Status = OrderStatuses.Shipping;
                     await _context.SaveChangesAsync();
                 }
                 return true;
@@ -984,7 +1056,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             if (anyShipmentCreated)
             {
-                order.Status = "Shipping";
+                order.Status = OrderStatuses.Shipping;
                 await _context.SaveChangesAsync();
                 foreach (var shipment in createdShipments)
                 {
