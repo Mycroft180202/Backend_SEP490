@@ -9,6 +9,7 @@ namespace Backend_SEP490.DTOs.Response
         public string Status { get; set; }
         public string PaymentType { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal FeeShipping { get; set; }
         public string ShipingAddressId { get; set; }
         public DateTime CreateAt { get; set; }
         public List<ResponseDTOOrderItem> Items { get; set; }
