@@ -292,7 +292,7 @@ public class GhnShippingService : IGhnShippingService
             coupon = requestModel.CouponCode
         };
 
-        var request = BuildJsonRequest(HttpMethod.Post, CalculateFeeEndpoint, payload);
+        var request = BuildJsonRequest(HttpMethod.Post, CalculateFeeEndpoint, payload, requestModel.TokenOverride, shopId);
         var (success, content, statusCode) = await SendAsync(
             request,
             $"fee-{requestModel.ToDistrictId}-{requestModel.ToWardCode}",
