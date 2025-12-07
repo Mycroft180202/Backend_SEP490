@@ -275,6 +275,35 @@ namespace Backend_SEP490.Controllers
 
             return Ok(users);
         }
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/revenue-percentage")]
+        public async Task<IActionResult> GetArtisanRevenuePrecentageInMonth([FromQuery] int? year = 0, [FromQuery] int? month = 0)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var users = await _orderService.GetArtisanRevenuePrecentageInMonthAsync(userId, year, month);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/revenue-percentage")]
+        public async Task<IActionResult> GetAdminRevenuePrecentageInMonth([FromQuery] int? year = 0, [FromQuery] int? month = 0)
+        {
+            var users = await _orderService.GetAdminRevenuePrecentageInMonthAsync(year, month);
+            if (users == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(users);
+        }
 
         private bool TryGetUserId(out string userId)
         {

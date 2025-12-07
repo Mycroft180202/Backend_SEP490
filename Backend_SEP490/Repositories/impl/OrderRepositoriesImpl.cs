@@ -130,8 +130,17 @@ namespace Backend_SEP490.Repositories.impl
         {
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
-                .ThenInclude(o => o.Product)
+                .ThenInclude(o => o.Product).ThenInclude(o => o.CategoryNav)
                 .Where(o => o.OrderItems.Any(p => p.Product.ArtisanId.Equals(userId))).ToListAsync();
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderWithProductCategoryAsync()
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .ThenInclude(o => o.Product).ThenInclude(o => o.CategoryNav)
+                .ToListAsync();
             return order;
         }
 

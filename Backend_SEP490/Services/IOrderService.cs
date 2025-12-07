@@ -22,5 +22,7 @@ namespace Backend_SEP490.Services
         Task<IEnumerable<ResponseDTOMonthRevenue>> GetAdminRevenuePerMonthAllOrderAsync(int year);
         Task<ResponseDTOTodayRevenue> GetArtisanTodayRevenueAsync(string? userId);
         Task<IEnumerable<ResponseDTOMonthRevenue>> GetArtisanRevenuePerMonthAllOrderAsync(string? userId, int year);
+        Task<IEnumerable<ResponseDTOMonthRevenuePercentage>> GetAdminRevenuePrecentageInMonthAsync(int? year, int? month);
+        Task<IEnumerable<ResponseDTOMonthRevenuePercentage>> GetArtisanRevenuePrecentageInMonthAsync(string? userId, int? year, int? month);
     }
 }

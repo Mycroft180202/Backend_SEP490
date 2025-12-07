@@ -379,7 +379,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var todaysOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Date == today
                     );
 
@@ -412,7 +412,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var monthOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Year == year &&
                         oi.Order.CreateAt.Month == month
                     );
@@ -446,7 +446,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             var yearOrderItems = p.OrderItems
                 .Where(oi =>
                     oi.Order != null &&
-                    oi.Order.Status == "Paid" &&
+                    oi.Order.Status == "Completed" &&
                     oi.Order.CreateAt.Year == year
                 );
 
@@ -501,7 +501,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var todaysOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Date == today
                     );
 
@@ -534,7 +534,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var monthOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Year == year &&
                         oi.Order.CreateAt.Month == month
                     );
@@ -568,7 +568,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             var yearOrderItems = p.OrderItems
                 .Where(oi =>
                     oi.Order != null &&
-                    oi.Order.Status == "Paid" &&
+                    oi.Order.Status == "Completed" &&
                     oi.Order.CreateAt.Year == year
                 );
 
@@ -620,11 +620,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
             enrichedDict.TryGetValue(p.Id, out var enriched);
 
             int totalSold = p.OrderItems?
-                .Where(o => o.Order.Status == "Paid")
+                .Where(o => o.Order.Status == "Completed")
                 .Sum(o => o.Quantity) ?? 0;
 
             decimal totalAmount = p.OrderItems?
-                .Where(o => o.Order.Status == "Paid")
+                .Where(o => o.Order.Status == "Completed")
                 .Sum(o => Convert.ToDecimal(o.Quantity) * o.UnitPrice) ?? 0m;
 
             return new ResponseDTOProductDashboard
