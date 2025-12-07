@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Backend_SEP490.Constants;
 using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,7 +50,7 @@ namespace Backend_SEP490.Repositories.impl
             return await _context.Orders
                 .Include(o => o.Payments)
                 .Where(o =>
-                    o.Status == "Pending" &&
+                    o.Status == OrderStatuses.WaitingForPickup &&
                     o.CreateAt <= thresholdUtc)
                 .ToListAsync();
         }
