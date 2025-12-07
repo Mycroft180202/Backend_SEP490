@@ -167,7 +167,7 @@ public class NotificationServicesImpl : GenericServices, INotificationService
         if (!string.IsNullOrWhiteSpace(order.CustomerId))
         {
             var totalFormatted = FormatMoney(order.TotalAmount);
-            var message = $"Don hang {order.OrderNumber} da duoc tao thanh cong. Tong tien: {totalFormatted}.";
+            var message = $"Đơn hàng {order.OrderNumber} đã được tạo thành công. Tổng tiền: {totalFormatted}.";
             notifications.Add(CreateNotification(order.CustomerId, NotificationTypes.OrderUpdate, message));
         }
 
@@ -187,7 +187,7 @@ public class NotificationServicesImpl : GenericServices, INotificationService
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct();
 
-            var message = $"Ban co don hang moi #{order.OrderNumber}: {string.Join(", ", productNames)}.";
+            var message = $"Bạn có đơn hàng mới #{order.OrderNumber}: {string.Join(", ", productNames)}.";
             notifications.Add(CreateNotification(group.Key!, NotificationTypes.ArtisanOrder, message));
         }
 
@@ -208,13 +208,13 @@ public class NotificationServicesImpl : GenericServices, INotificationService
             return;
         }
 
-        var customerName = customer?.DisplayName ?? customer?.Username ?? "Khach hang";
-        var ratingText = feedback?.Rating.HasValue == true ? $"{feedback.Rating}/5" : "mot danh gia moi";
-        var message = $"{customerName} vua de lai {ratingText} cho san pham {product.Name}.";
+        var customerName = customer?.DisplayName ?? customer?.Username ?? "Khách hàng";
+        var ratingText = feedback?.Rating.HasValue == true ? $"{feedback.Rating}/5" : "một đánh giá mới";
+        var message = $"{customerName} vừa để lại {ratingText} cho sản phẩm {product.Name}.";
 
         if (!string.IsNullOrWhiteSpace(feedback?.Comment))
         {
-            message += $" Loi nhan: \"{feedback.Comment}\"";
+            message += $" Lời nhắn: \"{feedback.Comment}\"";
         }
 
         var notification = CreateNotification(product.ArtisanId, NotificationTypes.ArtisanFeedback, message);
@@ -239,10 +239,10 @@ public class NotificationServicesImpl : GenericServices, INotificationService
 
         var discount = FormatDiscount(voucher);
         var description = string.IsNullOrWhiteSpace(voucher.Description)
-            ? "Uu dai moi dang cho ban"
+            ? "Ưu đãi mới đang chờ bạn"
             : voucher.Description;
 
-        var message = $"Voucher {voucher.Code}: giam {discount}. {description}. Dung truoc {voucher.EndDate:dd/MM}.";
+        var message = $"Voucher {voucher.Code}: giảm {discount}. {description}. Dùng trước {voucher.EndDate:dd/MM}.";
 
         var notifications = users
             .Where(u => !string.IsNullOrWhiteSpace(u.UserID))
@@ -267,7 +267,7 @@ public class NotificationServicesImpl : GenericServices, INotificationService
         }
 
         var message = customMessage ??
-                      $"Ban nhan duoc voucher {voucher.Code} tri gia {FormatDiscount(voucher)}. Dung truoc {voucher.EndDate:dd/MM}.";
+                      $"Bạn nhận được voucher {voucher.Code} trị giá {FormatDiscount(voucher)}. Dùng trước {voucher.EndDate:dd/MM}.";
 
         var notification = CreateNotification(userId, NotificationTypes.VoucherGift, message);
         await _context.Notifications.AddAsync(notification);
@@ -292,7 +292,7 @@ public class NotificationServicesImpl : GenericServices, INotificationService
             return;
         }
 
-        var message = $"Voucher {voucher.Code} sap het han vao {voucher.EndDate:dd/MM}. Dung ngay de khong lo nhes!";
+        var message = $"Voucher {voucher.Code} sắp hết hạn vào {voucher.EndDate:dd/MM}. Dùng ngay để không lỡ nhé!";
         var notifications = idList
             .Select(id => CreateNotification(id, NotificationTypes.VoucherReminder, message))
             .ToList();
@@ -309,22 +309,22 @@ public class NotificationServicesImpl : GenericServices, INotificationService
             return;
         }
 
-        var reporterName = reporter?.DisplayName ?? reporter?.Username ?? "Nguoi dung";
-        var productName = product?.Name ?? report.TargetID ?? "san pham";
-        var reason = string.IsNullOrWhiteSpace(report.Reason) ? "khong ro ly do" : report.Reason;
+        var reporterName = reporter?.DisplayName ?? reporter?.Username ?? "Người dùng";
+        var productName = product?.Name ?? report.TargetID ?? "sản phẩm";
+        var reason = string.IsNullOrWhiteSpace(report.Reason) ? "không rõ lý do" : report.Reason;
 
         var notifications = new List<Notification>();
 
         if (!string.IsNullOrWhiteSpace(product?.ArtisanId))
         {
-            var artisanMessage = $"{reporterName} vua bao cao san pham {productName} vi \"{reason}\". Vui long kiem tra.";
+            var artisanMessage = $"{reporterName} vừa báo cáo sản phẩm {productName} vì \"{reason}\". Vui lòng kiểm tra.";
             notifications.Add(CreateNotification(product.ArtisanId, NotificationTypes.ArtisanReport, artisanMessage));
         }
 
         var admins = await _context.Users.GetUsersByRoleAsync("Admin");
         foreach (var admin in admins.Where(a => !string.IsNullOrWhiteSpace(a.UserID)))
         {
-            var adminMessage = $"{reporterName} da bao cao {productName} vi \"{reason}\".";
+            var adminMessage = $"{reporterName} đã báo cáo {productName} vì \"{reason}\".";
             notifications.Add(CreateNotification(admin.UserID!, NotificationTypes.ReportAlert, adminMessage));
         }
 
@@ -347,10 +347,10 @@ public class NotificationServicesImpl : GenericServices, INotificationService
         }
 
         var orderLabel = !string.IsNullOrWhiteSpace(orderNumber)
-            ? $"Don hang {orderNumber}"
-            : $"Don hang {payment.OrderID}";
+            ? $"Đơn hàng {orderNumber}"
+            : $"Đơn hàng {payment.OrderID}";
 
-        var message = $"{orderLabel} vua cap nhat trang thai thanh toan thanh \"{payment.PaymentStatus}\".";
+        var message = $"{orderLabel} vừa cập nhật trạng thái thanh toán thành \"{payment.PaymentStatus}\".";
 
         var notification = CreateNotification(customerId, NotificationTypes.PaymentStatus, message);
         await _context.Notifications.AddAsync(notification);
@@ -372,8 +372,8 @@ public class NotificationServicesImpl : GenericServices, INotificationService
             return;
         }
 
-        var applicantName = applicant.DisplayName ?? applicant.Username ?? applicant.Email ?? application.FullName ?? "User";
-        var message = $"Ho so tho {application.Id} cua {applicantName} dang cho duyet.";
+        var applicantName = applicant.DisplayName ?? applicant.Username ?? applicant.Email ?? application.FullName ?? "Người dùng";
+        var message = $"Hồ sơ thợ {application.Id} của {applicantName} đang chờ duyệt.";
 
         var notifications = admins
             .Where(a => !string.IsNullOrWhiteSpace(a.UserID))
@@ -399,12 +399,12 @@ public class NotificationServicesImpl : GenericServices, INotificationService
 
         var approved = string.Equals(application.Status, ArtisanApplicationStatus.Done, StringComparison.OrdinalIgnoreCase);
         var type = approved ? NotificationTypes.ArtisanApplicationApproved : NotificationTypes.ArtisanApplicationRejected;
-        var statusText = approved ? "duoc chap nhan" : "bi tu choi";
+        var statusText = approved ? "được chấp nhận" : "bị từ chối";
 
-        var message = $"Ho so tho {application.Id} {statusText}.";
+        var message = $"Hồ sơ thợ {application.Id} {statusText}.";
         if (!approved && !string.IsNullOrWhiteSpace(application.RejectReason))
         {
-            message += $" Ly do: {application.RejectReason}.";
+            message += $" Lý do: {application.RejectReason}.";
         }
 
         var notification = CreateNotification(applicant.UserID, type, message);
