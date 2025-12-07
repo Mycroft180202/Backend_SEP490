@@ -189,6 +189,7 @@ builder.Services.AddScoped<IReportService, ReportServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService>();
 builder.Services.AddScoped<IStoryTellingService, StoryTellingServiceImpl>();
+builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
 builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
