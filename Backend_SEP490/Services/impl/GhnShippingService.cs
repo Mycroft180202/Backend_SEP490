@@ -269,8 +269,13 @@ public class GhnShippingService : IGhnShippingService
             return null;
         }
 
+        var shopId = requestModel.ShopId.HasValue && requestModel.ShopId.Value > 0
+            ? requestModel.ShopId.Value
+            : _settings.ShopId;
+
         var payload = new
         {
+            shop_id = shopId,
             from_district_id = requestModel.FromDistrictId ?? _settings.FromDistrictId,
             from_ward_code = string.IsNullOrWhiteSpace(requestModel.FromWardCode)
                 ? _settings.FromWardCode

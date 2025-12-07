@@ -409,6 +409,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         var requestModel = new GhnCalculateFeeRequest
         {
+            ShopId = _ghnSettings.ShopId > 0 ? _ghnSettings.ShopId : null,
             ServiceId = request.ShippingServiceId,
             ServiceTypeId = request.ServiceTypeId,
             ToDistrictId = destination.GhnDistrictId.Value,
