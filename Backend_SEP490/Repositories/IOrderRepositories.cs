@@ -17,5 +17,6 @@ namespace Backend_SEP490.Repositories
         public Task<bool> HasUserPurchasedProductAsync(string userId, string productId);
         Task<decimal> GetTotalPaidOrderAmountAsync();
         Task<bool> HasUserUsedVoucherSourceAsync(string userId, string source);
+        Task<IEnumerable<Order>> GetAllOrderWithProductCategoryAsync();
     }
 }

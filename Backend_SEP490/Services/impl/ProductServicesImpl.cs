@@ -363,7 +363,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return $"{prefix}-{timestamp}";
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueDailyAsync(string? userId)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -379,7 +379,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var todaysOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Date == today
                     );
 
@@ -398,7 +398,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueMonthlyAsync(string? userId, int year, int month)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueMonthlyAsync(string? userId, int year, int month)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -412,7 +412,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var monthOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Year == year &&
                         oi.Order.CreateAt.Month == month
                     );
@@ -432,7 +432,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueInYearAsync(string? userId, int year)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueInYearAsync(string? userId, int year)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -446,7 +446,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             var yearOrderItems = p.OrderItems
                 .Where(oi =>
                     oi.Order != null &&
-                    oi.Order.Status == "Paid" &&
+                    oi.Order.Status == "Completed" &&
                     oi.Order.CreateAt.Year == year
                 );
 
@@ -465,9 +465,27 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByRevenueAsync(string? userId, int? year, int? month)
+    {
+        if (year == 0 && month == 0)
+        {
+            return await GetTopProductsByRevenueDailyAsync(userId);
+        }
+        if (year != 0 && month == 0)
+        {
+            return await GetTopProductsByRevenueInYearAsync(userId, (int)year);
+        }
+        if (month != 0 && year != 0)
+        {
+            return await GetTopProductsByRevenueMonthlyAsync(userId, (int)year, (int)month);
+        }
+        else
+        {
+            return null;
+        }
+    }
 
-
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldDailyAsync(string? userId)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -483,7 +501,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var todaysOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Date == today
                     );
 
@@ -502,7 +520,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldMonthlyAsync(string? userId, int year, int month)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldMonthlyAsync(string? userId, int year, int month)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -516,7 +534,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 var monthOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Paid" &&
+                        oi.Order.Status == "Completed" &&
                         oi.Order.CreateAt.Year == year &&
                         oi.Order.CreateAt.Month == month
                     );
@@ -536,7 +554,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
-    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldInYearAsync(string? userId, int year)
+    private async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldInYearAsync(string? userId, int year)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
@@ -550,7 +568,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             var yearOrderItems = p.OrderItems
                 .Where(oi =>
                     oi.Order != null &&
-                    oi.Order.Status == "Paid" &&
+                    oi.Order.Status == "Completed" &&
                     oi.Order.CreateAt.Year == year
                 );
 
@@ -569,6 +587,26 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return result;
     }
 
+    public async Task<IEnumerable<ResponseDTOProductDashboard>> GetTopProductsByTotalSoldAsync(string? userId, int? year, int? month)
+    {
+        if (year == 0 && month == 0) 
+        {
+            return await GetTopProductsByTotalSoldDailyAsync(userId);
+        }
+        if(year != 0 && month == 0)
+        {
+            return await GetTopProductsByTotalSoldInYearAsync(userId, (int)year);
+        }
+        if(month != 0 && year != 0)
+        {
+            return await GetTopProductsByTotalSoldMonthlyAsync(userId, (int)year, (int)month);
+        }
+        else
+        {
+            return null;
+        }
+    }
+
     public async Task<PagedResult<ResponseDTOProductDashboard>> GetProductsDashboardByUserIdAsync(string? userId, int pageIndex, int pageSize)
     {
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
@@ -582,11 +620,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
             enrichedDict.TryGetValue(p.Id, out var enriched);
 
             int totalSold = p.OrderItems?
-                .Where(o => o.Order.Status == "Paid")
+                .Where(o => o.Order.Status == "Completed")
                 .Sum(o => o.Quantity) ?? 0;
 
             decimal totalAmount = p.OrderItems?
-                .Where(o => o.Order.Status == "Paid")
+                .Where(o => o.Order.Status == "Completed")
                 .Sum(o => Convert.ToDecimal(o.Quantity) * o.UnitPrice) ?? 0m;
 
             return new ResponseDTOProductDashboard
