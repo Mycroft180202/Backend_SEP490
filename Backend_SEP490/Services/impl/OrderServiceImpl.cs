@@ -1523,9 +1523,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
         var todayStart = DateTime.UtcNow.Date;
         var todayEnd = todayStart.AddDays(1);
 
+
         var ordersToday = orders
-           .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && (o.Status.Equals("Completed") || o.Status.Equals("Paid")))
-           .ToList();
+          .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && !o.Status.Equals("Cancelled"))
+          .ToList();
 
         var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m));
         var result = new ResponseDTOTodayRevenue
@@ -1736,14 +1737,18 @@ public class OrderServiceImpl : GenericServices, IOrderService
         var todayEnd = todayStart.AddDays(1);
 
         var ordersToday = orders
-          .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && (o.Status.Equals("Completed") || o.Status.Equals("Paid") ))
+          .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && !o.Status.Equals("Cancelled"))
           .ToList();
+
+        var ordersNeedActionToday = orders
+         .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && o.Status.Equals("WaitingForPickup"))
+         .ToList();
 
         var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m));
         var result = new ResponseDTOTodayRevenue
         {
             Revenue = revenue,
-            OrderNumber = ordersToday.Count()
+            OrderNumber = ordersNeedActionToday.Count()
         };
         return result;
     }
