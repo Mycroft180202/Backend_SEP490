@@ -2,6 +2,7 @@ namespace Backend_SEP490.DTOs.External.Ghn;
 
 public class GhnCalculateFeeRequest
 {
+    public int? ShopId { get; set; }
     public int? FromDistrictId { get; set; }
     public string? FromWardCode { get; set; }
     public int ToDistrictId { get; set; }
