@@ -112,6 +112,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return CreateOrderResult.Failure("No order items specified.");
             }
 
+            var artisanIds = orderItemInputs
+                .Select(info => info.Product?.ArtisanId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (artisanIds.Count != 1)
+            {
+                await transaction.RollbackAsync();
+                return CreateOrderResult.Failure("Moi don hang chi duoc phep chua san pham tu mot cua hang. Vui long tao don rieng.");
+            }
+
+            var artisanId = artisanIds[0];
+
             var subtotal = orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
 
             //var shippingAddress = await CreateOrderShippingAddressAsync(userId, address);
@@ -123,6 +138,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             var (feeSuccess, shippingFee, feeError) = await CalculateShippingFeeAsync(
                 request,
+                artisanId,
                 address,
                 orderItemInputs);
             if (!feeSuccess)
@@ -381,6 +397,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     private async Task<(bool Success, decimal Fee, string? Message)> CalculateShippingFeeAsync(
         RequestCreateOrder request,
+        string artisanId,
         Address destination,
         IEnumerable<OrderItemInput> orderItems)
     {
@@ -389,7 +406,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return (false, 0m, "Shipping address is missing GHN mapping data.");
         }
 
-        var mappedItems = orderItems
+        var itemInputs = orderItems.ToList();
+        if (itemInputs.Count == 0)
+        {
+            return (false, 0m, "Order does not contain any items to estimate shipping fee.");
+        }
+
+        var mappedItems = itemInputs
             .Select(info => new OrderItem
             {
                 ProductID = info.ProductId,
@@ -398,18 +421,50 @@ public class OrderServiceImpl : GenericServices, IOrderService
             })
             .ToList();
 
-        var shippingProfiles = orderItems
+        var shippingProfiles = itemInputs
             .Where(info => info.Product.ShippingProfile != null)
             .ToDictionary(info => info.ProductId, info => info.Product.ShippingProfile!);
+
+        SellerShippingProfile? sellerProfile = null;
+        Address? fallbackPickup = null;
+        if (!string.IsNullOrWhiteSpace(artisanId))
+        {
+            sellerProfile = await _context.SellerShippingProfiles.GetBySellerIdAsync(artisanId);
+            if (sellerProfile == null)
+            {
+                fallbackPickup = await GetSellerPickupAddressAsync(artisanId);
+            }
+        }
+
+        var fromDistrictId = sellerProfile?.PickupDistrictId
+            ?? fallbackPickup?.GhnDistrictId
+            ?? (_ghnSettings.FromDistrictId > 0 ? _ghnSettings.FromDistrictId : (int?)null);
+        var fromWardCode = sellerProfile?.PickupWardCode
+            ?? fallbackPickup?.GhnWardCode
+            ?? (!string.IsNullOrWhiteSpace(_ghnSettings.FromWardCode) ? _ghnSettings.FromWardCode : null);
+
+        if (!fromDistrictId.HasValue || string.IsNullOrWhiteSpace(fromWardCode))
+        {
+            return (false, 0m, "Cua hang chua cau hinh dia chi lay hang cho GHN. Vui long cap nhat thong tin van chuyen.");
+        }
 
         var weight = CalculateTotalWeight(mappedItems, null, shippingProfiles);
         var length = ResolveDimension(mappedItems, null, shippingProfiles, p => p.LengthCm, _ghnSettings.DefaultParcelLength);
         var width = ResolveDimension(mappedItems, null, shippingProfiles, p => p.WidthCm, _ghnSettings.DefaultParcelWidth);
         var height = ResolveDimension(mappedItems, null, shippingProfiles, p => p.HeightCm, _ghnSettings.DefaultParcelHeight);
 
+        int? shopId = sellerProfile?.GhnShopId;
+        if ((!shopId.HasValue || shopId.Value <= 0) && _ghnSettings.ShopId > 0)
+        {
+            shopId = _ghnSettings.ShopId;
+        }
+
         var requestModel = new GhnCalculateFeeRequest
         {
-            ShopId = _ghnSettings.ShopId > 0 ? _ghnSettings.ShopId : null,
+            ShopId = shopId,
+            TokenOverride = string.IsNullOrWhiteSpace(sellerProfile?.GhnToken) ? null : sellerProfile!.GhnToken,
+            FromDistrictId = fromDistrictId,
+            FromWardCode = fromWardCode,
             ServiceId = request.ShippingServiceId,
             ServiceTypeId = request.ServiceTypeId,
             ToDistrictId = destination.GhnDistrictId.Value,
@@ -424,21 +479,25 @@ public class OrderServiceImpl : GenericServices, IOrderService
         var response = await _ghnShippingService.CalculateShippingFeeAsync(requestModel);
         if (response == null)
         {
-            _logger.LogWarning("GHN fee calculation returned null. Defaulting shipping fee to zero.");
-            return (true, 0m, null);
+            _logger.LogWarning("GHN fee calculation returned null for artisan {ArtisanId}.", artisanId);
+            return (false, 0m, "Khong the ket noi toi dich vu giao hang. Vui long thu lai.");
         }
 
         var successCodes = new[] { 0, 200 };
-        if (!successCodes.Contains(response.Code) || response.Data == null)
+        if (!successCodes.Contains(response.Code) || response.Data == null || !response.Data.Total.HasValue || response.Data.Total.Value <= 0)
         {
             _logger.LogWarning(
-                "GHN fee calculation failed with code {Code} and message '{Message}'. Using zero fee.",
+                "GHN fee calculation failed with code {Code} and message '{Message}' for artisan {ArtisanId}.",
                 response.Code,
-                response.Message);
-            return (true, 0m, null);
+                response.Message,
+                artisanId);
+            var message = string.IsNullOrWhiteSpace(response.Message)
+                ? "Khong the tinh phi giao hang cho don nay."
+                : response.Message!;
+            return (false, 0m, message);
         }
 
-        var fee = response.Data.Total ?? 0;
+        var fee = Convert.ToDecimal(response.Data.Total.Value);
         return (true, fee, null);
     }
 
@@ -753,11 +812,16 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         var products = await _context.Products.GetProductsByIdsAsync(productIds);
-        var ownsOrder = products.Any(product =>
-            !string.IsNullOrWhiteSpace(product.ArtisanId) &&
-            string.Equals(product.ArtisanId, artisanId, StringComparison.OrdinalIgnoreCase));
+        if (products.Count != productIds.Count)
+        {
+            return (false, "Order items are invalid or no longer available.");
+        }
 
-        if (!ownsOrder)
+        var mismatchedProduct = products.FirstOrDefault(product =>
+            string.IsNullOrWhiteSpace(product.ArtisanId) ||
+            !string.Equals(product.ArtisanId, artisanId, StringComparison.OrdinalIgnoreCase));
+
+        if (mismatchedProduct != null)
         {
             return (false, "You are not authorized to update this order.");
         }

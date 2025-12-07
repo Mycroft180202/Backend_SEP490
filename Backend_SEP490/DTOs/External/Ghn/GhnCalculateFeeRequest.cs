@@ -5,6 +5,7 @@ public class GhnCalculateFeeRequest
     public int? ShopId { get; set; }
     public int? FromDistrictId { get; set; }
     public string? FromWardCode { get; set; }
+    public string? TokenOverride { get; set; }
     public int ToDistrictId { get; set; }
     public string ToWardCode { get; set; } = string.Empty;
     public int Weight { get; set; }
