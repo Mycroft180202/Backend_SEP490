@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { 
   FaHome,
   FaProductHunt,
@@ -31,6 +31,7 @@ import AdminDashboardService from '../../services/modules/admin/adminDashboardSe
 
 const AdminDashboard = () => {
   const { userInfo } = useContext(UserContext);
+  const availableYears = useMemo(() => [2025, 2026, 2027], []);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -44,10 +45,13 @@ const AdminDashboard = () => {
     reportCount: 0,
   });
   const [monthlyMetrics, setMonthlyMetrics] = useState([]);
-  const [weeklyMetrics, setWeeklyMetrics] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+    const currentYear = now.getFullYear();
+    const defaultYear = availableYears.includes(currentYear)
+      ? currentYear
+      : availableYears[0];
+    return { year: defaultYear, month: now.getMonth() + 1 };
   });
 
   const loadDashboardData = useCallback(async (period) => {
@@ -58,14 +62,12 @@ const AdminDashboard = () => {
       const [
         todayRevenueData,
         monthlyRevenueData,
-        weeklyRevenueData,
         artisansData,
         customersData,
         reportNumber,
       ] = await Promise.all([
         AdminDashboardService.getTodayRevenue(),
         AdminDashboardService.getMonthlyRevenue(year),
-        AdminDashboardService.getWeeklyRevenue(year, month),
         AdminDashboardService.getAllArtisans(),
         AdminDashboardService.getAllCustomers(),
         AdminDashboardService.getReportNumber(),
@@ -107,7 +109,6 @@ const AdminDashboard = () => {
       });
 
       setMonthlyMetrics(normalizedMonthly);
-      setWeeklyMetrics(Array.isArray(weeklyRevenueData) ? weeklyRevenueData : []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Không thể tải dữ liệu tổng quan');
@@ -120,11 +121,11 @@ const AdminDashboard = () => {
     loadDashboardData(selectedPeriod);
   }, [loadDashboardData, selectedPeriod]);
 
-const menuItems = [
+  const menuItems = [
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/admin' },
     { id: 'sellers', icon: FaUsers, label: 'Người bán', path: '/admin/sellers' },
     { id: 'products', icon: FaProductHunt, label: 'Sản phẩm', path: '/admin/products' },
-  { id: 'categories', icon: FaListUl, label: 'Danh mục', path: '/admin/categories' },
+    { id: 'categories', icon: FaListUl, label: 'Danh mục', path: '/admin/categories' },
     { id: 'orders', icon: FaClipboardList, label: 'Đơn hàng', path: '/admin/orders' },
     { id: 'customers', icon: FaUsersCog, label: 'Khách hàng', path: '/admin/customers' },
     { id: 'vouchers', icon: FaTicketAlt, label: 'Voucher', path: '/admin/vouchers' },
@@ -134,12 +135,8 @@ const menuItems = [
     { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/admin/settings' },
   ];
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[#f7f9fc]">
       {/* Sidebar Component */}
       <Sidebar 
         sidebarOpen={sidebarOpen}
@@ -150,7 +147,7 @@ const menuItems = [
       />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-[#f7f9fc]">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
           <div className="flex items-center justify-between">
@@ -201,11 +198,10 @@ const menuItems = [
               <OverviewSection
                 overview={overview}
                 monthlyData={monthlyMetrics}
-                weeklyData={weeklyMetrics}
                 selectedYear={selectedPeriod.year}
                 selectedMonth={selectedPeriod.month}
                 onChangePeriod={setSelectedPeriod}
-                formatCurrency={formatCurrency}
+                availableYears={availableYears}
               />
             )
           )}

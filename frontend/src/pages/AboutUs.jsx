@@ -18,7 +18,7 @@ const AboutUs = () => {
   );
 
   return (
-    <div className="bg-[#fdfeee] min-h-screen w-full font-nunito">
+    <div className="bg-background min-h-screen w-full font-nunito">
       <Header />
       <BannerSection breadcrumbItems={breadcrumbItems} />
       <CloudIntroSection />

@@ -202,7 +202,7 @@ const ProductCard = ({
   if (variant === 'related') {
     return (
       <div
-        className={`group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-transparent hover:border-[#D4A574] ${onClick ? 'cursor-pointer' : ''}`}
+        className={`group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-brand-600/20 hover:border-accent/60 ${onClick ? 'cursor-pointer' : ''}`}
         onClick={onClick}
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
@@ -212,7 +212,7 @@ const ProductCard = ({
           }
         }}
       >
-        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-[#FFF8E7] to-white rounded-t-2xl">
+        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-background to-white rounded-t-2xl">
           <img
             src={image}
             alt={title}
@@ -221,12 +221,12 @@ const ProductCard = ({
           {(isOutOfStock || price !== undefined) && (
             <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
               {isOutOfStock && (
-                <div className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-semibold shadow">
+                <div className="px-3 py-1 rounded-full bg-primary-dark text-white text-xs font-semibold shadow">
                   {soldOutText}
                 </div>
               )}
               {price !== undefined && (
-                <div className="bg-gradient-to-r from-[#8B4513] to-[#A0522D] text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                <div className="bg-gradient-to-r from-primary to-primary-dark text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                   {formatCurrency(price, priceSuffix)}
                 </div>
               )}
@@ -234,12 +234,12 @@ const ProductCard = ({
           )}
         </div>
         <div className="p-5 space-y-3 bg-white">
-          <h3 className="text-lg font-semibold text-[#8B4513] line-clamp-2 group-hover:text-[#D4A574] transition-colors" style={{ fontFamily: 'Nunito, sans-serif' }}>
+          <h3 className="text-lg font-semibold text-brand-900 line-clamp-2 group-hover:text-accent transition-colors" style={{ fontFamily: 'Nunito, sans-serif' }}>
             {title}
           </h3>
           {shopName && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#D4A574] to-[#8B4513] flex items-center justify-center text-white text-xs font-bold">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary-soft to-primary flex items-center justify-center text-white text-xs font-bold">
                 {shopName.charAt(0)?.toUpperCase()}
               </div>
               <span className="truncate">{shopName}</span>
@@ -257,7 +257,7 @@ const ProductCard = ({
                 {t('productCard.stock', { stock: stock || 0 })}
               </span>
             )}
-            <span className="text-[#8B4513] font-semibold group-hover:text-[#D4A574]">
+            <span className="text-primary font-semibold group-hover:text-accent">
               {`${t('productCard.viewDetail')} ->`}
             </span>
           </div>
@@ -268,7 +268,7 @@ const ProductCard = ({
 
   return (
     <div
-      className={`group bg-white/95 rounded-[28px] overflow-hidden border border-[#F1D2AA] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} h-full flex flex-col`}
+      className={`group bg-white rounded-[28px] overflow-hidden border border-brand-600/20 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} h-full flex flex-col`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -278,7 +278,7 @@ const ProductCard = ({
         }
       }}
     >
-        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-[#FFF8E7] to-white">
+        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-background to-white">
           <img
             src={image}
             alt={title}
@@ -287,7 +287,7 @@ const ProductCard = ({
         {(isOutOfStock || onToggleWishlist || productId) && (
           <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
             {isOutOfStock && (
-              <div className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-semibold shadow">
+              <div className="px-3 py-1 rounded-full bg-primary-dark text-white text-xs font-semibold shadow">
                 {soldOutText}
               </div>
             )}
@@ -295,37 +295,37 @@ const ProductCard = ({
               <button
                 type="button"
                 onClick={handleWishlist}
-                className={`relative bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-red-300' : ''}`}
+                className={`relative bg-white/95 rounded-full p-2 shadow hover:bg-white transition transform hover:scale-110 active:scale-125 ${isWished ? 'ring-2 ring-accent/60' : ''}`}
               >
                 {isWished && (
-                  <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
+                  <span className="absolute inset-0 rounded-full animate-ping bg-accent/40" aria-hidden />
                 )}
-                {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
+                {isWished ? <FaHeart className="text-accent relative" /> : <FaRegHeart className="text-accent relative" />}
               </button>
             )}
           </div>
         )}
       </div>
 
-      <div className="p-5 bg-gradient-to-b from-white to-[#FFFBF0] flex flex-col gap-3 border-t-2 border-[#D4A574]/40 flex-1">
-        <h3 className="font-['Nunito'] text-lg font-semibold text-[#5A3310] line-clamp-2 min-h-[48px] group-hover:text-[#9E211F] transition-colors">
+      <div className="p-5 bg-gradient-to-b from-white to-background flex flex-col gap-3 border-t border-brand-600/20 flex-1">
+        <h3 className="font-['Nunito'] text-lg font-semibold text-brand-900 line-clamp-2 min-h-[48px] group-hover:text-accent transition-colors">
           {title}
         </h3>
         <p className="font-['Nunito'] text-sm text-gray-600 line-clamp-2 min-h-[36px]">
           {shortDescription || t('productCard.fallbackDescription')}
         </p>
-        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-[#b58b5d]">
+        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-brand-600">
           <span className="truncate">{priceLabelText}</span>
-          <div className="flex items-center gap-1 text-[#c37c3d]">
+          <div className="flex items-center gap-1 text-brand-600">
             {renderStars(rating || 0)}
-            <span className="text-xs font-semibold ml-1 text-[#8B4513]">
+            <span className="text-xs font-semibold ml-1 text-brand-900">
               {(Number(rating) || 0).toFixed(1)}
             </span>
           </div>
         </div>
         <div className="flex items-center justify-between pt-1">
           <div>
-            <p className="text-xl font-bold text-[#8B4513] font-['Nunito']">
+            <p className="text-xl font-bold text-brand-900 font-['Nunito']">
               {formatCurrency(price, priceSuffix)}
             </p>
           </div>
@@ -345,7 +345,7 @@ const ProductCard = ({
                 className={`flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-['Nunito'] font-semibold transition-all duration-200 ${
                   isOutOfStock
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-[#8B4513] text-white shadow-[0_8px_18px_rgba(139,69,19,0.35)] hover:-translate-y-0.5 hover:bg-[#A8602D]'
+                    : 'bg-primary text-white shadow-[0_8px_18px_rgba(68,99,63,0.35)] hover:-translate-y-0.5 hover:bg-primary-dark'
                 }`}
               >
                 <FaShoppingCart className="text-sm" />
@@ -367,7 +367,7 @@ const ProductCard = ({
                 className={`flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] border-2 px-3 py-2.5 text-sm font-['Nunito'] font-semibold transition-all duration-200 ${
                   isOutOfStock
                     ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
-                    : 'border-[#9E211F] text-[#9E211F] hover:bg-[#FFF6EF] hover:-translate-y-0.5'
+                    : 'border-accent text-accent hover:bg-accent/10 hover:-translate-y-0.5'
                 }`}
               >
                 <FaBolt className="text-sm" />

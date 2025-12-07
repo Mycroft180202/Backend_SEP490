@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import ProductCard from '../components/shared/ProductCard';
 import { ProductCollectionService } from '../services/modules/collections/productCollectionService';
 import { ProductService } from '../services/modules/products/productService';
+import Breadcrumb from '../components/shared/Breadcrumb';
+import { NavigationKeys } from '../context/NavigationContext';
+import useNavigationNode from '../hooks/useNavigationNode';
+import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
 
 const CollectionDetail = () => {
   const { id } = useParams();
@@ -13,6 +17,20 @@ const CollectionDetail = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const productListNode = useResolvedNavigationNode({
+    locationKey: 'fromProductList',
+    contextKey: NavigationKeys.LAST_PRODUCT_LIST,
+  });
+  const collectionNode = useMemo(() => (
+    collection?.id
+      ? {
+        label: collection.title || 'Bộ sưu tập',
+        href: `/collections/${collection.id}`,
+      }
+      : null
+  ), [collection?.id, collection?.title]);
+
+  useNavigationNode(NavigationKeys.LAST_COLLECTION, collectionNode);
 
   useEffect(() => {
     const load = async () => {
@@ -46,11 +64,29 @@ const CollectionDetail = () => {
   }, [id]);
 
   const heroBg = collection?.image || '/images/default-product.png';
+  const breadcrumbItems = useMemo(() => {
+    const items = [{ label: 'Trang chủ', href: '/' }, { label: 'Bộ sưu tập' }];
+    if (collectionNode?.label && collectionNode?.href) {
+      items.push({
+        label: collectionNode.label,
+        href: collectionNode.href,
+        state: { fromCollection: collectionNode },
+      });
+    } else if (collection?.title) {
+      items.push({ label: collection.title });
+    }
+    return items;
+  }, [collection?.title, collectionNode]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FFF8E7] to-white flex flex-col">
       <Header />
       <main className="flex-1">
+        <div className="bg-[#fff4e5]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Breadcrumb items={breadcrumbItems} floating />
+          </div>
+        </div>
         <section className="relative h-72 md:h-96 overflow-hidden">
           <img src={heroBg} alt={collection?.title} className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30" />
@@ -92,7 +128,12 @@ const CollectionDetail = () => {
                     price={p.price}
                     rating={p.rating || 0}
                     stock={p.stock}
-                    onClick={() => navigate(`/product-detail/${p.id || p.productId}`)}
+                    onClick={() => navigate(`/product-detail/${p.id || p.productId}`, {
+                      state: {
+                        fromCollection: collectionNode,
+                        fromProductList: productListNode,
+                      },
+                    })}
                   />
                 </div>
               ))}

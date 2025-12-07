@@ -15,6 +15,8 @@ import ProductList from '../components/cart/ProductList';
 import Pagination from '../components/shared/Pagination';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
+import { NavigationKeys } from '../context/NavigationContext';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const Cart = () => {
   const { t } = useContext(LanguageContext);
@@ -63,6 +65,19 @@ const Cart = () => {
       setLoading(false);
     }
   }, [t, token]);
+
+  const cartTitle = t('cart.title');
+  const cartListNode = useMemo(() => ({
+    label: cartTitle && cartTitle !== 'cart.title' ? cartTitle : 'Giỏ hàng',
+    href: '/cart',
+    meta: {
+      pageIndex,
+      pageSize,
+      totalItems: items.length,
+    },
+  }), [cartTitle, items.length, pageIndex, pageSize]);
+
+  useNavigationNode(NavigationKeys.LAST_PRODUCT_LIST, cartListNode);
 
   useEffect(() => {
     if (!token) {
@@ -130,16 +145,50 @@ const Cart = () => {
       return { success: true, quantity: normalizedQuantity };
     }
 
+    const previousItems = items.map((item) => ({ ...item }));
+    const previousShipping = summary?.shipping ?? 0;
+    const previousSubtotal = previousItems.reduce(
+      (total, current) => total + (current.price || 0) * (current.quantity || 0),
+      0,
+    );
+    const previousSummary = summary
+      ? { ...summary }
+      : {
+        subtotal: previousSubtotal,
+        shipping: previousShipping,
+        total: previousSubtotal + previousShipping,
+      };
+
+    const nextItems = previousItems.map((item) => (
+      (item.cartItemId || item.id) === cartItemId
+        ? { ...item, quantity: normalizedQuantity }
+        : item
+    ));
+    const shippingFee = previousSummary?.shipping ?? 0;
+    const nextSubtotal = nextItems.reduce(
+      (total, current) => total + (current.price || 0) * (current.quantity || 0),
+      0,
+    );
+    const nextSummary = {
+      subtotal: nextSubtotal,
+      shipping: shippingFee,
+      total: nextSubtotal + shippingFee,
+    };
+
+    setItems(nextItems);
+    setSummary(nextSummary);
     setUpdatingItemId(cartItemId);
+
     try {
       await CartService.updateItem(cartItemId, normalizedQuantity);
       if (!options?.manual) {
         toast.success(t('messages.cartUpdateSuccess'));
       }
-      await fetchCart();
       return { success: true, quantity: normalizedQuantity };
     } catch (error) {
       console.error(error);
+      setItems(previousItems);
+      setSummary(previousSummary);
       const message =
         error?.response?.data?.message
         || error?.response?.data?.title
@@ -227,6 +276,7 @@ const Cart = () => {
           onQuantityChange={handleQuantityChange}
           onRemove={handleRemoveItem}
           onCheckout={handleCheckout}
+          originNode={cartListNode}
         />
         {!loading && items.length > pageSize && (
           <div className="flex justify-center mt-8 mb-6">

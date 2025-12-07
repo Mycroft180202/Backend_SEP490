@@ -185,6 +185,26 @@ function ChangePasswordSection({ email }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  const stepItems = [
+    {
+      id: 1,
+      title: translate('profile.changePassword.step.emailTitle', 'Xác nhận email'),
+      description: translate('profile.changePassword.step.emailDescription', 'Nhận mã OTP qua email đã đăng ký'),
+    },
+    {
+      id: 2,
+      title: translate('profile.changePassword.step.resetTitle', 'Đặt lại mật khẩu'),
+      description: translate('profile.changePassword.step.resetDescription', 'Nhập mã OTP và mật khẩu mới an toàn'),
+    },
+  ];
+
+  const handleBackToStart = () => {
+    setStep(1);
+    setOtpCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
   const handleSendOtp = async () => {
     setLoading(true);
     try {
@@ -232,78 +252,206 @@ function ChangePasswordSection({ email }) {
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <h2 className="text-[#9e211f] text-3xl font-bold mb-8">{translate('profile.changePassword.title', 'Đổi mật khẩu')}</h2>
-      {step === 1 && (
-        <div>
-          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.emailLabel', 'Email')}</label>
-          <div className="flex items-center border rounded overflow-hidden mb-4">
-            <div className="px-3 text-gray-400"><FaEnvelope /></div>
-            <input type="email" value={email} readOnly className="w-full p-2 outline-none bg-gray-100" />
+    <div className="relative mx-auto w-full max-w-3xl">
+      <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-rose-50 via-white to-amber-50 blur-3xl opacity-70" />
+      <div className="rounded-3xl border border-white/60 bg-white/90 shadow-xl backdrop-blur-sm">
+        <div className="flex flex-col gap-10 p-8 md:p-12">
+          <div className="flex flex-col gap-4">
+            <h2 className="text-3xl font-bold text-primary md:text-4xl">
+              {translate('profile.changePassword.title', 'Đổi mật khẩu')}
+            </h2>
+            <p className="text-sm text-gray-600 md:text-base">
+              {translate(
+                'profile.changePassword.helperText',
+                'Bảo vệ tài khoản của bạn bằng cách đặt lại mật khẩu khi cần. Chúng tôi sẽ gửi mã OTP tới email đăng ký để xác thực.',
+              )}
+            </p>
           </div>
-          <button
-            onClick={handleSendOtp}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-transform transform hover:scale-105"
-          >
-            <FaPaperPlane /> {loading
-              ? translate('profile.common.sending', 'Đang gửi...')
-              : translate('profile.changePassword.sendOtp', 'Gửi OTP')}
-          </button>
+
+          <ol className="grid gap-4 rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-inner sm:grid-cols-2">
+            {stepItems.map((item) => {
+              const isActive = item.id === step;
+              const isCompleted = item.id < step;
+              return (
+                <li
+                  key={item.id}
+                  className={`flex flex-col gap-2 rounded-xl border p-4 transition-colors ${
+                    isActive
+                      ? 'border-primary/80 bg-primary/5 shadow'
+                      : isCompleted
+                        ? 'border-emerald-200 bg-emerald-50/60'
+                        : 'border-gray-100 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`grid h-10 w-10 place-items-center rounded-full text-sm font-semibold ${
+                        isCompleted
+                          ? 'bg-emerald-500 text-white'
+                          : isActive
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {isCompleted ? <FaLock className="h-4 w-4" /> : item.id}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-gray-500 md:text-sm">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          {step === 1 && (
+            <div className="grid gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">
+                  {translate('profile.changePassword.emailLabel', 'Email nhận OTP')}
+                </label>
+                <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-3">
+                  <div className="rounded-xl bg-white/80 p-2 text-primary">
+                    <FaEnvelope />
+                  </div>
+                  <div className="flex flex-1 flex-col">
+                    <span className="text-sm font-medium text-gray-900">{email}</span>
+                    <span className="text-xs text-gray-500">
+                      {translate('profile.changePassword.emailHint', 'OTP sẽ được gửi tới địa chỉ email này.')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={loading}
+                className={`group inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition-all ${
+                  loading ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-[#7a1a18]'
+                }`}
+              >
+                <FaPaperPlane className="text-lg" />
+                {loading
+                  ? translate('profile.common.sending', 'Đang gửi...')
+                  : translate('profile.changePassword.sendOtp', 'Gửi mã OTP')}
+              </button>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-800">
+                <p className="font-semibold">
+                  {translate('profile.changePassword.noticeTitle', 'Lưu ý bảo mật')}
+                </p>
+                <p>
+                  {translate('profile.changePassword.noticeContent', 'Mã OTP có hiệu lực trong thời gian ngắn. Không chia sẻ mã cho bất kỳ ai để bảo vệ tài khoản của bạn.')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="grid gap-6">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {translate('profile.changePassword.resetHeading', 'Xác thực OTP & tạo mật khẩu mới')}
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleBackToStart}
+                  className="text-sm font-semibold text-primary hover:text-[#7a1a18]"
+                >
+                  {translate('profile.changePassword.backToEmail', 'Gửi lại OTP')}
+                </button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-gray-700">
+                    {translate('profile.changePassword.otpLabel', 'Mã OTP')}
+                  </label>
+                  <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                    <FaKey className="text-gray-400" />
+                    <input
+                      type="text"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      className="flex-1 bg-transparent text-sm outline-none"
+                      placeholder={translate('profile.changePassword.otpPlaceholder', 'Nhập mã OTP trong email')}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-gray-700">
+                    {translate('profile.changePassword.newPasswordLabel', 'Mật khẩu mới')}
+                  </label>
+                  <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                    <FaLock className="text-gray-400" />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="flex-1 bg-transparent text-sm outline-none"
+                      placeholder={translate('profile.changePassword.newPasswordPlaceholder', 'Tối thiểu 6 ký tự, có chữ in hoa & ký tự đặc biệt')}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label className="text-sm font-semibold text-gray-700">
+                    {translate('profile.changePassword.confirmPasswordLabel', 'Xác nhận mật khẩu')}
+                  </label>
+                  <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                    <FaLock className="text-gray-400" />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="flex-1 bg-transparent text-sm outline-none"
+                      placeholder={translate('profile.changePassword.confirmPasswordPlaceholder', 'Nhập lại mật khẩu mới')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-700">
+                <p className="font-semibold">
+                  {translate('profile.changePassword.passwordGuideTitle', 'Gợi ý mật khẩu mạnh')}
+                </p>
+                <ul className="list-disc pl-5">
+                  <li>{translate('profile.changePassword.passwordGuideLength', 'Tối thiểu 6 ký tự')}</li>
+                  <li>{translate('profile.changePassword.passwordGuideUpper', 'Có ít nhất một chữ cái viết hoa')}</li>
+                  <li>{translate('profile.changePassword.passwordGuideSpecial', 'Chứa ký tự đặc biệt như !, @, #, ...')}</li>
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={loading}
+                className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition-all ${
+                  loading ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-emerald-700'
+                }`}
+              >
+                <FaLock className="text-lg" />
+                {loading
+                  ? translate('profile.common.processing', 'Đang xử lý...')
+                  : translate('profile.changePassword.submit', 'Đổi mật khẩu')}
+              </button>
+            </div>
+          )}
         </div>
-      )}
-      {step === 2 && (
-        <div>
-          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.otpLabel', 'OTP')}</label>
-          <div className="flex items-center border rounded overflow-hidden mb-4">
-            <div className="px-3 text-gray-400"><FaKey /></div>
-            <input
-              type="text"
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
-              className="w-full p-2 outline-none"
-              placeholder={translate('profile.changePassword.otpPlaceholder', 'Nhập mã OTP')}
-            />
-          </div>
-          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.newPasswordLabel', 'Mật khẩu mới')}</label>
-          <div className="flex items-center border rounded overflow-hidden mb-4">
-            <div className="px-3 text-gray-400"><FaLock /></div>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full p-2 outline-none"
-              placeholder={translate('profile.changePassword.newPasswordPlaceholder', 'Nhập mật khẩu mới')}
-            />
-          </div>
-          <label className="block mb-2 text-sm font-medium">{translate('profile.changePassword.confirmPasswordLabel', 'Xác nhận mật khẩu')}</label>
-          <div className="flex items-center border rounded overflow-hidden mb-4">
-            <div className="px-3 text-gray-400"><FaLock /></div>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full p-2 outline-none"
-              placeholder={translate('profile.changePassword.confirmPasswordPlaceholder', 'Nhập lại mật khẩu')}
-            />
-          </div>
-          <button
-            onClick={handleResetPassword}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-transform transform hover:scale-105"
-          >
-            <FaLock /> {loading
-              ? translate('profile.common.processing', 'Đang xử lý...')
-              : translate('profile.changePassword.submit', 'Đổi mật khẩu')}
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
 // Component ProfileSection
-function ProfileSection() {
+function ProfileSection({ initialFocus, profileNode }) {
   const { t } = useContext(LanguageContext);
   const translate = useCallback(
     (key, fallback, replacements) => {
@@ -603,6 +751,32 @@ function ProfileSection() {
   useEffect(() => {
     loadProvinces();
   }, [loadProvinces]);
+
+  useEffect(() => {
+    if (!initialFocus) {
+      return;
+    }
+    if (initialFocus === 'wishlist') {
+      setActiveSection('wishlist');
+      return;
+    }
+    if (initialFocus === 'changePassword') {
+      setActiveSection('changePassword');
+      return;
+    }
+    if (initialFocus === 'artisanRegistration') {
+      setActiveSection('artisanRegistration');
+      return;
+    }
+    if (initialFocus === 'addresses') {
+      setActiveSection('info');
+      setShowAddressForm(true);
+      setEditingAddressId(null);
+      setNewAddress(() => ({ ...addressFormDefaults }));
+      setDistricts([]);
+      setWards([]);
+    }
+  }, [initialFocus]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -996,7 +1170,14 @@ function ProfileSection() {
             </li>
             <li 
               className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]"
-              onClick={() => navigate('/order-history')}
+              onClick={() => navigate('/order-history', {
+                state: {
+                  fromProfile: profileNode || {
+                    label: translate('header.profile', 'Hồ sơ của tôi'),
+                    href: '/profile',
+                  },
+                },
+              })}
             >
               <FaHistory /> {translate('profile.sidebar.orderHistory', 'Lịch sử mua hàng')}
             </li>

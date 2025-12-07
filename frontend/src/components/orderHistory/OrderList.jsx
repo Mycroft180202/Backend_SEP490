@@ -12,6 +12,7 @@ function StatusBadge({ status }) {
     'Pending': { bg: '#FFF3CD', text: '#856404', label: 'Chờ thanh toán' },
     'Paid': { bg: '#D4EDDA', text: '#155724', label: 'Đã thanh toán' },
     'Cancelled': { bg: '#F8D7DA', text: '#721C24', label: 'Đã hủy' },
+    'Completed': { bg: '#D1FAE5', text: '#065F46', label: 'Đã nhận hàng' },
   };
 
   const config = statusConfig[status] || { bg: '#E2E3E5', text: '#383D41', label: status };
@@ -27,10 +28,11 @@ function StatusBadge({ status }) {
 }
 
 // Order card component
-function OrderCard({ order }) {
+function OrderCard({ order, onRefresh }) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [confirmingReceived, setConfirmingReceived] = useState(false);
 
   const createDate = new Date(order.createAt);
   const formattedDate = createDate.toLocaleDateString('vi-VN', {
@@ -66,6 +68,25 @@ function OrderCard({ order }) {
   const showPaymentButton = order.paymentType === 'VNPAY' && order.status === 'Pending';
   const withinReturnWindow = order.paymentType !== 'VNPAY' || daysSinceCreated <= 2;
   const canRequestReturn = order.status === 'Paid' && withinReturnWindow;
+  const canConfirmReceived = order.status === 'Paid';
+
+  const handleConfirmReceived = async () => {
+    try {
+      setConfirmingReceived(true);
+      await OrderService.confirmOrderReceived(order.orderNumber);
+      toast.success('Cảm ơn bạn! Đơn hàng đã được xác nhận đã nhận.');
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error confirming order received:', error);
+      toast.error('Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại.');
+    } finally {
+      setConfirmingReceived(false);
+    }
+  };
 
   return (
     <>
@@ -124,6 +145,17 @@ function OrderCard({ order }) {
               Tiếp tục thanh toán
             </button>
           )}
+          {canConfirmReceived && (
+            <button
+              onClick={handleConfirmReceived}
+              disabled={confirmingReceived}
+              className={`px-4 py-2 bg-emerald-600 text-white rounded-lg transition-colors font-nunito text-sm font-medium ${
+                confirmingReceived ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-700'
+              }`}
+            >
+              {confirmingReceived ? 'Đang xác nhận...' : 'Đã nhận được hàng'}
+            </button>
+          )}
           {order.status === 'Pending' && (
             <button
               onClick={() => setShowCancelDialog(true)}
@@ -155,8 +187,11 @@ function OrderCard({ order }) {
         onSuccess={() => {
           // Close dialog after successful cancellation
           setShowCancelDialog(false);
-          // Reload page to refresh order list
-          window.location.reload();
+          if (onRefresh) {
+            onRefresh();
+          } else {
+            window.location.reload();
+          }
         }}
       />
       <ReturnOrderDialog
@@ -169,11 +204,11 @@ function OrderCard({ order }) {
   );
 }
 
-export default function OrderList({ orders }) {
+export default function OrderList({ orders, onRefresh }) {
   return (
     <div className="flex flex-col gap-6 items-center pb-[120px] pt-6 px-[144px] w-full">
       {orders.map((order, idx) => (
-        <OrderCard key={idx} order={order} />
+        <OrderCard key={order.orderNumber ?? idx} order={order} onRefresh={onRefresh} />
       ))}
     </div>
   );

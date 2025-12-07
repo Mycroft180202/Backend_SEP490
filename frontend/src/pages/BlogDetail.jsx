@@ -1,10 +1,20 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import Breadcrumb from '../components/shared/Breadcrumb';
 import { BlogService } from '../services/modules/blog/blogService';
 import { LanguageContext } from '../context/LanguageContext';
+import { NavigationKeys } from '../context/NavigationContext';
+import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1600&q=80';
 
@@ -37,6 +47,45 @@ const BlogDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
+  const blogTitleFallback = useMemo(
+    () => t('blogDetail.titleFallback') || 'Chi tiết bài viết',
+    [t],
+  );
+  const fallbackBlogNode = useMemo(
+    () => ({ label: t('nav.blog'), href: '/blog' }),
+    [t],
+  );
+  const fromBlogList = useResolvedNavigationNode({
+    locationKey: 'fromBlogList',
+    contextKey: NavigationKeys.LAST_BLOG_LIST,
+    fallback: fallbackBlogNode,
+  });
+  const breadcrumbItems = useMemo(() => {
+    const items = [{ label: t('nav.home'), href: '/' }];
+    if (fromBlogList) {
+      items.push(fromBlogList);
+    }
+    items.push({ label: blog?.title || blogTitleFallback });
+    return items;
+  }, [blog?.title, blogTitleFallback, fromBlogList, t]);
+  const blogNavigationNode = useMemo(() => (
+    blog?.id
+      ? {
+        label: blog.title || blogTitleFallback,
+        href: `/blog/${blog.id}`,
+      }
+      : null
+  ), [blog?.id, blog?.title, blogTitleFallback]);
+
+  useNavigationNode(NavigationKeys.LAST_BLOG, blogNavigationNode);
+
+  const navigateToBlogList = useCallback(() => {
+    if (fromBlogList?.href) {
+      navigate(fromBlogList.href, { state: { fromBlogList } });
+      return;
+    }
+    navigate('/blog');
+  }, [fromBlogList, navigate]);
 
   useEffect(() => {
     if (!id) {
@@ -104,7 +153,8 @@ const BlogDetail = () => {
 
   const handleOpenBlog = (blogId) => {
     if (!blogId || blogId === id) return;
-    navigate(`/blog/${blogId}`);
+    const statePayload = fromBlogList ? { fromBlogList } : undefined;
+    navigate(`/blog/${blogId}`, { state: statePayload });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -133,7 +183,7 @@ const BlogDetail = () => {
           <p className="text-gray-500 mb-6">{error || t('blogDetail.missing')}</p>
           <button
             type="button"
-            onClick={() => navigate('/blog')}
+            onClick={navigateToBlogList}
             className="px-6 py-3 rounded-full bg-[#8B4513] text-white font-semibold hover:bg-[#A25C2B] transition"
           >
             {t('blogDetail.backToBlog')}
@@ -213,7 +263,7 @@ const BlogDetail = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate('/blog')}
+                  onClick={navigateToBlogList}
                   className="text-sm font-semibold text-[#8B4513] hover:underline"
                 >
                   {t('blogDetail.viewAll')}
@@ -259,6 +309,11 @@ const BlogDetail = () => {
   return (
     <div className="min-h-screen bg-[#fff9f0] flex flex-col">
       <Header />
+      <div className="bg-[#fff4e5]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Breadcrumb items={breadcrumbItems} floating />
+        </div>
+      </div>
       <main className="flex-grow">
         {renderContent()}
       </main>

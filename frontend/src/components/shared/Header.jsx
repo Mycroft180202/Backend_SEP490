@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -12,11 +13,13 @@ import { LanguageContext } from '../../context/LanguageContext';
 import { NotificationService } from '../../services/modules/notification/notificationService';
 import { NotificationHub } from '../../services/modules/notification/notificationHub';
 import { CartService } from '../../services/modules/cart/cartService';
+import { NavigationKeys, useNavigationContext } from '../../context/NavigationContext';
 
 const Header = () => {
   const { userInfo } = useContext(UserContext);
   const { language, changeLanguage, t } = useContext(LanguageContext);
   const navigate = useNavigate();
+  const { setContextValue } = useNavigationContext();
   const [isDropdownVisible, setDropdownVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNotificationVisible, setNotificationVisible] = useState(false);
@@ -221,14 +224,62 @@ const Header = () => {
 
   const location = useLocation();
 
-  const navItems = [
-    { path: '/', label: t('nav.home') },
-    { path: '/about', label: t('nav.about') },
-    { path: '/shop', label: t('nav.shop') },
-    { path: '/blog', label: t('nav.blog') },
-    { path: '/contact', label: t('nav.contact') },
-    { path: '/policy', label: t('nav.policy') },
-  ];
+  const resolveLabel = useCallback((key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  }, [t]);
+
+  const navItems = useMemo(() => ([
+    { path: '/', label: resolveLabel('nav.home', 'Trang chủ') },
+    { path: '/about', label: resolveLabel('nav.about', 'Giới thiệu') },
+    { path: '/shop', label: resolveLabel('nav.shop', 'Cửa hàng') },
+    { path: '/blog', label: resolveLabel('nav.blog', 'Blog') },
+    { path: '/contact', label: resolveLabel('nav.contact', 'Liên hệ') },
+    { path: '/policy', label: resolveLabel('nav.policy', 'Chính sách') },
+  ]), [resolveLabel]);
+
+  const profileEntryNode = useMemo(() => {
+    if (location.pathname === '/profile') {
+      return null;
+    }
+    if (location.pathname.startsWith('/checkout')) {
+      return {
+        label: resolveLabel('checkout.title', 'Thanh toán'),
+        href: '/checkout',
+      };
+    }
+    if (location.pathname.startsWith('/cart')) {
+      return {
+        label: resolveLabel('cart.title', 'Giỏ hàng'),
+        href: '/cart',
+      };
+    }
+    if (location.pathname.startsWith('/order-history')) {
+      return {
+        label: resolveLabel('header.orders', 'Lịch sử đơn hàng'),
+        href: '/order-history',
+      };
+    }
+    const matchedNav = navItems.find((item) => (
+      item.path === '/'
+        ? location.pathname === '/'
+        : location.pathname.startsWith(item.path)
+    ));
+    if (matchedNav) {
+      return matchedNav;
+    }
+    return {
+      label: resolveLabel('nav.home', 'Trang chủ'),
+      href: '/',
+    };
+  }, [location.pathname, navItems, resolveLabel]);
+
+  useEffect(() => {
+    if (!profileEntryNode) {
+      return;
+    }
+    setContextValue(NavigationKeys.LAST_PROFILE_ENTRY, profileEntryNode);
+  }, [profileEntryNode, setContextValue]);
 
   return (
     <header
@@ -328,6 +379,7 @@ const Header = () => {
                 >
                   <Link
                     to="/profile"
+                    state={profileEntryNode ? { fromProfileOrigin: profileEntryNode } : undefined}
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     {t('header.profile')}

@@ -9,8 +9,36 @@ import { OrderService } from '../services/modules/orders/orderService';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '../utils/formatCurrency';
 import Breadcrumb from '../components/shared/Breadcrumb';
+import { NavigationKeys } from '../context/NavigationContext';
+import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const OrderHistory = () => {
+  const orderHistoryNode = useMemo(() => ({
+    label: 'Lịch sử đơn hàng',
+    href: '/order-history',
+  }), []);
+
+  const profileNode = useResolvedNavigationNode({
+    locationKey: 'fromProfile',
+    contextKey: NavigationKeys.LAST_PROFILE_NODE,
+  });
+
+  useNavigationNode(NavigationKeys.LAST_PROFILE_ENTRY, orderHistoryNode);
+
+  const breadcrumbs = useMemo(() => {
+    const items = [{ label: 'Trang chủ', href: '/' }];
+    if (profileNode?.label && profileNode?.href) {
+      items.push({
+        label: profileNode.label,
+        href: profileNode.href,
+        state: { fromProfileOrigin: orderHistoryNode },
+      });
+    }
+    items.push({ label: orderHistoryNode.label });
+    return items;
+  }, [orderHistoryNode, profileNode]);
+
   const [rawOrders, setRawOrders] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,6 +61,7 @@ const OrderHistory = () => {
       'all': null,
       'Pending': 'Pending',
       'Paid': 'Paid',
+      'Completed': 'Completed',
       'Cancelled': 'Cancelled',
     };
     
@@ -151,19 +180,19 @@ const OrderHistory = () => {
 
   const totalSpent = useMemo(() => (
     orders.reduce((sum, order) => {
-      if (order.status !== 'Paid') return sum;
+      if (order.status !== 'Paid' && order.status !== 'Completed') return sum;
       return sum + (Number(order.totalAmount) || 0);
     }, 0)
   ), [orders]);
 
+  const handleRefreshOrders = useCallback(() => {
+    fetchOrders(currentPage);
+  }, [fetchOrders, currentPage]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <Breadcrumb items={[
-        { label: 'Trang chủ', href: '/' },
-        { label: 'Lịch sử đơn hàng' },
-      ]}
-      />
+      <Breadcrumb items={breadcrumbs} />
       <SortBar onStatusChange={handleStatusChange} />
       <div className="max-w-[1440px] mx-auto px-4 md:px-10 mt-6 flex flex-col gap-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -296,7 +325,7 @@ const OrderHistory = () => {
         </div>
       ) : orders.length > 0 ? (
         <>
-          <OrderList orders={orders} />
+          <OrderList orders={orders} onRefresh={handleRefreshOrders} />
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-4 py-8 px-[144px]">
               <button

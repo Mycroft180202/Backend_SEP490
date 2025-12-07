@@ -4,6 +4,7 @@ const STATUS_LIST = [
 	{ label: "Tất cả", key: "all" },
 	{ label: "Chờ thanh toán", key: "Pending" },
 	{ label: "Đã thanh toán", key: "Paid" },
+	{ label: "Đã nhận hàng", key: "Completed" },
 	{ label: "Đã hủy", key: "Cancelled" },
 ];
 

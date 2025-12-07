@@ -1,9 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
+import Breadcrumb from '../components/shared/Breadcrumb';
 import StorytellingService from '../services/modules/products/storytellingService';
+import { NavigationKeys } from '../context/NavigationContext';
+import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1600&q=80';
 
@@ -40,6 +49,40 @@ const StorytellingDetail = () => {
   const [relatedStories, setRelatedStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const fallbackStoryTitle = useMemo(
+    () => story?.title || 'Chi tiết câu chuyện',
+    [story?.title],
+  );
+  const fromProduct = useResolvedNavigationNode({
+    locationKey: 'fromProduct',
+    contextKey: NavigationKeys.LAST_PRODUCT,
+  });
+  const storyBreadcrumbs = useMemo(() => {
+    const items = [{ label: 'Trang chủ', href: '/' }];
+    if (fromProduct?.label && fromProduct?.href) {
+      items.push(fromProduct);
+    }
+    items.push({ label: fallbackStoryTitle });
+    return items;
+  }, [fallbackStoryTitle, fromProduct]);
+  const storyNavigationNode = useMemo(() => (
+    story?.id
+      ? {
+        label: fallbackStoryTitle,
+        href: `/storytelling/${story.id}`,
+      }
+      : null
+  ), [fallbackStoryTitle, story?.id]);
+
+  useNavigationNode(NavigationKeys.LAST_STORY, storyNavigationNode);
+
+  const navigateToProduct = useCallback(() => {
+    if (fromProduct?.href) {
+      navigate(fromProduct.href, { state: { fromProduct } });
+      return;
+    }
+    navigate(-1);
+  }, [fromProduct, navigate]);
 
   useEffect(() => {
     if (!storyId) {
@@ -124,7 +167,7 @@ const StorytellingDetail = () => {
           <p className="text-gray-500 mb-6">{error || 'Câu chuyện không tồn tại.'}</p>
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={navigateToProduct}
             className="px-6 py-3 rounded-full bg-[#8B4513] text-white font-semibold hover:bg-[#A25C2B] transition"
           >
             Quay lại
@@ -206,7 +249,7 @@ const StorytellingDetail = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={navigateToProduct}
                   className="text-sm font-semibold text-[#8B4513] hover:underline"
                 >
                   Quay lại sản phẩm
@@ -237,6 +280,7 @@ const StorytellingDetail = () => {
                       </p>
                       <Link
                         to={`/storytelling/${item.id}`}
+                        state={fromProduct ? { fromProduct } : undefined}
                         className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#8B4513] hover:text-[#A25C2B]"
                         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                       >
@@ -257,6 +301,11 @@ const StorytellingDetail = () => {
   return (
     <div className="min-h-screen bg-[#fff9f0] flex flex-col">
       <Header />
+      <div className="bg-[#fff4e5]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Breadcrumb items={storyBreadcrumbs} floating />
+        </div>
+      </div>
       <main className="flex-grow">
         {renderContent()}
       </main>

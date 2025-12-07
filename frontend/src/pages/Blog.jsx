@@ -8,6 +8,8 @@ import Pagination from '../components/shared/Pagination';
 import { BlogService } from '../services/modules/blog/blogService';
 import { UserService } from '../services/modules/users/userService';
 import { LanguageContext } from '../context/LanguageContext';
+import { NavigationKeys } from '../context/NavigationContext';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const API_PAGE_SIZE = 9;
 const GRID_PAGE_SIZE = 6;
@@ -48,6 +50,15 @@ const Blog = () => {
   const [gridPage, setGridPage] = useState(1);
   const fallbackAuthor = t('blog.authorFallback');
   const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
+  const blogListNode = useMemo(() => ({
+    label: t('nav.blog'),
+    href: '/blog',
+    meta: {
+      gridPage,
+    },
+  }), [gridPage, t]);
+
+  useNavigationNode(NavigationKeys.LAST_BLOG_LIST, blogListNode);
 
   useEffect(() => {
     let isMounted = true;
@@ -180,7 +191,11 @@ const Blog = () => {
 
   const openBlog = (blogId) => {
     if (!blogId) return;
-    navigate(`/blog/${blogId}`);
+    navigate(`/blog/${blogId}`, {
+      state: {
+        fromBlogList: blogListNode,
+      },
+    });
   };
 
   useEffect(() => {

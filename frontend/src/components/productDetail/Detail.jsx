@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { UserContext } from '../../context/UserContext';
 import { ProductService } from '../../services/modules/products/productService';
 
-const Detail = ({ product, categoryName }) => {
+const Detail = ({ product, categoryName, shopInfo }) => {
   const [tab, setTab] = useState('description');
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -187,6 +187,18 @@ const Detail = ({ product, categoryName }) => {
 
   if (!product) return null;
 
+  const shopDisplayName = shopInfo?.name
+    || product.shopName
+    || product.displayName
+    || product.artisanName
+    || 'Cửa hàng';
+
+  const shopAvatar = shopInfo?.image
+    || product.userUrlImage
+    || '/images/default-avatar.png';
+
+  const targetArtisanId = shopInfo?.artisanId || product.artisanId;
+
   return (
     <div className="w-full bg-gradient-to-b from-[#FFFDEB] to-white py-10">
       <div className="max-w-7xl mx-auto px-4">
@@ -195,30 +207,38 @@ const Detail = ({ product, categoryName }) => {
           <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-[#D4A574] to-[#8B4513] p-1 shadow-lg">
             <div className="w-full h-full rounded-full overflow-hidden bg-white">
               <img
-                alt={product.displayName}
+                alt={shopDisplayName}
                 className="w-full h-full object-cover"
-                src={product.userUrlImage || '/images/default-avatar.png'}
+                src={shopAvatar}
               />
             </div>
           </div>
           <div className="flex-1">
             <p className="text-xs md:text-sm text-gray-500 mb-1">Cửa hàng</p>
             <p className="text-lg md:text-xl font-bold text-[#8B4513]" style={{ fontFamily: 'Nunito, sans-serif' }}>
-              {product.shopName || product.displayName}
+              {shopDisplayName}
             </p>
           </div>
           <button
             type="button"
             onClick={() => {
-              if (!product?.artisanId) return;
-              navigate(`/artisan-shop?artisanId=${product.artisanId}`, {
+              if (!targetArtisanId) return;
+              navigate(`/artisan-shop?artisanId=${targetArtisanId}`, {
                 state: {
-                  artisanId: product.artisanId,
-                  shopName: product.shopName || product.displayName,
-                  image: product.userUrlImage,
-                  author: product.displayName,
-                  phone: product.phoneNumber,
-                  address: product.address,
+                  artisanId: targetArtisanId,
+                  shopName: shopDisplayName,
+                  image: shopAvatar,
+                  author: shopInfo?.author || product.displayName,
+                  phone: shopInfo?.phone || product.phoneNumber,
+                  address: shopInfo?.address || product.address,
+                  ...(product?.id
+                    ? {
+                      fromProduct: {
+                        label: product.name || 'Chi tiết sản phẩm',
+                        href: `/product-detail/${product.id}`,
+                      },
+                    }
+                    : {}),
                 },
               });
             }}

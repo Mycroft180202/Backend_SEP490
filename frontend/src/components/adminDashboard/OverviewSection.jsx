@@ -22,13 +22,18 @@ import {
 const OverviewSection = ({
   overview,
   monthlyData,
-  weeklyData,
   selectedYear,
   selectedMonth,
   onChangePeriod,
-  formatCurrency,
+  availableYears,
 }) => {
-  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const yearOptions = useMemo(() => {
+    if (Array.isArray(availableYears) && availableYears.length) {
+      return availableYears;
+    }
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, index) => currentYear - index);
+  }, [availableYears]);
   const monthNames = useMemo(
     () => [
       'Tháng 1',
@@ -69,14 +74,6 @@ const OverviewSection = ({
   const growthColor =
     growthState === 'up' ? 'text-green-600' : growthState === 'down' ? 'text-red-600' : 'text-gray-500';
   const GrowthIcon = growthState === 'up' ? FaArrowUp : growthState === 'down' ? FaArrowDown : null;
-
-  const weeklyChartData = useMemo(() => {
-    return (Array.isArray(weeklyData) ? weeklyData : []).map((entry) => ({
-      label: `Tuần ${entry.weekNumber}`,
-      revenue: Number(entry.revenue) || 0,
-      orders: Number(entry.totalOrderNumber ?? entry.totalOrderAmount ?? 0) || 0,
-    }));
-  }, [weeklyData]);
 
   const formatVND = useCallback((value) => `${(Number(value) || 0).toLocaleString('vi-VN')} VND`, []);
 
@@ -169,30 +166,17 @@ const OverviewSection = ({
             <h2 className="text-lg font-bold text-gray-800">Doanh thu & đơn hàng theo tháng</h2>
             <span className="text-xs text-gray-500">Đơn vị: VND & đơn</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={selectedYear}
-              onChange={(event) => onChangePeriod?.({ year: Number(event.target.value), month: selectedMonth })}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {Array.from({ length: 5 }, (_, index) => currentYear - index).map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedMonth}
-              onChange={(event) => onChangePeriod?.({ year: selectedYear, month: Number(event.target.value) })}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {monthNames.map((name, index) => (
-                <option key={name} value={index + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={selectedYear}
+            onChange={(event) => onChangePeriod?.({ year: Number(event.target.value), month: selectedMonth })}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="mt-4 h-72">
           {chartData.length ? (
@@ -238,65 +222,6 @@ const OverviewSection = ({
             </ResponsiveContainer>
           ) : (
             renderEmptyChart('Không có dữ liệu doanh thu và đơn hàng')
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-white p-6 shadow-md">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800">Doanh thu theo tuần</h2>
-            <p className="text-xs text-gray-500">Tháng {selectedMonth} • Năm {selectedYear}</p>
-          </div>
-          <span className="text-xs text-gray-500">Đơn vị: VND & đơn</span>
-        </div>
-        <div className="mt-4 h-72">
-          {weeklyChartData.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weeklyChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} interval={0} />
-                <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={formatVND} width={80} />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  allowDecimals={false}
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => `${value} đơn`}
-                  width={60}
-                />
-                <Tooltip
-                  formatter={(value, name, { dataKey }) =>
-                    dataKey === 'orders' ? `${value} đơn` : formatVND(value)
-                  }
-                  labelFormatter={(label) => label}
-                  contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#f5f5f5' }}
-                />
-                <Legend wrapperStyle={{ paddingTop: 12 }} />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="revenue"
-                  name="Doanh thu"
-                  stroke="#f97316"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="orders"
-                  name="Đơn hàng"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            renderEmptyChart('Không có dữ liệu tuần cho kỳ đã chọn')
           )}
         </div>
       </div>

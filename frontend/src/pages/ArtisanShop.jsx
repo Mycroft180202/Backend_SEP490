@@ -14,6 +14,8 @@ import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
 import { UserContext } from '../context/UserContext';
 import { isOwnedByCurrentArtisan, resolveProductId } from '../utils/productOwnership';
+import { NavigationKeys } from '../context/NavigationContext';
+import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
 
 const extractAddress = (addresses, fallbackAddress) => {
   if (fallbackAddress) return fallbackAddress;
@@ -77,6 +79,10 @@ const ArtisanShop = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const activeProduct = useResolvedNavigationNode({
+    locationKey: 'fromProduct',
+    contextKey: NavigationKeys.LAST_PRODUCT,
+  });
   const externalArtisanId = searchParams.get('artisanId');
   const externalState = useMemo(() => location.state || {}, [location.state]);
 
@@ -101,6 +107,17 @@ const ArtisanShop = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
   const currentUserId = userInfo?.userID || userInfo?.userId;
+  const breadcrumbItems = useMemo(() => {
+    const items = [
+      { label: 'Trang chủ', href: '/' },
+      { label: 'Cửa hàng', href: '/shop' },
+    ];
+    if (activeProduct?.label && activeProduct?.href) {
+      items.push({ label: activeProduct.label, href: activeProduct.href });
+    }
+    items.push({ label: shopInfo?.title || 'Gian hàng' });
+    return items;
+  }, [activeProduct?.href, activeProduct?.label, shopInfo?.title]);
 
   const ensureAuthenticated = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -357,11 +374,7 @@ const ArtisanShop = () => {
         address={shopInfo?.address}
         image={shopInfo?.image}
         phone={shopInfo?.phone}
-        breadcrumbItems={[
-          { label: 'Trang chủ', href: '/' },
-          { label: 'Cửa hàng', href: '/shop' },
-          { label: shopInfo?.title || 'Gian hàng' },
-        ]}
+        breadcrumbItems={breadcrumbItems}
         showAddress={false}
         showPhone={false}
         showRating={false}

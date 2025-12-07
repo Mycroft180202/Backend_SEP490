@@ -13,19 +13,19 @@ const MissionSection = () => {
   );
 
   return (
-    <section className="px-[144px] pt-[60px] pb-[120px]">
-      <h2 className="font-alata text-[#9e211f] text-[40px] leading-[56px] mb-12 tracking-wide text-center drop-shadow-md">
+    <section className="px-4 sm:px-8 lg:px-20 py-14 lg:py-20 bg-white">
+      <h2 className="font-alata text-primary text-3xl sm:text-4xl lg:text-[44px] leading-tight mb-10 text-center">
         {t('about.mission.title')}
       </h2>
-      <div className="flex flex-wrap gap-8 justify-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {missionItems.map((item, index) => (
-          <div
+          <article
             key={item}
-            className="bg-gradient-to-br from-[#fbfbbb] to-[#fff] rounded-[16px] p-10 flex-1 min-w-[300px] max-w-[368px] flex flex-col items-center text-center shadow-lg transition-transform duration-200 hover:-translate-y-2 hover:shadow-2xl"
+            className="rounded-2xl border border-brand-600/30 bg-gradient-to-br from-white to-background p-6 sm:p-8 flex flex-col items-center text-center shadow-lg"
           >
-            <span className="font-alata text-[22px] text-[#9e211f] font-bold mb-3 tracking-wider">{index + 1}</span>
-            <span className="font-nunito text-[20px] leading-[32px] font-semibold text-[#222]">{item}</span>
-          </div>
+            <span className="font-alata text-xl text-primary font-semibold mb-2">{String(index + 1).padStart(2, '0')}</span>
+            <p className="font-nunito text-base sm:text-lg text-brand-900 leading-relaxed">{item}</p>
+          </article>
         ))}
       </div>
     </section>

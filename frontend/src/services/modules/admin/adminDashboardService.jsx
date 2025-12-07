@@ -163,18 +163,6 @@ class AdminDashboardService {
       throw error;
     }
   }
-
-  async getWeeklyRevenue(year, month) {
-    try {
-      const response = await axiosClient.get('/admin/weekly-revenue', {
-        params: { year, month },
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Get weekly revenue error:', error);
-      throw error;
-    }
-  }
 }
 
 export const AdminDashboardServiceInstance = new AdminDashboardService();

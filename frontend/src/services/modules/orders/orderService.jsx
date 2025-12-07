@@ -111,4 +111,19 @@ export const OrderService = {
       throw error;
     }
   },
+
+  async confirmOrderReceived(orderNumber) {
+    try {
+      if (!orderNumber) {
+        throw new Error('Missing order number');
+      }
+      const response = await axiosClient.post(
+        `/api/Order/orders/${orderNumber}/confirm-received`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error confirming order received:', error);
+      throw error;
+    }
+  },
 };

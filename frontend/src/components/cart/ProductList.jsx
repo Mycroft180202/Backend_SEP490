@@ -1,10 +1,17 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import PropTypes from 'prop-types';
 import {
   FaMinus,
   FaPlus,
   FaTrash,
   FaExclamationTriangle,
+  FaExternalLinkAlt,
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { LanguageContext } from '../../context/LanguageContext';
@@ -14,6 +21,15 @@ const formatCurrency = (value, suffix) => {
     return '';
   }
   return `${Number(value).toLocaleString('vi-VN')}${suffix}`;
+};
+
+const toPlainText = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 };
 
 const ProductList = ({
@@ -26,6 +42,7 @@ const ProductList = ({
   onQuantityChange = () => {},
   onRemove = () => {},
   onCheckout = () => {},
+  originNode = null,
 }) => {
   const { t } = useContext(LanguageContext);
   const [quantityDrafts, setQuantityDrafts] = useState({});
@@ -35,6 +52,7 @@ const ProductList = ({
     loading: false,
     productName: '',
   });
+  const [checkoutConfirm, setCheckoutConfirm] = useState({ open: false, loading: false });
   const priceSuffix = t('productCard.priceSuffix');
   const soldOutLabel = t('productCard.soldOut');
   const soldOutText = soldOutLabel && soldOutLabel.includes('productCard.soldOut')
@@ -64,6 +82,22 @@ const ProductList = ({
   const removingText = removingLabel && removingLabel.includes('cart.removing')
     ? 'Đang xử lý...'
     : removingLabel || 'Đang xử lý...';
+
+  const translate = useCallback((key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  }, [t]);
+
+  const resolvedOriginNode = useMemo(() => {
+    if (originNode && originNode.label && originNode.href) {
+      return originNode;
+    }
+    const fallbackLabel = translate('cart.title', 'Giỏ hàng');
+    return {
+      label: fallbackLabel,
+      href: '/cart',
+    };
+  }, [originNode, translate]);
 
   const openRemoveConfirm = (targetId, productName) => {
     setConfirmState({
@@ -189,6 +223,64 @@ const ProductList = ({
               const itemUnavailable = isUnavailable(item);
               const draftKey = item.cartItemId || item.id;
               const draftValue = quantityDrafts[draftKey] ?? String(item.quantity ?? 1);
+              const product = item.product || {};
+              const productId = item.productId || product.id || product.productId;
+              const productDetailHref = productId ? `/product-detail/${productId}` : null;
+              const productDetailState = productDetailHref
+                ? { fromProductList: resolvedOriginNode }
+                : undefined;
+              const summarySource = product.shortDescription
+                || product.description
+                || product.summary
+                || product.content
+                || '';
+              const summaryText = toPlainText(summarySource);
+              const trimmedSummary = summaryText.length > 200
+                ? `${summaryText.slice(0, 200).trim()}…`
+                : summaryText;
+              const artisanName = product.shop?.shopName
+                || product.shop?.name
+                || product.artisanName
+                || product.artisan?.name
+                || product.ownerName
+                || product.owner?.name
+                || product.brand
+                || '';
+              const categoryName = product.category?.name
+                || product.collection?.name
+                || product.categoryName
+                || '';
+              const sku = product.sku || product.skuCode || product.code || product.productCode || '';
+              const weight = product.weight || product.netWeight || '';
+              const metadata = [];
+              if (artisanName) {
+                metadata.push({
+                  key: 'artisan',
+                  label: translate('cart.product.artisan', 'Nghệ nhân / Cửa hàng'),
+                  value: artisanName,
+                });
+              }
+              if (categoryName) {
+                metadata.push({
+                  key: 'category',
+                  label: translate('cart.product.category', 'Danh mục'),
+                  value: categoryName,
+                });
+              }
+              if (sku) {
+                metadata.push({
+                  key: 'sku',
+                  label: translate('cart.product.sku', 'Mã sản phẩm'),
+                  value: sku,
+                });
+              }
+              if (weight) {
+                metadata.push({
+                  key: 'weight',
+                  label: translate('cart.product.weight', 'Trọng lượng'),
+                  value: `${weight}${typeof weight === 'number' ? 'g' : ''}`,
+                });
+              }
 
               return (
                 <article
@@ -201,22 +293,54 @@ const ProductList = ({
                 >
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="md:w-32">
-                      <img
-                        src={item.imageUrl || '/images/default-product.png'}
-                        alt={item.name}
-                        className={`w-full h-24 md:h-28 rounded-xl object-cover border ${itemUnavailable ? 'border-gray-200 grayscale' : 'border-gray-100'}`}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = '/images/default-product.png';
-                        }}
-                      />
+                      {productDetailHref ? (
+                        <Link
+                          to={productDetailHref}
+                          state={productDetailState}
+                          className="block rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B4513]/40"
+                        >
+                          <img
+                            src={item.imageUrl || '/images/default-product.png'}
+                            alt={item.name}
+                            className={`w-full h-24 md:h-28 object-cover border ${itemUnavailable ? 'border-gray-200 grayscale' : 'border-gray-100'}`}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/images/default-product.png';
+                            }}
+                          />
+                        </Link>
+                      ) : (
+                        <img
+                          src={item.imageUrl || '/images/default-product.png'}
+                          alt={item.name}
+                          className={`w-full h-24 md:h-28 rounded-xl object-cover border ${itemUnavailable ? 'border-gray-200 grayscale' : 'border-gray-100'}`}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/images/default-product.png';
+                          }}
+                        />
+                      )}
                     </div>
 
                     <div className="flex-1 flex flex-col justify-between gap-4">
                       <div>
-                        <h3 className={`text-lg font-semibold leading-snug ${itemUnavailable ? 'text-gray-500' : 'text-[#8B4513]'}`}>
-                          {item.name}
-                        </h3>
+                        {productDetailHref ? (
+                          <Link
+                            to={productDetailHref}
+                            state={productDetailState}
+                            className={`block text-lg font-semibold leading-snug transition-colors ${
+                              itemUnavailable
+                                ? 'text-gray-500'
+                                : 'text-[#8B4513] hover:text-[#B73E3E]'
+                            }`}
+                          >
+                            {item.name}
+                          </Link>
+                        ) : (
+                          <h3 className={`text-lg font-semibold leading-snug ${itemUnavailable ? 'text-gray-500' : 'text-[#8B4513]'}`}>
+                            {item.name}
+                          </h3>
+                        )}
                         <p className={`text-sm mt-1 flex items-center gap-2 ${itemUnavailable ? 'text-gray-400' : 'text-gray-500'}`}>
                           {formatCurrency(item.price, priceSuffix)}
                           {itemUnavailable && (
@@ -225,6 +349,23 @@ const ProductList = ({
                             </span>
                           )}
                         </p>
+                        {trimmedSummary && (
+                          <p className={`mt-2 text-sm leading-relaxed ${itemUnavailable ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {trimmedSummary}
+                          </p>
+                        )}
+                        {metadata.length > 0 && (
+                          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                            {metadata.map((meta) => (
+                              <li key={`${item.id}-${meta.key}`} className="flex items-center gap-1 text-gray-500">
+                                <span className="uppercase tracking-wide text-[11px] text-gray-400">{meta.label}:</span>
+                                <span className={`text-gray-600 ${itemUnavailable ? 'text-gray-400' : ''}`}>
+                                  {meta.value}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                         {itemUnavailable && (
                           <p className="text-xs text-red-500 mt-2">
                             {unavailableNoticeText}
@@ -320,6 +461,16 @@ const ProductList = ({
                               {formatCurrency(subtotalPerItem, priceSuffix)}
                             </p>
                           </div>
+                          {productDetailHref && (
+                            <Link
+                              to={productDetailHref}
+                              state={productDetailState}
+                              className="inline-flex items-center gap-2 text-sm font-medium text-[#8B4513] hover:text-[#B73E3E] transition"
+                            >
+                              <FaExternalLinkAlt size={12} />
+                              <span>{translate('cart.viewDetail', 'Xem chi tiết')}</span>
+                            </Link>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -367,7 +518,7 @@ const ProductList = ({
             </div>
             <button
               type="button"
-              onClick={onCheckout}
+              onClick={() => setCheckoutConfirm({ open: true, loading: false })}
               className="mt-6 w-full bg-[#8B4513] text-white rounded-lg py-3 font-semibold hover:bg-[#D4A574] transition"
             >
               {t('cart.checkout')}
@@ -407,6 +558,105 @@ const ProductList = ({
           </div>
         </div>
       )}
+
+      {checkoutConfirm.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-5">
+            <div className="flex items-center gap-3 text-[#8B4513]">
+              <FaExclamationTriangle className="text-2xl" />
+              <h3 className="text-lg font-semibold">
+                {translate('cart.checkoutConfirmTitle', 'Xác nhận đặt hàng')}
+              </h3>
+            </div>
+            <p className="text-gray-600 leading-relaxed">
+              {translate(
+                'cart.checkoutConfirmMessage',
+                'Bạn có chắc chắn muốn tiến hành đặt hàng với các sản phẩm hiện có trong giỏ không?'
+              )}
+            </p>
+            <div className="bg-[#FFF8EE] border border-[#F3D5B5] rounded-xl p-4 space-y-3 text-sm text-gray-600">
+              <div>
+                <span className="block text-xs font-semibold uppercase tracking-wide text-[#8B4513]/70 mb-1">
+                  {translate('cart.checkoutConfirmProducts', 'Sản phẩm trong đơn hàng')}
+                </span>
+                <ul className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                  {items.map((item) => (
+                    <li
+                      key={`checkout-summary-${item.id}`}
+                      className="flex items-center gap-3 text-gray-600 bg-white/70 rounded-lg px-2 py-1.5 border border-[#F3D5B5]/60"
+                    >
+                      <img
+                        src={item.imageUrl || item.image || '/images/default-product.png'}
+                        alt={item.name}
+                        className="w-12 h-12 rounded-lg object-cover border border-[#F3D5B5]"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = '/images/default-product.png';
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#8B4513]">
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {translate('cart.checkoutConfirmQuantity', 'Số lượng')}
+                          {`: ${item.quantity || 1}`}
+                        </p>
+                      </div>
+                      <span className="text-[#8B4513] font-semibold flex-shrink-0 text-sm">
+                        {formatCurrency((item.price || 0) * (item.quantity || 0), priceSuffix)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex justify-between">
+                <span>{t('cart.subtotal')}</span>
+                <strong className="text-[#8B4513]">{formatCurrency(subtotal, priceSuffix)}</strong>
+              </div>
+              <div className="flex justify-between text-base font-semibold text-[#8B4513]">
+                <span>{t('cart.total')}</span>
+                <span>{formatCurrency(total, priceSuffix)}</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              {translate(
+                'cart.checkoutConfirmNotice',
+                'Bạn sẽ được chuyển đến trang thanh toán để xác nhận thông tin giao hàng và phương thức thanh toán.'
+              )}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setCheckoutConfirm({ open: false, loading: false })}
+                disabled={checkoutConfirm.loading}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition disabled:opacity-60"
+              >
+                {removeConfirmCancelText}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (checkoutConfirm.loading) return;
+                  setCheckoutConfirm({ open: true, loading: true });
+                  try {
+                    await onCheckout();
+                    setCheckoutConfirm({ open: false, loading: false });
+                  } catch (error) {
+                    console.error('Checkout error:', error);
+                    setCheckoutConfirm({ open: false, loading: false });
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-[#8B4513] text-white font-semibold hover:bg-[#D4A574] transition disabled:opacity-70"
+              >
+                {checkoutConfirm.loading
+                  ? translate('cart.checkoutConfirmProcessing', 'Đang chuyển hướng...')
+                  : translate('cart.checkoutConfirmAccept', 'Tiếp tục thanh toán')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
@@ -421,6 +671,7 @@ ProductList.propTypes = {
       image: PropTypes.string,
       price: PropTypes.number,
       quantity: PropTypes.number,
+      product: PropTypes.shape({}),
     }),
   ),
   loading: PropTypes.bool,
@@ -440,6 +691,11 @@ ProductList.propTypes = {
   onQuantityChange: PropTypes.func,
   onRemove: PropTypes.func,
   onCheckout: PropTypes.func,
+  originNode: PropTypes.shape({
+    label: PropTypes.string,
+    href: PropTypes.string,
+    state: PropTypes.shape({}),
+  }),
 };
 
 export default ProductList;

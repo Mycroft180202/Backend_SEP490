@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
@@ -13,11 +13,30 @@ import { CartService } from '../services/modules/cart/cartService';
 import { UserContext } from '../context/UserContext';
 import { WishlistService } from '../services/modules/wishlist/wishlistService';
 import { isOwnedByCurrentArtisan, resolveProductId } from '../utils/productOwnership';
+import { NavigationKeys } from '../context/NavigationContext';
+import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const Shop = () => {
   const navigate = useNavigate();
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
+  const activeProduct = useResolvedNavigationNode({
+    locationKey: 'fromProduct',
+    contextKey: NavigationKeys.LAST_PRODUCT,
+  });
+  const productListNode = useResolvedNavigationNode({
+    locationKey: 'fromProductList',
+    contextKey: NavigationKeys.LAST_PRODUCT_LIST,
+  });
+  const breadcrumbItems = useMemo(() => {
+    const items = [{ label: t('nav.home'), href: '/' }];
+    if (activeProduct?.label && activeProduct?.href) {
+      items.push({ label: activeProduct.label, href: activeProduct.href });
+    }
+    items.push({ label: t('nav.shop') });
+    return items;
+  }, [activeProduct?.href, activeProduct?.label, t]);
   const resolveMessage = (key, fallback) => {
     const value = t(key);
     if (value && value !== key) {
@@ -37,6 +56,36 @@ const Shop = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('');
   const [wishlistMap, setWishlistMap] = useState(new Map());
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
+
+  useEffect(() => {
+    if (filtersInitialized) {
+      return;
+    }
+    const meta = productListNode?.meta;
+    if (meta) {
+      if (meta.category !== undefined) setSelectedCategory(meta.category);
+      if (meta.searchValue !== undefined) setSearchValue(meta.searchValue);
+      if (meta.searchQuery !== undefined) setSearchQuery(meta.searchQuery);
+      if (meta.sortOption !== undefined) setSortOption(meta.sortOption);
+      if (meta.pageIndex !== undefined) setPageIndex(meta.pageIndex);
+    }
+    setFiltersInitialized(true);
+  }, [filtersInitialized, productListNode]);
+
+  const shopListNode = useMemo(() => ({
+    label: t('nav.shop'),
+    href: '/shop',
+    meta: {
+      category: selectedCategory,
+      searchValue,
+      searchQuery,
+      sortOption,
+      pageIndex,
+    },
+  }), [pageIndex, searchQuery, searchValue, selectedCategory, sortOption, t]);
+
+  useNavigationNode(NavigationKeys.LAST_PRODUCT_LIST, shopListNode);
   const ensureAuthenticated = (messageKey, fallbackMessage) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (token) return true;
@@ -156,6 +205,9 @@ const Shop = () => {
   };
 
   useEffect(() => {
+    if (!filtersInitialized) {
+      return () => {};
+    }
     let isMounted = true;
 
     const fetchProducts = async () => {
@@ -212,7 +264,7 @@ const Shop = () => {
     return () => {
       isMounted = false;
     };
-  }, [pageIndex, pageSize, selectedCategory, searchQuery, sortOption, t]);
+  }, [filtersInitialized, pageIndex, pageSize, selectedCategory, searchQuery, sortOption, t]);
 
   useEffect(() => {
     if (userInfo) {
@@ -227,10 +279,7 @@ const Shop = () => {
       <Header />
       <ShopBanner
         onSelect={(label) => setSelectedCategory(label)}
-        breadcrumbItems={[
-          { label: t('nav.home'), href: '/' },
-          { label: t('nav.shop') },
-        ]}
+        breadcrumbItems={breadcrumbItems}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -273,7 +322,11 @@ const Shop = () => {
                     onToggleWishlist={() => toggleWishlist(product.id)}
                     onAddToCart={() => handleAddToCart(product, product.price ?? 0)}
                     onBuyNow={() => handleBuyNow(product, product.price ?? 0)}
-                    onClick={() => navigate(`/product-detail/${product.id}`)}
+                    onClick={() => navigate(`/product-detail/${product.id}`, {
+                      state: {
+                        fromProductList: shopListNode,
+                      },
+                    })}
                   />
                 ))
               )}

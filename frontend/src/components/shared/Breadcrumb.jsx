@@ -26,7 +26,7 @@ const Breadcrumb = ({
           ? (isFloating ? 'text-white font-semibold' : 'text-gray-900 font-semibold')
           : undefined;
         const content = item.href && !isLast ? (
-          <Link to={item.href} className={linkClass}>
+          <Link to={item.href} state={item.state} className={linkClass}>
             {item.label}
           </Link>
         ) : (
@@ -66,6 +66,7 @@ Breadcrumb.propTypes = {
   items: PropTypes.arrayOf(PropTypes.shape({
     label: PropTypes.string.isRequired,
     href: PropTypes.string,
+    state: PropTypes.shape({}),
   })),
   floating: PropTypes.bool,
   className: PropTypes.string,

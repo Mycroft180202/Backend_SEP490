@@ -21,6 +21,8 @@ import { OrderService } from '../services/modules/orders/orderService';
 import { GHNLocationService } from '../services/modules/shipping/ghnLocationService';
 import { VoucherService } from '../services/modules/voucher/voucherService';
 import { LanguageContext } from '../context/LanguageContext';
+import { NavigationKeys } from '../context/NavigationContext';
+import useNavigationNode from '../hooks/useNavigationNode';
 
 const isUnavailable = (item) => {
   if (!item) return false;
@@ -71,6 +73,16 @@ const CheckOut = () => {
   );
 
   const priceSuffix = t('productCard.priceSuffix') || '₫';
+
+  const checkoutNavigationNode = useMemo(() => {
+    const label = t('checkout.title');
+    return {
+      label: label && label !== 'checkout.title' ? label : 'Thanh toán',
+      href: '/checkout',
+    };
+  }, [t]);
+
+  useNavigationNode(NavigationKeys.LAST_PROFILE_ENTRY, checkoutNavigationNode);
 
   const calculateShipping = useCallback(async (address, weight) => {
     if (!address || !address.ghnDistrictId || !address.ghnWardCode) {
@@ -660,7 +672,13 @@ const CheckOut = () => {
                   onAddressSelect={(address) => {
                     setSelectedAddress(address);
                   }}
-                  onManageClick={() => navigate('/profile', { state: { from: '/checkout' } })}
+                  onManageClick={() => navigate('/profile', {
+                    state: {
+                      from: '/checkout',
+                      fromProfileOrigin: checkoutNavigationNode,
+                      profileFocus: 'addresses',
+                    },
+                  })}
                   allowManage
                 />
                 <PaymentMethod

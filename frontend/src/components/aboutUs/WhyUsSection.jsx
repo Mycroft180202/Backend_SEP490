@@ -14,34 +14,31 @@ const WhyUsSection = () => {
   );
 
   return (
-    <section className="bg-[#dbefe2] px-[48px] py-[60px] flex flex-row items-center justify-center gap-10">
-      {/* Left column: Title */}
-      <div className="flex flex-col justify-center items-center flex-1">
-        <div className="font-alata text-[#9e211f] text-[40px] leading-[56px] tracking-wide text-right drop-shadow-md">
-          <p className="mb-0">{t('about.whyUs.titleLine1')}</p>
-          <p className="font-bold">{t('about.whyUs.titleLine2')}</p>
+    <section className="bg-primary-soft/25 px-4 sm:px-8 lg:px-16 py-14 lg:py-20">
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
+        <div className="flex-1 text-center lg:text-left space-y-3">
+          <p className="font-alata text-primary text-2xl sm:text-3xl">{t('about.whyUs.titleLine1')}</p>
+          <p className="font-alata text-3xl sm:text-4xl text-brand-900 font-semibold">{t('about.whyUs.titleLine2')}</p>
+          <div className="hidden lg:block w-16 h-1 bg-accent mt-4" />
+        </div>
+        <div className="flex-1 max-w-md w-full">
+          <img
+            src="/images/WhyUsSection.jpg"
+            alt={t('about.whyUs.titleLine2')}
+            className="w-full h-[320px] sm:h-[420px] object-cover rounded-[24px] shadow-2xl border border-white/60"
+          />
         </div>
       </div>
 
-      {/* Middle column: Reasons list */}
-      <div className="flex flex-col justify-center items-center flex-[2] gap-6">
+      <div className="max-w-6xl mx-auto mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
         {reasons.map((reason) => (
-          <span
+          <article
             key={reason}
-            className="font-nunito text-[20px] leading-[34px] font-semibold text-[#222] bg-white/40 rounded-[8px] px-6 py-4 w-full max-w-[700px] transition-colors duration-200 hover:text-[#9e211f] hover:bg-[#fff7] cursor-pointer text-center"
+            className="rounded-2xl bg-white/80 border border-brand-600/20 px-6 py-5 text-brand-900 text-base sm:text-lg leading-relaxed shadow-md hover:border-accent transition-colors"
           >
             {reason}
-          </span>
+          </article>
         ))}
-      </div>
-
-      {/* Right column: Illustration */}
-      <div className="flex flex-col justify-center items-center flex-1">
-        <img
-          src="/images/WhyUsSection.jpg"
-          alt={t('about.whyUs.titleLine2')}
-          className="w-[520px] h-[720px] object-cover rounded-[16px] shadow-xl bg-white"
-        />
       </div>
     </section>
   );

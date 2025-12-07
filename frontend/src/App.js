@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { UserProvider } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { NavigationProvider } from './context/NavigationContext';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
 import Register from './pages/Register';
@@ -33,9 +34,10 @@ function App() {
   return (
     <UserProvider>
       <LanguageProvider>
-        <Router>
-          <>
-            <Routes>
+        <NavigationProvider>
+          <Router>
+            <>
+              <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/about" element={<AboutUs />} />
               <Route path="/login" element={<Login />} />
@@ -60,10 +62,11 @@ function App() {
               <Route path="/collections/:id" element={<CollectionDetail />} />
               <Route path="/artisan-dashboard" element={<ArtisanDashboard />} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
-            <ToastContainer position="top-right" autoClose={3000} />
-          </>
-        </Router>
+              </Routes>
+              <ToastContainer position="top-right" autoClose={3000} />
+            </>
+          </Router>
+        </NavigationProvider>
       </LanguageProvider>
     </UserProvider>
   );

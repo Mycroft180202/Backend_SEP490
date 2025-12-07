@@ -24,7 +24,7 @@ import { WishlistService } from '../../services/modules/wishlist/wishlistService
 import { ReportService } from '../../services/modules/report/reportService';
 import { isOwnedByCurrentArtisan } from '../../utils/productOwnership';
 
-const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
+const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [thumbnailStart, setThumbnailStart] = useState(0);
@@ -160,6 +160,14 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
   }, [images.length, selectedImage, thumbnailStart, thumbnailsPerPage]);
 
   if (!product) return null;
+
+  const storeDisplayName = shopInfo?.name
+    || product?.shopName
+    || product?.artisanName
+    || product?.displayName
+    || 'Hoa Lac Handicraft';
+
+  const totalSold = Number(product?.quantitySale ?? product?.sold ?? 0);
 
   const resolveMessage = (key, fallback) => {
     const value = t(key);
@@ -367,7 +375,7 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
               <div>
                 <div className="inline-flex items-center gap-2 bg-[#FFF1E5] text-[#8B4513] px-3 py-1 rounded-full text-xs font-semibold border border-[#D4A574]/40">
                   <FaStore />
-                  {product?.artisanName || 'Hoa Lac Handicraft'}
+                  {storeDisplayName}
                 </div>
                 <div className="flex items-start gap-3">
                   <h1 className="mt-3 text-2xl md:text-3xl font-bold text-[#8B4513] leading-snug flex-1">
@@ -383,7 +391,7 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage }) => {
                   </span>
                   <span className="text-sm text-gray-400">|</span>
                   <span className="text-sm text-gray-500">
-                    {t('productCard.sold', { count: product.sold || 0 })}
+                    {t('productCard.sold', { count: totalSold })}
                   </span>
                 </div>
               </div>
