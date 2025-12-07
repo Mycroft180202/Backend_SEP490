@@ -1741,7 +1741,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
           .ToList();
 
         var ordersNeedActionToday = orders
-         .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && o.Status.Equals("WaitingForPickup"))
+         .Where(o => o.Status.Equals("WaitingForPickup"))
          .ToList();
 
         var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m));
