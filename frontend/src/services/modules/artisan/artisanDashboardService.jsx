@@ -21,35 +21,38 @@ class ArtisanDashboardService {
     return response.data;
   }
 
-  async getWeeklyRevenue(year, month) {
-    const now = new Date();
-    const response = await axiosClient.get('/artisan/weekly-revenue', {
-      params: {
-        year: year || now.getFullYear(),
-        month: month || (now.getMonth() + 1),
-      },
-    });
-    return response.data;
-  }
-
   async getOutOfStockProducts() {
     const response = await axiosClient.get('/artisan/product/out-stock');
     return response.data;
   }
 
-  async getTopProducts({ metric = 'revenue', period = 'month', year, month } = {}) {
+  async getTopProducts({ metric = 'revenue', year, month } = {}) {
     const basePath = metric === 'totalSold'
       ? '/artisan/product/top-product/total-sold'
       : '/artisan/product/top-product/revenue';
 
-    let endpoint = basePath;
-    if (period === 'year' && year) {
-      endpoint = `${basePath}/${year}`;
-    } else if (period === 'month' && year && month) {
-      endpoint = `${basePath}/${year}/${month}`;
+    const params = {};
+    if (year) {
+      params.year = year;
+    }
+    if (month) {
+      params.month = month;
     }
 
-    const response = await axiosClient.get(endpoint);
+    const response = await axiosClient.get(basePath, { params });
+    return response.data;
+  }
+
+  async getRevenuePercentage({ year, month } = {}) {
+    const params = {};
+    if (year) {
+      params.year = year;
+    }
+    if (month) {
+      params.month = month;
+    }
+
+    const response = await axiosClient.get('/artisan/revenue-percentage', { params });
     return response.data;
   }
 

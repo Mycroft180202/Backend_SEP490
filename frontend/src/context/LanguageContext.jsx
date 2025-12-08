@@ -472,6 +472,8 @@ const translations = {
         productCode: 'Mã hàng',
         artisan: 'Người bán',
       },
+      multiShopSuccess: 'Đã tạo {count} đơn hàng tương ứng với từng cửa hàng.',
+      vnpayMultiShopMessage: 'Thanh toán VNPay không khả dụng khi đơn hàng chứa sản phẩm từ nhiều cửa hàng. Vui lòng chọn phương thức thanh toán khác.',
       address: {
         title: 'Địa chỉ giao hàng',
         manage: 'Quản lý',
@@ -1088,6 +1090,8 @@ const translations = {
         productCode: 'SKU',
         artisan: 'Seller',
       },
+      multiShopSuccess: 'Created {count} orders, one for each shop.',
+      vnpayMultiShopMessage: 'VNPay checkout is unavailable when your order contains items from multiple shops. Please choose another payment method.',
       address: {
         title: 'Shipping address',
         manage: 'Manage',

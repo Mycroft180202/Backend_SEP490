@@ -503,6 +503,19 @@ const CheckOut = () => {
 
   const hasMultipleShops = groupedCartItems.length > 1;
 
+  const vnpayMultiShopMessage = useMemo(() => {
+    const translated = t('checkout.vnpayMultiShopMessage', {
+      count: groupedCartItems.length,
+    });
+    if (translated && translated !== 'checkout.vnpayMultiShopMessage') {
+      return translated;
+    }
+    if (groupedCartItems.length > 1) {
+      return 'VNPay checkout is unavailable when the order contains products from multiple shops. Please choose another payment method.';
+    }
+    return '';
+  }, [groupedCartItems.length, t]);
+
 
   const fetchCart = useCallback(async () => {
     if (!token) return;

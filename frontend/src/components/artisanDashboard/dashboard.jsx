@@ -19,6 +19,81 @@ import { UserContext } from '../../context/UserContext';
 import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
 import { UserService } from '../../services/modules/users/userService';
 
+const pickFirstNonEmpty = (values = []) => {
+  for (const value of values) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      const nested = pickFirstNonEmpty(value);
+      if (nested) {
+        return nested;
+      }
+      continue;
+    }
+    if (typeof value === 'object') {
+      const nested = pickFirstNonEmpty([
+        value.url,
+        value.href,
+        value.image,
+        value.imageUrl,
+        value.imageURL,
+        value.thumbnail,
+        value.thumb,
+        value.path,
+        value.src,
+        value.source,
+        value.medium,
+        value.small,
+        value.large,
+        value.original,
+        value.value,
+        value.preview,
+        value.link,
+        value.file,
+        value.assetUrl,
+        value.assetURL,
+        value.publicUrl,
+        value.publicURL,
+        value.images,
+        value.imageList,
+      ]);
+      if (nested) {
+        return nested;
+      }
+      continue;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+      continue;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return '';
+};
+
+const toAbsoluteUrl = (value) => {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) {
+    return '';
+  }
+  if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) {
+    return raw;
+  }
+  const base = (process.env.REACT_APP_CDN_BASE_URL || process.env.REACT_APP_STORAGE_BASE_URL || process.env.REACT_APP_API_BASE_URL || '').trim();
+  if (!base) {
+    return raw.startsWith('/') ? raw : `/${raw}`;
+  }
+  const normalizedBase = base.replace(/\/$/, '');
+  const normalizedPath = raw.startsWith('/') ? raw : `/${raw}`;
+  return `${normalizedBase}${normalizedPath}`;
+};
+
 const ArtisanDashboard = () => {
   const { userInfo } = useContext(UserContext);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -39,9 +114,14 @@ const ArtisanDashboard = () => {
   const [stockAlerts, setStockAlerts] = useState({ low: [], out: [], lowCount: 0, outCount: 0 });
   const [monthlyRevenue, setMonthlyRevenue] = useState([]);
   const [weeklyRevenue, setWeeklyRevenue] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
+  const [topProductsCombined, setTopProductsCombined] = useState([]);
+  const [topProductsRevenue, setTopProductsRevenue] = useState([]);
+  const [topProductsSold, setTopProductsSold] = useState([]);
+  const [distributionYear, setDistributionYear] = useState(defaultYear);
+  const [distributionMonth, setDistributionMonth] = useState(defaultMonth);
+  const [revenuePercentage, setRevenuePercentage] = useState([]);
+  const [revenuePercentageLoading, setRevenuePercentageLoading] = useState(false);
   const [topProductMode, setTopProductMode] = useState('revenue');
-  const [topProductPeriod, setTopProductPeriod] = useState('month');
   const [topProductLoading, setTopProductLoading] = useState(false);
   const [latestOrders, setLatestOrders] = useState([]);
 
@@ -124,12 +204,22 @@ const ArtisanDashboard = () => {
     }
   }, [defaultMonth]);
 
+  const handleDistributionYearChange = useCallback((value) => {
+    const numericYear = Number(value);
+    setDistributionYear(Number.isNaN(numericYear) ? defaultYear : numericYear);
+  }, [defaultYear]);
+
+  const handleDistributionMonthChange = useCallback((value) => {
+    const numericMonth = Number(value);
+    if (Number.isNaN(numericMonth) || numericMonth < 1 || numericMonth > 12) {
+      setDistributionMonth(defaultMonth);
+    } else {
+      setDistributionMonth(numericMonth);
+    }
+  }, [defaultMonth]);
+
   const handleTopProductModeChange = useCallback((mode) => {
     setTopProductMode(mode);
-  }, []);
-
-  const handleTopProductPeriodChange = useCallback((period) => {
-    setTopProductPeriod(period);
   }, []);
 
   const menuItems = [
@@ -157,10 +247,9 @@ const ArtisanDashboard = () => {
       const targetYear = selectedYear || currentYear;
       const targetMonth = selectedMonth || currentMonth;
 
-      const [todaySummaryRes, monthlyRes, weeklyRes, stockRes, latestOrdersRes] = await Promise.all([
+      const [todaySummaryRes, monthlyRes, stockRes, latestOrdersRes] = await Promise.all([
         ArtisanDashboardService.getTodaySummary(),
         ArtisanDashboardService.getMonthlyRevenue(targetYear),
-        ArtisanDashboardService.getWeeklyRevenue(targetYear, targetMonth),
         ArtisanDashboardService.getOutOfStockProducts(),
         ArtisanDashboardService.getLatestOrders(),
       ]);
@@ -204,23 +293,7 @@ const ArtisanDashboard = () => {
       const monthlyData = normalizeMonthly(monthlyRes);
       setMonthlyRevenue(monthlyData);
 
-      const weeklyList = Array.isArray(weeklyRes?.items)
-        ? weeklyRes.items
-        : Array.isArray(weeklyRes)
-          ? weeklyRes
-          : weeklyRes?.data || [];
-      const normalizedWeekly = weeklyList.map((item) => {
-        const totalOrders = Number(item?.totalOrderNumber ?? item?.totalOrders ?? item?.orderCount ?? 0);
-        return ({
-        weekNumber: Number(item?.weekNumber ?? item?.week ?? 0),
-        startDate: item?.startDate ?? item?.fromDate ?? item?.start ?? null,
-        endDate: item?.endDate ?? item?.toDate ?? item?.end ?? null,
-          revenue: Number(item?.revenue ?? item?.totalRevenue ?? item?.totalAmmount ?? 0),
-          totalOrderNumber: totalOrders,
-          totalOrderAmount: totalOrders,
-        });
-      });
-      setWeeklyRevenue(normalizedWeekly);
+      setWeeklyRevenue([]);
 
       const currentMonthEntry =
         monthlyData.find((item) => item.month === targetMonth) || { revenue: 0, totalOrderAmount: 0 };
@@ -311,7 +384,13 @@ const ArtisanDashboard = () => {
         if (Array.isArray(data)) consume(data);
         if (data?.data) consume(data.data);
 
-        if (!low.length && !out.length && data && typeof data === 'object') {
+        if (
+          !low.length &&
+          !out.length &&
+          data &&
+          typeof data === 'object' &&
+          (data.product || data.Product || data.items || data.data || data.id || data.name)
+        ) {
           pushEntry(data, 0);
         }
 
@@ -401,50 +480,160 @@ const ArtisanDashboard = () => {
     setTopProductLoading(true);
     try {
       const now = new Date();
-      const metric = topProductMode;
       const fallbackYear = now.getFullYear();
       const fallbackMonth = now.getMonth() + 1;
       const targetYear = selectedYear || fallbackYear;
-      const targetMonth = (selectedMonth && Number(selectedMonth) >= 1 && Number(selectedMonth) <= 12)
-        ? Number(selectedMonth)
+      const numericMonth = Number(selectedMonth);
+      const targetMonth = Number.isFinite(numericMonth) && numericMonth >= 1 && numericMonth <= 12
+        ? numericMonth
         : fallbackMonth;
 
-      const response = await ArtisanDashboardService.getTopProducts({
-        metric,
-        period: topProductPeriod,
+      const [revenueResponse, soldResponse] = await Promise.all([
+        ArtisanDashboardService.getTopProducts({ metric: 'revenue', year: targetYear, month: targetMonth }),
+        ArtisanDashboardService.getTopProducts({ metric: 'totalSold', year: targetYear, month: targetMonth }),
+      ]);
+
+      const normalizeTopProducts = (response) => {
+        const list = Array.isArray(response?.items)
+          ? response.items
+          : Array.isArray(response)
+            ? response
+            : response?.data || [];
+        return list.map((item, index) => {
+          const product = item?.product ?? item?.Product ?? {};
+          const resolvedImage = pickFirstNonEmpty([
+            item?.image,
+            item?.imageUrl,
+            item?.imageURL,
+            item?.thumbnail,
+            item?.thumb,
+            product?.image,
+            product?.imageUrl,
+            product?.imageURL,
+            product?.thumbnail,
+            product?.thumb,
+            product?.primaryImage,
+            item?.images,
+            item?.imageList,
+            item?.media,
+            item?.imageResponses,
+            item?.gallery,
+            product?.images,
+            product?.imageList,
+            product?.media,
+            product?.gallery,
+            product?.productImages,
+            product?.imageProductResponses,
+            product?.imageResponses,
+            product?.imageGallery,
+            product?.variants,
+            product?.options,
+          ]);
+          return {
+            id: product?.id ?? item?.productId ?? item?.id ?? `top-${index}`,
+            name: product?.name ?? item?.productName ?? item?.name ?? 'Sản phẩm',
+            revenue: Number(
+              item?.totalAmmount
+              ?? item?.totalAmount
+              ?? item?.revenue
+              ?? item?.totalRevenue
+              ?? 0,
+            ),
+            totalSold: Number(item?.totalSold ?? item?.quantity ?? item?.sold ?? item?.amount ?? 0),
+            image: toAbsoluteUrl(resolvedImage),
+            product: product,
+          };
+        });
+      };
+
+      const revenueList = normalizeTopProducts(revenueResponse)
+        .sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0));
+      const soldList = normalizeTopProducts(soldResponse)
+        .sort((a, b) => Number(b.totalSold || 0) - Number(a.totalSold || 0));
+
+      setTopProductsRevenue(revenueList);
+      setTopProductsSold(soldList);
+
+      const mergeMap = new Map();
+      const mergeIntoMap = (list) => {
+        list.forEach((item) => {
+          const existing = mergeMap.get(item.id);
+          if (existing) {
+            mergeMap.set(item.id, {
+              ...existing,
+              ...item,
+              revenue: item.revenue !== undefined ? item.revenue : existing.revenue,
+              totalSold: item.totalSold !== undefined ? item.totalSold : existing.totalSold,
+              image: item.image || existing.image,
+              name: item.name || existing.name,
+            });
+          } else {
+            mergeMap.set(item.id, { ...item });
+          }
+        });
+      };
+
+      mergeIntoMap(revenueList);
+      mergeIntoMap(soldList);
+
+      setTopProductsCombined(Array.from(mergeMap.values()));
+    } catch (error) {
+      console.error('Không thể tải top sản phẩm:', error);
+      setTopProductsRevenue([]);
+      setTopProductsSold([]);
+      setTopProductsCombined([]);
+    } finally {
+      setTopProductLoading(false);
+    }
+  }, [userInfo, selectedYear, selectedMonth]);
+
+  const loadRevenueDistribution = useCallback(async () => {
+    if (!userInfo?.userID && !userInfo?.userId) {
+      return;
+    }
+    setRevenuePercentageLoading(true);
+    try {
+      const now = new Date();
+      const fallbackYear = now.getFullYear();
+      const fallbackMonth = now.getMonth() + 1;
+      const targetYear = distributionYear || fallbackYear;
+      const numericMonth = Number(distributionMonth);
+      const targetMonth = Number.isFinite(numericMonth) && numericMonth >= 1 && numericMonth <= 12
+        ? numericMonth
+        : fallbackMonth;
+
+      const response = await ArtisanDashboardService.getRevenuePercentage({
         year: targetYear,
-        month: topProductPeriod === 'month' ? targetMonth : undefined,
+        month: targetMonth,
       });
 
-      const list = Array.isArray(response?.items)
+      const distributionSource = Array.isArray(response?.items)
         ? response.items
         : Array.isArray(response)
           ? response
           : response?.data || [];
-      const normalized = list.slice(0, 5).map((item, index) => {
-        const product = item?.product ?? item?.Product ?? {};
-        return {
-          id: product?.id ?? item?.productId ?? item?.id ?? `top-${index}`,
-          name: product?.name ?? item?.productName ?? item?.name ?? 'Sản phẩm',
-          totalSold: Number(item?.totalSold ?? item?.quantity ?? item?.sold ?? 0),
-          revenue: Number(
-            item?.totalAmmount
-            ?? item?.totalAmount
-            ?? item?.revenue
-            ?? item?.totalRevenue
-            ?? 0,
-          ),
-          image: product?.imageUrl ?? product?.imageURL ?? item?.imageUrl ?? item?.image ?? '',
-        };
-      });
-      setTopProducts(normalized);
+
+      const distributionList = distributionSource.map((item, index) => ({
+        categoryId: item?.categoryId ?? item?.category?.id ?? `category-${index}`,
+        categoryName: item?.categoryName ?? item?.category?.name ?? 'Danh mục',
+        revenue: Number(
+          item?.revenue
+          ?? item?.totalRevenue
+          ?? item?.totalAmount
+          ?? item?.amount
+          ?? 0,
+        ),
+        percentage: Number(item?.percentage ?? item?.percent ?? item?.value ?? 0),
+      }));
+
+      setRevenuePercentage(distributionList);
     } catch (error) {
-      console.error('Không thể tải top sản phẩm:', error);
-      setTopProducts([]);
+      console.error('Không thể tải tỷ trọng doanh thu:', error);
+      setRevenuePercentage([]);
     } finally {
-      setTopProductLoading(false);
+      setRevenuePercentageLoading(false);
     }
-  }, [userInfo, topProductMode, topProductPeriod, selectedYear, selectedMonth]);
+  }, [userInfo, distributionYear, distributionMonth]);
 
   useEffect(() => {
     loadDashboardData();
@@ -453,6 +642,10 @@ const ArtisanDashboard = () => {
   useEffect(() => {
     loadTopProducts();
   }, [loadTopProducts]);
+
+  useEffect(() => {
+    loadRevenueDistribution();
+  }, [loadRevenueDistribution]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -489,8 +682,10 @@ const ArtisanDashboard = () => {
                   className="w-10 h-10 rounded-full border-2 border-primary"
                 />
                 <div className="text-right">
-                  <p className="font-semibold text-sm">{userInfo?.displayName || userInfo?.username || 'Người bán'}</p>
-                  <p className="text-xs text-gray-500">Artisan</p>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {userInfo?.displayName || userInfo?.username || 'Artisan'}
+                  </p>
+                  <p className="text-xs text-gray-500">Bảng điều khiển nhà cung cấp</p>
                 </div>
               </div>
             </div>
@@ -513,12 +708,18 @@ const ArtisanDashboard = () => {
                 onYearChange={handleYearChange}
                 selectedMonth={selectedMonth}
                 onMonthChange={handleMonthChange}
-                topProducts={topProducts}
+                topProducts={topProductsCombined}
+                topProductsRevenue={topProductsRevenue}
+                topProductsSold={topProductsSold}
                 topProductMode={topProductMode}
-                topProductPeriod={topProductPeriod}
                 onTopProductModeChange={handleTopProductModeChange}
-                onTopProductPeriodChange={handleTopProductPeriodChange}
                 topProductLoading={topProductLoading}
+                revenuePercentage={revenuePercentage}
+                revenuePercentageLoading={revenuePercentageLoading}
+                distributionYear={distributionYear}
+                distributionMonth={distributionMonth}
+                onDistributionYearChange={handleDistributionYearChange}
+                onDistributionMonthChange={handleDistributionMonthChange}
                 latestOrders={latestOrders}
                 formatCurrency={formatCurrency}
                 onNavigateToProducts={() => setActiveTab('products')}
