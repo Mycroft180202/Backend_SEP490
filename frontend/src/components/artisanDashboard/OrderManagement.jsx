@@ -11,6 +11,7 @@ import {
   FaFileExport,
   FaSpinner,
   FaTimes,
+  FaTruck,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
@@ -21,15 +22,30 @@ import { AddressService } from '../../services/modules/orders/addressService';
 const PAGE_SIZE = 10;
 
 const STATUS_META = {
-  PENDING: { label: 'Đang xử lý', badge: 'bg-yellow-100 text-yellow-700' },
-  PROCESSING: { label: 'Đang xử lý', badge: 'bg-yellow-100 text-yellow-700' },
-  SHIPPING: { label: 'Đang giao', badge: 'bg-blue-100 text-blue-700' },
-  SHIPPED: { label: 'Đang giao', badge: 'bg-blue-100 text-blue-700' },
-  PAID: { label: 'Đã thanh toán', badge: 'bg-green-100 text-green-700' },
-  COMPLETED: { label: 'Hoàn thành', badge: 'bg-green-100 text-green-700' },
-  CANCELLED: { label: 'Đã hủy', badge: 'bg-red-100 text-red-700' },
-  REFUNDED: { label: 'Hoàn tiền', badge: 'bg-purple-100 text-purple-700' },
-  UNKNOWN: { label: 'Không rõ', badge: 'bg-gray-100 text-gray-600' },
+  WAITING_FOR_PICKUP: {
+    label: 'Chờ xác nhận',
+    badge: 'bg-yellow-100 text-yellow-700',
+  },
+  SHIPPING: {
+    label: 'Đang giao',
+    badge: 'bg-blue-100 text-blue-700',
+  },
+  PAID: {
+    label: 'Đã thanh toán',
+    badge: 'bg-indigo-100 text-indigo-700',
+  },
+  COMPLETED: {
+    label: 'Đã nhận hàng',
+    badge: 'bg-green-100 text-green-700',
+  },
+  CANCELLED: {
+    label: 'Đã hủy',
+    badge: 'bg-red-100 text-red-700',
+  },
+  UNKNOWN: {
+    label: 'Không rõ',
+    badge: 'bg-gray-100 text-gray-600',
+  },
 };
 
 const PAYMENT_META = {
@@ -42,10 +58,31 @@ const PAYMENT_META = {
 const normalizeStatusKey = (value) => {
   if (!value) return 'UNKNOWN';
   const upper = String(value).trim().toUpperCase();
-  if (upper === 'CANCELED') return 'CANCELLED';
-  if (upper === 'PROCESSING') return 'PENDING';
-  if (upper === 'DELIVERING' || upper === 'DELIVERED') return 'SHIPPING';
-  if (upper === 'DONE') return 'COMPLETED';
+  if (
+    upper === 'WAITINGFORPICKUP'
+    || upper === 'WAITING_FOR_PICKUP'
+    || upper === 'PENDING'
+    || upper === 'PROCESSING'
+  ) {
+    return 'WAITING_FOR_PICKUP';
+  }
+  if (
+    upper === 'SHIPPING'
+    || upper === 'SHIPPED'
+    || upper === 'DELIVERING'
+    || upper === 'DELIVERED'
+  ) {
+    return 'SHIPPING';
+  }
+  if (upper === 'PAID') {
+    return 'PAID';
+  }
+  if (upper === 'CANCELLED' || upper === 'CANCELED') {
+    return 'CANCELLED';
+  }
+  if (upper === 'COMPLETED' || upper === 'DONE') {
+    return 'COMPLETED';
+  }
   return STATUS_META[upper] ? upper : 'UNKNOWN';
 };
 
@@ -73,6 +110,8 @@ const formatDateTime = (value) => {
   });
 };
 
+const canMarkAsShipping = (statusKey) => statusKey === 'WAITING_FOR_PICKUP' || statusKey === 'PAID';
+
 const OrderManagement = () => {
   const [pageIndex, setPageIndex] = useState(1);
   const [orders, setOrders] = useState([]);
@@ -84,6 +123,7 @@ const OrderManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [updatingOrderNumber, setUpdatingOrderNumber] = useState(null);
   const handleCloseDetail = useCallback(() => setSelectedOrder(null), []);
   const addressCacheRef = useRef(new Map());
   const productCacheRef = useRef(new Map());
@@ -346,21 +386,23 @@ const OrderManagement = () => {
   const stats = useMemo(() => {
     const base = {
       total: totalCount,
-      processing: 0,
+      waitingForPickup: 0,
       shipping: 0,
+      paid: 0,
       completed: 0,
       cancelled: 0,
     };
 
     orders.forEach((order) => {
       switch (order.status) {
-        case 'PENDING':
-        case 'PROCESSING':
-          base.processing += 1;
+        case 'WAITING_FOR_PICKUP':
+          base.waitingForPickup += 1;
           break;
         case 'SHIPPING':
-        case 'SHIPPED':
           base.shipping += 1;
+          break;
+        case 'PAID':
+          base.paid += 1;
           break;
         case 'COMPLETED':
           base.completed += 1;
@@ -375,6 +417,27 @@ const OrderManagement = () => {
 
     return base;
   }, [orders, totalCount]);
+
+  const handleMarkAsShipping = useCallback(
+    async (orderNumber) => {
+      if (!orderNumber) return;
+      setUpdatingOrderNumber(orderNumber);
+      try {
+        await ArtisanDashboardService.markOrderAsShipping(orderNumber);
+        toast.success('Đơn hàng đã chuyển sang trạng thái Đang giao');
+        await fetchOrders(pageIndex);
+        setSelectedOrder((current) => (current?.orderNumber === orderNumber
+          ? { ...current, status: 'SHIPPING' }
+          : current));
+      } catch (error) {
+        console.error('Không thể cập nhật đơn hàng:', error);
+        toast.error(error?.response?.data?.message || 'Không thể cập nhật trạng thái đơn hàng');
+      } finally {
+        setUpdatingOrderNumber(null);
+      }
+    },
+    [fetchOrders, pageIndex],
+  );
 
   const handlePageChange = (pageNumber) => {
     if (pageNumber === pageIndex) {
@@ -408,21 +471,25 @@ const OrderManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
         <div className="rounded-lg border-l-4 border-blue-500 bg-white p-4 shadow">
           <p className="text-sm text-gray-600">Tổng đơn hàng</p>
           <p className="mt-1 text-2xl font-bold text-gray-800">{stats.total}</p>
         </div>
         <div className="rounded-lg border-l-4 border-yellow-500 bg-white p-4 shadow">
-          <p className="text-sm text-gray-600">Đang xử lý</p>
-          <p className="mt-1 text-2xl font-bold text-gray-800">{stats.processing}</p>
+          <p className="text-sm text-gray-600">Chờ xác nhận</p>
+          <p className="mt-1 text-2xl font-bold text-gray-800">{stats.waitingForPickup}</p>
         </div>
         <div className="rounded-lg border-l-4 border-blue-600 bg-white p-4 shadow">
           <p className="text-sm text-gray-600">Đang giao</p>
           <p className="mt-1 text-2xl font-bold text-gray-800">{stats.shipping}</p>
         </div>
+        <div className="rounded-lg border-l-4 border-indigo-500 bg-white p-4 shadow">
+          <p className="text-sm text-gray-600">Đã thanh toán</p>
+          <p className="mt-1 text-2xl font-bold text-gray-800">{stats.paid}</p>
+        </div>
         <div className="rounded-lg border-l-4 border-green-500 bg-white p-4 shadow">
-          <p className="text-sm text-gray-600">Hoàn thành</p>
+          <p className="text-sm text-gray-600">Đã nhận hàng</p>
           <p className="mt-1 text-2xl font-bold text-gray-800">{stats.completed}</p>
         </div>
         <div className="rounded-lg border-l-4 border-red-500 bg-white p-4 shadow">
@@ -468,7 +535,7 @@ const OrderManagement = () => {
             className="rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="PENDING">{STATUS_META.PENDING.label}</option>
+            <option value="WAITING_FOR_PICKUP">{STATUS_META.WAITING_FOR_PICKUP.label}</option>
             <option value="SHIPPING">{STATUS_META.SHIPPING.label}</option>
             <option value="PAID">{STATUS_META.PAID.label}</option>
             <option value="COMPLETED">{STATUS_META.COMPLETED.label}</option>
@@ -539,6 +606,21 @@ const OrderManagement = () => {
                         >
                           <FaEye />
                         </button>
+                        {canMarkAsShipping(order.status) ? (
+                          <button
+                            type="button"
+                            className="text-green-600 transition hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            title="Đánh dấu đang giao"
+                            onClick={() => handleMarkAsShipping(order.orderNumber)}
+                            disabled={updatingOrderNumber === order.orderNumber}
+                          >
+                            {updatingOrderNumber === order.orderNumber ? (
+                              <FaSpinner className="animate-spin" />
+                            ) : (
+                              <FaTruck />
+                            )}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -707,7 +789,22 @@ const OrderManagement = () => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end border-t bg-gray-50 px-6 py-3">
+            <div className="flex justify-between border-t bg-gray-50 px-6 py-3">
+              {canMarkAsShipping(selectedOrder.status) ? (
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                  onClick={() => handleMarkAsShipping(selectedOrder.orderNumber)}
+                  disabled={updatingOrderNumber === selectedOrder.orderNumber}
+                >
+                  {updatingOrderNumber === selectedOrder.orderNumber ? (
+                    <FaSpinner className="animate-spin" />
+                  ) : (
+                    <FaTruck />
+                  )}
+                  <span>Xác nhận đang giao</span>
+                </button>
+              ) : <div />}
               <button
                 type="button"
                 onClick={handleCloseDetail}

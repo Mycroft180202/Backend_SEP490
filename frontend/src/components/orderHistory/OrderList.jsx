@@ -157,10 +157,11 @@ const buildArtisanHref = (artisanId) => {
 // Status badge component
 function StatusBadge({ status }) {
   const statusConfig = {
-    'Pending': { bg: '#FFF3CD', text: '#856404', label: 'Chờ thanh toán' },
-    'Paid': { bg: '#D4EDDA', text: '#155724', label: 'Đã thanh toán' },
-    'Cancelled': { bg: '#F8D7DA', text: '#721C24', label: 'Đã hủy' },
-    'Completed': { bg: '#D1FAE5', text: '#065F46', label: 'Đã nhận hàng' },
+    WaitingForPickup: { bg: '#FFF3CD', text: '#856404', label: 'Chờ xác nhận' },
+    Shipping: { bg: '#DBEAFE', text: '#1E3A8A', label: 'Đang giao' },
+    Paid: { bg: '#D4EDDA', text: '#155724', label: 'Đã thanh toán' },
+    Completed: { bg: '#D1FAE5', text: '#065F46', label: 'Đã nhận hàng' },
+    Cancelled: { bg: '#F8D7DA', text: '#721C24', label: 'Đã hủy' },
   };
 
   const config = statusConfig[status] || { bg: '#E2E3E5', text: '#383D41', label: status };
@@ -405,10 +406,11 @@ function OrderCard({ order, onRefresh }) {
   const daysSinceCreated = (now - createDate) / millisecondsPerDay;
 
   // Check if order is VNPAY and Pending
-  const showPaymentButton = order.paymentType === 'VNPAY' && order.status === 'Pending';
+  const showPaymentButton = order.paymentType === 'VNPAY'
+    && order.status === 'WaitingForPickup';
   const withinReturnWindow = order.paymentType !== 'VNPAY' || daysSinceCreated <= 2;
-  const canRequestReturn = order.status === 'Paid' && withinReturnWindow;
-  const canConfirmReceived = order.status === 'Paid';
+  const canRequestReturn = order.status === 'Shipping' && withinReturnWindow;
+  const canConfirmReceived = ['Shipping', 'Paid'].includes(order.status);
 
   const handleConfirmReceived = async () => {
     try {
@@ -528,7 +530,7 @@ function OrderCard({ order, onRefresh }) {
               {confirmingReceived ? 'Đang xác nhận...' : 'Đã nhận được hàng'}
             </button>
           )}
-          {order.status === 'Pending' && (
+          {['WaitingForPickup', 'Paid'].includes(order.status) && (
             <button
               onClick={() => setShowCancelDialog(true)}
               className="px-4 py-2 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-nunito text-sm font-medium"

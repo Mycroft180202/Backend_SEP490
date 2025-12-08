@@ -87,4 +87,8 @@ export const API_ENDPOINTS = {
   CONTACT: {
     SUBMIT: '/api/Contact',
   },
+
+  PAYMENTS: {
+    VNPAY_BATCH: '/api/Payment/vnpay/batch',
+  },
 };

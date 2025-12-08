@@ -9,13 +9,21 @@ import { formatCurrency } from "../../utils/formatCurrency";
 import CancelOrderDialog from "./CancelOrderDialog";
 
 const statusConfigs = {
-  Pending: {
-    label: 'Chờ thanh toán',
+  WaitingForPickup: {
+    label: 'Chờ xác nhận',
     className: 'bg-yellow-100 text-yellow-800',
+  },
+  Shipping: {
+    label: 'Đang giao hàng',
+    className: 'bg-blue-100 text-blue-800',
   },
   Paid: {
     label: 'Đã thanh toán',
     className: 'bg-green-100 text-green-800',
+  },
+  Completed: {
+    label: 'Đã nhận hàng',
+    className: 'bg-emerald-100 text-emerald-800',
   },
   Cancelled: {
     label: 'Đã hủy',
@@ -105,18 +113,6 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
     sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)
   ), 0) || 0;
 
-  const shippingFee = (() => {
-    if (!orderDetail) return 0;
-    const candidateFees = [
-      orderDetail.shippingFee,
-      orderDetail.shipingFee,
-      orderDetail.deliveryFee,
-      orderDetail.shippingCost,
-    ];
-    const fee = candidateFees.find((value) => value !== undefined && value !== null);
-    return Number.isFinite(Number(fee)) ? Number(fee) : 0;
-  })();
-
   const discountAmount = (() => {
     if (!orderDetail) return 0;
     const candidateDiscounts = [orderDetail.discountAmount, orderDetail.discount, orderDetail.promotionAmount];
@@ -124,8 +120,43 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
     return Number.isFinite(Number(discount)) ? Number(discount) : 0;
   })();
 
-  const grandTotal = Number.isFinite(Number(orderDetail?.totalAmount))
-    ? Number(orderDetail.totalAmount)
+  const rawTotal = (() => {
+    if (!orderDetail) return null;
+    const candidates = [
+      orderDetail.totalAmount,
+      orderDetail.total,
+      orderDetail.grandTotal,
+      orderDetail.finalAmount,
+      orderDetail.amount,
+    ];
+    const total = candidates.find((value) => value !== undefined && value !== null);
+    return Number.isFinite(Number(total)) ? Number(total) : null;
+  })();
+
+  const fallbackShippingFee = (() => {
+    if (!Number.isFinite(rawTotal)) return 0;
+    const computed = rawTotal - subtotal + discountAmount;
+    return computed > 0 ? computed : 0;
+  })();
+
+  const shippingFee = (() => {
+    if (!orderDetail) return 0;
+    const candidateFees = [
+      orderDetail.shippingFee,
+      orderDetail.shipingFee,
+      orderDetail.shippingProviderFee,
+      orderDetail.deliveryFee,
+      orderDetail.shippingCost,
+    ];
+    const fee = candidateFees.find((value) => value !== undefined && value !== null);
+    if (fee !== undefined && fee !== null && Number.isFinite(Number(fee))) {
+      return Number(fee);
+    }
+    return fallbackShippingFee;
+  })();
+
+  const grandTotal = Number.isFinite(rawTotal)
+    ? rawTotal
     : subtotal + shippingFee - discountAmount;
 
   return (
@@ -347,7 +378,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
               >
                 Đóng
               </button>
-              {orderDetail.status === "Pending" && (
+              {["WaitingForPickup", "Paid"].includes(orderDetail.status) && (
                 <button
                   onClick={() => setShowCancelDialog(true)}
                   className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-nunito font-semibold hover:bg-red-600 transition-colors"

@@ -7,6 +7,8 @@ const PaymentMethod = ({
   selectedMethod = 'cod',
   onChange = () => {},
   disabled = false,
+  disableVnpay = false,
+  vnpayDisableMessage = '',
 }) => {
   const { t } = useContext(LanguageContext);
   const paymentMethods = [
@@ -24,8 +26,8 @@ const PaymentMethod = ({
     },
   ];
 
-  const handleSelect = (methodId) => {
-    if (disabled || methodId === selectedMethod) return;
+  const handleSelect = (methodId, isMethodDisabled) => {
+    if (disabled || isMethodDisabled || methodId === selectedMethod) return;
     onChange(methodId);
   };
 
@@ -38,17 +40,19 @@ const PaymentMethod = ({
       <div className="flex flex-col gap-4">
         {paymentMethods.map((method) => {
           const isSelected = selectedMethod === method.id;
+          const isMethodDisabled = disabled
+            || (disableVnpay && method.id === 'vnpay');
           return (
             <button
               key={method.id}
               type="button"
-              onClick={() => handleSelect(method.id)}
+              onClick={() => handleSelect(method.id, isMethodDisabled)}
               className={`flex items-start gap-4 p-4 border-2 rounded-xl text-left transition-all ${
                 isSelected
                   ? 'border-[#9E211F] bg-[#FFF6EF] shadow-[0_10px_25px_rgba(158,33,31,0.1)]'
                   : 'border-[#efe7db] hover:border-[#d9c8b3]'
-              } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-              disabled={disabled}
+              } ${isMethodDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={isMethodDisabled}
             >
               <div className="flex items-center justify-center w-5 h-5 mt-1">
                 <div
@@ -72,6 +76,11 @@ const PaymentMethod = ({
                 <p className="font-nunito text-base text-gray-600">
                   {method.description}
                 </p>
+                {method.id === 'vnpay' && disableVnpay && vnpayDisableMessage && (
+                  <p className="mt-2 text-sm text-[#B45309] bg-[#FEF3C7] border border-[#FCD34D] rounded-lg px-3 py-2">
+                    {vnpayDisableMessage}
+                  </p>
+                )}
               </div>
             </button>
           );
@@ -85,6 +94,8 @@ PaymentMethod.propTypes = {
   selectedMethod: PropTypes.string,
   onChange: PropTypes.func,
   disabled: PropTypes.bool,
+  disableVnpay: PropTypes.bool,
+  vnpayDisableMessage: PropTypes.string,
 };
 
 export default PaymentMethod;

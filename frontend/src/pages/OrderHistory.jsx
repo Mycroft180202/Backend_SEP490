@@ -58,11 +58,12 @@ const OrderHistory = () => {
 
   const fetchOrders = useCallback(async (pageIndex = 1) => {
     const statusMap = {
-      'all': null,
-      'Pending': 'Pending',
-      'Paid': 'Paid',
-      'Completed': 'Completed',
-      'Cancelled': 'Cancelled',
+      all: null,
+      WaitingForPickup: 'WaitingForPickup',
+      Shipping: 'Shipping',
+      Completed: 'Completed',
+      Cancelled: 'Cancelled',
+      Paid: 'Paid',
     };
     
     try {

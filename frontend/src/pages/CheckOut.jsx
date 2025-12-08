@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
@@ -20,9 +20,117 @@ import { AuthService } from '../services/modules/auth/authService';
 import { OrderService } from '../services/modules/orders/orderService';
 import { GHNLocationService } from '../services/modules/shipping/ghnLocationService';
 import { VoucherService } from '../services/modules/voucher/voucherService';
+import { ShopService } from '../services/modules/shop/shopService';
 import { LanguageContext } from '../context/LanguageContext';
 import { NavigationKeys } from '../context/NavigationContext';
 import useNavigationNode from '../hooks/useNavigationNode';
+import { resolveProductArtisanId } from '../utils/productOwnership';
+
+const STORAGE_SELECTED_CART_IDS = 'checkoutSelectedCartIds';
+
+const normalizeSelectionIds = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const normalized = value
+    .map((id) => {
+      if (id === null || id === undefined) return null;
+      const trimmed = String(id).trim();
+      return trimmed.length ? trimmed : null;
+    })
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+};
+
+const getItemSelectionKey = (item) => {
+  if (!item) return null;
+  return (
+    item.cartItemId
+    ?? item.id
+    ?? item.productId
+    ?? item.product?.id
+    ?? item.product?.productId
+    ?? null
+  );
+};
+
+const resolveArtisanFromItem = (item) => {
+  if (!item) return null;
+  const fromProduct = resolveProductArtisanId(item.product);
+  if (fromProduct) {
+    return String(fromProduct);
+  }
+  const fallback =
+    item.artisanId
+    ?? item.shopId
+    ?? item.ownerId
+    ?? item.product?.shopId
+    ?? item.product?.artisanId
+    ?? null;
+  return fallback !== null && fallback !== undefined ? String(fallback) : null;
+};
+
+const tryParseJson = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+};
+
+const normalizeErrorMessage = (input) => {
+  if (!input) return null;
+  if (typeof input === 'string') {
+    const parsed = tryParseJson(input);
+    if (parsed) {
+      return normalizeErrorMessage(parsed.message ?? parsed.error ?? parsed.detail ?? parsed);
+    }
+    return input;
+  }
+  if (typeof input === 'object') {
+    if (input.message) {
+      const nested = normalizeErrorMessage(input.message);
+      if (nested) {
+        return nested;
+      }
+    }
+    if (input.error) {
+      const nested = normalizeErrorMessage(input.error);
+      if (nested) {
+        return nested;
+      }
+    }
+    try {
+      return JSON.stringify(input);
+    } catch (error) {
+      return null;
+    }
+  }
+  return String(input);
+};
+
+const extractApiErrorMessage = (error, fallbackMessage = null) => {
+  const rawMessage =
+    error?.response?.data?.message
+    ?? error?.response?.data?.title
+    ?? error?.response?.message
+    ?? error?.message;
+  const normalized = normalizeErrorMessage(rawMessage);
+  return normalized || fallbackMessage;
+};
 
 const isUnavailable = (item) => {
   if (!item) return false;
@@ -46,6 +154,7 @@ const isUnavailable = (item) => {
 const CheckOut = () => {
   const { t } = useContext(LanguageContext);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [cartItems, setCartItems] = useState([]);
   const [cartSummary, setCartSummary] = useState({
@@ -64,8 +173,11 @@ const CheckOut = () => {
   const [voucherData, setVoucherData] = useState({ shared: [], personal: [] });
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [selectedVoucherCode, setSelectedVoucherCode] = useState('');
+  const [selectedCartIds, setSelectedCartIds] = useState([]);
+  const [shopInfoByArtisan, setShopInfoByArtisan] = useState({});
   const shippingFeeRef = useRef(0);
   const redirectTimeoutRef = useRef(null);
+  const pendingShopFetchRef = useRef(new Set());
 
   const token = useMemo(
     () => (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null),
@@ -83,6 +195,52 @@ const CheckOut = () => {
   }, [t]);
 
   useNavigationNode(NavigationKeys.LAST_PROFILE_ENTRY, checkoutNavigationNode);
+
+  useEffect(() => {
+    const syncSelection = () => {
+      const stateIds = normalizeSelectionIds(location.state?.selectedCartIds || []);
+      if (stateIds.length) {
+        setSelectedCartIds(stateIds);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(STORAGE_SELECTED_CART_IDS, JSON.stringify(stateIds));
+          } catch (error) {
+            console.warn('Unable to persist checkout selection:', error);
+          }
+        }
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        try {
+          const storedValue = sessionStorage.getItem(STORAGE_SELECTED_CART_IDS);
+          if (storedValue) {
+            const parsed = JSON.parse(storedValue);
+            const normalized = normalizeSelectionIds(parsed);
+            setSelectedCartIds(normalized);
+            return;
+          }
+        } catch (error) {
+          console.warn('Unable to restore checkout selection:', error);
+        }
+      }
+
+      setSelectedCartIds([]);
+    };
+
+    syncSelection();
+  }, [location.state]);
+
+  const clearSelectionCache = useCallback(() => {
+    setSelectedCartIds([]);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem(STORAGE_SELECTED_CART_IDS);
+      } catch (error) {
+        console.warn('Unable to clear checkout selection:', error);
+      }
+    }
+  }, []);
 
   const calculateShipping = useCallback(async (address, weight) => {
     if (!address || !address.ghnDistrictId || !address.ghnWardCode) {
@@ -191,6 +349,161 @@ const CheckOut = () => {
     return resolved;
   }, []);
 
+  const filterCartItemsBySelection = useCallback((items) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return [];
+    }
+
+    const normalizedSelection = normalizeSelectionIds(selectedCartIds);
+    if (!normalizedSelection.length) {
+      return items;
+    }
+
+    const selectionSet = new Set(normalizedSelection);
+    const filtered = items.filter((item) => {
+      const key = getItemSelectionKey(item);
+      return key && selectionSet.has(String(key));
+    });
+
+    if (filtered.length === 0 && items.length > 0) {
+      toast.info(
+        t('checkout.selectionMismatch')
+        || 'Không tìm thấy các sản phẩm đã chọn. Hiển thị toàn bộ giỏ hàng.',
+      );
+      clearSelectionCache();
+      return items;
+    }
+
+    return filtered;
+  }, [selectedCartIds, t, clearSelectionCache]);
+
+  const groupCartItemsByArtisan = useCallback((items) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return [];
+    }
+
+    const fallbackName = t('cart.shopFallback') || 'Cửa hàng';
+    const groups = new Map();
+
+    items.forEach((item) => {
+      if (!item) {
+        return;
+      }
+      const artisanId = resolveArtisanFromItem(item);
+      const groupKey = artisanId ?? 'UNKNOWN';
+
+      if (!groups.has(groupKey)) {
+        const shopNameCandidates = [
+          item.product?.shopName,
+          item.product?.artisanName,
+          item.product?.ownerName,
+          item.shopName,
+          item.sellerName,
+          item.vendorName,
+        ];
+        const resolvedName = shopNameCandidates.find(
+          (value) => typeof value === 'string' && value.trim().length > 0,
+        );
+        groups.set(groupKey, {
+          artisanId: artisanId ?? null,
+          shopName: resolvedName || fallbackName,
+          items: [],
+        });
+      }
+
+      groups.get(groupKey)?.items.push(item);
+    });
+
+    return Array.from(groups.values());
+  }, [t]);
+
+  useEffect(() => {
+    const groups = groupCartItemsByArtisan(cartItems);
+    if (!groups.length) {
+      return;
+    }
+
+    let canceled = false;
+
+    groups.forEach((group) => {
+      const artisanId = group.artisanId;
+      if (!artisanId) {
+        return;
+      }
+      if (shopInfoByArtisan[artisanId]) {
+        return;
+      }
+      if (pendingShopFetchRef.current.has(artisanId)) {
+        return;
+      }
+
+      pendingShopFetchRef.current.add(artisanId);
+
+      ShopService.getShopByUserId(artisanId)
+        .then((response) => {
+          if (canceled) {
+            return;
+          }
+          const payload = response?.shop || response?.data || response;
+          const derivedName =
+            payload?.shopName
+            || payload?.name
+            || payload?.displayName
+            || payload?.title
+            || group.shopName
+            || `${t('cart.shopFallback') || 'Cửa hàng'} #${artisanId.slice(-4)}`;
+          setShopInfoByArtisan((prev) => ({
+            ...prev,
+            [artisanId]: {
+              shopName: derivedName,
+            },
+          }));
+        })
+        .catch((error) => {
+          console.error('Unable to load shop info:', error);
+          if (canceled) {
+            return;
+          }
+          setShopInfoByArtisan((prev) => ({
+            ...prev,
+            [artisanId]: {
+              shopName: group.shopName
+                || `${t('cart.shopFallback') || 'Cửa hàng'} #${artisanId.slice(-4)}`,
+            },
+          }));
+        })
+        .finally(() => {
+          pendingShopFetchRef.current.delete(artisanId);
+        });
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [cartItems, groupCartItemsByArtisan, shopInfoByArtisan, t]);
+
+  const getGroupDisplayName = useCallback((group) => {
+    if (!group) {
+      return t('cart.shopFallback') || 'Cửa hàng';
+    }
+    const info = group.artisanId ? shopInfoByArtisan[group.artisanId] : null;
+    const fallbackLabel = t('cart.shopFallback') || 'Cửa hàng';
+    const suffix = group.artisanId ? ` #${group.artisanId.slice(-4)}` : '';
+    return (
+      info?.shopName
+      || group.shopName
+      || (group.artisanId ? `${fallbackLabel}${suffix}` : fallbackLabel)
+    );
+  }, [shopInfoByArtisan, t]);
+
+  const groupedCartItems = useMemo(
+    () => groupCartItemsByArtisan(cartItems),
+    [cartItems, groupCartItemsByArtisan],
+  );
+
+  const hasMultipleShops = groupedCartItems.length > 1;
+
+
   const fetchCart = useCallback(async () => {
     if (!token) return;
     try {
@@ -201,13 +514,14 @@ const CheckOut = () => {
       if (availableItems.length !== fetchedItems.length) {
         toast.info('Một số sản phẩm đã hết hàng và được loại khỏi đơn thanh toán.');
       }
-      setCartItems(availableItems);
+      const scopedItems = filterCartItemsBySelection(availableItems);
+      setCartItems(scopedItems);
 
-      if (!availableItems.length) {
+      if (!scopedItems.length) {
         setShippingFee(0);
       }
 
-      const subtotal = availableItems.reduce(
+      const subtotal = scopedItems.reduce(
         (total, item) => total + (Number(item.price) || 0) * (item.quantity || 0),
         0,
       );
@@ -219,7 +533,7 @@ const CheckOut = () => {
         : serverShipping || 0;
 
       setCartSummary((prev) => {
-        const hasItems = availableItems.length > 0;
+        const hasItems = scopedItems.length > 0;
         const preservedShipping = hasItems
           ? (prev?.shipping && Number.isFinite(prev.shipping) && prev.shipping > 0
             ? prev.shipping
@@ -246,7 +560,7 @@ const CheckOut = () => {
     } finally {
       setLoadingCart(false);
     }
-  }, [t, token]);
+  }, [filterCartItemsBySelection, t, token]);
 
   const fetchAddresses = useCallback(async () => {
     if (!token) return;
@@ -479,25 +793,6 @@ const CheckOut = () => {
       return;
     }
 
-    const cartItemsPayload = validCartItems
-      .map((item) => {
-        const productId = item.productId
-          || item.product?.id
-          || item.product?.productId;
-        const quantity = item.quantity || 1;
-        if (!productId || quantity <= 0) return null;
-        return {
-          productId,
-          quantity,
-        };
-      })
-      .filter(Boolean);
-
-    if (!cartItemsPayload.length) {
-      toast.error(t('messages.cartEmpty'));
-      return;
-    }
-
     // Extract addressId from selected address
     const addressId = selectedAddress?.id
       || selectedAddress?.addressId
@@ -508,6 +803,13 @@ const CheckOut = () => {
     }
 
     const paymentMethod = selectedPaymentMethod === 'vnpay' ? 'VNPAY' : 'COD';
+    const vnpayBankCode = 'NCB';
+    const cartGroups = groupCartItemsByArtisan(validCartItems);
+    if (!cartGroups.length) {
+      toast.error(t('messages.cartEmpty'));
+      return;
+    }
+    const multipleGroups = cartGroups.length > 1;
 
     const ensureNumber = (value, fallback = 0) => {
       const numeric = Number(value);
@@ -528,45 +830,100 @@ const CheckOut = () => {
       return 0;
     })();
 
-    const summaryBeforeDiscount = ensureNumber(cartSummary.subtotal) + latestShippingFee;
     const discountValue = ensureNumber(voucherDiscount);
-    const computedTotal = Math.max(summaryBeforeDiscount - discountValue, 0);
-
-    const clientSummary = {
-      subtotal: ensureNumber(cartSummary.subtotal),
-      shippingFee: latestShippingFee,
-      discount: discountValue,
-      total: computedTotal,
-    };
-
-    // Build new order payload format
-    const payload = {
-      cartItems: cartItemsPayload,
-      addressId,
-      paymentMethod,
-      // Fixed defaults as per API spec
-      shippingServiceId: 53321,
-      paymentTypeId: 2,
-      serviceTypeId: 2,
-      bankCode: 'NCB',
-      requiredNote: 'KHONGCHOXEMHANG',
-      subtotal: clientSummary.subtotal,
-      shippingFee: clientSummary.shippingFee,
-      discountAmount: clientSummary.discount,
-      totalAmount: clientSummary.total,
-    };
-    if (selectedVoucherCode) {
-      payload.voucherCodeId = selectedVoucherCode;
-    }
 
     setPlacingOrder(true);
-    try {
-      const response = await OrderService.createOrder(payload);
+    const orderResults = [];
+    const failedGroups = [];
 
-      // Handle successful response
+    const buildPayloadItems = (items) => items
+      .map((item) => {
+        const productId = item.productId
+          || item.product?.id
+          || item.product?.productId;
+        const quantity = item.quantity || 1;
+        if (!productId || quantity <= 0) return null;
+        return {
+          productId,
+          quantity,
+        };
+      })
+      .filter(Boolean);
+
+    const computeSubtotal = (items) => items.reduce(
+      (total, item) => total + (Number(item.price) || 0) * (item.quantity || 0),
+      0,
+    );
+
+    const computeWeight = (items) => items.reduce((total, item) => {
+      const weightPerItem = Number(item?.product?.weight ?? item?.weight ?? 0);
+      if (!Number.isFinite(weightPerItem) || weightPerItem <= 0) {
+        return total;
+      }
+      return total + weightPerItem * (item.quantity || 0);
+    }, 0);
+
+    for (const group of cartGroups) {
+      const groupName = getGroupDisplayName(group);
+      const groupItemsPayload = buildPayloadItems(group.items);
+      if (!groupItemsPayload.length) {
+        continue;
+      }
+
+      const groupSubtotal = computeSubtotal(group.items);
+      const groupWeight = computeWeight(group.items);
+      const shippingFeeForGroup = multipleGroups
+        ? await calculateShipping(selectedAddress, groupWeight)
+        : latestShippingFee;
+      const groupDiscount = multipleGroups ? 0 : discountValue;
+      const computedTotal = Math.max(groupSubtotal + shippingFeeForGroup - groupDiscount, 0);
+
+      const clientSummary = {
+        subtotal: groupSubtotal,
+        shippingFee: shippingFeeForGroup,
+        discount: groupDiscount,
+        total: computedTotal,
+      };
+
+      const payload = {
+        cartItems: groupItemsPayload,
+        addressId,
+        paymentMethod,
+        shippingServiceId: 53321,
+        paymentTypeId: 2,
+        serviceTypeId: 2,
+        bankCode: vnpayBankCode,
+        requiredNote: 'KHONGCHOXEMHANG',
+        subtotal: clientSummary.subtotal,
+        shippingFee: clientSummary.shippingFee,
+        discountAmount: clientSummary.discount,
+        totalAmount: clientSummary.total,
+      };
+
+      if (!multipleGroups && selectedVoucherCode) {
+        payload.voucherCodeId = selectedVoucherCode;
+      }
+
+      let response;
+      try {
+        response = await OrderService.createOrder(payload);
+      } catch (error) {
+        const message = extractApiErrorMessage(
+          error,
+          t('messages.orderError') || 'Có lỗi xảy ra khi tạo đơn hàng',
+        );
+        if (multipleGroups) {
+          failedGroups.push({ shopName: groupName, message });
+          toast.error(`[${groupName}] ${message}`);
+          continue;
+        }
+        toast.error(message);
+        setPlacingOrder(false);
+        return;
+      }
+
       if (response?.data?.success || response?.success) {
         const orderData = response.data || response;
-
         const enrichedOrderData = {
           ...orderData,
           clientSummary,
@@ -590,43 +947,190 @@ const CheckOut = () => {
         ) {
           enrichedOrderData.discount = clientSummary.discount;
         }
-        if (enrichedOrderData.total === undefined && enrichedOrderData.totalAmount === undefined) {
+        if (
+          enrichedOrderData.total === undefined
+          && enrichedOrderData.totalAmount === undefined
+        ) {
           enrichedOrderData.total = clientSummary.total;
         }
 
-        // For COD: Show success page
+        if (multipleGroups) {
+          orderResults.push({ order: enrichedOrderData, shopName: groupName });
+          toast.success(
+            `${t('checkout.shopOrderSuccessPrefix') || 'Đã tạo đơn cho'} ${groupName}`,
+          );
+          continue;
+        }
+
         if (enrichedOrderData.paymentMethod === 'COD') {
           toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
           sessionStorage.setItem('lastOrderSuccess', JSON.stringify(enrichedOrderData));
+          clearSelectionCache();
           navigate('/order-success', { state: { order: enrichedOrderData } });
+          return;
         }
-        // For VNPAY: Redirect to payment URL
-        else if (enrichedOrderData.paymentMethod === 'VNPAY' && enrichedOrderData.paymentUrl) {
+        if (
+          enrichedOrderData.paymentMethod === 'VNPAY'
+          && enrichedOrderData.paymentUrl
+        ) {
           toast.info('Đang chuyển hướng đến VNPAY...');
-          // Store order data in session storage for later retrieval
           sessionStorage.setItem('vnpayOrderData', JSON.stringify(enrichedOrderData));
-          // Redirect to payment URL
+          clearSelectionCache();
           window.location.href = enrichedOrderData.paymentUrl;
-        } else {
-          // Fallback: show success page anyway
-          toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
-          sessionStorage.setItem('lastOrderSuccess', JSON.stringify(enrichedOrderData));
-          navigate('/order-success', { state: { order: enrichedOrderData } });
+          return;
         }
-      } else {
-        // Unexpected response format
-        toast.error(t('messages.orderError') || 'Có lỗi xảy ra');
-        setPlacingOrder(false);
+
+        toast.success(t('messages.orderSuccess') || 'Đơn hàng được tạo thành công');
+        sessionStorage.setItem('lastOrderSuccess', JSON.stringify(enrichedOrderData));
+        clearSelectionCache();
+        navigate('/order-success', { state: { order: enrichedOrderData } });
+        return;
       }
-    } catch (error) {
-      console.error('Order creation error:', error);
-      const message =
-        error?.response?.data?.message
-        || error?.response?.data?.title
-        || error?.message
-        || t('messages.orderError')
-        || 'Có lỗi xảy ra khi tạo đơn hàng';
-      toast.error(message);
+
+      const fallbackMessage = extractApiErrorMessage(
+        response,
+        t('messages.orderError') || 'Có lỗi xảy ra khi tạo đơn hàng',
+      );
+      if (multipleGroups) {
+        failedGroups.push({ shopName: groupName, message: fallbackMessage });
+        toast.error(`[${groupName}] ${fallbackMessage}`);
+        continue;
+      }
+      toast.error(fallbackMessage);
+      setPlacingOrder(false);
+      return;
+    }
+
+    if (multipleGroups) {
+      if (paymentMethod === 'VNPAY') {
+        if (!orderResults.length) {
+          setPlacingOrder(false);
+          if (failedGroups.length) {
+            const failedNames = failedGroups
+              .map((group) => group.shopName)
+              .filter(Boolean)
+              .join(', ');
+            const message = failedGroups[0]?.message
+              || t('messages.orderError')
+              || 'Có lỗi xảy ra khi tạo đơn hàng';
+            toast.error(
+              failedNames
+                ? `[${failedNames}] ${message}`
+                : message,
+            );
+          } else {
+            toast.error(t('messages.orderError') || 'Có lỗi xảy ra khi tạo đơn hàng');
+          }
+          return;
+        }
+
+        if (orderResults.length && failedGroups.length) {
+          const failedNames = failedGroups
+            .map((group) => group.shopName)
+            .filter(Boolean)
+            .join(', ');
+          toast.warn(
+            t('checkout.partialShopSuccess', {
+              success: orderResults.length,
+              failed: failedGroups.length,
+            })
+            || `Đã tạo ${orderResults.length} đơn, nhưng ${failedGroups.length} cửa hàng gặp lỗi.`,
+            failedNames ? { toastId: `partial-${failedNames}` } : undefined,
+          );
+          if (failedNames) {
+            toast.error(`${t('checkout.failedShopsLabel') || 'Cửa hàng lỗi'}: ${failedNames}`);
+          }
+          setPlacingOrder(false);
+          navigate('/order-history');
+          return;
+        }
+
+        const successfulOrderNumbers = orderResults
+          .map((entry) => entry.order?.orderNumber)
+          .filter(Boolean);
+        try {
+          const batchResponse = await OrderService.createVnpayBatchPayment({
+            orderNumbers: successfulOrderNumbers,
+            bankCode: vnpayBankCode,
+          });
+          if (batchResponse?.paymentUrl) {
+            toast.info('Đang chuyển hướng đến VNPAY...');
+            sessionStorage.setItem('vnpayOrderData', JSON.stringify({
+              success: true,
+              multiShop: true,
+              orders: orderResults.map(({ order, shopName }) => ({
+                orderNumber: order?.orderNumber,
+                shopName,
+                total:
+                  order?.clientSummary?.total
+                  ?? order?.totalAmount
+                  ?? order?.total,
+              })),
+            }));
+            clearSelectionCache();
+            window.location.href = batchResponse.paymentUrl;
+            return;
+          }
+          toast.error('Không thể khởi tạo VNPay cho đơn nhiều shop.');
+        } catch (error) {
+          const message = extractApiErrorMessage(
+            error,
+            t('messages.orderError') || 'Không thể khởi tạo thanh toán VNPay cho đơn này',
+          );
+          toast.error(message);
+        } finally {
+          setPlacingOrder(false);
+        }
+        return;
+      }
+
+      setPlacingOrder(false);
+      if (orderResults.length && failedGroups.length === 0) {
+        clearSelectionCache();
+        toast.success(
+          t('checkout.multiShopSuccess', { count: orderResults.length })
+          || `Đã tạo ${orderResults.length} đơn hàng cho từng cửa hàng.`,
+        );
+        navigate('/order-history');
+        return;
+      }
+
+      if (orderResults.length && failedGroups.length) {
+        const failedNames = failedGroups
+          .map((group) => group.shopName)
+          .filter(Boolean)
+          .join(', ');
+        toast.warn(
+          t('checkout.partialShopSuccess', {
+            success: orderResults.length,
+            failed: failedGroups.length,
+          })
+          || `Đã tạo ${orderResults.length} đơn, nhưng ${failedGroups.length} cửa hàng gặp lỗi.`,
+          failedNames ? { toastId: `partial-${failedNames}` } : undefined,
+        );
+        if (failedNames) {
+          toast.error(`${t('checkout.failedShopsLabel') || 'Cửa hàng lỗi'}: ${failedNames}`);
+        }
+        navigate('/order-history');
+        return;
+      }
+
+      if (!orderResults.length && failedGroups.length) {
+        const failedNames = failedGroups
+          .map((group) => group.shopName)
+          .filter(Boolean)
+          .join(', ');
+        const message = failedGroups[0]?.message
+          || t('messages.orderError')
+          || 'Có lỗi xảy ra khi tạo đơn hàng';
+        toast.error(
+          failedNames
+            ? `[${failedNames}] ${message}`
+            : message,
+        );
+        return;
+      }
+    } else {
       setPlacingOrder(false);
     }
   };
@@ -684,6 +1188,8 @@ const CheckOut = () => {
                 <PaymentMethod
                   selectedMethod={selectedPaymentMethod}
                   onChange={setSelectedPaymentMethod}
+                  disableVnpay={hasMultipleShops}
+                  vnpayDisableMessage={hasMultipleShops ? vnpayMultiShopMessage : ''}
                 />
               </div>
 

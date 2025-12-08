@@ -126,4 +126,16 @@ export const OrderService = {
       throw error;
     }
   },
+
+  async createVnpayBatchPayment({ orderNumbers = [], bankCode } = {}) {
+    if (!Array.isArray(orderNumbers) || orderNumbers.length === 0) {
+      throw new Error('Missing order numbers for VNPay batch payment');
+    }
+    const payload = {
+      orderNumbers,
+      ...(bankCode ? { bankCode } : {}),
+    };
+    const response = await axiosClient.post(API_ENDPOINTS.PAYMENTS.VNPAY_BATCH, payload);
+    return response.data;
+  },
 };

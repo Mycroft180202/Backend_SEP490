@@ -1,11 +1,12 @@
 import { useState } from "react";
 
 const STATUS_LIST = [
-	{ label: "Tất cả", key: "all" },
-	{ label: "Chờ thanh toán", key: "Pending" },
-	{ label: "Đã thanh toán", key: "Paid" },
-	{ label: "Đã nhận hàng", key: "Completed" },
-	{ label: "Đã hủy", key: "Cancelled" },
+  { label: "Tất cả", key: "all" },
+  { label: "Chờ xác nhận", key: "WaitingForPickup" },
+  { label: "Đang giao", key: "Shipping" },
+{ label: "Đã nhận hàng", key: "Completed" },
+  { label: "Đã hủy", key: "Cancelled" },
+  { label: "Đã thanh toán", key: "Paid" },
 ];
 
 export default function SortBar({ onStatusChange }) {
