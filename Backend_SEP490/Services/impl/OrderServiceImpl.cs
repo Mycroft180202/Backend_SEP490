@@ -136,7 +136,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return CreateOrderResult.Failure("Unable to save shipping address for this order.");
             }
 
-            var (feeSuccess, shippingFee, feeError) = await CalculateShippingFeeAsync(
+            var (feeSuccess, shippingFee, resolvedServiceId, feeError) = await CalculateShippingFeeAsync(
                 request,
                 artisanId,
                 address,
@@ -156,6 +156,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
 
             var totalAmount = Math.Max(0m, subtotal - discountAmount + shippingFee);
+            var resolvedShippingServiceId = resolvedServiceId ?? -1;
 
             var orderId = $"Order-{userId}-{Guid.NewGuid():N}";
             var order = new Order
@@ -170,7 +171,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 DiscountAmount = discountAmount,
                 ShippingFee = shippingFee,
                 ShipingAddressId = address.Id,
-                ShippingServiceId = request.ShippingServiceId,
+                ShippingServiceId = resolvedShippingServiceId,
                 ShippingServiceTypeId = request.ServiceTypeId,
                 ShippingPaymentTypeId = request.PaymentTypeId,
                 ShippingRequiredNote = request.RequiredNote,
@@ -395,7 +396,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return (true, itemsFromCart, null);
     }
 
-    private async Task<(bool Success, decimal Fee, string? Message)> CalculateShippingFeeAsync(
+    private async Task<(bool Success, decimal Fee, int? ServiceIdUsed, string? Message)> CalculateShippingFeeAsync(
         RequestCreateOrder request,
         string artisanId,
         Address destination,
@@ -403,13 +404,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
     {
         if (!destination.GhnDistrictId.HasValue || string.IsNullOrWhiteSpace(destination.GhnWardCode))
         {
-            return (false, 0m, "Shipping address is missing GHN mapping data.");
+            return (false, 0m, null, "Shipping address is missing GHN mapping data.");
         }
 
         var itemInputs = orderItems.ToList();
         if (itemInputs.Count == 0)
         {
-            return (false, 0m, "Order does not contain any items to estimate shipping fee.");
+            return (false, 0m, null, "Order does not contain any items to estimate shipping fee.");
         }
 
         var mappedItems = itemInputs
@@ -445,7 +446,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         if (!fromDistrictId.HasValue || string.IsNullOrWhiteSpace(fromWardCode))
         {
-            return (false, 0m, "Cua hang chua cau hinh dia chi lay hang cho GHN. Vui long cap nhat thong tin van chuyen.");
+            return (false, 0m, null, "Cua hang chua cau hinh dia chi lay hang cho GHN. Vui long cap nhat thong tin van chuyen.");
         }
 
         var weight = CalculateTotalWeight(mappedItems, null, shippingProfiles);
@@ -476,29 +477,59 @@ public class OrderServiceImpl : GenericServices, IOrderService
             InsuranceValue = (int)Math.Round(mappedItems.Sum(item => item.UnitPrice * item.Quantity))
         };
 
-        var response = await _ghnShippingService.CalculateShippingFeeAsync(requestModel);
-        if (response == null)
+        var serviceCandidates = new List<int?>();
+        if (request.ShippingServiceId > 0)
         {
-            _logger.LogWarning("GHN fee calculation returned null for artisan {ArtisanId}.", artisanId);
-            return (false, 0m, "Khong the ket noi toi dich vu giao hang. Vui long thu lai.");
+            serviceCandidates.Add(request.ShippingServiceId);
         }
+
+        if (_ghnSettings.ServiceId.HasValue && _ghnSettings.ServiceId.Value > 0)
+        {
+            serviceCandidates.Add(_ghnSettings.ServiceId);
+        }
+
+        serviceCandidates.Add(null);
+        var distinctCandidates = serviceCandidates.Distinct().ToList();
 
         var successCodes = new[] { 0, 200 };
-        if (!successCodes.Contains(response.Code) || response.Data == null || !response.Data.Total.HasValue || response.Data.Total.Value <= 0)
+        string? lastErrorMessage = null;
+
+        foreach (var candidateServiceId in distinctCandidates)
         {
-            _logger.LogWarning(
-                "GHN fee calculation failed with code {Code} and message '{Message}' for artisan {ArtisanId}.",
-                response.Code,
-                response.Message,
-                artisanId);
-            var message = string.IsNullOrWhiteSpace(response.Message)
+            requestModel.ServiceId = candidateServiceId;
+            var response = await _ghnShippingService.CalculateShippingFeeAsync(requestModel);
+            if (response == null)
+            {
+                lastErrorMessage = "Khong the ket noi toi dich vu giao hang. Vui long thu lai.";
+                _logger.LogWarning(
+                    "GHN fee calculation returned null for artisan {ArtisanId} when using service {ServiceId}.",
+                    artisanId,
+                    candidateServiceId);
+                continue;
+            }
+
+            if (successCodes.Contains(response.Code)
+                && response.Data?.Total.HasValue == true
+                && response.Data.Total.Value > 0)
+            {
+                var fee = Convert.ToDecimal(response.Data.Total.Value);
+                return (true, fee, candidateServiceId, null);
+            }
+
+            var currentMessage = string.IsNullOrWhiteSpace(response.Message)
                 ? "Khong the tinh phi giao hang cho don nay."
                 : response.Message!;
-            return (false, 0m, message);
+            lastErrorMessage = currentMessage;
+
+            _logger.LogWarning(
+                "GHN fee calculation failed with code {Code} and message '{Message}' for artisan {ArtisanId} using service {ServiceId}.",
+                response.Code,
+                response.Message,
+                artisanId,
+                candidateServiceId);
         }
 
-        var fee = Convert.ToDecimal(response.Data.Total.Value);
-        return (true, fee, null);
+        return (false, 0m, null, lastErrorMessage ?? "Khong the tinh phi giao hang cho don nay.");
     }
 
     private async Task<(bool Success, decimal Discount, Voucher? Voucher, string? Message)> ApplyVoucherAsync(
@@ -887,7 +918,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     public async Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId)
     {
-      
+
         var order = await _context.Order.GetAllOrderByNumberAsync(orderId);
         if (order == null)
         {
@@ -1184,6 +1215,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return null;
     }
 
+    private int? ResolvePreferredServiceId(int orderServiceId)
+    {
+        if (orderServiceId > 0)
+        {
+            return orderServiceId;
+        }
+
+        if (orderServiceId == -1)
+        {
+            return null;
+        }
+
+        return _ghnSettings.ServiceId;
+    }
+
     private GhnShipmentOptions BuildBaseShipmentOptions(Address shippingAddress, User customer, Order order)
     {
         return new GhnShipmentOptions
@@ -1196,7 +1242,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             ToProvinceName = shippingAddress.City,
             PaymentType = string.IsNullOrWhiteSpace(order.PaymentType) ? PaymentTypeCod : order.PaymentType,
             PaymentTypeId = order.ShippingPaymentTypeId > 0 ? order.ShippingPaymentTypeId : _ghnSettings.PaymentTypeId,
-            ServiceId = order.ShippingServiceId > 0 ? order.ShippingServiceId : _ghnSettings.ServiceId,
+            ServiceId = ResolvePreferredServiceId(order.ShippingServiceId),
             ServiceTypeId = order.ShippingServiceTypeId > 0 ? order.ShippingServiceTypeId : _ghnSettings.ServiceTypeId,
             RequiredNote = string.IsNullOrWhiteSpace(order.ShippingRequiredNote) ? _ghnSettings.RequiredNote : order.ShippingRequiredNote
         };
@@ -1436,7 +1482,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
     {
         var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
 
-        orders = orders.OrderByDescending( o => o.CreateAt).Take(10);
+        orders = orders.OrderByDescending(o => o.CreateAt).Take(10);
 
         var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
         return mapped;
@@ -1488,7 +1534,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         var allOrderItems = ordersInMonth
             .SelectMany(o => o.OrderItems)
-            .Where(oi => oi.Product.ArtisanId == userId)  
+            .Where(oi => oi.Product.ArtisanId == userId)
             .ToList();
 
         var totalRevenue = allOrderItems
@@ -1563,7 +1609,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 TotalOrderNumber = (grouped.FirstOrDefault(x => x.Month == month)?.TotalOrderNumber ?? 0),
                 Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount
                             - grouped.FirstOrDefault(x => x.Month == month)?.TotalShippingFee
-                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0) 
+                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0)
             })
             .ToList();
 
@@ -1599,9 +1645,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 .Where(o => o.CreateAt.Date >= currentStart.Date && o.CreateAt.Date <= currentEnd.Date)
                 .ToList();
 
-            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount );
-            var TotalShippingFee = ordersInWeek.Sum(o =>  o.ShippingFee );
-            var TotalDiscountAmmount = ordersInWeek.Sum(o =>  o.DiscountAmount);
+            var totalAmount = ordersInWeek.Sum(o => o.TotalAmount);
+            var TotalShippingFee = ordersInWeek.Sum(o => o.ShippingFee);
+            var TotalDiscountAmmount = ordersInWeek.Sum(o => o.DiscountAmount);
 
             weeklyRevenue.Add(new ResponseDTOWeeklyRevenue
             {
@@ -1609,7 +1655,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 StartDate = currentStart,
                 EndDate = currentEnd,
                 TotalOrderNumber = ordersInWeek.Count(),
-                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount) 
+                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount)
             });
 
             currentStart = currentEnd.AddDays(1);
@@ -1637,7 +1683,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 })
             )
             .GroupBy(x => x.Month)
-            .Select(g => new 
+            .Select(g => new
             {
                 Month = g.Key,
                 TotalRevenue = g.Sum(x => x.Revenue)
@@ -1646,10 +1692,10 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .ToList();
 
         var orderCountByMonth = ordersInYear.Select(o => new
-                                {
-                                    Month = o.CreateAt.Month,
-                                    OrderId = o.Id
-                                })
+        {
+            Month = o.CreateAt.Month,
+            OrderId = o.Id
+        })
                                 .GroupBy(x => x.Month)
                                 .Select(g => new
                                 {
@@ -1661,7 +1707,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             {
                 Month = month,
                 TotalOrderNumber = orderCountByMonth.FirstOrDefault(x => x.Month == month)?.TotalOrders ?? 0,
-                Revenue = (revenueByMonth.FirstOrDefault(x => x.Month == month)?.TotalRevenue ?? 0) 
+                Revenue = (revenueByMonth.FirstOrDefault(x => x.Month == month)?.TotalRevenue ?? 0)
             })
             .ToList();
 
@@ -1736,7 +1782,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         var todayEnd = todayStart.AddDays(1);
 
         var ordersToday = orders
-          .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && (o.Status.Equals("Completed") || o.Status.Equals("Paid") ))
+          .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && (o.Status.Equals("Completed") || o.Status.Equals("Paid")))
           .ToList();
 
         var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m));
@@ -1755,7 +1801,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         orders = orders.OrderByDescending(o => o.CreateAt).Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
 
         var mapped = _mapper.Map<IEnumerable<ResponseDTOOrder>>(orders);
-        
+
         return new PagedResult<ResponseDTOOrder>
         {
             Items = mapped,
