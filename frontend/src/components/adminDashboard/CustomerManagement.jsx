@@ -26,6 +26,21 @@ const statusBadge = (isActive) => (
     : 'bg-red-100 text-red-700'
 );
 
+const normalizeText = (value) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+};
+
+const normalizeDigits = (value) => {
+  if (!value) return '';
+  return value.toString().replace(/\D/g, '');
+};
+
 const formatRoles = (roles) => {
   if (Array.isArray(roles)) {
     const names = roles
@@ -52,6 +67,7 @@ const CustomerManagement = () => {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -111,19 +127,57 @@ const CustomerManagement = () => {
     loadUsers();
   }, [loadUsers]);
 
+  const applySearch = useCallback((value) => {
+    const normalized = value.trim();
+    setSearchTerm((previous) => {
+      if (previous !== normalized) {
+        setPageIndex(1);
+      }
+      return normalized;
+    });
+  }, [setPageIndex, setSearchTerm]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const normalized = searchInput.trim();
+      if (normalized !== searchInput) {
+        setSearchInput(normalized);
+        applySearch(normalized);
+      } else {
+        applySearch(normalized);
+      }
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchInput, applySearch]);
+
   const filteredUsers = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
+    const normalizedKeyword = normalizeText(searchTerm);
+    const digitKeyword = normalizeDigits(searchTerm);
+
     return allUsers.filter((user) => {
-      const name = (user.displayName || user.fullName || user.username || '').toLowerCase();
-      const email = (user.email || '').toLowerCase();
-      const phone = user.phoneNumber || '';
-      const matchSearch = keyword
-        ? name.includes(keyword) || email.includes(keyword) || phone.includes(keyword)
+      const name = normalizeText(user.displayName || user.fullName || user.username || '');
+      const email = normalizeText(user.email || '');
+      const phoneDigits = normalizeDigits(user.phoneNumber || '');
+      const userId = normalizeText(user.userID || user.id || '');
+
+      const matchSearch = normalizedKeyword
+        ? name.includes(normalizedKeyword)
+          || email.includes(normalizedKeyword)
+          || userId.includes(normalizedKeyword)
         : true;
+
+      const matchPhone = digitKeyword ? phoneDigits.includes(digitKeyword) : false;
+
+      const isSearchMatched = normalizedKeyword || digitKeyword
+        ? matchSearch || matchPhone
+        : true;
+
       const matchStatus = statusFilter === 'all'
         || (statusFilter === 'active' && user.isActive)
         || (statusFilter === 'inactive' && !user.isActive);
-      return matchSearch && matchStatus;
+
+      return isSearchMatched && matchStatus;
     });
   }, [allUsers, searchTerm, statusFilter]);
 
@@ -131,6 +185,21 @@ const CustomerManagement = () => {
     const start = (pageIndex - 1) * pageSize;
     return filteredUsers.slice(start, start + pageSize);
   }, [filteredUsers, pageIndex, pageSize]);
+
+  const filteredTotal = filteredUsers.length;
+  const filteredTotalPages = Math.max(1, Math.ceil(filteredTotal / pageSize));
+
+  useEffect(() => {
+    setPageIndex((previous) => {
+      if (previous > filteredTotalPages) {
+        return filteredTotalPages;
+      }
+      if (previous < 1) {
+        return 1;
+      }
+      return previous;
+    });
+  }, [filteredTotalPages]);
 
   const stats = useMemo(() => ({
     total: meta.totalCount || allUsers.length,
@@ -185,8 +254,8 @@ const CustomerManagement = () => {
 
   useEffect(() => {
     // reset to first page on search/filter change
-    setPageIndex(1);
-  }, [searchTerm, statusFilter]);
+    setPageIndex((previous) => (previous === 1 ? previous : 1));
+  }, [statusFilter]);
 
   return (
     <div className="space-y-6">
@@ -211,8 +280,8 @@ const CustomerManagement = () => {
             <div className="relative flex-1 min-w-[240px]">
               <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Tìm tên, email hoặc số điện thoại..."
                 className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary"
               />
@@ -322,13 +391,13 @@ const CustomerManagement = () => {
           </table>
         </div>
 
-        {meta.totalPages > 1 && (
+        {filteredTotalPages > 1 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Đang hiện {filteredUsers.length} / {meta.totalCount} người dùng
+              Đang hiện {pagedUsers.length} / {filteredTotal} người dùng phù hợp
             </p>
             <Pagination
-              totalPages={meta.totalPages}
+              totalPages={filteredTotalPages}
               pageIndex={pageIndex}
               setPageIndex={setPageIndex}
             />

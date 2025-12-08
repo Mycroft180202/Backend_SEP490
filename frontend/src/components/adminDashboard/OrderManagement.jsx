@@ -11,11 +11,35 @@ import { UserService } from '../../services/modules/users/userService';
 import { AddressService } from '../../services/modules/orders/addressService';
 import { ProductService } from '../../services/modules/products/productService';
 
-const statusLabels = {
-  Pending: 'Chờ xử lý',
-  Paid: 'Đã thanh toán',
-  Cancelled: 'Đã hủy',
+const STATUS_LABELS = {
+  WAITINGFORPICKUP: 'Chờ lấy hàng',
+  SHIPPING: 'Đang giao',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
+  PENDING: 'Chờ lấy hàng',
+  PAYMENTWAITING: 'Chờ thanh toán',
+  WAITINGFORCONFIRM: 'Chờ xác nhận',
 };
+
+const STATUS_BADGE_STYLES = {
+  WAITINGFORPICKUP: 'bg-amber-100 text-amber-700',
+  SHIPPING: 'bg-sky-100 text-sky-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  CANCELLED: 'bg-rose-100 text-rose-700',
+  PAID: 'bg-emerald-100 text-emerald-700',
+  PENDING: 'bg-amber-100 text-amber-700',
+  PAYMENTWAITING: 'bg-yellow-100 text-yellow-700',
+  WAITINGFORCONFIRM: 'bg-yellow-100 text-yellow-700',
+};
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'WaitingForPickup', label: 'Chờ lấy hàng' },
+  { value: 'Shipping', label: 'Đang giao' },
+  { value: 'Completed', label: 'Hoàn thành' },
+  { value: 'Paid', label: 'Đã thanh toán' },
+  { value: 'Cancelled', label: 'Đã hủy' },
+];
 
 const paymentLabels = {
   COD: 'COD',
@@ -24,18 +48,39 @@ const paymentLabels = {
 
 const defaultStats = {
   total: 0,
-  pending: 0,
+  waitingForPickup: 0,
+  shipping: 0,
+  completed: 0,
   paid: 0,
   cancelled: 0,
-  cod: 0,
-  vnpay: 0,
 };
 
 const STATS_PAGE_SIZE = 50;
 
+const AGGREGATION_PAGE_SIZE = 100;
+
+const normalizeStatusKey = (status) => (status || '')
+  .toString()
+  .toUpperCase()
+  .replace(/\s+/g, '')
+  .replace(/_/g, '');
+
+const getStatusLabel = (status) => {
+  const directKey = (status || '').toUpperCase();
+  const normalizedKey = normalizeStatusKey(status);
+  return STATUS_LABELS[directKey] || STATUS_LABELS[normalizedKey] || status || '--';
+};
+
+const getStatusBadgeClass = (status) => {
+  const directKey = (status || '').toUpperCase();
+  const normalizedKey = normalizeStatusKey(status);
+  return STATUS_BADGE_STYLES[directKey] || STATUS_BADGE_STYLES[normalizedKey] || 'bg-gray-100 text-gray-600';
+};
+
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [pageIndex, setPageIndex] = useState(1);
@@ -50,34 +95,6 @@ const OrderManagement = () => {
   const [addressDetails, setAddressDetails] = useState({});
   const [productCache, setProductCache] = useState({});
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Hoàn thành':
-        return 'bg-green-100 text-green-800';
-      case 'Đang giao':
-        return 'bg-blue-100 text-blue-800';
-      case 'Đang xử lý':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Đã hủy':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPaymentColor = (payment) => {
-    switch (payment) {
-      case 'Đã thanh toán':
-        return 'bg-green-100 text-green-800';
-      case 'Chưa thanh toán':
-        return 'bg-orange-100 text-orange-800';
-      case 'Hoàn tiền':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const formatCurrency = (amount) => {
     const numericAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
     return `${new Intl.NumberFormat('vi-VN', {
@@ -86,35 +103,167 @@ const OrderManagement = () => {
     }).format(numericAmount)} VND`;
   };
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
+  const fetchAllOrders = useCallback(async (params = {}) => {
+    let page = 1;
+    const collected = [];
+    let total = 0;
+    let totalPagesCount = 1;
+
+    while (true) {
       const response = await OrderService.getAdminOrders({
-        pageIndex,
-        pageSize,
-        paymentType: paymentFilter !== 'all' ? paymentFilter : undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        keyword: searchTerm?.trim() ? searchTerm.trim() : undefined,
+        pageIndex: page,
+        pageSize: params.pageSize || AGGREGATION_PAGE_SIZE,
+        ...params,
       });
-      setOrders(response?.items || []);
-      setTotalCount(response?.totalCount || 0);
-      setTotalPages(response?.totalPages || 1);
-    } catch (error) {
-      console.error('Fetch orders error:', error);
-      const message =
-        error?.response?.data?.message
-        || error?.message
-        || 'Không thể tải danh sách đơn hàng';
-      toast.error(message);
-      setOrders([]);
-    } finally {
-      setLoading(false);
+
+      if (!response) break;
+
+      const items = response.items || [];
+      if (!items.length) break;
+
+      collected.push(...items);
+      total = response.totalCount ?? collected.length;
+      totalPagesCount = response.totalPages
+        ?? Math.ceil(total / (response.pageSize || AGGREGATION_PAGE_SIZE));
+      const hasNextPage = response.hasNextPage ?? (page < totalPagesCount);
+
+      if (!hasNextPage) {
+        break;
+      }
+
+      page += 1;
     }
-  }, [pageIndex, pageSize, paymentFilter, statusFilter, searchTerm]);
+
+    return {
+      items: collected,
+      totalCount: total || collected.length,
+    };
+  }, []);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    if (statusFilter !== 'all') {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadPaginatedOrders = async () => {
+      try {
+        setLoading(true);
+        const keyword = searchTerm?.trim() ? searchTerm.trim() : undefined;
+        const paymentType = paymentFilter !== 'all' ? paymentFilter : undefined;
+        const response = await OrderService.getAdminOrders({
+          pageIndex,
+          pageSize,
+          paymentType,
+          status: undefined,
+          keyword,
+        });
+
+        if (isCancelled) return;
+
+        setOrders(response?.items || []);
+        setTotalCount(response?.totalCount || 0);
+        setTotalPages(response?.totalPages || 1);
+      } catch (error) {
+        if (isCancelled) return;
+        console.error('Fetch orders error:', error);
+        const message =
+          error?.response?.data?.message
+          || error?.message
+          || 'Không thể tải danh sách đơn hàng';
+        toast.error(message);
+        setOrders([]);
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPaginatedOrders();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [statusFilter, pageIndex, pageSize, paymentFilter, searchTerm]);
+
+  useEffect(() => {
+    if (statusFilter === 'all') {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadStatusOrders = async () => {
+      try {
+        setLoading(true);
+        const keyword = searchTerm?.trim() ? searchTerm.trim() : undefined;
+        const paymentType = paymentFilter !== 'all' ? paymentFilter : undefined;
+        const { items, totalCount } = await fetchAllOrders({
+          pageSize: AGGREGATION_PAGE_SIZE,
+          status: statusFilter,
+          paymentType,
+          keyword,
+        });
+
+        if (isCancelled) return;
+
+        setOrders(items);
+        setTotalCount(totalCount);
+        setTotalPages(1);
+        setPageIndex(1);
+      } catch (error) {
+        if (isCancelled) return;
+        console.error('Fetch orders error:', error);
+        const message =
+          error?.response?.data?.message
+          || error?.message
+          || 'Không thể tải danh sách đơn hàng';
+        toast.error(message);
+        setOrders([]);
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadStatusOrders();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [statusFilter, paymentFilter, searchTerm, fetchAllOrders]);
+
+  useEffect(() => {
+    setPageIndex((previous) => (previous === 1 ? previous : 1));
+  }, [statusFilter, paymentFilter]);
+
+
+  const applySearch = useCallback((value) => {
+    const normalized = value.trim();
+    setSearchTerm((previous) => {
+      if (previous !== normalized) {
+        setPageIndex(1);
+      }
+      return normalized;
+    });
+  }, [setPageIndex]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const normalized = searchInput.trim();
+      if (normalized !== searchInput) {
+        setSearchInput(normalized);
+        applySearch(normalized);
+      } else {
+        applySearch(normalized);
+      }
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchInput, applySearch]);
 
   const fetchProductDetails = useCallback(async (productIds = []) => {
     const uniqueIds = [...new Set(productIds.filter(Boolean))];
@@ -240,19 +389,6 @@ const OrderManagement = () => {
     fetchProductDetails(productIds);
   }, [orders, fetchProductDetails]);
 
-  const getStatusBadgeClass = (status) => {
-    switch ((status || '').toUpperCase()) {
-      case 'PAID':
-        return 'bg-green-100 text-green-700';
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-600';
-    }
-  };
-
   const formatDate = (value) => {
     if (!value) return '--';
     try {
@@ -287,19 +423,29 @@ const OrderManagement = () => {
   );
 
   const filteredOrders = useMemo(() => {
+    if (!orders.length) {
+      return [];
+    }
+
     const normalizedQuery = searchTerm.trim().toLowerCase();
     const normalizedPayment = paymentFilter === 'all' ? null : paymentFilter.trim().toUpperCase();
+    const normalizedStatusFilter = statusFilter === 'all' ? null : normalizeStatusKey(statusFilter);
 
     return orders.filter((order) => {
       const customerName = getCustomerName(order.customerId).toLowerCase();
+      const phoneNumber = String(order.phoneNumber || order.customerPhone || '').toLowerCase();
+      const normalizedOrderStatus = normalizeStatusKey(order.status);
+
       const matchSearch = !normalizedQuery
         || order.orderNumber?.toLowerCase().includes(normalizedQuery)
         || order.customerId?.toLowerCase().includes(normalizedQuery)
-        || customerName.includes(normalizedQuery);
+        || customerName.includes(normalizedQuery)
+        || phoneNumber.includes(normalizedQuery);
 
-      const matchStatus =
-        statusFilter === 'all'
-        || String(order.status).toLowerCase() === statusFilter.toLowerCase();
+      const matchStatus = !normalizedStatusFilter
+        || normalizedOrderStatus === normalizedStatusFilter
+        || (normalizedStatusFilter === 'WAITINGFORPICKUP'
+          && ['PENDING', 'WAITINGFORCONFIRM', 'PAYMENTWAITING'].includes(normalizedOrderStatus));
 
       const paymentValue = (order.paymentType || '').trim().toUpperCase();
       const matchPayment = !normalizedPayment || paymentValue === normalizedPayment;
@@ -308,21 +454,89 @@ const OrderManagement = () => {
     });
   }, [orders, searchTerm, statusFilter, paymentFilter, getCustomerName]);
 
+  const canExport = filteredOrders.length > 0;
+
+  const handleExport = useCallback(() => {
+    if (!filteredOrders.length) {
+      toast.info('Không có đơn hàng phù hợp để xuất.');
+      return;
+    }
+
+    try {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const headers = ['Mã đơn', 'Khách hàng', 'Trạng thái', 'Thanh toán', 'Tổng tiền', 'Ngày tạo', 'Địa chỉ'];
+      const rows = filteredOrders.map((order) => [
+        order.orderNumber || '',
+        getCustomerName(order.customerId),
+        getStatusLabel(order.status),
+        paymentLabels[order.paymentType] || order.paymentType || '',
+        formatCurrency(order.totalAmount),
+        formatDate(order.createAt),
+        getCustomerAddressDisplay(order.shipingAddressId),
+      ]);
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row
+          .map((value) => {
+            const safe = value === undefined || value === null ? '' : String(value);
+            const escaped = safe.replace(/"/g, '""');
+            return `"${escaped}"`;
+          })
+          .join(','))
+        .join('\n');
+
+      const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.href = url;
+      link.download = `orders-report-${timestamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('Xuất báo cáo thành công');
+    } catch (error) {
+      console.error('Export orders error:', error);
+      toast.error('Không thể xuất báo cáo. Vui lòng thử lại.');
+    }
+  }, [filteredOrders, getCustomerName, getCustomerAddressDisplay, formatCurrency, formatDate]);
+
   const calculateStats = useCallback((orderList, total) => {
+    const baseTotal = Number.isFinite(Number(total)) && Number(total) > 0
+      ? Number(total)
+      : orderList.length;
+
     return orderList.reduce(
       (acc, order) => {
-        const statusKey = (order.status || 'Unknown').toUpperCase();
-        acc.pending += statusKey === 'PENDING' ? 1 : 0;
-        acc.paid += statusKey === 'PAID' ? 1 : 0;
-        acc.cancelled += statusKey === 'CANCELLED' ? 1 : 0;
+        const normalizedStatusKey = normalizeStatusKey(order.status);
 
-        const paymentKey = (order.paymentType || '').toUpperCase();
-        if (paymentKey === 'COD') acc.cod += 1;
-        if (paymentKey === 'VNPAY') acc.vnpay += 1;
+        if (normalizedStatusKey === 'WAITINGFORPICKUP' || normalizedStatusKey === 'PENDING') {
+          acc.waitingForPickup += 1;
+        } else if (normalizedStatusKey === 'SHIPPING') {
+          acc.shipping += 1;
+        } else if (normalizedStatusKey === 'COMPLETED') {
+          acc.completed += 1;
+        } else if (normalizedStatusKey === 'PAID') {
+          acc.paid += 1;
+        } else if (normalizedStatusKey === 'CANCELLED') {
+          acc.cancelled += 1;
+        }
 
         return acc;
       },
-      { total, pending: 0, paid: 0, cancelled: 0, cod: 0, vnpay: 0 },
+      {
+        total: baseTotal,
+        waitingForPickup: 0,
+        shipping: 0,
+        completed: 0,
+        paid: 0,
+        cancelled: 0,
+      },
     );
   }, []);
 
@@ -436,25 +650,25 @@ const OrderManagement = () => {
           <p className="text-sm text-gray-600">Tổng đơn hàng</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <p className="text-sm text-gray-600">Chờ xử lý</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.pending}</p>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-amber-500">
+          <p className="text-sm text-gray-600">Chờ lấy hàng</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.waitingForPickup}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-sky-500">
+          <p className="text-sm text-gray-600">Đang giao</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.shipping}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-slate-500">
+          <p className="text-sm text-gray-600">Hoàn thành</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.completed}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
           <p className="text-sm text-gray-600">Đã thanh toán</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.paid}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
           <p className="text-sm text-gray-600">Đã hủy</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.cancelled}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
-          <p className="text-sm text-gray-600">Thanh toán COD</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.cod}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-          <p className="text-sm text-gray-600">Thanh toán VNPAY</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.vnpay}</p>
         </div>
       </div>
 
@@ -465,7 +679,12 @@ const OrderManagement = () => {
             <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý đơn hàng</h2>
             <p className="text-sm text-gray-600 mt-1">Quản lý và theo dõi tất cả đơn hàng</p>
           </div>
-          <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={!canExport}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
             <FaFileExport /> Xuất báo cáo
           </button>
         </div>
@@ -477,11 +696,8 @@ const OrderManagement = () => {
             <input
               type="text"
               placeholder="Tìm kiếm mã đơn, tên khách hàng, số điện thoại..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPageIndex(1);
-              }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -494,9 +710,11 @@ const OrderManagement = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="Pending">Chờ xử lý</option>
-            <option value="Paid">Đã thanh toán</option>
-            <option value="Cancelled">Đã hủy</option>
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
           <select
             value={paymentFilter}
@@ -558,7 +776,7 @@ const OrderManagement = () => {
                     </td>
                     <td className="py-3 px-4 text-sm">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(order.status)}`}>
-                        {statusLabels[order.status] || order.status}
+                        {getStatusLabel(order.status)}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm">
@@ -586,35 +804,39 @@ const OrderManagement = () => {
             <p className="text-sm text-gray-600">
               Hiển thị {filteredOrders.length} trên tổng {paymentFilter === 'all' && statusFilter === 'all' && !searchTerm ? totalCount : filteredOrders.length} đơn hàng
             </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPageIndex((prev) => Math.max(prev - 1, 1))}
-                disabled={pageIndex === 1}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Trước
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {statusFilter === 'all' ? (
+              <div className="flex gap-2">
                 <button
-                  key={page}
-                  onClick={() => setPageIndex(page)}
-                  className={`px-4 py-2 rounded-lg ${
-                    pageIndex === page
-                      ? 'bg-primary text-white shadow'
-                      : 'border border-gray-300 hover:bg-gray-50'
-                  }`}
+                  onClick={() => setPageIndex((prev) => Math.max(prev - 1, 1))}
+                  disabled={pageIndex === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {page}
+                  Trước
                 </button>
-              ))}
-              <button
-                onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages))}
-                disabled={pageIndex === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Sau
-              </button>
-            </div>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setPageIndex(page)}
+                    className={`px-4 py-2 rounded-lg ${
+                      pageIndex === page
+                        ? 'bg-primary text-white shadow'
+                        : 'border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={pageIndex === totalPages}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Sau
+                </button>
+              </div>
+            ) : (
+              <span className="text-sm text-gray-500">Đã hiển thị toàn bộ đơn theo trạng thái đã chọn</span>
+            )}
           </div>
         )}
       </div>
@@ -651,7 +873,7 @@ const OrderManagement = () => {
                 <div>
                   <p className="font-semibold text-gray-900">Trạng thái</p>
                   <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(selectedOrder.status)}`}>
-                    {statusLabels[selectedOrder.status] || selectedOrder.status}
+                    {getStatusLabel(selectedOrder.status)}
                   </span>
                 </div>
               </div>

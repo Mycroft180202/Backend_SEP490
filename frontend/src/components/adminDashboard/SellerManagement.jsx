@@ -9,7 +9,7 @@ import { UserService } from '../../services/modules/users/userService';
 const SellerManagement = () => {
   const [sellers, setSellers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchInput, setSearchInput] = useState(''); // Temporary search input
+  const [searchInput, setSearchInput] = useState(''); // Temporary search input with debounce
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
@@ -83,6 +83,16 @@ const SellerManagement = () => {
     fetchSellers();
   }, [fetchSellers]);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const normalized = searchInput.trim();
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
+      setSearchTerm((prev) => (prev === normalized ? prev : normalized));
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
   const handleViewDetails = (seller) => {
     setSelectedSeller(seller);
     setDetailModalOpen(true);
@@ -126,12 +136,15 @@ const SellerManagement = () => {
   };
 
   const handleSearch = () => {
-    setCurrentPage(1); // Reset to page 1 when searching
-    setSearchTerm(searchInput);
+    const normalized = searchInput.trim();
+    setCurrentPage(1);
+    setSearchInput(normalized);
+    setSearchTerm(normalized);
   };
 
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleSearch();
     }
   };
@@ -206,11 +219,12 @@ const SellerManagement = () => {
       case 'PENDING':
         return 'Chờ duyệt';
       case 'APPROVED':
-        return 'Đã duyệt';
+      case 'DONE':
+        return 'Đã chấp thuận';
       case 'REJECTED':
         return 'Đã từ chối';
       default:
-        return status;
+        return status || 'Không rõ';
     }
   };
 
@@ -219,6 +233,7 @@ const SellerManagement = () => {
       case 'PENDING':
         return 'text-yellow-700 bg-yellow-100';
       case 'APPROVED':
+      case 'DONE':
         return 'text-green-700 bg-green-100';
       case 'REJECTED':
         return 'text-red-700 bg-red-100';
@@ -271,9 +286,21 @@ const SellerManagement = () => {
     fetchApplications();
   }, [fetchApplications]);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const normalized = applicationSearchInput.trim();
+      setApplicationPage((prev) => (prev === 1 ? prev : 1));
+      setApplicationKeyword((prev) => (prev === normalized ? prev : normalized));
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [applicationSearchInput]);
+
   const handleApplicationSearch = () => {
+    const normalized = applicationSearchInput.trim();
     setApplicationPage(1);
-    setApplicationKeyword(applicationSearchInput);
+    setApplicationSearchInput(normalized);
+    setApplicationKeyword(normalized);
   };
 
   const openApplicationDetail = (application) => {

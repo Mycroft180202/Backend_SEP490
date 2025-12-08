@@ -83,4 +83,8 @@ export const API_ENDPOINTS = {
     UPDATE_MY_SHOP: '/users/my-shop',
     BY_USER: '/users/shop',
   },
+
+  CONTACT: {
+    SUBMIT: '/api/Contact',
+  },
 };

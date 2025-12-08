@@ -35,11 +35,13 @@ const statusBadge = (isActive) => (
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
+  const [expandedProductIds, setExpandedProductIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
   const [categoryMap, setCategoryMap] = useState({});
@@ -79,7 +81,16 @@ const ProductManagement = () => {
       }
 
       const response = await ProductService.getAllProducts(params);
-      const items = response?.items || [];
+      const rawItems = response?.items || [];
+      const items = rawItems.map((item) => {
+        const baseDescription = item?.description || item?.shortDescription || 'Chưa có mô tả';
+        const trimmed = baseDescription.length > 50 ? `${baseDescription.slice(0, 47)}...` : baseDescription;
+        return {
+          ...item,
+          description: baseDescription,
+          shortDescription: trimmed,
+        };
+      });
       const totalCount = response?.totalCount
         ?? response?.raw?.totalCount
         ?? items.length;
@@ -109,6 +120,30 @@ const ProductManagement = () => {
     loadProducts();
   }, [loadProducts]);
 
+  const applySearch = useCallback((value) => {
+    const normalized = value.trim();
+    setSearchTerm((prev) => {
+      if (prev !== normalized) {
+        setPageIndex(1);
+      }
+      return normalized;
+    });
+  }, [setPageIndex]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const normalized = searchInput.trim();
+      if (normalized !== searchInput) {
+        setSearchInput(normalized);
+        applySearch(normalized);
+      } else {
+        applySearch(normalized);
+      }
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchInput, applySearch]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -132,8 +167,39 @@ const ProductManagement = () => {
   }, [loadStats]);
 
   useEffect(() => {
+    setPageIndex((prev) => (prev === 1 ? prev : 1));
+  }, [statusFilter]);
+
+  useEffect(() => {
     setPageIndex(1);
-  }, [searchTerm, statusFilter, pageSize]);
+  }, [pageSize]);
+
+  useEffect(() => {
+    setExpandedProductIds((prev) => {
+      if (!prev.size) {
+        return prev;
+      }
+      const allowedIds = new Set(products.map((item) => item.id));
+      const next = new Set();
+      prev.forEach((id) => {
+        if (allowedIds.has(id)) {
+          next.add(id);
+        }
+      });
+      if (next.size === prev.size) {
+        let identical = true;
+        prev.forEach((id) => {
+          if (!next.has(id)) {
+            identical = false;
+          }
+        });
+        if (identical) {
+          return prev;
+        }
+      }
+      return next;
+    });
+  }, [products]);
 
   const handleToggleStatus = async (product) => {
     if (!product?.id) return;
@@ -162,6 +228,29 @@ const ProductManagement = () => {
     return true;
   }), [products, statusFilter]);
 
+  const toggleDescription = (productId) => {
+    setExpandedProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const normalized = searchInput.trim();
+      if (normalized !== searchInput) {
+        setSearchInput(normalized);
+      }
+      applySearch(normalized);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -173,25 +262,25 @@ const ProductManagement = () => {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-            <FaBoxOpen className="text-gray-500" />
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-green-200 bg-green-50 shadow-sm">
+            <FaBoxOpen className="text-green-500" />
             <div className="text-sm">
-              <div className="text-gray-700 font-semibold">Hoạt động</div>
-              <div className="text-gray-500">{stats.active}</div>
+              <div className="text-green-700 font-semibold">Hoạt động</div>
+              <div className="text-green-600 font-bold">{stats.active}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-            <FaBan className="text-gray-500" />
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-200 bg-red-50 shadow-sm">
+            <FaBan className="text-red-500" />
             <div className="text-sm">
-              <div className="text-gray-700 font-semibold">Vô hiệu hóa</div>
-              <div className="text-gray-500">{stats.inactive}</div>
+              <div className="text-red-700 font-semibold">Vô hiệu hóa</div>
+              <div className="text-red-600 font-bold">{stats.inactive}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-            <FaStore className="text-gray-500" />
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 shadow-sm">
+            <FaStore className="text-blue-500" />
             <div className="text-sm">
-              <div className="text-gray-700 font-semibold">Tổng</div>
-              <div className="text-gray-500">{stats.total}</div>
+              <div className="text-blue-700 font-semibold">Tổng</div>
+              <div className="text-blue-600 font-bold">{stats.total}</div>
             </div>
           </div>
         </div>
@@ -203,8 +292,9 @@ const ProductManagement = () => {
           <input
             type="text"
             placeholder="Tìm kiếm theo tên, cửa hàng..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -226,7 +316,7 @@ const ProductManagement = () => {
         >
           {PAGE_SIZE_OPTIONS.map((size) => (
             <option key={size} value={size}>
-              {size} / trang
+              Hiển thị {size} sản phẩm/trang
             </option>
           ))}
         </select>
@@ -260,8 +350,17 @@ const ProductManagement = () => {
                 </td>
               </tr>
             ) : (
-              filteredProducts.map((product) => (
-                <tr key={product.id} className="border-b hover:bg-gray-50 text-sm">
+              filteredProducts.map((product) => {
+                const descriptionText = product.description || 'Chưa có mô tả';
+                const sanitizedDescription = descriptionText.trim();
+                const words = sanitizedDescription ? sanitizedDescription.split(/\s+/) : [];
+                const previewText = words.slice(0, 3).join(' ');
+                const isDefaultDescription = descriptionText === 'Chưa có mô tả';
+                const canExpand = !isDefaultDescription && words.length > 3;
+                const isExpanded = expandedProductIds.has(product.id);
+
+                return (
+                  <tr key={product.id} className="border-b hover:bg-gray-50 text-sm">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg border overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -277,8 +376,37 @@ const ProductManagement = () => {
                       </div>
                       <div>
                         <div className="font-semibold text-gray-800">{product.name}</div>
-                        <div className="text-xs text-gray-500 line-clamp-1">
-                          {product.shortDescription}
+                        <div className="text-xs text-gray-500">
+                          {isExpanded ? (
+                            <>
+                              <span>{descriptionText}</span>
+                              {canExpand ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleDescription(product.id)}
+                                  className="ml-2 text-primary font-semibold hover:underline"
+                                >
+                                  Thu gọn
+                                </button>
+                              ) : null}
+                            </>
+                          ) : (
+                            <>
+                              <span>
+                                {previewText || descriptionText}
+                                {canExpand ? '...' : ''}
+                              </span>
+                              {canExpand ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleDescription(product.id)}
+                                  className="ml-2 text-primary font-semibold hover:underline"
+                                >
+                                  Xem thêm
+                                </button>
+                              ) : null}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -286,12 +414,12 @@ const ProductManagement = () => {
                   <td className="py-3 px-4 text-gray-700">
                     {categoryMap[product.category] || product.category || '--'}
                   </td>
-                  <td className="py-3 px-4 text-gray-700">{formatCurrency(product.price)}</td>
+                  <td className="py-3 px-4 text-gray-700 whitespace-nowrap">{formatCurrency(product.price)}</td>
                   <td className="py-3 px-4 text-gray-700">{product.stock ?? 0}</td>
                   <td className="py-3 px-4 text-gray-700">{product.shopName || '--'}</td>
                   <td className="py-3 px-4 text-gray-700">{product.displayName || product.artisanId || '--'}</td>
                   <td className="py-3 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(product.isActive)}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusBadge(product.isActive)}`}>
                       {product.isActive ? 'Đang bán' : 'Vô hiệu hóa'}
                     </span>
                   </td>
@@ -306,8 +434,9 @@ const ProductManagement = () => {
                       {product.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
                     </button>
                   </td>
-                </tr>
-              ))
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -516,9 +516,9 @@ const VoucherManagement = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold ${
                           voucher.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                         }`}
                       >
@@ -526,7 +526,7 @@ const VoucherManagement = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-2 justify-center">
+                      <div className="flex flex-wrap gap-2 justify-center whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => openDetail(voucher)}

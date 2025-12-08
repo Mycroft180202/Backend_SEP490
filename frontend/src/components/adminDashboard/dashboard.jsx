@@ -117,6 +117,12 @@ const AdminDashboard = () => {
     }
   }, []);
 
+  const handleNavigate = useCallback((tabId) => {
+    if (typeof tabId === 'string') {
+      setActiveTab(tabId);
+    }
+  }, []);
+
   useEffect(() => {
     loadDashboardData(selectedPeriod);
   }, [loadDashboardData, selectedPeriod]);
@@ -202,6 +208,7 @@ const AdminDashboard = () => {
                 selectedMonth={selectedPeriod.month}
                 onChangePeriod={setSelectedPeriod}
                 availableYears={availableYears}
+                onNavigate={handleNavigate}
               />
             )
           )}

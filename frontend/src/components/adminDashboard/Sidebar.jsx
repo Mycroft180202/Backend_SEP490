@@ -24,7 +24,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
   };
 
   return (
-    <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-primary text-white shadow-lg transition-all duration-300 flex flex-col`}>
+    <aside
+      className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-primary text-white shadow-lg transition-all duration-300 flex flex-col h-screen sticky top-0 z-30`}
+    >
       {/* Logo */}
       <div className="p-4 flex items-center justify-between border-b border-red-400/50">
         {sidebarOpen && (
@@ -42,7 +44,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
       </div>
 
       {/* Menu Items */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         <button
           onClick={() => navigate('/')}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-white/90 hover:bg-red-600/40"

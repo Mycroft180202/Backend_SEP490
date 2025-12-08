@@ -154,6 +154,18 @@ class AdminDashboardService {
     }
   }
 
+  async getRevenuePercentage(year, month) {
+    try {
+      const response = await axiosClient.get('/admin/revenue-percentage', {
+        params: { year, month },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get revenue percentage error:', error);
+      throw error;
+    }
+  }
+
   async getReportNumber() {
     try {
       const response = await axiosClient.get('/admin/report-number');

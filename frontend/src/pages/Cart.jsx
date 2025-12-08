@@ -12,7 +12,6 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import CartBanner from '../components/cart/CartBanner';
 import ProductList from '../components/cart/ProductList';
-import Pagination from '../components/shared/Pagination';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
 import { NavigationKeys } from '../context/NavigationContext';
@@ -25,8 +24,6 @@ const Cart = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({ subtotal: 0, shipping: 0, total: 0 });
-  const [pageIndex, setPageIndex] = useState(1);
-  const pageSize = 6;
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const toastShownRef = useRef(false);
   const redirectTimeoutRef = useRef(null);
@@ -51,7 +48,6 @@ const Cart = () => {
       const shipping = 0;
       const total = response.totalAmount ?? subtotal + shipping;
       setSummary({ subtotal, shipping, total });
-      setPageIndex(1);
     } catch (error) {
       console.error(error);
       const message =
@@ -71,11 +67,9 @@ const Cart = () => {
     label: cartTitle && cartTitle !== 'cart.title' ? cartTitle : 'Giỏ hàng',
     href: '/cart',
     meta: {
-      pageIndex,
-      pageSize,
       totalItems: items.length,
     },
-  }), [cartTitle, items.length, pageIndex, pageSize]);
+  }), [cartTitle, items.length]);
 
   useNavigationNode(NavigationKeys.LAST_PRODUCT_LIST, cartListNode);
 
@@ -225,20 +219,25 @@ const Cart = () => {
     || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
   );
 
-  const handleCheckout = () => {
+  const handleCheckout = (selectedItems = items) => {
     if (!token) {
       toast.info(t('messages.loginRequired'));
       navigate('/login', { replace: true, state: { from: '/cart' } });
       return;
     }
-    if (!items.length) {
+
+    const targetItems = Array.isArray(selectedItems) && selectedItems.length
+      ? selectedItems
+      : items;
+
+    if (!targetItems.length) {
       toast.info(t('messages.cartEmpty'));
       return;
     }
 
-    const unavailableItems = items.filter((item) => isUnavailable(item));
+    const unavailableItems = targetItems.filter((item) => isUnavailable(item));
     if (unavailableItems.length) {
-      const availableExists = items.some((item) => !isUnavailable(item));
+      const availableExists = targetItems.some((item) => !isUnavailable(item));
       if (!availableExists) {
         toast.error(t('cart.unavailableOnly'));
         return;
@@ -250,11 +249,22 @@ const Cart = () => {
         return;
       }
     }
-    navigate('/checkout');
-  };
 
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-  const paginatedItems = items.slice((pageIndex - 1) * pageSize, pageIndex * pageSize);
+    const selectedIds = targetItems
+      .map((item) => item.cartItemId || item.id)
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    if (selectedIds.length) {
+      try {
+        sessionStorage.setItem('checkoutSelectedCartIds', JSON.stringify(selectedIds));
+      } catch (error) {
+        console.warn('Unable to persist selected cart items:', error);
+      }
+    }
+
+    navigate('/checkout', selectedIds.length ? { state: { selectedCartIds: selectedIds } } : undefined);
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -267,8 +277,7 @@ const Cart = () => {
       />
       <main className="flex-grow">
         <ProductList
-          items={paginatedItems}
-          allItems={items}
+          items={items}
           loading={loading}
           updatingItemId={updatingItemId}
           summary={summary}
@@ -278,11 +287,6 @@ const Cart = () => {
           onCheckout={handleCheckout}
           originNode={cartListNode}
         />
-        {!loading && items.length > pageSize && (
-          <div className="flex justify-center mt-8 mb-6">
-            <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
-          </div>
-        )}
       </main>
       <Footer />
     </div>
