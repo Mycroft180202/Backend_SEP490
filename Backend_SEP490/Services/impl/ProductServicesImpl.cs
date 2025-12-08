@@ -106,7 +106,47 @@ public class ProductServicesImpl: GenericServices, IProductServices
         return mapped;
     }
 
+    private async Task<ResponseDTOProduct> MapAndEnrichProductAsync(Product product)
+    {
+        if (product == null)
+        {
+            return null!;
+        }
 
+        var mapped = _mapper.Map<ResponseDTOProduct>(product);
+
+        if (!string.IsNullOrEmpty(mapped.ArtisanId))
+        {
+            var user = await _context.Users.GetUserByArtisanIDAsync(product.ArtisanId);
+            if (user != null)
+            {
+                mapped.DisplayName = user.DisplayName;
+                mapped.ShopName = user.ShopName;
+            }
+        }
+
+        var feedbacks = await _context.Feedback.GetFeedbacksByProductIdAsync(mapped.Id);
+
+        if (feedbacks != null && feedbacks.Any())
+        {
+            mapped.Rating = (double)feedbacks.Average(x => x.Rating);
+        }
+        else
+        {
+            mapped.Rating = 0;
+        }
+
+        var images = await _context.ProductImages.GetImagesByProductIdAsync(mapped.Id);
+        if (images != null && images.Any())
+        {
+            mapped.ImageUrl = images
+                .OrderBy(i => i.Position)
+                .First()
+                .URL;
+        }
+
+        return mapped;
+    }
 
     public async Task<IEnumerable<DTOs.Request.ResponseDTOProduct>> GetAvailableProductsAsync()
     {
@@ -373,19 +413,19 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         var today = DateTime.UtcNow.Date;
 
-        var result = artisanProducts
+        var preCalculated = artisanProducts
             .Select(p =>
             {
                 var todaysOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Completed" &&
+                        oi.Order.Status != "Cancelled" &&
                         oi.Order.CreateAt.Date == today
                     );
 
-                return new ResponseDTOProductDashboard
+                return new 
                 {
-                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    Product = p,
                     TotalSold = todaysOrderItems.Sum(oi => oi.Quantity),
                     TotalAmmount = todaysOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
                 };
@@ -394,6 +434,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
             .OrderByDescending(x => x.TotalAmmount)
             .Take(5)
             .ToList();
+
+        var result = new List<ResponseDTOProductDashboard>();
+
+        foreach (var item in preCalculated)
+        {
+            var enriched = await MapAndEnrichProductAsync(item.Product);
+
+            result.Add(new ResponseDTOProductDashboard
+            {
+                Product = enriched,
+                TotalSold = item.TotalSold,
+                TotalAmmount = item.TotalAmmount
+            });
+        }
 
         return result;
     }
@@ -406,20 +460,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
        .Where(p => p.ArtisanId.Equals(userId))
        .ToList();
 
-        var result = artisanProducts
+        var preCalculated = artisanProducts
             .Select(p =>
             {
                 var monthOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Completed" &&
+                        (oi.Order.Status == "Completed" || oi.Order.Status == "Paid") &&
                         oi.Order.CreateAt.Year == year &&
                         oi.Order.CreateAt.Month == month
                     );
 
-                return new ResponseDTOProductDashboard
+                return new 
                 {
-                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    Product = p,
                     TotalSold = monthOrderItems.Sum(oi => oi.Quantity),
                     TotalAmmount = monthOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
                 };
@@ -428,6 +482,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
             .OrderByDescending(x => x.TotalAmmount)
             .Take(5)
             .ToList();
+
+        var result = new List<ResponseDTOProductDashboard>();
+
+        foreach (var item in preCalculated)
+        {
+            var enriched = await MapAndEnrichProductAsync(item.Product);
+
+            result.Add(new ResponseDTOProductDashboard
+            {
+                Product = enriched,
+                TotalSold = item.TotalSold,
+                TotalAmmount = item.TotalAmmount
+            });
+        }
 
         return result;
     }
@@ -440,19 +508,19 @@ public class ProductServicesImpl: GenericServices, IProductServices
        .Where(p => p.ArtisanId.Equals(userId))
        .ToList();
 
-        var result = artisanProducts
+        var preCalculated = artisanProducts
         .Select(p =>
         {
             var yearOrderItems = p.OrderItems
                 .Where(oi =>
                     oi.Order != null &&
-                    oi.Order.Status == "Completed" &&
+                    (oi.Order.Status == "Completed" || oi.Order.Status == "Paid") &&
                     oi.Order.CreateAt.Year == year
                 );
 
-            return new ResponseDTOProductDashboard
+            return new 
             {
-                Product = _mapper.Map<ResponseDTOProduct>(p),
+                Product = p,
                 TotalSold = yearOrderItems.Sum(oi => oi.Quantity),
                 TotalAmmount = yearOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
             };
@@ -461,6 +529,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
         .OrderByDescending(x => x.TotalAmmount)
         .Take(5)
         .ToList();
+
+        var result = new List<ResponseDTOProductDashboard>();
+
+        foreach (var item in preCalculated)
+        {
+            var enriched = await MapAndEnrichProductAsync(item.Product);
+
+            result.Add(new ResponseDTOProductDashboard
+            {
+                Product = enriched,
+                TotalSold = item.TotalSold,
+                TotalAmmount = item.TotalAmmount
+            });
+        }
 
         return result;
     }
@@ -495,19 +577,19 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         var today = DateTime.UtcNow.Date;
 
-        var result = artisanProducts
+        var preCalculated = artisanProducts
             .Select(p =>
             {
                 var todaysOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Completed" &&
+                        oi.Order.Status != "Cancelled" &&
                         oi.Order.CreateAt.Date == today
                     );
 
-                return new ResponseDTOProductDashboard
+                return new 
                 {
-                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    Product = p,
                     TotalSold = todaysOrderItems.Sum(oi => oi.Quantity),
                     TotalAmmount = todaysOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
                 };
@@ -516,6 +598,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
             .OrderByDescending(x => x.TotalSold)
             .Take(5)
             .ToList();
+
+        var result = new List<ResponseDTOProductDashboard>();
+
+        foreach (var item in preCalculated)
+        {
+            var enriched = await MapAndEnrichProductAsync(item.Product);
+
+            result.Add(new ResponseDTOProductDashboard
+            {
+                Product = enriched,
+                TotalSold = item.TotalSold,
+                TotalAmmount = item.TotalAmmount
+            });
+        }
 
         return result;
     }
@@ -528,20 +624,20 @@ public class ProductServicesImpl: GenericServices, IProductServices
        .Where(p => p.ArtisanId.Equals(userId))
        .ToList();
 
-        var result = artisanProducts
+        var preCalculated = artisanProducts
             .Select(p =>
             {
                 var monthOrderItems = p.OrderItems
                     .Where(oi =>
                         oi.Order != null &&
-                        oi.Order.Status == "Completed" &&
+                        (oi.Order.Status == "Completed" || oi.Order.Status == "Paid") &&
                         oi.Order.CreateAt.Year == year &&
                         oi.Order.CreateAt.Month == month
                     );
 
-                return new ResponseDTOProductDashboard
+                return new 
                 {
-                    Product = _mapper.Map<ResponseDTOProduct>(p),
+                    Product = p,
                     TotalSold = monthOrderItems.Sum(oi => oi.Quantity),
                     TotalAmmount = monthOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
                 };
@@ -551,6 +647,19 @@ public class ProductServicesImpl: GenericServices, IProductServices
             .Take(5)
             .ToList();
 
+        var result = new List<ResponseDTOProductDashboard>();
+
+        foreach (var item in preCalculated)
+        {
+            var enriched = await MapAndEnrichProductAsync(item.Product);
+
+            result.Add(new ResponseDTOProductDashboard
+            {
+                Product = enriched,
+                TotalSold = item.TotalSold,
+                TotalAmmount = item.TotalAmmount
+            });
+        }
         return result;
     }
 
@@ -559,30 +668,44 @@ public class ProductServicesImpl: GenericServices, IProductServices
         var products = await _context.Products.GetAllProductsWithOrderItemsAsync();
 
         var artisanProducts = products
-       .Where(p => p.ArtisanId.Equals(userId))
-       .ToList();
+            .Where(p => p.ArtisanId.Equals(userId))
+            .ToList();
 
-        var result = artisanProducts
-        .Select(p =>
-        {
-            var yearOrderItems = p.OrderItems
-                .Where(oi =>
-                    oi.Order != null &&
-                    oi.Order.Status == "Completed" &&
-                    oi.Order.CreateAt.Year == year
-                );
-
-            return new ResponseDTOProductDashboard
+        var preCalculated = artisanProducts
+            .Select(p =>
             {
-                Product = _mapper.Map<ResponseDTOProduct>(p),
-                TotalSold = yearOrderItems.Sum(oi => oi.Quantity),
-                TotalAmmount = yearOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
-            };
-        })
-        .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0)
-        .OrderByDescending(x => x.TotalSold)
-        .Take(5)
-        .ToList();
+                var yearOrderItems = p.OrderItems
+                    .Where(oi =>
+                        oi.Order != null &&
+                        (oi.Order.Status == "Completed" || oi.Order.Status == "Paid") &&
+                        oi.Order.CreateAt.Year == year
+                    );
+
+                return new
+                {
+                    Product = p,
+                    TotalSold = yearOrderItems.Sum(oi => oi.Quantity),
+                    TotalAmmount = yearOrderItems.Sum(oi => oi.Quantity * oi.UnitPrice)
+                };
+            })
+            .Where(x => x.TotalSold > 0 || x.TotalAmmount > 0)
+            .OrderByDescending(x => x.TotalSold)
+            .Take(5)
+            .ToList();
+
+        var result = new List<ResponseDTOProductDashboard>();
+
+        foreach (var item in preCalculated)
+        {
+            var enriched = await MapAndEnrichProductAsync(item.Product);
+
+            result.Add(new ResponseDTOProductDashboard
+            {
+                Product = enriched,
+                TotalSold = item.TotalSold,
+                TotalAmmount = item.TotalAmmount
+            });
+        }
 
         return result;
     }
@@ -620,11 +743,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
             enrichedDict.TryGetValue(p.Id, out var enriched);
 
             int totalSold = p.OrderItems?
-                .Where(o => o.Order.Status == "Completed")
+                .Where(o => o.Order.Status == "Completed" || o.Order.Status == "Paid")
                 .Sum(o => o.Quantity) ?? 0;
 
             decimal totalAmount = p.OrderItems?
-                .Where(o => o.Order.Status == "Completed")
+                .Where(o => o.Order.Status == "Completed" || o.Order.Status == "Paid")
                 .Sum(o => Convert.ToDecimal(o.Quantity) * o.UnitPrice) ?? 0m;
 
             return new ResponseDTOProductDashboard
