@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { formatCurrency } from "../../utils/formatCurrency";
-import OrderDetailModal from "./OrderDetailModal";
-import CancelOrderDialog from "./CancelOrderDialog";
-import ReturnOrderDialog from "./ReturnOrderDialog";
-import { OrderService } from "../../services/modules/orders/orderService";
-import { toast } from "react-toastify";
-import { ProductService } from "../../services/modules/products/productService";
-import { ShopService } from "../../services/modules/shop/shopService";
-import { resolveProductArtisanId } from "../../utils/productOwnership";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { formatCurrency } from '../../utils/formatCurrency';
+import OrderDetailModal from './OrderDetailModal';
+import CancelOrderDialog from './CancelOrderDialog';
+import ReturnOrderDialog from './ReturnOrderDialog';
+import { OrderService } from '../../services/modules/orders/orderService';
+import { toast } from 'react-toastify';
+import { ProductService } from '../../services/modules/products/productService';
+import { ShopService } from '../../services/modules/shop/shopService';
+import { resolveProductArtisanId } from '../../utils/productOwnership';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const productCache = new Map();
 const shopCache = new Map();
@@ -156,28 +157,51 @@ const buildArtisanHref = (artisanId) => {
 
 // Status badge component
 function StatusBadge({ status }) {
-  const statusConfig = {
-    WaitingForPickup: { bg: '#FFF3CD', text: '#856404', label: 'Chờ xác nhận' },
-    Shipping: { bg: '#DBEAFE', text: '#1E3A8A', label: 'Đang giao' },
-    Paid: { bg: '#D4EDDA', text: '#155724', label: 'Đã thanh toán' },
-    Completed: { bg: '#D1FAE5', text: '#065F46', label: 'Đã nhận hàng' },
-    Cancelled: { bg: '#F8D7DA', text: '#721C24', label: 'Đã hủy' },
+  const { t } = useContext(LanguageContext);
+  const STATUS_STYLES = {
+    WaitingForPickup: { bg: '#FFF3CD', text: '#856404' },
+    Shipping: { bg: '#DBEAFE', text: '#1E3A8A' },
+    Paid: { bg: '#D4EDDA', text: '#155724' },
+    Completed: { bg: '#D1FAE5', text: '#065F46' },
+    Cancelled: { bg: '#F8D7DA', text: '#721C24' },
   };
 
-  const config = statusConfig[status] || { bg: '#E2E3E5', text: '#383D41', label: status };
+  const DEFAULT_STATUS_STYLE = { bg: '#E2E3E5', text: '#383D41' };
+  const style = STATUS_STYLES[status] || DEFAULT_STATUS_STYLE;
+  const rawLabel = t(`orderHistory.statuses.${status}`);
+  const label = rawLabel && !rawLabel.includes('orderHistory.statuses.')
+    ? rawLabel
+    : t('orderHistory.statuses.default');
 
   return (
     <span
       className="px-3 py-1 rounded-lg font-nunito text-sm font-semibold"
-      style={{ backgroundColor: config.bg, color: config.text }}
+      style={{ backgroundColor: style.bg, color: style.text }}
     >
-      {config.label}
+      {label}
     </span>
   );
 }
 
 // Order card component
 function OrderCard({ order, onRefresh }) {
+  const { t, language } = useContext(LanguageContext);
+  const defaultShopLabelRaw = t('orderHistory.list.defaultShopName');
+  const defaultShopLabel = defaultShopLabelRaw && !defaultShopLabelRaw.includes('orderHistory.list.defaultShopName')
+    ? defaultShopLabelRaw
+    : 'Cửa hàng';
+  const locale = useMemo(() => (language === 'vi' ? 'vi-VN' : 'en-US'), [language]);
+  const isDefaultShopName = useCallback(
+    (value) => {
+      if (!value) return true;
+      const normalized = String(value).trim();
+      return normalized === 'Cửa hàng'
+        || normalized === 'Shop'
+        || normalized === defaultShopLabel;
+    },
+    [defaultShopLabel],
+  );
+
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -193,7 +217,10 @@ function OrderCard({ order, onRefresh }) {
         return;
       }
 
-      const sanitizedName = pickFirstNonEmpty([rawInfo.shopName]) || 'Cửa hàng';
+      let sanitizedName = pickFirstNonEmpty([rawInfo.shopName]);
+      if (isDefaultShopName(sanitizedName)) {
+        sanitizedName = defaultShopLabel;
+      }
       const sanitizedAvatar = pickFirstNonEmpty([rawInfo.shopAvatar]);
       const artisanIdValue = rawInfo.artisanId != null
         ? String(rawInfo.artisanId)
@@ -203,7 +230,7 @@ function OrderCard({ order, onRefresh }) {
       const hasMeaningfulData = Boolean(
         sanitizedAvatar
         || artisanIdValue
-        || (sanitizedName && sanitizedName !== 'Cửa hàng')
+        || !isDefaultShopName(sanitizedName)
       );
 
       if (!hasMeaningfulData) {
@@ -373,10 +400,10 @@ function OrderCard({ order, onRefresh }) {
     return () => {
       canceled = true;
     };
-  }, [order]);
+  }, [order, defaultShopLabel, isDefaultShopName]);
 
   const createDate = new Date(order.createAt);
-  const formattedDate = createDate.toLocaleDateString('vi-VN', {
+  const formattedDate = createDate.toLocaleDateString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -386,18 +413,18 @@ function OrderCard({ order, onRefresh }) {
 
   const handleContinuePayment = async () => {
     try {
-      toast.info('Đang xử lý thanh toán...');
+      toast.info(t('orderHistory.list.toast.continueProcessing'));
       const response = await OrderService.continuePayment(order.orderNumber);
       
       if (response && response.paymentUrl) {
         // Redirect to VNPAY payment page
         window.location.href = response.paymentUrl;
       } else {
-        toast.error('Không thể lấy link thanh toán. Vui lòng thử lại.');
+        toast.error(t('orderHistory.list.toast.continueMissingUrl'));
       }
     } catch (error) {
       console.error('Error continuing payment:', error);
-      toast.error('Có lỗi xảy ra khi tiếp tục thanh toán. Vui lòng thử lại.');
+      toast.error(t('orderHistory.list.toast.continueError'));
     }
   };
 
@@ -416,7 +443,7 @@ function OrderCard({ order, onRefresh }) {
     try {
       setConfirmingReceived(true);
       await OrderService.confirmOrderReceived(order.orderNumber);
-      toast.success('Cảm ơn bạn! Đơn hàng đã được xác nhận đã nhận.');
+      toast.success(t('orderHistory.list.toast.confirmSuccess'));
       if (onRefresh) {
         onRefresh();
       } else {
@@ -424,7 +451,7 @@ function OrderCard({ order, onRefresh }) {
       }
     } catch (error) {
       console.error('Error confirming order received:', error);
-      toast.error('Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại.');
+      toast.error(t('orderHistory.list.toast.confirmError'));
     } finally {
       setConfirmingReceived(false);
     }
@@ -437,20 +464,24 @@ function OrderCard({ order, onRefresh }) {
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="font-alata text-lg font-bold text-gray-800">Đơn hàng: {order.orderNumber}</p>
+              <p className="font-alata text-lg font-bold text-gray-800">
+                {t('orderHistory.list.orderLabel', { orderNumber: order.orderNumber })}
+              </p>
               <p className="font-nunito text-sm text-gray-600">{formattedDate}</p>
             </div>
             <StatusBadge status={order.status} />
           </div>
           <div className="flex items-center gap-8 text-sm font-nunito">
             <div>
-              <span className="text-gray-600">Phương thức thanh toán: </span>
+              <span className="text-gray-600">{t('orderHistory.list.paymentMethodLabel')}: </span>
               <span className="font-semibold text-gray-800">
-                {order.paymentType === 'COD' ? 'Thanh toán khi nhận hàng' : 'VNPAY'}
+                {order.paymentType === 'COD'
+                  ? t('orderHistory.list.paymentMethodCOD')
+                  : t('orderHistory.list.paymentMethodVNPAY')}
               </span>
             </div>
             <div>
-              <span className="text-gray-600">Tổng tiền: </span>
+              <span className="text-gray-600">{t('orderHistory.list.totalLabel')}: </span>
               <span className="font-alata text-lg text-primary font-bold">
                 {formatCurrency(order.totalAmount)}
               </span>
@@ -473,7 +504,7 @@ function OrderCard({ order, onRefresh }) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                (shopInfo.shopName || 'Cửa hàng').charAt(0).toUpperCase()
+                (shopInfo.shopName || defaultShopLabel).charAt(0).toUpperCase()
               )}
             </div>
             <div className="flex flex-col">
@@ -483,7 +514,7 @@ function OrderCard({ order, onRefresh }) {
                   to={shopInfo.shopHref}
                   className="text-sm text-primary hover:underline font-nunito"
                 >
-                  Xem cửa hàng
+                  {t('orderHistory.list.viewShop')}
                 </Link>
               )}
             </div>
@@ -491,7 +522,7 @@ function OrderCard({ order, onRefresh }) {
         )}
         {order.paymentType === 'VNPAY' && order.status === 'Paid' && (
           <div className="px-6 py-3 bg-white text-sm font-nunito text-primary border-t border-gray-200">
-            Đơn hàng đã được chuyển đến bộ phận giao hàng.
+            {t('orderHistory.list.shippedNotice')}
           </div>
         )}
 
@@ -501,14 +532,14 @@ function OrderCard({ order, onRefresh }) {
             onClick={() => setShowDetailModal(true)}
             className="px-4 py-2 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-nunito text-sm font-medium"
           >
-            Xem chi tiết
+            {t('orderHistory.list.actions.viewDetail')}
           </button>
           {canRequestReturn && (
             <button
               onClick={() => setShowReturnDialog(true)}
               className="px-4 py-2 text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors font-nunito text-sm font-medium"
             >
-              Hoàn đơn
+              {t('orderHistory.list.actions.requestReturn')}
             </button>
           )}
           {showPaymentButton && (
@@ -516,7 +547,7 @@ function OrderCard({ order, onRefresh }) {
               onClick={handleContinuePayment}
               className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-red-700 transition-colors font-nunito text-sm font-medium"
             >
-              Tiếp tục thanh toán
+              {t('orderHistory.list.actions.continuePayment')}
             </button>
           )}
           {canConfirmReceived && (
@@ -527,7 +558,9 @@ function OrderCard({ order, onRefresh }) {
                 confirmingReceived ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-700'
               }`}
             >
-              {confirmingReceived ? 'Đang xác nhận...' : 'Đã nhận được hàng'}
+              {confirmingReceived
+                ? t('orderHistory.list.actions.confirming')
+                : t('orderHistory.list.actions.confirmReceived')}
             </button>
           )}
           {['WaitingForPickup', 'Paid'].includes(order.status) && (
@@ -535,7 +568,7 @@ function OrderCard({ order, onRefresh }) {
               onClick={() => setShowCancelDialog(true)}
               className="px-4 py-2 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-nunito text-sm font-medium"
             >
-              Hủy đơn
+              {t('orderHistory.list.actions.cancelOrder')}
             </button>
             
           )}

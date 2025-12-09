@@ -290,7 +290,7 @@ const Header = () => {
       <div className="flex items-center gap-1 sm:gap-2 relative z-10 flex-shrink-0">
         <img src="/images/OnlyLogo.png" alt="logo" className="w-10 h-10 sm:w-[44px] sm:h-[44px] rounded-full object-cover" />
         <span style={{ fontFamily: 'Alata, sans-serif', fontSize: 'clamp(14px, 4vw, 20px)', lineHeight: '32px', color: '#fff', fontWeight: 400 }} className="hidden sm:inline">
-          Hoa Lac Handicraft
+          HoaLac Handicraft
         </span>
       </div>
 
@@ -403,7 +403,7 @@ const Header = () => {
                       to="/artisan-dashboard"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Quản lý cửa hàng
+                      {t('header.artisanDashboard')}
                     </Link>
                   )}
                   <button

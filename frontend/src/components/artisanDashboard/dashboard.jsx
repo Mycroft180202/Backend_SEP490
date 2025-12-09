@@ -3,7 +3,6 @@ import {
   FaHome,
   FaProductHunt,
   FaClipboardList,
-  FaChartLine,
   FaCog,
   FaSearch,
   FaSpinner,
@@ -13,7 +12,6 @@ import Sidebar from './Sidebar';
 import OverviewSection from './OverviewSection';
 import ProductManagement from './ProductManagement';
 import OrderManagement from './OrderManagement';
-import RevenueManagement from './RevenueManagement';
 import SettingsManagement from './SettingsManagement';
 import { UserContext } from '../../context/UserContext';
 import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
@@ -113,7 +111,6 @@ const ArtisanDashboard = () => {
   });
   const [stockAlerts, setStockAlerts] = useState({ low: [], out: [], lowCount: 0, outCount: 0 });
   const [monthlyRevenue, setMonthlyRevenue] = useState([]);
-  const [weeklyRevenue, setWeeklyRevenue] = useState([]);
   const [topProductsCombined, setTopProductsCombined] = useState([]);
   const [topProductsRevenue, setTopProductsRevenue] = useState([]);
   const [topProductsSold, setTopProductsSold] = useState([]);
@@ -226,7 +223,6 @@ const ArtisanDashboard = () => {
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/artisan' },
     { id: 'products', icon: FaProductHunt, label: 'Sản phẩm', path: '/artisan/products' },
     { id: 'orders', icon: FaClipboardList, label: 'Đơn hàng', path: '/artisan/orders' },
-    { id: 'revenue', icon: FaChartLine, label: 'Doanh thu', path: '/artisan/revenue' },
     { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/artisan/settings' },
   ];
 
@@ -292,8 +288,6 @@ const ArtisanDashboard = () => {
 
       const monthlyData = normalizeMonthly(monthlyRes);
       setMonthlyRevenue(monthlyData);
-
-      setWeeklyRevenue([]);
 
       const currentMonthEntry =
         monthlyData.find((item) => item.month === targetMonth) || { revenue: 0, totalOrderAmount: 0 };
@@ -730,17 +724,6 @@ const ArtisanDashboard = () => {
           {activeTab === 'products' && <ProductManagement />}
 
           {activeTab === 'orders' && <OrderManagement />}
-
-          {activeTab === 'revenue' && (
-            <RevenueManagement
-              monthlyRevenue={monthlyRevenue}
-              weeklyRevenue={weeklyRevenue}
-              selectedYear={selectedYear}
-              onYearChange={handleYearChange}
-              selectedMonth={selectedMonth}
-              onMonthChange={handleMonthChange}
-            />
-          )}
 
           {activeTab === 'settings' && <SettingsManagement />}
         </div>

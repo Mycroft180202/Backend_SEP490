@@ -5,7 +5,6 @@ import {
   FaClipboardList,
   FaUsersCog,
   FaBlog,
-  FaCog,
   FaSearch,
   FaChartBar,
   FaUsers,
@@ -22,7 +21,6 @@ import CustomerManagement from './CustomerManagement';
 import SellerManagement from './SellerManagement';
 import ReportManagement from './ReportManagement';
 import BlogManagement from './BlogManagement';
-import SettingsManagement from './SettingsManagement';
 import VoucherManagement from './VoucherManagement';
 import ProductCollectionManagement from './ProductCollectionManagement';
 import CategoryManagement from './CategoryManagement';
@@ -138,7 +136,6 @@ const AdminDashboard = () => {
     { id: 'collections', icon: FaTicketAlt, label: 'Bộ sưu tập', path: '/admin/collections' },
     { id: 'reports', icon: FaChartBar, label: 'Báo cáo & Khiếu nại', path: '/admin/reports' },
     { id: 'blog', icon: FaBlog, label: 'Bài viết', path: '/admin/blog' },
-    { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/admin/settings' },
   ];
 
   return (
@@ -230,8 +227,6 @@ const AdminDashboard = () => {
           {activeTab === 'reports' && <ReportManagement />}
 
           {activeTab === 'blog' && <BlogManagement />}
-
-          {activeTab === 'settings' && <SettingsManagement />}
         </div>
       </main>
     </div>

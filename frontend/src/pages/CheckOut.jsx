@@ -178,6 +178,7 @@ const CheckOut = () => {
   const shippingFeeRef = useRef(0);
   const redirectTimeoutRef = useRef(null);
   const pendingShopFetchRef = useRef(new Set());
+  const removedUnavailableToastShownRef = useRef(false);
 
   const token = useMemo(
     () => (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null),
@@ -525,7 +526,12 @@ const CheckOut = () => {
       const fetchedItems = response?.items || [];
       const availableItems = fetchedItems.filter((item) => !isUnavailable(item));
       if (availableItems.length !== fetchedItems.length) {
-        toast.info('Một số sản phẩm đã hết hàng và được loại khỏi đơn thanh toán.');
+        if (!removedUnavailableToastShownRef.current) {
+          toast.info('Một số sản phẩm đã hết hàng và được loại khỏi đơn thanh toán.');
+          removedUnavailableToastShownRef.current = true;
+        }
+      } else {
+        removedUnavailableToastShownRef.current = false;
       }
       const scopedItems = filterCartItemsBySelection(availableItems);
       setCartItems(scopedItems);
@@ -969,9 +975,11 @@ const CheckOut = () => {
 
         if (multipleGroups) {
           orderResults.push({ order: enrichedOrderData, shopName: groupName });
-          toast.success(
-            `${t('checkout.shopOrderSuccessPrefix') || 'Đã tạo đơn cho'} ${groupName}`,
-          );
+          if (paymentMethod === 'VNPAY') {
+            toast.success(
+              `${t('checkout.shopOrderSuccessPrefix') || 'Đã tạo đơn cho'} ${groupName}`,
+            );
+          }
           continue;
         }
 

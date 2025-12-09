@@ -10,3 +10,15 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+html,
+body {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+select,
+button {
+  caret-color: auto;
+}

@@ -78,6 +78,7 @@ const ProductList = ({
     open: false,
     loading: false,
     items: [],
+    filteredOut: 0,
     context: null,
   });
   const [shopDetails, setShopDetails] = useState({});
@@ -353,13 +354,18 @@ const ProductList = ({
   }, [getItemKey]);
 
   const openCheckoutForItems = useCallback((selectedItems, context = null) => {
+    const baseItems = Array.isArray(selectedItems) ? selectedItems : [];
+    const availableItems = baseItems.filter((item) => !isUnavailable(item));
+    const filteredOut = Math.max(0, baseItems.length - availableItems.length);
+
     setCheckoutConfirm({
       open: true,
       loading: false,
-      items: Array.isArray(selectedItems) ? selectedItems : [],
+      items: availableItems,
+      filteredOut,
       context,
     });
-  }, []);
+  }, [isUnavailable]);
 
   const renderSkeleton = () => (
     <div className="space-y-5">
@@ -675,7 +681,8 @@ const ProductList = ({
 
   const confirmationItems = checkoutConfirm.items && checkoutConfirm.items.length
     ? checkoutConfirm.items
-    : items;
+    : items.filter((item) => !isUnavailable(item));
+  const hasConfirmationItems = confirmationItems.length > 0;
 
   const confirmationGroups = useMemo(() => {
     if (!Array.isArray(confirmationItems) || confirmationItems.length === 0) {
@@ -1338,69 +1345,86 @@ const ProductList = ({
                 'Bạn có chắc chắn muốn tiến hành đặt hàng với các sản phẩm hiện có trong giỏ không?'
               )}
             </p>
+            {checkoutConfirm.filteredOut > 0 && (
+              <div className="flex items-start gap-3 rounded-xl border border-[#F3A6A6]/70 bg-[#FEF1F1] px-3 py-2 text-sm text-[#A12D2D]">
+                <FaExclamationTriangle className="mt-0.5 text-base" />
+                <p>
+                  {translate(
+                    'cart.checkoutFilteredWarning',
+                    'Một số sản phẩm đã hết hàng và đã được loại khỏi đơn hàng. Vui lòng kiểm tra lại trước khi tiếp tục.'
+                  )}
+                </p>
+              </div>
+            )}
             <div className="bg-[#FFF8EE] border border-[#F3D5B5] rounded-xl p-4 space-y-3 text-sm text-gray-600">
               <div>
                 <span className="block text-xs font-semibold uppercase tracking-wide text-[#8B4513]/70 mb-1">
                   {translate('cart.checkoutConfirmProducts', 'Sản phẩm trong đơn hàng')}
                 </span>
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                  {confirmationGroups.map((group) => (
-                    <div
-                      key={group.key}
-                      className="bg-white/80 rounded-lg border border-[#F3D5B5]/60 p-3 space-y-2"
-                    >
-                      <div className="flex items-center gap-3">
-                        {group.shopAvatar ? (
-                          <img
-                            src={group.shopAvatar}
-                            alt={group.shopName}
-                            className="w-8 h-8 rounded-full object-cover border border-[#F3D5B5]"
-                            onError={(event) => {
-                              event.currentTarget.onerror = null;
-                              event.currentTarget.src = '/images/default-shop.png';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-[#8B4513]/10 text-[#8B4513] flex items-center justify-center font-semibold">
-                            {group.shopName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <span className="font-semibold text-sm text-[#8B4513]">
-                          {group.shopName}
-                        </span>
-                      </div>
-                      <ul className="space-y-2">
-                        {group.items.map((item) => (
-                          <li
-                            key={`checkout-summary-${group.key}-${item.id}`}
-                            className="flex items-center gap-3 text-gray-600 bg-[#FFF8EE] rounded-lg px-2 py-1.5 border border-[#F3D5B5]/60"
-                          >
+                  {confirmationGroups.length > 0 ? (
+                    confirmationGroups.map((group) => (
+                      <div
+                        key={group.key}
+                        className="bg-white/80 rounded-lg border border-[#F3D5B5]/60 p-3 space-y-2"
+                      >
+                        <div className="flex items-center gap-3">
+                          {group.shopAvatar ? (
                             <img
-                              src={item.imageUrl || item.image || '/images/default-product.png'}
-                              alt={item.name}
-                              className="w-10 h-10 rounded-lg object-cover border border-[#F3D5B5]"
+                              src={group.shopAvatar}
+                              alt={group.shopName}
+                              className="w-8 h-8 rounded-full object-cover border border-[#F3D5B5]"
                               onError={(event) => {
                                 event.currentTarget.onerror = null;
-                                event.currentTarget.src = '/images/default-product.png';
+                                event.currentTarget.src = '/images/default-shop.png';
                               }}
                             />
-                            <div className="flex-1 min-w-0">
-                              <p className="truncate text-xs font-semibold text-[#8B4513]">
-                                {item.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {translate('cart.checkoutConfirmQuantity', 'Số lượng')}
-                                {`: ${item.quantity || 1}`}
-                              </p>
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-[#8B4513]/10 text-[#8B4513] flex items-center justify-center font-semibold">
+                              {group.shopName.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-[#8B4513] font-semibold flex-shrink-0 text-xs">
-                              {formatCurrency((item.price || 0) * (item.quantity || 0), priceSuffix)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                          )}
+                          <span className="font-semibold text-sm text-[#8B4513]">
+                            {group.shopName}
+                          </span>
+                        </div>
+                        <ul className="space-y-2">
+                          {group.items.map((item) => (
+                            <li
+                              key={`checkout-summary-${group.key}-${item.id}`}
+                              className="flex items-center gap-3 text-gray-600 bg-[#FFF8EE] rounded-lg px-2 py-1.5 border border-[#F3D5B5]/60"
+                            >
+                              <img
+                                src={item.imageUrl || item.image || '/images/default-product.png'}
+                                alt={item.name}
+                                className="w-10 h-10 rounded-lg object-cover border border-[#F3D5B5]"
+                                onError={(event) => {
+                                  event.currentTarget.onerror = null;
+                                  event.currentTarget.src = '/images/default-product.png';
+                                }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="truncate text-xs font-semibold text-[#8B4513]">
+                                  {item.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {translate('cart.checkoutConfirmQuantity', 'Số lượng')}
+                                  {`: ${item.quantity || 1}`}
+                                </p>
+                              </div>
+                              <span className="text-[#8B4513] font-semibold flex-shrink-0 text-xs">
+                                {formatCurrency((item.price || 0) * (item.quantity || 0), priceSuffix)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">
+                      {translate('cart.checkoutNoAvailable', 'Không còn sản phẩm khả dụng để đặt hàng.')}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex justify-between">
@@ -1421,7 +1445,7 @@ const ProductList = ({
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setCheckoutConfirm({ open: false, loading: false, items: [], context: null })}
+                onClick={() => setCheckoutConfirm({ open: false, loading: false, items: [], filteredOut: 0, context: null })}
                 disabled={checkoutConfirm.loading}
                 className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition disabled:opacity-60"
               >
@@ -1437,17 +1461,20 @@ const ProductList = ({
                       ? checkoutConfirm.items
                       : undefined;
                     await onCheckout(selected);
-                    setCheckoutConfirm({ open: false, loading: false, items: [], context: null });
+                    setCheckoutConfirm({ open: false, loading: false, items: [], filteredOut: 0, context: null });
                   } catch (error) {
                     console.error('Checkout error:', error);
-                    setCheckoutConfirm({ open: false, loading: false, items: [], context: null });
+                    setCheckoutConfirm({ open: false, loading: false, items: [], filteredOut: 0, context: null });
                   }
                 }}
-                className="px-4 py-2 rounded-lg bg-[#8B4513] text-white font-semibold hover:bg-[#D4A574] transition disabled:opacity-70"
+                disabled={checkoutConfirm.loading || !hasConfirmationItems}
+                className="px-4 py-2 rounded-lg bg-[#8B4513] text-white font-semibold hover:bg-[#D4A574] transition disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {checkoutConfirm.loading
                   ? translate('cart.checkoutConfirmProcessing', 'Đang chuyển hướng...')
-                  : translate('cart.checkoutConfirmAccept', 'Tiếp tục thanh toán')}
+                  : hasConfirmationItems
+                    ? translate('cart.checkoutConfirmAccept', 'Tiếp tục thanh toán')
+                    : translate('cart.checkoutConfirmEmpty', 'Không có sản phẩm để đặt hàng')}
               </button>
             </div>
           </div>

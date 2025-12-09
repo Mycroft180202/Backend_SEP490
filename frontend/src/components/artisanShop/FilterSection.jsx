@@ -1,10 +1,12 @@
 import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const FilterSection = ({ artisanId }) => {
   const navigate = useNavigate();
   const { userInfo } = useContext(UserContext);
+  const { t } = useContext(LanguageContext);
   const isArtisan = userInfo?.roles?.some((role) => (typeof role === 'string' ? role : role.name) === 'Artisan');
   const isOwner = artisanId && (userInfo?.userID === artisanId || userInfo?.userId === artisanId);
 
@@ -17,7 +19,7 @@ const FilterSection = ({ artisanId }) => {
             onClick={() => navigate('/artisan-dashboard')}
             className="px-4 py-2 rounded-md bg-[#8B4513] text-white text-sm font-medium shadow hover:bg-[#703814] transition-colors"
           >
-            Quản lý cửa hàng
+            {t('header.artisanDashboard')}
           </button>
         )}
       </div>

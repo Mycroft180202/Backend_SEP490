@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
 import SortBar from '../components/orderHistory/SortBar';
@@ -12,12 +12,14 @@ import Breadcrumb from '../components/shared/Breadcrumb';
 import { NavigationKeys } from '../context/NavigationContext';
 import useResolvedNavigationNode from '../hooks/useResolvedNavigationNode';
 import useNavigationNode from '../hooks/useNavigationNode';
+import { LanguageContext } from '../context/LanguageContext';
 
 const OrderHistory = () => {
+  const { t } = useContext(LanguageContext);
   const orderHistoryNode = useMemo(() => ({
-    label: 'Lịch sử đơn hàng',
+    label: t('orderHistory.page.title'),
     href: '/order-history',
-  }), []);
+  }), [t]);
 
   const profileNode = useResolvedNavigationNode({
     locationKey: 'fromProfile',
@@ -27,7 +29,7 @@ const OrderHistory = () => {
   useNavigationNode(NavigationKeys.LAST_PROFILE_ENTRY, orderHistoryNode);
 
   const breadcrumbs = useMemo(() => {
-    const items = [{ label: 'Trang chủ', href: '/' }];
+    const items = [{ label: t('orderHistory.page.breadcrumbHome'), href: '/' }];
     if (profileNode?.label && profileNode?.href) {
       items.push({
         label: profileNode.label,
@@ -37,7 +39,7 @@ const OrderHistory = () => {
     }
     items.push({ label: orderHistoryNode.label });
     return items;
-  }, [orderHistoryNode, profileNode]);
+  }, [t, orderHistoryNode, profileNode]);
 
   const [rawOrders, setRawOrders] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -81,11 +83,11 @@ const OrderHistory = () => {
       setCurrentPage(pageIndex);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast.error('Không thể tải danh sách đơn hàng');
+      toast.error(t('orderHistory.list.toast.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus, pageSize]);
+  }, [selectedStatus, pageSize, t]);
 
   useEffect(() => {
     fetchOrders(1);
@@ -199,39 +201,39 @@ const OrderHistory = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {selectedStatus === 'all' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col gap-1">
-              <p className="text-sm text-gray-500 font-nunito">Tổng chi tiêu</p>
+              <p className="text-sm text-gray-500 font-nunito">{t('orderHistory.page.stats.totalSpentTitle')}</p>
               <p className="text-3xl font-alata text-primary">{formatCurrency(totalSpent)}</p>
-              <p className="text-xs text-gray-400">Dựa trên bộ lọc hiện tại</p>
+              <p className="text-xs text-gray-400">{t('orderHistory.page.stats.totalSpentCaption')}</p>
             </div>
           )}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col gap-1">
-            <p className="text-sm text-gray-500 font-nunito">Số đơn hiển thị</p>
+            <p className="text-sm text-gray-500 font-nunito">{t('orderHistory.page.stats.ordersShownTitle')}</p>
             <p className="text-3xl font-alata text-gray-900">{orders.length}</p>
-            <p className="text-xs text-gray-400">Trong trang hiện tại</p>
+            <p className="text-xs text-gray-400">{t('orderHistory.page.stats.ordersShownCaption')}</p>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Bộ lọc nâng cao</h3>
+            <h3 className="text-lg font-semibold text-gray-800">{t('orderHistory.page.filters.title')}</h3>
             <button
               type="button"
               onClick={handleResetFilters}
               className="text-sm text-primary hover:underline"
             >
-              Xóa bộ lọc
+              {t('orderHistory.page.filters.reset')}
             </button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-600">Từ ngày</label>
+              <label className="text-sm font-medium text-gray-600">{t('orderHistory.page.filters.startDateLabel')}</label>
               <div className="grid grid-cols-3 gap-2">
                 <select
                   className="px-2 py-2 border border-gray-300 rounded-lg text-sm"
                   value={dateParts.start.day}
                   onChange={(e) => handleDatePartChange('start', 'day', e.target.value)}
                 >
-                  <option value="">Ngày</option>
+                  <option value="">{t('orderHistory.page.filters.selectDay')}</option>
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                     <option key={`start-day-${day}`} value={day}>
                       {day}
@@ -243,7 +245,7 @@ const OrderHistory = () => {
                   value={dateParts.start.month}
                   onChange={(e) => handleDatePartChange('start', 'month', e.target.value)}
                 >
-                  <option value="">Tháng</option>
+                  <option value="">{t('orderHistory.page.filters.selectMonth')}</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
                     <option key={`start-month-${month}`} value={month}>
                       {month}
@@ -255,7 +257,7 @@ const OrderHistory = () => {
                   value={dateParts.start.year}
                   onChange={(e) => handleDatePartChange('start', 'year', e.target.value)}
                 >
-                  <option value="">Năm</option>
+                  <option value="">{t('orderHistory.page.filters.selectYear')}</option>
                   {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((year) => (
                     <option key={`start-year-${year}`} value={year}>
                       {year}
@@ -265,14 +267,14 @@ const OrderHistory = () => {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-600">Đến ngày</label>
+              <label className="text-sm font-medium text-gray-600">{t('orderHistory.page.filters.endDateLabel')}</label>
               <div className="grid grid-cols-3 gap-2">
                 <select
                   className="px-2 py-2 border border-gray-300 rounded-lg text-sm"
                   value={dateParts.end.day}
                   onChange={(e) => handleDatePartChange('end', 'day', e.target.value)}
                 >
-                  <option value="">Ngày</option>
+                  <option value="">{t('orderHistory.page.filters.selectDay')}</option>
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                     <option key={`end-day-${day}`} value={day}>
                       {day}
@@ -284,7 +286,7 @@ const OrderHistory = () => {
                   value={dateParts.end.month}
                   onChange={(e) => handleDatePartChange('end', 'month', e.target.value)}
                 >
-                  <option value="">Tháng</option>
+                  <option value="">{t('orderHistory.page.filters.selectMonth')}</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
                     <option key={`end-month-${month}`} value={month}>
                       {month}
@@ -296,7 +298,7 @@ const OrderHistory = () => {
                   value={dateParts.end.year}
                   onChange={(e) => handleDatePartChange('end', 'year', e.target.value)}
                 >
-                  <option value="">Năm</option>
+                  <option value="">{t('orderHistory.page.filters.selectYear')}</option>
                   {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((year) => (
                     <option key={`end-year-${year}`} value={year}>
                       {year}
@@ -306,15 +308,15 @@ const OrderHistory = () => {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-600">Phương thức thanh toán</label>
+              <label className="text-sm font-medium text-gray-600">{t('orderHistory.page.filters.paymentMethodLabel')}</label>
               <select
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={filters.paymentMethod}
                 onChange={(e) => handleFilterChange('paymentMethod', e.target.value)}
               >
-                <option value="all">Tất cả</option>
-                <option value="COD">Thanh toán khi nhận hàng</option>
-                <option value="VNPAY">VNPAY</option>
+                <option value="all">{t('orderHistory.page.filters.paymentMethod.all')}</option>
+                <option value="COD">{t('orderHistory.page.filters.paymentMethod.COD')}</option>
+                <option value="VNPAY">{t('orderHistory.page.filters.paymentMethod.VNPAY')}</option>
               </select>
             </div>
           </div>
@@ -322,7 +324,7 @@ const OrderHistory = () => {
       </div>
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <p className="text-gray-500">Đang tải...</p>
+          <p className="text-gray-500">{t('orderHistory.loading')}</p>
         </div>
       ) : orders.length > 0 ? (
         <>
@@ -338,10 +340,10 @@ const OrderHistory = () => {
                     : 'hover:bg-gray-50'
                 }`}
               >
-                Trước
+                {t('orderHistory.pagination.prev')}
               </button>
               <span className="text-gray-600 font-nunito">
-                Trang {currentPage}/{totalPages}
+                {t('orderHistory.pagination.label', { current: currentPage, total: totalPages })}
               </span>
               <button
                 onClick={handleNextPage}
@@ -352,7 +354,7 @@ const OrderHistory = () => {
                     : 'hover:bg-gray-50'
                 }`}
               >
-                Sau
+                {t('orderHistory.pagination.next')}
               </button>
             </div>
           )}

@@ -1,4 +1,5 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import Breadcrumb from '../components/shared/Breadcrumb';
@@ -6,6 +7,18 @@ import { LanguageContext } from '../context/LanguageContext';
 
 const Policy = () => {
   const { t } = useContext(LanguageContext);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+    const targetId = location.hash.replace('#', '');
+    const element = document.getElementById(targetId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.hash]);
 
   return (
     <div className="min-h-screen bg-[#FFFBF0] flex flex-col">
@@ -32,7 +45,7 @@ const Policy = () => {
             </header>
 
             <article className="bg-white rounded-3xl shadow-md border border-[#D4A574]/30 p-8 space-y-8">
-              <section>
+              <section id="privacy">
                 <h2 className="text-2xl font-semibold text-[#9e211f] mb-3">
                   {t('policy.privacyTitle')}
                 </h2>
@@ -41,7 +54,7 @@ const Policy = () => {
                 </p>
               </section>
 
-              <section>
+              <section id="shipping">
                 <h2 className="text-2xl font-semibold text-[#9e211f] mb-3">
                   {t('policy.shippingTitle')}
                 </h2>
@@ -50,7 +63,7 @@ const Policy = () => {
                 </p>
               </section>
 
-              <section>
+              <section id="return">
                 <h2 className="text-2xl font-semibold text-[#9e211f] mb-3">
                   {t('policy.returnTitle')}
                 </h2>

@@ -619,35 +619,54 @@ function ProfileSection({ initialFocus, profileNode }) {
     }
   }, [profile]);
 
-  const getApplicationStatusMeta = (status) => {
-    switch ((status || '').toUpperCase()) {
-      case 'PENDING':
-        return {
-          label: 'Chờ duyệt',
-          color: 'bg-yellow-100 text-yellow-800',
-          description: 'Đơn đăng ký của bạn đang được đội ngũ quản trị xem xét. Vui lòng đợi thêm.',
-        };
-      case 'APPROVED':
-      case 'DONE':
-        return {
-          label: 'Đã duyệt',
-          color: 'bg-green-100 text-green-800',
-          description: 'Đơn đăng ký đã được chấp nhận. Bạn có thể bắt đầu quản lý cửa hàng của mình.',
-        };
-      case 'REJECTED':
-        return {
-          label: 'Đã từ chối',
-          color: 'bg-red-100 text-red-800',
-          description: 'Đơn đăng ký đã bị từ chối. Vui lòng xem lý do và liên hệ hỗ trợ nếu cần.',
-        };
-      default:
-        return {
-          label: 'Không xác định',
-          color: 'bg-gray-100 text-gray-800',
-          description: '',
-        };
-    }
-  };
+  const getApplicationStatusMeta = useCallback((status) => {
+    const normalized = (status || '').toUpperCase();
+    const statusMap = {
+      PENDING: {
+        labelKey: 'profile.artisanApplication.status.pending.label',
+        descriptionKey: 'profile.artisanApplication.status.pending.description',
+        fallbackLabel: 'Chờ duyệt',
+        fallbackDescription: 'Đơn đăng ký của bạn đang được đội ngũ quản trị xem xét. Vui lòng đợi thêm.',
+        color: 'bg-yellow-100 text-yellow-800',
+      },
+      APPROVED: {
+        labelKey: 'profile.artisanApplication.status.approved.label',
+        descriptionKey: 'profile.artisanApplication.status.approved.description',
+        fallbackLabel: 'Đã duyệt',
+        fallbackDescription: 'Đơn đăng ký đã được chấp nhận. Bạn có thể bắt đầu quản lý cửa hàng của mình.',
+        color: 'bg-green-100 text-green-800',
+      },
+      DONE: {
+        labelKey: 'profile.artisanApplication.status.approved.label',
+        descriptionKey: 'profile.artisanApplication.status.approved.description',
+        fallbackLabel: 'Đã duyệt',
+        fallbackDescription: 'Đơn đăng ký đã được chấp nhận. Bạn có thể bắt đầu quản lý cửa hàng của mình.',
+        color: 'bg-green-100 text-green-800',
+      },
+      REJECTED: {
+        labelKey: 'profile.artisanApplication.status.rejected.label',
+        descriptionKey: 'profile.artisanApplication.status.rejected.description',
+        fallbackLabel: 'Đã từ chối',
+        fallbackDescription: 'Đơn đăng ký đã bị từ chối. Vui lòng xem lý do và liên hệ hỗ trợ nếu cần.',
+        color: 'bg-red-100 text-red-800',
+      },
+      UNKNOWN: {
+        labelKey: 'profile.artisanApplication.status.unknown.label',
+        descriptionKey: 'profile.artisanApplication.status.unknown.description',
+        fallbackLabel: 'Không xác định',
+        fallbackDescription: '',
+        color: 'bg-gray-100 text-gray-800',
+      },
+    };
+
+    const meta = statusMap[normalized] || statusMap.UNKNOWN;
+
+    return {
+      label: translate(meta.labelKey, meta.fallbackLabel),
+      color: meta.color,
+      description: translate(meta.descriptionKey, meta.fallbackDescription),
+    };
+  }, [translate]);
 
   const loadProvinces = useCallback(async () => {
     try {

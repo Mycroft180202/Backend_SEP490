@@ -5,6 +5,57 @@ import {
   FaTrash,
   FaSpinner,
 } from 'react-icons/fa';
+import { ProductService } from '../../services/modules/products/productService';
+
+const normalizeInitialImages = (source) => {
+  if (!source) return [];
+  const rawList = source.images
+    || source.Images
+    || source.productImages
+    || source.ProductImages
+    || [];
+
+  const derived = Array.isArray(rawList) ? rawList : [];
+
+  const mapped = derived
+    .map((item) => {
+      if (!item) return null;
+      if (typeof item === 'string') {
+        return { id: null, url: item };
+      }
+      const url = item.url
+        || item.imageUrl
+        || item.ImageUrl
+        || item.urlImage
+        || item.path
+        || item.src
+        || item.thumbnail
+        || null;
+      if (!url) return null;
+      const id = item.id
+        || item.imageId
+        || item.ImageId
+        || item.productImageId
+        || item.ProductImageId
+        || null;
+      return { id, url };
+    })
+    .filter((item) => item && item.url);
+
+  if (mapped.length > 0) {
+    return mapped;
+  }
+
+  if (source.imageUrl) {
+    return [{ id: null, url: source.imageUrl }];
+  }
+
+  if (source.image) {
+    return [{ id: null, url: source.image }];
+  }
+
+  return [];
+};
 
 const AddProductForm = ({
   isOpen,
@@ -15,7 +66,7 @@ const AddProductForm = ({
   categories = [],
 }) => {
   const isEditing = Boolean(initialData?.id);
-  const buildInitialState = (rawSource = {}) => {
+  const buildInitialState = React.useCallback((rawSource = {}) => {
     const source = rawSource || {};
     return {
       name: source.name || source.Name || '',
@@ -27,20 +78,58 @@ const AddProductForm = ({
       stock: source.stock ?? source.Stock ?? 0,
       images: [],
     };
-  };
+  }, [artisanId]);
 
-  const [formData, setFormData] = useState(buildInitialState());
+  const [formData, setFormData] = useState(() => buildInitialState());
   const [errors, setErrors] = useState({});
   const [previewImages, setPreviewImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // Sync initial data when editing
   React.useEffect(() => {
     if (!isOpen) return;
     setFormData(buildInitialState(initialData));
+    setExistingImages(normalizeInitialImages(initialData));
     setPreviewImages([]);
     setErrors({});
-  }, [initialData, isOpen, artisanId]);
+  }, [initialData, isOpen, artisanId, buildInitialState]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchDetail = async () => {
+      if (!isOpen || !isEditing || !initialData?.id) return;
+      try {
+        setIsDetailLoading(true);
+        const detailResponse = await ProductService.getProductById(initialData.id);
+        if (!isMounted) return;
+        const detail = detailResponse?.product || detailResponse;
+        setFormData((prev) => ({
+          ...prev,
+          name: detail?.name || detail?.Name || prev.name,
+          shortDescription: detail?.shortDescription || detail?.ShortDescription || prev.shortDescription,
+          longDescription: detail?.longDescription || detail?.LongDescription || prev.longDescription,
+          price: detail?.price ?? detail?.Price ?? prev.price,
+          category: detail?.category || detail?.Category || prev.category,
+          stock: detail?.stock ?? detail?.Stock ?? prev.stock,
+        }));
+        setExistingImages(normalizeInitialImages(detail));
+      } catch (error) {
+        console.error('Failed to load product detail:', error);
+      } finally {
+        if (isMounted) {
+          setIsDetailLoading(false);
+        }
+      }
+    };
+
+    fetchDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, isEditing, initialData?.id]);
 
   // Validate field
   const validateField = (name, value) => {
@@ -160,7 +249,7 @@ const AddProductForm = ({
     setPreviewImages(prev => [...prev, ...newPreviews]);
 
     // Clear image errors if at least one image is uploaded
-    if (newFiles.length > 0) {
+    if ((newFiles.length + existingImages.length) > 0) {
       setErrors(prev => {
         const { images, ...rest } = prev;
         return rest;
@@ -181,7 +270,7 @@ const AddProductForm = ({
     setPreviewImages(newPreviews);
 
     // Set error if no images left
-    if (newImages.length === 0) {
+    if ((newImages.length + existingImages.length) === 0) {
       setErrors(prev => ({
         ...prev,
         images: 'Phải có ít nhất 1 ảnh sản phẩm'
@@ -224,7 +313,7 @@ const AddProductForm = ({
       newErrors.stock = 'Số lượng tồn kho không hợp lệ';
     }
 
-    if (formData.images.length === 0) {
+    if ((formData.images.length + existingImages.length) === 0) {
       newErrors.images = 'Phải có ít nhất 1 ảnh sản phẩm';
     }
 
@@ -253,9 +342,13 @@ const AddProductForm = ({
     submitData.append('Stock', parseInt(formData.stock));
     
     // Append all images
-    formData.images.forEach((image, index) => {
+    formData.images.forEach((image) => {
       submitData.append('Images', image);
     });
+
+    if (existingImages.length > 0) {
+      submitData.append('ExistingImages', JSON.stringify(existingImages));
+    }
 
     setIsSubmitting(true);
     let shouldReset = false;
@@ -278,8 +371,10 @@ const AddProductForm = ({
   const handleReset = () => {
     if (isEditing) {
       setFormData(buildInitialState(initialData));
+      setExistingImages(normalizeInitialImages(initialData));
     } else {
       setFormData(buildInitialState());
+      setExistingImages([]);
     }
     setErrors({});
     setPreviewImages([]);
@@ -297,7 +392,7 @@ const AddProductForm = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-2xl">
-        {isSubmitting && (
+        {(isSubmitting || isDetailLoading) && (
           <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm">
             <FaSpinner className="text-primary text-3xl animate-spin" />
           </div>
@@ -452,6 +547,21 @@ const AddProductForm = ({
             <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
               Hình ảnh sản phẩm <span className="text-red-500">*</span>
             </h3>
+            {existingImages.length > 0 && (
+              <div className="mb-2">
+                <p className="text-xs text-gray-500 mb-2">Ảnh hiện tại</p>
+                <div className="flex flex-wrap gap-3">
+                  {existingImages.map((image) => (
+                    <img
+                      key={image.id || image.url}
+                      src={image.url}
+                      alt="product-current"
+                      className="h-20 w-20 rounded-lg object-cover border"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Upload Area */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors">

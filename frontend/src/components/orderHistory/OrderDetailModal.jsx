@@ -1,41 +1,38 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { FaTimes, FaSpinner } from "react-icons/fa";
-import { OrderService } from "../../services/modules/orders/orderService";
-import { ProductService } from "../../services/modules/products/productService";
-import { CategoryService } from "../../services/modules/products/categoryService";
-import { AddressService } from "../../services/modules/orders/addressService";
-import { toast } from "react-toastify";
-import { formatCurrency } from "../../utils/formatCurrency";
-import CancelOrderDialog from "./CancelOrderDialog";
+import React, { useCallback, useContext, useEffect, useState } from 'react';
+import { FaTimes, FaSpinner } from 'react-icons/fa';
+import { OrderService } from '../../services/modules/orders/orderService';
+import { ProductService } from '../../services/modules/products/productService';
+import { CategoryService } from '../../services/modules/products/categoryService';
+import { AddressService } from '../../services/modules/orders/addressService';
+import { toast } from 'react-toastify';
+import { formatCurrency } from '../../utils/formatCurrency';
+import CancelOrderDialog from './CancelOrderDialog';
+import { LanguageContext } from '../../context/LanguageContext';
 
-const statusConfigs = {
-  WaitingForPickup: {
-    label: 'Chờ xác nhận',
-    className: 'bg-yellow-100 text-yellow-800',
-  },
-  Shipping: {
-    label: 'Đang giao hàng',
-    className: 'bg-blue-100 text-blue-800',
-  },
-  Paid: {
-    label: 'Đã thanh toán',
-    className: 'bg-green-100 text-green-800',
-  },
-  Completed: {
-    label: 'Đã nhận hàng',
-    className: 'bg-emerald-100 text-emerald-800',
-  },
-  Cancelled: {
-    label: 'Đã hủy',
-    className: 'bg-red-100 text-red-700',
-  },
-  Default: {
-    label: 'Không xác định',
-    className: 'bg-gray-100 text-gray-700',
-  },
+const STATUS_CLASSES = {
+  WaitingForPickup: 'bg-yellow-100 text-yellow-800',
+  Shipping: 'bg-blue-100 text-blue-800',
+  Paid: 'bg-green-100 text-green-800',
+  Completed: 'bg-emerald-100 text-emerald-800',
+  Cancelled: 'bg-red-100 text-red-700',
 };
 
+const DEFAULT_STATUS_CLASS = 'bg-gray-100 text-gray-700';
+
 function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
+  const { t, language } = useContext(LanguageContext);
+  const locale = language === 'vi' ? 'vi-VN' : 'en-US';
+  const getStatusLabel = useCallback(
+    (status) => {
+      const raw = t(`orderHistory.statuses.${status}`);
+      return raw && !raw.includes('orderHistory.statuses.') ? raw : t('orderHistory.statuses.default');
+    },
+    [t],
+  );
+  const getStatusClass = useCallback(
+    (status) => STATUS_CLASSES[status] || DEFAULT_STATUS_CLASS,
+    [],
+  );
   const [orderDetail, setOrderDetail] = useState(null);
   const [products, setProducts] = useState({});
   const [categories, setCategories] = useState({});
@@ -70,7 +67,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
           // Set a placeholder if product fetch fails
           productMap[item.productID] = {
             id: item.productID,
-            name: `Sản phẩm ${item.productID}`,
+            name: t('orderHistory.detailModal.productFallback', { id: item.productID }),
             price: item.unitPrice,
             category: "UNKNOWN",
             images: [],
@@ -92,13 +89,13 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
         }
       }
     } catch (error) {
-      console.error("Error fetching order detail:", error);
-      toast.error("Không thể tải chi tiết đơn hàng");
+      console.error('Error fetching order detail:', error);
+      toast.error(t('orderHistory.detailModal.error'));
       onClose();
     } finally {
       setLoading(false);
     }
-  }, [orderNumber, onClose]);
+  }, [orderNumber, onClose, t]);
 
   useEffect(() => {
     if (isOpen && orderNumber) {
@@ -164,7 +161,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-primary to-red-700 text-white px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold font-alata">Chi tiết đơn hàng</h2>
+          <h2 className="text-2xl font-bold font-alata">{t('orderHistory.detailModal.title')}</h2>
           <button
             onClick={onClose}
             className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors"
@@ -177,7 +174,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <FaSpinner className="animate-spin text-primary text-3xl" />
-            <p className="ml-4 text-gray-600 font-nunito">Đang tải...</p>
+            <p className="ml-4 text-gray-600 font-nunito">{t('orderHistory.detailModal.loading')}</p>
           </div>
         ) : orderDetail ? (
           <div className="px-6 py-6 space-y-6">
@@ -185,40 +182,41 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-600 text-sm font-nunito">Mã đơn hàng</p>
+                  <p className="text-gray-600 text-sm font-nunito">{t('orderHistory.detailModal.orderCode')}</p>
                   <p className="font-alata text-lg font-bold text-primary">
                     {orderDetail.orderNumber}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm font-nunito">Trạng thái</p>
+                  <p className="text-gray-600 text-sm font-nunito">{t('orderHistory.detailModal.status')}</p>
                   {(() => {
-                    const config = statusConfigs[orderDetail.status] || statusConfigs.Default;
+                    const statusClass = getStatusClass(orderDetail.status);
+                    const statusLabel = getStatusLabel(orderDetail.status);
                     return (
-                      <span className={`inline-flex px-3 py-1 rounded-lg text-sm font-semibold ${config.className}`}>
-                        {config.label}
+                      <span className={`inline-flex px-3 py-1 rounded-lg text-sm font-semibold ${statusClass}`}>
+                        {statusLabel}
                       </span>
                     );
                   })()}
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm font-nunito">Ngày đặt hàng</p>
+                  <p className="text-gray-600 text-sm font-nunito">{t('orderHistory.detailModal.orderDate')}</p>
                   <p className="font-nunito text-gray-800">
-                    {new Date(orderDetail.createAt).toLocaleDateString("vi-VN", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
+                    {new Date(orderDetail.createAt).toLocaleDateString(locale, {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
                     })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm font-nunito">Thanh toán</p>
+                  <p className="text-gray-600 text-sm font-nunito">{t('orderHistory.detailModal.payment')}</p>
                   <p className="font-nunito text-gray-800">
-                    {orderDetail.paymentType === "COD"
-                      ? "Thanh toán khi nhận hàng"
-                      : "VNPAY"}
+                    {orderDetail.paymentType === 'COD'
+                      ? t('orderHistory.detailModal.paymentCOD')
+                      : t('orderHistory.detailModal.paymentVNPAY')}
                   </p>
                 </div>
               </div>
@@ -227,14 +225,14 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
             {/* Products */}
             <div>
               <h3 className="font-alata text-lg font-bold text-gray-800 mb-4">
-                Sản phẩm ({orderDetail.items.length})
+                {t('orderHistory.detailModal.products', { count: orderDetail.items.length })}
               </h3>
               <div className="space-y-4">
                 {orderDetail.items.map((item, index) => {
                   const product = products[item.productID];
                   const categoryName = product
-                    ? categories[product.category] || "Khác"
-                    : "Đang tải...";
+                    ? categories[product.category] || t('orderHistory.detailModal.categoryFallback')
+                    : t('orderHistory.detailModal.loading');
 
                   return (
                     <div
@@ -252,7 +250,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                              <span className="text-gray-400 text-xs">Không có ảnh</span>
+                              <span className="text-gray-400 text-xs">{t('orderHistory.detailModal.noImage')}</span>
                             </div>
                           )}
                         </div>
@@ -262,10 +260,10 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <p className="font-nunito font-semibold text-gray-800">
-                                {product ? product.name : `Sản phẩm ${item.productID}`}
+                                {product ? product.name : t('orderHistory.detailModal.productFallback', { id: item.productID })}
                               </p>
                               <p className="text-sm text-gray-600 font-nunito">
-                                Danh mục: {categoryName}
+                                {t('orderHistory.detailModal.category')}: {categoryName}
                               </p>
                             </div>
                             <p className="font-alata text-lg font-bold text-primary">
@@ -275,10 +273,10 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
 
                           <div className="flex items-center justify-between text-sm">
                             <p className="text-gray-600 font-nunito">
-                              Số lượng: <span className="font-semibold">{item.quantity}</span>
+                              {t('orderHistory.detailModal.quantity')}: <span className="font-semibold">{item.quantity}</span>
                             </p>
                             <p className="font-nunito font-semibold text-gray-800">
-                              Thành tiền:{" "}
+                              {t('orderHistory.detailModal.lineTotal')}: 
                               <span className="text-primary">
                                 {formatCurrency(item.unitPrice * item.quantity)}
                               </span>
@@ -295,21 +293,21 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
             {/* Order Summary */}
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
               <div className="flex justify-between text-sm font-nunito">
-                <span className="text-gray-600">Tạm tính</span>
+                <span className="text-gray-600">{t('orderHistory.detailModal.summary.subtotal')}</span>
                 <span className="text-gray-800 font-semibold">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm font-nunito">
-                <span className="text-gray-600">Phí vận chuyển</span>
+                <span className="text-gray-600">{t('orderHistory.detailModal.summary.shippingFee')}</span>
                 <span className="text-gray-800 font-semibold">{formatCurrency(shippingFee)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-sm font-nunito text-red-600">
-                  <span>Giảm giá</span>
+                  <span>{t('orderHistory.detailModal.summary.discount')}</span>
                   <span>-{formatCurrency(discountAmount)}</span>
                 </div>
               )}
               <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
-                <p className="font-alata text-lg font-bold text-gray-800">Tổng cộng</p>
+                <p className="font-alata text-lg font-bold text-gray-800">{t('orderHistory.detailModal.summary.total')}</p>
                 <p className="font-alata text-2xl font-bold text-primary">
                   {formatCurrency(grandTotal)}
                 </p>
@@ -320,23 +318,23 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
             {shippingAddress && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-alata font-bold text-gray-800 mb-3">
-                  Địa chỉ giao hàng
+                  {t('orderHistory.detailModal.shippingAddress.title')}
                 </h3>
                 <div className="space-y-2 font-nunito text-sm text-gray-800">
                   <div>
-                    <p className="text-gray-600 text-xs">Người nhận</p>
+                    <p className="text-gray-600 text-xs">{t('orderHistory.detailModal.shippingAddress.recipient')}</p>
                     <p className="font-semibold">
                       {shippingAddress.contactName}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600 text-xs">Số điện thoại</p>
+                    <p className="text-gray-600 text-xs">{t('orderHistory.detailModal.shippingAddress.phone')}</p>
                     <p className="font-semibold">
                       {shippingAddress.contactPhone}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600 text-xs">Địa chỉ chi tiết</p>
+                    <p className="text-gray-600 text-xs">{t('orderHistory.detailModal.shippingAddress.detail')}</p>
                     <p className="font-semibold">
                       {shippingAddress.line1}
                       {shippingAddress.line2 && `, ${shippingAddress.line2}`}
@@ -344,26 +342,26 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <p className="text-gray-600 text-xs">Xã/Phường</p>
+                      <p className="text-gray-600 text-xs">{t('orderHistory.detailModal.shippingAddress.ward')}</p>
                       <p className="font-semibold truncate">
                         {shippingAddress.wardName}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600 text-xs">Huyện/Quận</p>
+                      <p className="text-gray-600 text-xs">{t('orderHistory.detailModal.shippingAddress.district')}</p>
                       <p className="font-semibold truncate">
                         {shippingAddress.districtName}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600 text-xs">Tỉnh/TP</p>
+                      <p className="text-gray-600 text-xs">{t('orderHistory.detailModal.shippingAddress.province')}</p>
                       <p className="font-semibold truncate">
                         {shippingAddress.provinceName}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2 text-xs">
-                    <span className="text-gray-600">Quốc gia:</span>
+                    <span className="text-gray-600">{t('orderHistory.detailModal.shippingAddress.country')}:</span>
                     <span className="font-semibold">{shippingAddress.country}</span>
                   </div>
                 </div>
@@ -376,14 +374,14 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
                 onClick={onClose}
                 className="flex-1 px-4 py-3 bg-gray-200 text-gray-800 rounded-lg font-nunito font-semibold hover:bg-gray-300 transition-colors"
               >
-                Đóng
+                {t('orderHistory.detailModal.actions.close')}
               </button>
               {["WaitingForPickup", "Paid"].includes(orderDetail.status) && (
                 <button
                   onClick={() => setShowCancelDialog(true)}
                   className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-nunito font-semibold hover:bg-red-600 transition-colors"
                 >
-                  Hủy đơn hàng
+                  {t('orderHistory.detailModal.actions.cancelOrder')}
                 </button>
               )}
             </div>
@@ -391,7 +389,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
         ) : (
           <div className="px-6 py-12 text-center">
             <p className="text-gray-600 font-nunito">
-              Không thể tải chi tiết đơn hàng
+              {t('orderHistory.detailModal.error')}
             </p>
           </div>
         )}

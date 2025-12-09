@@ -110,8 +110,8 @@ const Hero = () => {
           </div>
         </div>
 
-        <div className="absolute -top-[122px] -left-[122px] w-[244px] h-[244px] rounded-full bg-[#761214] blur-[50px]"></div>
-        <div className="absolute -top-[122px] right-[-122px] w-[244px] h-[244px] rounded-full bg-[#9E211F] blur-[50px]"></div>
+        <div className="absolute top-[220px] -left-[122px] w-[244px] h-[244px] rounded-full" />
+        <div className="absolute top-[220px] right-[-122px] w-[244px] h-[244px] rounded-full" />
 
         
 
@@ -201,7 +201,7 @@ const Hero = () => {
 
       {/* Introductory text with improved decorative waves */}
       <div className="relative z-30 -mt-16 sm:-mt-20 lg:-mt-10">
-        <div className="relative bg-[#DBEFE2] px-4 sm:px-8 md:px-12 lg:px-[140px] pt-20 md:pt-24 pb-20 md:pb-28 overflow-hidden rounded-t-[48px] md:rounded-t-[64px] shadow-[0_-40px_80px_rgba(28,53,94,0.08)]">
+        <div className="relative bg-[#FFF6E9] px-4 sm:px-8 md:px-12 lg:px-[140px] pt-20 md:pt-24 pb-20 md:pb-28 overflow-hidden rounded-t-[48px] md:rounded-t-[64px] shadow-[0_-40px_80px_rgba(28,53,94,0.08)]">
           <div className="absolute top-0 left-0 right-0 -translate-y-full pointer-events-none">
             <svg
               className="w-full h-20 md:h-24"
@@ -215,7 +215,7 @@ const Hero = () => {
               />
               <path
                 d="M0 118 C240 60 480 60 720 118 C960 176 1200 176 1440 118 L1440 0 L0 0 Z"
-                fill="#DBEFE2"
+                fill="#FFF6E9"
               />
             </svg>
           </div>
@@ -260,7 +260,7 @@ const Hero = () => {
             >
               <path
                 d="M0 0 C240 80 480 -20 720 60 C960 140 1200 -20 1440 60 L1440 120 L0 120 Z"
-                fill="#FFF8E7"
+                fill="#FFF6E9"
               />
             </svg>
           </div>

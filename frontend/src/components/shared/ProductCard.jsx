@@ -152,7 +152,7 @@ const ProductCard = ({
                   {isWished && (
                     <span className="absolute inset-0 rounded-full animate-ping bg-red-400/40" aria-hidden />
                   )}
-                  {isWished ? <FaHeart className="text-red-500 relative" /> : <FaRegHeart className="text-red-500 relative" />}
+                  {isWished ? <FaHeart className="text-[#E53935] relative" /> : <FaRegHeart className="text-[#E53935] relative" />}
                 </button>
               )}
             </div>
@@ -221,7 +221,7 @@ const ProductCard = ({
           {(isOutOfStock || price !== undefined) && (
             <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
               {isOutOfStock && (
-                <div className="px-3 py-1 rounded-full bg-primary-dark text-white text-xs font-semibold shadow">
+                <div className="px-3 py-1 rounded-full bg-[#C0392B] text-white text-xs font-semibold shadow">
                   {soldOutText}
                 </div>
               )}
@@ -278,16 +278,16 @@ const ProductCard = ({
         }
       }}
     >
-        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-background to-white">
-          <img
-            src={image}
-            alt={title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
+      <div className="relative h-64 overflow-hidden bg-gradient-to-br from-background to-white">
+        <img
+          src={image}
+          alt={title}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+        />
         {(isOutOfStock || onToggleWishlist || productId) && (
           <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
-            {isOutOfStock && (
-              <div className="px-3 py-1 rounded-full bg-primary-dark text-white text-xs font-semibold shadow">
+              {isOutOfStock && (
+                <div className="px-3 py-1 rounded-full bg-[#C0392B] text-white text-xs font-semibold shadow">
                 {soldOutText}
               </div>
             )}
@@ -300,7 +300,7 @@ const ProductCard = ({
                 {isWished && (
                   <span className="absolute inset-0 rounded-full animate-ping bg-accent/40" aria-hidden />
                 )}
-                {isWished ? <FaHeart className="text-accent relative" /> : <FaRegHeart className="text-accent relative" />}
+                {isWished ? <FaHeart className="text-[#E53935] relative" /> : <FaRegHeart className="text-[#E53935] relative" />}
               </button>
             )}
           </div>
@@ -330,7 +330,11 @@ const ProductCard = ({
             </p>
           </div>
           {stock !== undefined && (
-            <span className="text-sm text-gray-500 font-['Nunito']">
+            <span
+              className={`text-sm font-['Nunito'] ${
+                isOutOfStock ? 'text-[#C0392B] font-semibold' : 'text-gray-500'
+              }`}
+            >
               {t('productCard.stock', { stock: stock || 0 })}
             </span>
           )}

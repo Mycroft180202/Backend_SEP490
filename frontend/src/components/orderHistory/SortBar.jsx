@@ -1,16 +1,19 @@
-import { useState } from "react";
+import React, { useContext, useMemo, useState } from 'react';
+import { LanguageContext } from '../../context/LanguageContext';
 
-const STATUS_LIST = [
-  { label: "Tất cả", key: "all" },
-  { label: "Chờ xác nhận", key: "WaitingForPickup" },
-  { label: "Đang giao", key: "Shipping" },
-{ label: "Đã nhận hàng", key: "Completed" },
-  { label: "Đã hủy", key: "Cancelled" },
-  { label: "Đã thanh toán", key: "Paid" },
-];
+const STATUS_KEYS = ['all', 'WaitingForPickup', 'Shipping', 'Completed', 'Cancelled', 'Paid'];
 
 export default function SortBar({ onStatusChange }) {
+	const { t } = useContext(LanguageContext);
 	const [selected, setSelected] = useState(0);
+
+	const statusList = useMemo(
+		() => STATUS_KEYS.map((key) => ({
+			key,
+			label: t(`orderHistory.statuses.${key}`),
+		})),
+		[t],
+	);
 
 	const handleClick = (idx, key) => {
 		setSelected(idx);
@@ -20,7 +23,7 @@ export default function SortBar({ onStatusChange }) {
 	return (
 		<div className="box-border flex flex-col gap-4 items-start px-[144px] py-6 relative w-full bg-white border-b border-gray-200">
 			<div className="flex items-baseline justify-start gap-8 relative w-full">
-				{STATUS_LIST.map((status, idx) => (
+				{statusList.map((status, idx) => (
 					<button
 						key={status.key}
 						type="button"

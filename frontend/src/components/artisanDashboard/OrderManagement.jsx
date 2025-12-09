@@ -19,7 +19,9 @@ import { UserService } from '../../services/modules/users/userService';
 import { ProductService } from '../../services/modules/products/productService';
 import { AddressService } from '../../services/modules/orders/addressService';
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const API_FETCH_PAGE_SIZE = 200;
+const PAGE_SIZE_OPTIONS = [10, 20, 40, 80];
 
 const STATUS_META = {
   WAITING_FOR_PICKUP: {
@@ -110,15 +112,17 @@ const formatDateTime = (value) => {
   });
 };
 
-const canMarkAsShipping = (statusKey) => statusKey === 'WAITING_FOR_PICKUP' || statusKey === 'PAID';
+const canMarkAsShipping = (statusKey, paymentKey) => {
+  if (statusKey === 'WAITING_FOR_PICKUP') {
+    return paymentKey !== 'VNPAY';
+  }
+  return statusKey === 'PAID';
+};
 
 const OrderManagement = () => {
   const [pageIndex, setPageIndex] = useState(1);
   const [orders, setOrders] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -284,16 +288,54 @@ const OrderManagement = () => {
     });
   }, []);
 
-  const fetchOrders = useCallback(async (targetPage = 1) => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await ArtisanDashboardService.getOrders({
-        pageIndex: targetPage,
-        pageSize: PAGE_SIZE,
-      });
+      const aggregated = [];
+      let page = 1;
+      let expectedTotal = null;
+      let attempts = 0;
 
-      const source = Array.isArray(response?.items) ? response.items : [];
-      const normalized = source.map((order, index) => {
+      while (attempts < 20) {
+        attempts += 1;
+        const response = await ArtisanDashboardService.getOrders({
+          pageIndex: page,
+          pageSize: API_FETCH_PAGE_SIZE,
+        });
+
+        const source = Array.isArray(response?.items) ? response.items : [];
+        if (source.length) {
+          aggregated.push(...source);
+        }
+
+        if (Number.isFinite(Number(response?.totalCount))) {
+          expectedTotal = Number(response.totalCount);
+        }
+
+        const hasNextPage = Boolean(response?.hasNextPage);
+        const totalPagesFromApi = Number(response?.totalPages);
+        const reachedExpectedTotal = expectedTotal !== null && aggregated.length >= expectedTotal;
+        const fetchedFullPage = source.length >= API_FETCH_PAGE_SIZE;
+
+        if (hasNextPage && !reachedExpectedTotal) {
+          page += 1;
+          continue;
+        }
+
+        if (Number.isFinite(totalPagesFromApi) && totalPagesFromApi > 0 && page < totalPagesFromApi && !reachedExpectedTotal) {
+          page += 1;
+          continue;
+        }
+
+        if (fetchedFullPage && !reachedExpectedTotal) {
+          page += 1;
+          continue;
+        }
+
+        break;
+      }
+
+      const normalized = aggregated.map((order, index) => {
         const items = Array.isArray(order?.items) ? order.items : [];
         const statusKey = normalizeStatusKey(order?.status ?? order?.orderStatus);
         const paymentKey = normalizePaymentKey(order?.paymentType ?? order?.paymentMethod);
@@ -303,8 +345,8 @@ const OrderManagement = () => {
         );
 
         return {
-          id: order?.orderNumber ?? order?.id ?? `order-${targetPage}-${index}`,
-          orderNumber: order?.orderNumber ?? order?.id ?? `order-${targetPage}-${index}`,
+          id: order?.orderNumber ?? order?.id ?? `order-${index}`,
+          orderNumber: order?.orderNumber ?? order?.id ?? `order-${index}`,
           customerId:
             order?.customerId
             ?? order?.userId
@@ -349,26 +391,19 @@ const OrderManagement = () => {
       );
 
       setOrders(enrichedWithDetails);
-      setTotalCount(Number(response?.totalCount ?? source.length));
-      setTotalPages(Math.max(Number(response?.totalPages ?? 1), 1));
-      setHasNextPage(Boolean(response?.hasNextPage) || targetPage < Number(response?.totalPages ?? 1));
-      setHasPreviousPage(Boolean(response?.hasPreviousPage) || targetPage > 1);
     } catch (error) {
       console.error('Không thể tải danh sách đơn hàng artisan:', error);
       toast.error(error?.response?.data?.message || 'Không thể tải danh sách đơn hàng');
       setOrders([]);
-      setTotalCount(0);
-      setTotalPages(1);
-      setHasNextPage(false);
-      setHasPreviousPage(false);
+      setPageIndex(1);
     } finally {
       setLoading(false);
     }
   }, [enrichOrdersWithProfiles, resolveAddressDisplay, enrichItemsWithProductInfo]);
 
   useEffect(() => {
-    fetchOrders(pageIndex);
-  }, [pageIndex, fetchOrders]);
+    fetchOrders();
+  }, [fetchOrders]);
 
   const filteredOrders = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -383,9 +418,30 @@ const OrderManagement = () => {
     });
   }, [orders, searchTerm, filterStatus]);
 
+  const totalPages = useMemo(() => {
+    if (!filteredOrders.length) {
+      return 1;
+    }
+    return Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  }, [filteredOrders.length, pageSize]);
+
+  const paginatedOrders = useMemo(() => {
+    if (!filteredOrders.length) {
+      return [];
+    }
+    const start = (pageIndex - 1) * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, pageIndex, pageSize]);
+
+  useEffect(() => {
+    if (pageIndex > totalPages) {
+      setPageIndex(Math.max(1, totalPages));
+    }
+  }, [pageIndex, totalPages]);
+
   const stats = useMemo(() => {
     const base = {
-      total: totalCount,
+      total: orders.length,
       waitingForPickup: 0,
       shipping: 0,
       paid: 0,
@@ -416,7 +472,7 @@ const OrderManagement = () => {
     });
 
     return base;
-  }, [orders, totalCount]);
+  }, [orders]);
 
   const handleMarkAsShipping = useCallback(
     async (orderNumber) => {
@@ -425,7 +481,7 @@ const OrderManagement = () => {
       try {
         await ArtisanDashboardService.markOrderAsShipping(orderNumber);
         toast.success('Đơn hàng đã chuyển sang trạng thái Đang giao');
-        await fetchOrders(pageIndex);
+        await fetchOrders();
         setSelectedOrder((current) => (current?.orderNumber === orderNumber
           ? { ...current, status: 'SHIPPING' }
           : current));
@@ -436,7 +492,7 @@ const OrderManagement = () => {
         setUpdatingOrderNumber(null);
       }
     },
-    [fetchOrders, pageIndex],
+    [fetchOrders],
   );
 
   const handlePageChange = (pageNumber) => {
@@ -447,14 +503,14 @@ const OrderManagement = () => {
   };
 
   const handlePrevPage = () => {
-    if (loading || (!hasPreviousPage && pageIndex <= 1)) {
+    if (loading || pageIndex <= 1) {
       return;
     }
     setPageIndex((prev) => Math.max(prev - 1, 1));
   };
 
   const handleNextPage = () => {
-    if (loading || (!hasNextPage && pageIndex >= totalPages)) {
+    if (loading || pageIndex >= totalPages) {
       return;
     }
     setPageIndex((prev) => Math.min(prev + 1, totalPages));
@@ -465,9 +521,9 @@ const OrderManagement = () => {
   const formatPaymentLabel = (paymentKey) => PAYMENT_META[paymentKey]?.label ?? PAYMENT_META.UNKNOWN.label;
   const getPaymentBadgeClass = (paymentKey) => PAYMENT_META[paymentKey]?.badge ?? PAYMENT_META.UNKNOWN.badge;
 
-  const displayStart = filteredOrders.length ? (pageIndex - 1) * PAGE_SIZE + 1 : 0;
-  const displayEnd = (pageIndex - 1) * PAGE_SIZE + filteredOrders.length;
-  const totalDisplay = searchTerm ? filteredOrders.length : totalCount;
+  const displayStart = paginatedOrders.length ? (pageIndex - 1) * pageSize + 1 : 0;
+  const displayEnd = (pageIndex - 1) * pageSize + paginatedOrders.length;
+  const totalDisplay = filteredOrders.length;
 
   return (
     <div className="space-y-6">
@@ -512,7 +568,7 @@ const OrderManagement = () => {
           </button>
         </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
           <div className="relative md:col-span-2">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400" />
             <input
@@ -540,6 +596,21 @@ const OrderManagement = () => {
             <option value="PAID">{STATUS_META.PAID.label}</option>
             <option value="COMPLETED">{STATUS_META.COMPLETED.label}</option>
             <option value="CANCELLED">{STATUS_META.CANCELLED.label}</option>
+          </select>
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              const next = Number(event.target.value) || DEFAULT_PAGE_SIZE;
+              setPageSize(next);
+              setPageIndex(1);
+            }}
+            className="rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {`Hiển thị ${size}/trang`}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -574,7 +645,7 @@ const OrderManagement = () => {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => (
+                paginatedOrders.map((order) => (
                   <tr key={order.id} className="border-b border-gray-100 text-sm hover:bg-gray-50">
                     <td className="px-4 py-3 font-semibold text-primary">{order.orderNumber}</td>
                     <td className="px-4 py-3">
@@ -606,7 +677,7 @@ const OrderManagement = () => {
                         >
                           <FaEye />
                         </button>
-                        {canMarkAsShipping(order.status) ? (
+                        {canMarkAsShipping(order.status, order.paymentType) ? (
                           <button
                             type="button"
                             className="text-green-600 transition hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -632,7 +703,7 @@ const OrderManagement = () => {
 
         <div className="mt-6 flex flex-col gap-3 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
           <p>
-            Hiển thị {filteredOrders.length ? displayStart : 0} - {displayEnd} trên tổng {totalDisplay} đơn hàng
+            Hiển thị {paginatedOrders.length ? displayStart : 0} - {paginatedOrders.length ? displayEnd : 0} trên tổng {totalDisplay} đơn hàng
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -790,7 +861,7 @@ const OrderManagement = () => {
               </div>
             </div>
             <div className="flex justify-between border-t bg-gray-50 px-6 py-3">
-              {canMarkAsShipping(selectedOrder.status) ? (
+              {canMarkAsShipping(selectedOrder.status, selectedOrder.paymentType) ? (
                 <button
                   type="button"
                   className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"

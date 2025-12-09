@@ -16,9 +16,9 @@ const CheckoutBanner = ({ breadcrumbItems = [] }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#fef1ea]/95 via-white/85 to-[#fde3d3]" />
       </div>
-      <div className="relative max-w-[1440px] mx-auto px-4 md:px-10 py-12 flex flex-col gap-4">
+      <div className="relative max-w-[1440px] mx-auto px-4 md:px-10 py-12 flex flex-col gap-4 items-start">
         {breadcrumbItems.length > 0 && (
-          <Breadcrumb items={breadcrumbItems} floating />
+          <Breadcrumb items={breadcrumbItems} floating className="w-fit" />
         )}
         <div className="space-y-2 text-[#7a1b18] drop-shadow-sm">
           <p className="uppercase tracking-[0.3em] text-xs text-[#c86555]">

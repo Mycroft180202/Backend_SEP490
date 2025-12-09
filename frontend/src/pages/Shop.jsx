@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
@@ -19,6 +19,8 @@ import useNavigationNode from '../hooks/useNavigationNode';
 
 const Shop = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const presetFilters = location.state?.shopPreset;
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
   const activeProduct = useResolvedNavigationNode({
@@ -62,6 +64,26 @@ const Shop = () => {
     if (filtersInitialized) {
       return;
     }
+
+    if (presetFilters) {
+      if (presetFilters.category !== undefined) setSelectedCategory(presetFilters.category);
+      if (presetFilters.searchValue !== undefined) setSearchValue(presetFilters.searchValue ?? '');
+      if (presetFilters.searchQuery !== undefined) {
+        setSearchQuery(presetFilters.searchQuery ?? '');
+      } else if (presetFilters.searchValue !== undefined) {
+        setSearchQuery(presetFilters.searchValue ?? '');
+      }
+      if (presetFilters.sortOption !== undefined) setSortOption(presetFilters.sortOption ?? '');
+      if (presetFilters.pageIndex !== undefined) {
+        const parsedIndex = Number(presetFilters.pageIndex);
+        setPageIndex(Number.isFinite(parsedIndex) && parsedIndex > 0 ? parsedIndex : 1);
+      } else {
+        setPageIndex(1);
+      }
+      setFiltersInitialized(true);
+      return;
+    }
+
     const meta = productListNode?.meta;
     if (meta) {
       if (meta.category !== undefined) setSelectedCategory(meta.category);
@@ -71,7 +93,7 @@ const Shop = () => {
       if (meta.pageIndex !== undefined) setPageIndex(meta.pageIndex);
     }
     setFiltersInitialized(true);
-  }, [filtersInitialized, productListNode]);
+  }, [filtersInitialized, presetFilters, productListNode]);
 
   const shopListNode = useMemo(() => ({
     label: t('nav.shop'),
