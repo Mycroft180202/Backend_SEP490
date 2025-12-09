@@ -285,10 +285,8 @@ public class ProductServicesImpl: GenericServices, IProductServices
         existingProduct.Stock = productDto.Stock;
         existingProduct.UpdateAt = DateTime.UtcNow;
 
-        // C?p nh?t images (x?a c? -> th?m m?i)
         if (productDto.Images != null && productDto.Images.Any())
         {
-            // X?a ?nh c?
             await _context.ProductImages.RemoveProductImageAsync(existingProduct.ProductImages);
 
             int position = 0;

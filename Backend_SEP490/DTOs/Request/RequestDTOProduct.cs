@@ -29,7 +29,5 @@ public class RequestDTOProduct
 
     [Range(0, int.MaxValue, ErrorMessage = "Số lượng tồn kho không hợp lệ")]
     public int Stock { get; set; }
-
-    [MinLength(1, ErrorMessage = "Phải có ít nhất 1 ảnh sản phẩm")]
     public List<IFormFile> Images { get; set; } = new();
 }
