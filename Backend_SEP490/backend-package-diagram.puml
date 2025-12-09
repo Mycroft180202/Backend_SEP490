@@ -1,0 +1,110 @@
+@startuml
+title Backend_SEP490 Package Diagram
+
+skinparam packageStyle rectangle
+skinparam wrapWidth 220
+skinparam linetype ortho
+hide stereotypes
+
+package "Program" as Program {
+  [Program.cs]
+}
+
+package "Controllers" as Controllers
+
+package "Services" as Services {
+  package "Interfaces" as ServicesInterfaces
+  package "impl" as ServicesImpl
+}
+
+package "Background Jobs" as Background {
+  package "Services.Background"
+}
+
+package "Hubs" as Hubs
+
+package "Repositories" as Repositories {
+  package "Interfaces" as RepoInterfaces
+  package "impl" as RepoImpl
+}
+
+package "DTOs" as DTOs
+
+package "Mapper" as Mapper
+
+package "Extensions" as Extensions
+
+package "Config" as Config {
+  [appsettings*.json]
+  [.env]
+}
+
+package "Constants" as Constants
+
+package "Models" as Models
+
+package "data" as Data {
+  [AppDbContext]
+}
+
+package "Migrations" as Migrations
+
+package "Properties" as Properties {
+  [launchSettings.json]
+}
+
+database "SQL Server" as Database
+
+Program --> Controllers : wires endpoints
+Program --> Hubs : registers
+Program --> Background : starts jobs
+Program --> Extensions : add middleware
+Program --> Config : load settings
+
+Controllers --> ServicesInterfaces : depend on
+Controllers --> ServicesImpl : resolve via DI
+Controllers --> DTOs : request/response
+Controllers --> Mapper : map models
+
+Hubs --> ServicesInterfaces : invoke
+Hubs --> DTOs
+
+Background --> ServicesInterfaces : reuse logic
+Background --> RepoInterfaces : scheduled ops
+
+ServicesImpl --> RepoInterfaces : orchestrate persistence
+ServicesImpl --> DTOs : accept/return
+ServicesImpl --> Mapper : entity mapping
+ServicesImpl --> Extensions : helper methods
+ServicesImpl --> Config : read options
+ServicesImpl --> Constants : shared values
+
+RepoImpl --> Models : entity defs
+RepoImpl --> Data : AppDbContext
+RepoImpl --> Constants : table names, statuses
+
+DTOs ..> Models : map fields
+Mapper --> DTOs
+Mapper --> Models
+
+Extensions --> Config : bind options
+Properties ..> Config : dev profiles
+
+Data --> Models : DbSets
+Migrations --> Models : schema snapshots
+Data --> Database : EF Core DbContext
+RepoImpl --> Database : CRUD via UnitOfWork
+
+note bottom of Data
+  data/ contains AppDbContext + DbFactory
+end note
+
+note right of Background
+  Quartz/hosted services trigger domain workflows
+end note
+
+note top of Services
+  Interface contracts separate from implementations
+end note
+
+@enduml

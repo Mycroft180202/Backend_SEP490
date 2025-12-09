@@ -1,0 +1,294 @@
+@startuml
+title Backend_SEP490 Domain/Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam wrapWidth 220
+hide methods
+
+package "Accounts & Identity" as Accounts {
+  class User {
+    +UserID: string
+    +Username: string
+    +Email: string
+    +IsActive: bool
+    +ShopName: string
+    +AdminLevel: int?
+  }
+
+  class Address {
+    +Id: string
+    +UserID: string
+    +Line1: string
+    +City: string
+    +IsDefault: bool
+  }
+
+  class RefreshToken {
+    +Id: int
+    +UserId: string
+    +Token: string
+    +Expires: DateTime
+    +IsActive(): bool
+  }
+
+  class UserOtp {
+    +Id: string
+    +Email: string
+    +OtpCode: string
+    +ExpiresAt: DateTime
+    +IsUsed: bool
+  }
+
+  class Role {
+    +Id: string
+    +Name: string
+    +Description: string
+  }
+
+  class UserRole {
+    +Id: string
+    +UserID: string
+    +RoleID: string
+  }
+
+  class Notification {
+    +Id: string
+    +UserID: string
+    +Message: string
+    +Type: string
+    +IsRead: bool
+  }
+
+  class SellerShippingProfile {
+    +Id: string
+    +SellerId: string
+    +PickupAddressLine: string
+    +GhnShopId: int?
+    +IsActive: bool
+  }
+
+  class ArtisanApplication {
+    +Id: string
+    +UserId: string
+    +Status: string
+    +ReviewedBy: string?
+  }
+
+  class Report {
+    +Id: string
+    +ReporterId: string
+    +TargetType: string
+    +TargetUserId: string?
+    +ReportStatus: string
+    +AssignedAdminId: string?
+  }
+}
+
+package "Catalog & Content" as Catalog {
+  class Category {
+    +Id: string
+    +Name: string
+  }
+
+  class Product {
+    +Id: string
+    +Name: string
+    +Category: string
+    +ArtisanId: string
+    +Price: decimal
+    +IsActive: bool
+    +Stock: int
+  }
+
+  class ProductImage {
+    +Id: string
+    +ProductId: string
+    +Url: string
+    +Position: int?
+  }
+
+  class ProductShippingProfile {
+    +Id: string
+    +ProductId: string
+    +WeightGram: int?
+    +AllowCod: bool
+  }
+
+  class ProductCollection {
+    +ProductCollectionId: int
+    +Title: string
+    +Headline: string?
+    +IsActive: bool
+    +CreatedById: string?
+    +UpdatedById: string?
+  }
+
+  class StoryTelling {
+    +Id: int
+    +ProductId: string
+    +StoryType: StoryTellingType
+    +Title: string
+    +CreatedById: string
+  }
+
+  enum StoryTellingType {
+    ProductStory
+    CraftingProcess
+    ArtisanBiography
+  }
+
+  class WishListItem {
+    +Id: string
+    +UserID: string
+    +ProductID: string
+    +AddAt: DateTime
+  }
+
+  class Feedback {
+    +Id: string
+    +ProductId: string
+    +CustomerId: string
+    +Rating: int?
+  }
+
+  class BlogPost {
+    +Id: string
+    +Title: string
+    +AuthorId: string
+    +PostStatus: string
+  }
+}
+
+package "Commerce" as Commerce {
+  class Cart {
+    +Id: string
+    +CustomerID: string
+    +CreateAt: DateTime?
+  }
+
+  class CartItem {
+    +Id: string
+    +CartId: string?
+    +ProductId: string?
+    +Quantity: int?
+    +PriceAtAdd: decimal?
+  }
+
+  class Order {
+    +Id: string
+    +OrderNumber: string
+    +CustomerId: string
+    +Status: string
+    +TotalAmount: decimal
+    +VoucherId: int?
+  }
+
+  class OrderItem {
+    +Id: string
+    +OrderID: string
+    +ProductID: string
+    +Quantity: int
+    +UnitPrice: decimal
+  }
+
+  class Payment {
+    +Id: string
+    +OrderID: string
+    +Amount: decimal
+    +Method: string
+    +PaymentStatus: string
+  }
+
+  class Shipment {
+    +Id: string
+    +OrderID: string
+    +Provider: string
+    +ShippingStatus: string
+  }
+
+  class ShipmentHistory {
+    +Id: string
+    +ShipmentId: string
+    +Status: string
+    +Note: string?
+  }
+
+  class Voucher {
+    +VoucherId: int
+    +Code: string
+    +DiscountType: string
+    +DiscountValue: decimal
+    +OwnerUserId: string?
+    +CreatedById: string?
+  }
+
+  class PaymentProvider {
+    +ProviderID: string
+    +ProviderName: string
+    +Description: string?
+  }
+}
+
+package "Support" as Support {
+  class AuditLog {
+    +LogID: string
+    +ActionType: string
+    +EntityName: string
+    +CreatedAt: DateTime
+  }
+}
+
+User "1" -- "0..*" Address : addresses
+User "1" -- "0..*" RefreshToken : refreshTokens
+User "1" -- "0..*" Notification : notifications
+User "1" -- "0..*" BlogPost : posts
+User "1" -- "0..*" Product : artisan
+User "1" -- "0..*" Cart : carts
+User "1" -- "0..*" Order : orders
+User "1" -- "0..*" Feedback : reviews
+User "1" -- "0..*" WishListItem : wishlist
+User "1" -- "0..*" ProductCollection : curated
+User "1" -- "0..*" StoryTelling : stories
+User "1" -- "0..*" Voucher : vouchers
+User "1" -- "0..*" ArtisanApplication : applicants
+User "1" -- "0..1" SellerShippingProfile : sellerProfile
+User "1" -- "0..*" Report : reporter
+User "1" -- "0..*" UserRole : roleLinks
+Role "1" -- "0..*" UserRole : members
+Cart "1" -- "0..*" CartItem : items
+Category "1" -- "0..*" Product : category
+Product "1" -- "0..*" ProductImage : images
+Product "1" -- "0..1" ProductShippingProfile : shippingProfile
+Product "1" -- "0..*" Feedback : feedbacks
+Product "1" -- "0..*" WishListItem : wishlist
+Product "1" -- "0..*" StoryTelling : stories
+Product "1" -- "0..*" CartItem : cartLines
+Product "1" -- "0..*" OrderItem : orderLines
+Product "0..*" -- "0..*" ProductCollection : collections
+StoryTelling --> StoryTellingType
+Order "1" -- "0..*" OrderItem : items
+Order "1" -- "0..*" Payment : payments
+Order "1" -- "0..*" Shipment : shipments
+Shipment "1" -- "0..*" ShipmentHistory : history
+Order ..> Voucher : voucherId
+
+note right of ArtisanApplication
+  ReviewedBy -> optional User reviewer
+end note
+
+note right of Report
+  TargetUserId + AssignedAdminId -> optional User references
+end note
+
+note bottom of ProductCollection
+  CreatedById + UpdatedById -> User curators
+end note
+
+note right of Voucher
+  CreatedById + OwnerUserId map back to User
+end note
+
+note right of PaymentProvider
+  Lookup entity for Payment.Method / ProviderXlnd
+end note
+@enduml
