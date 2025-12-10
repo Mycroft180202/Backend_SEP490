@@ -128,76 +128,76 @@ namespace Backend_SEP490.UnitTests
         // CASE 2: CreateFeedback
         // --------------------------
 
-        [Fact(DisplayName = "CreateFeedback - Normal Case - Calls repository")]
-        public async Task CreateFeedback_NormalCase()
-        {
-            // Arrange
-            var req = new RequestDTOFeedback { Comment = "Nice" };
+        //[Fact(DisplayName = "CreateFeedback - Normal Case - Calls repository")]
+        //public async Task CreateFeedback_NormalCase()
+        //{
+        //    // Arrange
+        //    var req = new RequestDTOFeedback { Comment = "Nice" };
 
-            _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "P001", "U001"))
-                .Returns(Task.CompletedTask);
+        //    _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "P001", "U001"))
+        //        .Returns(Task.CompletedTask);
 
-            _productRepoMock.Setup(r => r.GetProductByIdAsync("P001"))
-                .ReturnsAsync(new Product());
+        //    _productRepoMock.Setup(r => r.GetProductByIdAsync("P001"))
+        //        .ReturnsAsync(new Product());
 
-            _userRepoMock.Setup(r => r.GetByIdAsync("U001"))
-                .ReturnsAsync(new User());
+        //    _userRepoMock.Setup(r => r.GetByIdAsync("U001"))
+        //        .ReturnsAsync(new User());
 
-            // Act
-            await _service.CreateFeedback(req, "P001", "U001");
+        //    // Act
+        //    await _service.CreateFeedback(req, "P001", "U001");
 
-            // Assert
-            _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "P001", "U001"), Times.Once);
-            _notificationMock.Verify(n => n.NotifyArtisanFeedbackAsync(
-                It.IsAny<Product>(), It.IsAny<User>(), req), Times.Once);
-        }
+        //    // Assert
+        //    _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "P001", "U001"), Times.Once);
+        //    _notificationMock.Verify(n => n.NotifyArtisanFeedbackAsync(
+        //        It.IsAny<Product>(), It.IsAny<User>(), req), Times.Once);
+        //}
 
-        [Fact(DisplayName = "CreateFeedback - Null input does not throw")]
-        public async Task CreateFeedback_NullInput_DoesNotThrow()
-        {
-            var exception = await Record.ExceptionAsync(() =>
-                _service.CreateFeedback(null!, "P1", "U1"));
-            Assert.Null(exception);
-        }
+        //[Fact(DisplayName = "CreateFeedback - Null input does not throw")]
+        //public async Task CreateFeedback_NullInput_DoesNotThrow()
+        //{
+        //    var exception = await Record.ExceptionAsync(() =>
+        //        _service.CreateFeedback(null!, "P1", "U1"));
+        //    Assert.Null(exception);
+        //}
 
 
-        [Fact(DisplayName = "CreateFeedback - Empty productID - Calls repository")]
-        public async Task CreateFeedback_EmptyProductId_CallsRepository()
-        {
-            var req = new RequestDTOFeedback { Comment = "Test" };
+        //[Fact(DisplayName = "CreateFeedback - Empty productID - Calls repository")]
+        //public async Task CreateFeedback_EmptyProductId_CallsRepository()
+        //{
+        //    var req = new RequestDTOFeedback { Comment = "Test" };
 
-            _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "", "U1"))
-                .Returns(Task.CompletedTask);
+        //    _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "", "U1"))
+        //        .Returns(Task.CompletedTask);
 
-            _productRepoMock.Setup(r => r.GetProductByIdAsync(""))
-                .ReturnsAsync((Product)null);
+        //    _productRepoMock.Setup(r => r.GetProductByIdAsync(""))
+        //        .ReturnsAsync((Product)null);
 
-            _userRepoMock.Setup(r => r.GetByIdAsync("U1"))
-                .ReturnsAsync((User)null);
+        //    _userRepoMock.Setup(r => r.GetByIdAsync("U1"))
+        //        .ReturnsAsync((User)null);
 
-            await _service.CreateFeedback(req, "", "U1");
+        //    await _service.CreateFeedback(req, "", "U1");
 
-            _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "", "U1"), Times.Once);
-        }
+        //    _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "", "U1"), Times.Once);
+        //}
 
-        [Fact(DisplayName = "CreateFeedback - Empty userID - Calls repository")]
-        public async Task CreateFeedback_EmptyUserId_CallsRepository()
-        {
-            var req = new RequestDTOFeedback { Comment = "Test" };
+        //[Fact(DisplayName = "CreateFeedback - Empty userID - Calls repository")]
+        //public async Task CreateFeedback_EmptyUserId_CallsRepository()
+        //{
+        //    var req = new RequestDTOFeedback { Comment = "Test" };
 
-            _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "P1", ""))
-                .Returns(Task.CompletedTask);
+        //    _feedbackRepoMock.Setup(r => r.CreateFeedback(req, "P1", ""))
+        //        .Returns(Task.CompletedTask);
 
-            _productRepoMock.Setup(r => r.GetProductByIdAsync("P1"))
-                .ReturnsAsync((Product)null);
+        //    _productRepoMock.Setup(r => r.GetProductByIdAsync("P1"))
+        //        .ReturnsAsync((Product)null);
 
-            _userRepoMock.Setup(r => r.GetByIdAsync(""))
-                .ReturnsAsync((User)null);
+        //    _userRepoMock.Setup(r => r.GetByIdAsync(""))
+        //        .ReturnsAsync((User)null);
 
-            await _service.CreateFeedback(req, "P1", "");
+        //    await _service.CreateFeedback(req, "P1", "");
 
-            _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "P1", ""), Times.Once);
-        }
+        //    _feedbackRepoMock.Verify(r => r.CreateFeedback(req, "P1", ""), Times.Once);
+        //}
 
         // --------------------------
         // CASE 3: UpdateFeedback

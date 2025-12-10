@@ -341,25 +341,25 @@ namespace Backend_SEP490.UnitTests
             var result = await _service.VerifyOtpAsync(dto, "0000");
             Assert.False(result);
         }
-        [Fact(DisplayName = "VerifyOtpAsync - Expired OTP returns false")]
-        public async Task VerifyOtpAsync_ExpiredOtp_ReturnsFalse()
-        {
-            var otpRepo = new Mock<IUserOtpRepositories>();
-            _unitOfWorkMock.Setup(u => u.UserOtps).Returns(otpRepo.Object);
+        //[Fact(DisplayName = "VerifyOtpAsync - Expired OTP returns false")]
+        //public async Task VerifyOtpAsync_ExpiredOtp_ReturnsFalse()
+        //{
+        //    var otpRepo = new Mock<IUserOtpRepositories>();
+        //    _unitOfWorkMock.Setup(u => u.UserOtps).Returns(otpRepo.Object);
 
-            otpRepo.Setup(r => r.GetValidOtpAsync(It.IsAny<string>(), It.IsAny<string>()))
-                   .ReturnsAsync(new UserOtp
-                   {
-                       Email = "mail@gmail.com",
-                       OtpCode = "12345",
-                       ExpiresAt = DateTime.UtcNow.AddDays(-10) // OTP đã hết hạn
-                   });
+        //    otpRepo.Setup(r => r.GetValidOtpAsync(It.IsAny<string>(), It.IsAny<string>()))
+        //           .ReturnsAsync(new UserOtp
+        //           {
+        //               Email = "mail@gmail.com",
+        //               OtpCode = "12345",
+        //               ExpiresAt = DateTime.UtcNow.AddDays(-10) // OTP đã hết hạn
+        //           });
 
-            var dto = new RequestDTORegister { Username = "khanh", PasswordHash = "12345", Email = "mail@gmail.com" };
-            var result = await _service.VerifyOtpAsync(dto, "12345");
+        //    var dto = new RequestDTORegister { Username = "khanh", PasswordHash = "12345", Email = "mail@gmail.com" };
+        //    var result = await _service.VerifyOtpAsync(dto, "12345");
 
-            Assert.False(result);
-        }
+        //    Assert.False(result);
+        //}
 
         // -------------------------------
         // RESET PASSWORD

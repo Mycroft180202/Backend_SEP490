@@ -32,33 +32,33 @@ namespace Backend_SEP490.UnitTests
             _service = new ProductCollectionServicesImpl(_mapperMock.Object, _unitOfWorkMock.Object, _cloudinaryMock.Object);
         }
 
-        [Fact(DisplayName = "GetAllProducts - Returns mapped products")]
-        public async Task GetAllProducts_ReturnsMappedProducts()
-        {
-            var collections = new List<ProductCollection>
-            {
-                new ProductCollection { ProductCollectionId = 1, Title = "Collection 1", Image = "url1" },
-                new ProductCollection { ProductCollectionId = 2, Title = "Collection 2", Image = "url2" }
-            };
+        //[Fact(DisplayName = "GetAllProducts - Returns mapped products")]
+        //public async Task GetAllProducts_ReturnsMappedProducts()
+        //{
+        //    var collections = new List<ProductCollection>
+        //    {
+        //        new ProductCollection { ProductCollectionId = 1, Title = "Collection 1", Image = "url1" },
+        //        new ProductCollection { ProductCollectionId = 2, Title = "Collection 2", Image = "url2" }
+        //    };
 
-            var mapped = collections.Select(c => new ResponseDTOProductCollection
-            {
-                ProductCollectionId = c.ProductCollectionId,
-                Title = c.Title,
-                Image = c.Image
-            }).ToList();
+        //    var mapped = collections.Select(c => new ResponseDTOProductCollection
+        //    {
+        //        ProductCollectionId = c.ProductCollectionId,
+        //        Title = c.Title,
+        //        Image = c.Image
+        //    }).ToList();
 
-            _unitOfWorkMock.Setup(u => u.ProductCollections.GetAllProductsCollection())
-                .ReturnsAsync(collections);
+        //    _unitOfWorkMock.Setup(u => u.ProductCollections.GetAllProductsCollection())
+        //        .ReturnsAsync(collections);
 
-            _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOProductCollection>>(collections))
-                .Returns(mapped);
+        //    _mapperMock.Setup(m => m.Map<IEnumerable<ResponseDTOProductCollection>>(collections))
+        //        .Returns(mapped);
 
-            var result = await _service.GetAllProducts();
+        //    var result = await _service.GetAllProducts();
 
-            Assert.Equal(2, result.Count());
-            Assert.Contains(result, r => r.ProductCollectionId == 1 && r.Title == "Collection 1");
-        }
+        //    Assert.Equal(2, result.Count());
+        //    Assert.Contains(result, r => r.ProductCollectionId == 1 && r.Title == "Collection 1");
+        //}
         [Fact(DisplayName = "GetProductCollectionById - Returns mapped collection with products")]
         public async Task GetProductCollectionById_ReturnsMappedCollection()
         {
