@@ -6,12 +6,14 @@ import React, {
   useRef,
 } from 'react';
 import {
+  FaBullhorn,
+  FaCheck,
   FaEye,
-  FaSearch,
   FaFileExport,
+  FaQuestionCircle,
+  FaSearch,
   FaSpinner,
   FaTimes,
-  FaTruck,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import ArtisanDashboardService from '../../services/modules/artisan/artisanDashboardService';
@@ -29,7 +31,7 @@ const STATUS_META = {
     badge: 'bg-yellow-100 text-yellow-700',
   },
   SHIPPING: {
-    label: 'Đang giao',
+    label: 'Đã xác nhận',
     badge: 'bg-blue-100 text-blue-700',
   },
   PAID: {
@@ -480,7 +482,7 @@ const OrderManagement = () => {
       setUpdatingOrderNumber(orderNumber);
       try {
         await ArtisanDashboardService.markOrderAsShipping(orderNumber);
-        toast.success('Đơn hàng đã chuyển sang trạng thái Đang giao');
+        toast.success('Đơn hàng đã xác nhận');
         await fetchOrders();
         setSelectedOrder((current) => (current?.orderNumber === orderNumber
           ? { ...current, status: 'SHIPPING' }
@@ -681,14 +683,14 @@ const OrderManagement = () => {
                           <button
                             type="button"
                             className="text-green-600 transition hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-60"
-                            title="Đánh dấu đang giao"
+                          title="Xác nhận đơn hàng"
                             onClick={() => handleMarkAsShipping(order.orderNumber)}
                             disabled={updatingOrderNumber === order.orderNumber}
                           >
                             {updatingOrderNumber === order.orderNumber ? (
                               <FaSpinner className="animate-spin" />
                             ) : (
-                              <FaTruck />
+                              <FaCheck />
                             )}
                           </button>
                         ) : null}
@@ -742,6 +744,21 @@ const OrderManagement = () => {
             >
               Sau
             </button>
+          </div>
+        </div>
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <FaQuestionCircle className="text-base text-primary" /> Ghi chú thao tác
+          </h3>
+          <div className="grid gap-3 text-sm text-gray-600 md:grid-cols-2">
+            <div className="flex items-center gap-2">
+              <FaEye className="text-blue-600 text-lg" />
+              <span>Xem chi tiết đơn hàng</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FaCheck className="text-green-600 text-lg" />
+              <span>Xác nhận đơn hàng </span>
+            </div>
           </div>
         </div>
       </div>
@@ -871,9 +888,9 @@ const OrderManagement = () => {
                   {updatingOrderNumber === selectedOrder.orderNumber ? (
                     <FaSpinner className="animate-spin" />
                   ) : (
-                    <FaTruck />
+                    <FaCheck />
                   )}
-                  <span>Xác nhận đang giao</span>
+                  <span>Xác nhận đơn hàng</span>
                 </button>
               ) : <div />}
               <button
