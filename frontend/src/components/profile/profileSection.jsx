@@ -498,7 +498,7 @@ function ProfileSection({ initialFocus, profileNode }) {
     state: { profileFocus: 'wishlist' },
   }), [translate]);
   const getSidebarItemClass = (section) => (
-    `flex items-center gap-2 font-semibold cursor-pointer px-3 py-2 rounded-2xl transition-all ${
+    `flex items-center gap-2 justify-start w-full text-left whitespace-normal font-semibold cursor-pointer px-3 py-2 rounded-2xl transition-all ${
       activeSection === section
         ? 'text-[#9e211f] bg-gradient-to-r from-[#fef5f2] via-transparent to-white border border-[#9e211f]/20 shadow-[0_0_15px_rgba(158,33,31,0.2)]'
         : 'text-gray-600 hover:text-[#9e211f]'
@@ -1193,15 +1193,15 @@ function ProfileSection({ initialFocus, profileNode }) {
         </div>
         <div className="font-bold text-lg mb-2">{profile.name}</div>
         <nav className="w-full mt-6">
-          <ul className="space-y-4">
+          <ul className="flex flex-col gap-3 w-full list-none p-0 m-0">
             <li
               className={getSidebarItemClass('info')}
               onClick={() => setActiveSection('info')}
             >
               <FaUserCircle /> {translate('profile.sidebar.accountInfo', 'Thông tin tài khoản')}
             </li>
-            <li 
-              className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]"
+            <li
+              className={getSidebarItemClass('orderHistory')}
               onClick={() => navigate('/order-history', {
                 state: {
                   fromProfile: profileNode || {
@@ -1243,7 +1243,7 @@ function ProfileSection({ initialFocus, profileNode }) {
             >
               <FaLock /> {translate('profile.sidebar.changePassword', 'Đổi mật khẩu')}
             </li>
-            <li className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f]">
+            <li className={getSidebarItemClass('logout')}>
               <FaSignOutAlt /> {translate('profile.sidebar.logout', 'Đăng xuất')}
             </li>
           </ul>
