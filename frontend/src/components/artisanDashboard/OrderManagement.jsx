@@ -6,7 +6,6 @@ import React, {
   useRef,
 } from 'react';
 import {
-  FaBullhorn,
   FaCheck,
   FaEye,
   FaFileExport,
@@ -130,6 +129,7 @@ const OrderManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updatingOrderNumber, setUpdatingOrderNumber] = useState(null);
+  const [confirmOrderNumber, setConfirmOrderNumber] = useState(null);
   const handleCloseDetail = useCallback(() => setSelectedOrder(null), []);
   const addressCacheRef = useRef(new Map());
   const productCacheRef = useRef(new Map());
@@ -497,6 +497,12 @@ const OrderManagement = () => {
     [fetchOrders],
   );
 
+  const handleConfirmShipping = useCallback(async () => {
+    if (!confirmOrderNumber) return;
+    await handleMarkAsShipping(confirmOrderNumber);
+    setConfirmOrderNumber(null);
+  }, [confirmOrderNumber, handleMarkAsShipping]);
+
   const handlePageChange = (pageNumber) => {
     if (pageNumber === pageIndex) {
       return;
@@ -683,8 +689,8 @@ const OrderManagement = () => {
                           <button
                             type="button"
                             className="text-green-600 transition hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-60"
-                          title="Xác nhận đơn hàng"
-                            onClick={() => handleMarkAsShipping(order.orderNumber)}
+                            title="Xác nhận đơn hàng"
+                            onClick={() => setConfirmOrderNumber(order.orderNumber)}
                             disabled={updatingOrderNumber === order.orderNumber}
                           >
                             {updatingOrderNumber === order.orderNumber ? (
@@ -761,6 +767,39 @@ const OrderManagement = () => {
             </div>
           </div>
         </div>
+        {confirmOrderNumber && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+              <h3 className="text-lg font-semibold text-gray-800">Xác nhận đơn hàng</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Bạn có chắc chắn muốn xác nhận đơn hàng <strong>{confirmOrderNumber}</strong> không?
+              </p>
+              <div className="mt-6 flex justify-end gap-3 text-sm">
+                <button
+                  type="button"
+                  className="rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => setConfirmOrderNumber(null)}
+                  disabled={updatingOrderNumber === confirmOrderNumber}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleConfirmShipping}
+                  disabled={updatingOrderNumber === confirmOrderNumber}
+                >
+                  {updatingOrderNumber === confirmOrderNumber ? (
+                    <FaSpinner className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FaCheck className="h-4 w-4" />
+                  )}
+                  <span>Xác nhận</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {selectedOrder ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

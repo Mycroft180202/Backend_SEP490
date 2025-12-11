@@ -6,9 +6,56 @@ import {
   FaIdCard,
   FaSpinner,
   FaInfoCircle,
+  FaTimes,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { ShopService } from '../../services/modules/shop/shopService';
+import { GHNLocationService } from '../../services/modules/shipping/ghnLocationService';
+
+const buildShopAddressString = async (address) => {
+  if (!address) return '';
+  const line = address.line1 || address.addressLine || address.line2 || '';
+  let provinceName = address.city || address.cityName || address.province || '';
+  let districtName = address.districtName || address.district || address.county || '';
+  let wardName = address.wardName || address.ward || address.subDistrict || address.subDistrictName || '';
+  try {
+    if (address.ghnProvinceId) {
+      const provinces = await GHNLocationService.getProvinces();
+      const province = provinces.find((p) => Number(p.ProvinceID) === Number(address.ghnProvinceId));
+      if (province?.ProvinceName) {
+        provinceName = province.ProvinceName;
+      }
+    }
+
+    if (address.ghnDistrictId) {
+      const districts = await GHNLocationService.getDistricts(address.ghnProvinceId);
+      const district = districts.find((d) => Number(d.DistrictID) === Number(address.ghnDistrictId));
+      if (district?.DistrictName) {
+        districtName = district.DistrictName;
+      }
+    }
+
+    if (address.ghnWardCode && address.ghnDistrictId) {
+      const wards = await GHNLocationService.getWards(address.ghnDistrictId);
+      const ward = wards.find((w) => w.WardCode === address.ghnWardCode);
+      if (ward?.WardName) {
+        wardName = ward.WardName;
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to resolve GHN location names for shop address:', error);
+  }
+
+  const parts = [
+    line,
+    wardName,
+    districtName,
+    provinceName,
+    address.country,
+  ].filter(Boolean);
+
+  return parts.join(', ');
+};
 
 const SettingsManagement = () => {
   const [shopInfo, setShopInfo] = useState(null);
@@ -23,15 +70,20 @@ const SettingsManagement = () => {
   });
   const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const extractAddress = (addresses) => {
     if (!Array.isArray(addresses) || !addresses.length) return '';
     const primary = addresses.find((addr) => addr.isPrimary || addr.isDefault) || addresses[0];
     if (!primary) return '';
+    const ward = primary.wardName || primary.ward || primary.subDistrict || primary.subDistrictName || '';
+    const district = primary.districtName || primary.district || primary.county || '';
+    const city = primary.cityName || primary.city || primary.province || '';
     const parts = [
       primary.line1 || primary.addressLine || '',
-      primary.district || primary.districtName || '',
-      primary.city || primary.cityName || primary.province || '',
+      ward,
+      district,
+      city,
     ].filter(Boolean);
     return parts.join(', ');
   };
@@ -55,6 +107,13 @@ const SettingsManagement = () => {
         const response = await ShopService.getMyShop();
         if (cancelled) return;
         const normalized = normalizeShopData(response || {});
+        const addresses = Array.isArray(response?.addresses) ? response.addresses : [];
+        const primaryAddress = addresses.find((addr) => addr.isDefault || addr.isPrimary) || addresses[0];
+        const detailedAddress = await buildShopAddressString(primaryAddress);
+        if (cancelled) return;
+        if (detailedAddress) {
+          normalized.address = detailedAddress;
+        }
         setShopInfo(normalized);
         setFormValues({
           shopName: normalized.shopName || '',
@@ -180,6 +239,7 @@ const SettingsManagement = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      setIsEditModalOpen(false);
     } catch (err) {
       console.error('Update artisan shop info error:', err);
       const message = err?.response?.data?.message || err?.message || 'Không thể cập nhật thông tin cửa hàng.';
@@ -231,94 +291,126 @@ const SettingsManagement = () => {
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-bold text-gray-800 font-alata">Cập nhật thông tin cửa hàng</h2>
-          <p className="text-sm text-gray-500 mt-1">Chỉnh sửa tên, số điện thoại, mô tả và ảnh đại diện của cửa hàng.</p>
+          <div className="flex items-start flex-col gap-1">
+            <h2 className="text-xl font-bold text-gray-800 font-alata">Cập nhật thông tin cửa hàng</h2>
+            <p className="text-sm text-gray-500 mt-1">Chỉnh sửa tên, số điện thoại, mô tả và ảnh đại diện của cửa hàng.</p>
+          </div>
         </div>
-
-        <form className="p-6 space-y-6" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="shopName">Tên cửa hàng</label>
-              <input
-                id="shopName"
-                name="shopName"
-                type="text"
-                value={formValues.shopName}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Nhập tên cửa hàng"
-                disabled={updating}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="phoneNumber">Số điện thoại</label>
-              <input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="tel"
-                value={formValues.phoneNumber}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Nhập số điện thoại"
-                disabled={updating}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="bio">Giới thiệu cửa hàng</label>
-            <textarea
-              id="bio"
-              name="bio"
-              rows={4}
-              value={formValues.bio}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Chia sẻ câu chuyện hoặc thông tin nổi bật của cửa hàng"
-              disabled={updating}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_200px] items-start">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="shopUrlImage">Ảnh đại diện cửa hàng</label>
-              <input
-                id="shopUrlImage"
-                name="shopUrlImage"
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                ref={fileInputRef}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={updating}
-              />
-              <p className="mt-2 text-xs text-gray-500">Hỗ trợ định dạng JPG, PNG. Dung lượng tối đa 5MB.</p>
-            </div>
-
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div className="w-32 h-32 rounded-lg border border-dashed border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center">
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Xem trước ảnh cửa hàng" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-gray-400 text-center px-2">Chưa có ảnh đại diện</span>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 text-center">Ảnh đang hiển thị sẽ được sử dụng làm ảnh đại diện cửa hàng.</p>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-              disabled={updating}
-            >
-              {updating ? 'Đang lưu...' : 'Lưu thay đổi'}
-            </button>
-          </div>
-        </form>
+        <div className="flex justify-start p-6">
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="rounded-lg border border-primary px-5 py-2 text-sm font-semibold text-primary transition hover:bg-primary hover:text-white"
+          >
+            Cập nhật thông tin cửa hàng
+          </button>
+        </div>
       </div>
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Cập nhật thông tin cửa hàng</h3>
+                <p className="text-xs text-gray-500">Chỉnh sửa tên, số điện thoại, mô tả và ảnh đại diện của cửa hàng.</p>
+              </div>
+              <button
+                type="button"
+                className="text-gray-500 transition hover:text-gray-700"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <form className="space-y-6 p-6" onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="shopName">Tên cửa hàng</label>
+                  <input
+                    id="shopName"
+                    name="shopName"
+                    type="text"
+                    value={formValues.shopName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Nhập tên cửa hàng"
+                    disabled={updating}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="phoneNumber">Số điện thoại</label>
+                  <input
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    type="tel"
+                    value={formValues.phoneNumber}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Nhập số điện thoại"
+                    disabled={updating}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="bio">Giới thiệu cửa hàng</label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  rows={4}
+                  value={formValues.bio}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Chia sẻ câu chuyện hoặc thông tin nổi bật của cửa hàng"
+                  disabled={updating}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_200px] items-start">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="shopUrlImage">Ảnh đại diện cửa hàng</label>
+                  <input
+                    id="shopUrlImage"
+                    name="shopUrlImage"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    ref={fileInputRef}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={updating}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">Hỗ trợ định dạng JPG, PNG. Dung lượng tối đa 5MB.</p>
+                </div>
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="w-32 h-32 rounded-lg border border-dashed border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Xem trước ảnh cửa hàng" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-gray-400 text-center px-2">Chưa có ảnh đại diện</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 text-center">Ảnh đang hiển thị sẽ được sử dụng làm ảnh đại diện cửa hàng.</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={updating}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                  disabled={updating}
+                >
+                  {updating ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

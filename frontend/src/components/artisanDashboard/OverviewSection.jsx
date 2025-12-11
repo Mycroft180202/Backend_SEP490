@@ -24,6 +24,65 @@ import {
   Bar,
 } from 'recharts';
 
+const STATUS_META = {
+  WAITING_FOR_PICKUP: { label: 'Chờ xác nhận', badge: 'border border-yellow-100 bg-yellow-50 text-yellow-700' },
+  SHIPPING: { label: 'Đã xác nhận', badge: 'border border-blue-100 bg-blue-50 text-blue-700' },
+  PAID: { label: 'Đã thanh toán', badge: 'border border-indigo-100 bg-indigo-50 text-indigo-700' },
+  COMPLETED: { label: 'Đã nhận hàng', badge: 'border border-green-100 bg-green-50 text-green-700' },
+  CANCELLED: { label: 'Đã hủy', badge: 'border border-red-100 bg-red-50 text-red-700' },
+  UNKNOWN: { label: 'Không rõ', badge: 'border border-gray-100 bg-gray-50 text-gray-700' },
+};
+
+const PAYMENT_META = {
+  COD: { label: 'COD', badge: 'border border-gray-200 bg-gray-100 text-gray-600' },
+  VNPAY: { label: 'VNPAY', badge: 'border border-indigo-100 bg-indigo-50 text-indigo-700' },
+  TRANSFER: { label: 'Chuyển khoản', badge: 'border border-sky-100 bg-sky-50 text-sky-700' },
+  UNKNOWN: { label: 'Không rõ', badge: 'border border-gray-100 bg-gray-50 text-gray-600' },
+};
+
+const normalizeStatusKey = (value) => {
+  if (!value) return 'UNKNOWN';
+  const upper = String(value).trim().toUpperCase();
+  if (
+    upper === 'WAITINGFORPICKUP'
+    || upper === 'WAITING_FOR_PICKUP'
+    || upper === 'PENDING'
+    || upper === 'PROCESSING'
+  ) {
+    return 'WAITING_FOR_PICKUP';
+  }
+  if (
+    upper === 'SHIPPING'
+    || upper === 'SHIPPED'
+    || upper === 'DELIVERING'
+    || upper === 'DELIVERED'
+  ) {
+    return 'SHIPPING';
+  }
+  if (upper === 'PAID') {
+    return 'PAID';
+  }
+  if (upper === 'CANCELLED' || upper === 'CANCELED') {
+    return 'CANCELLED';
+  }
+  if (upper === 'COMPLETED' || upper === 'DONE') {
+    return 'COMPLETED';
+  }
+  return STATUS_META[upper] ? upper : 'UNKNOWN';
+};
+
+const normalizePaymentKey = (value) => {
+  if (!value) return 'UNKNOWN';
+  const upper = String(value).trim().toUpperCase();
+  if (upper.includes('COD')) return 'COD';
+  if (upper.includes('VNPAY')) return 'VNPAY';
+  if (upper.includes('TRANSFER')) return 'TRANSFER';
+  return PAYMENT_META[upper] ? upper : 'UNKNOWN';
+};
+
+const getStatusMeta = (status) => STATUS_META[normalizeStatusKey(status)] || STATUS_META.UNKNOWN;
+const getPaymentMeta = (method) => PAYMENT_META[normalizePaymentKey(method)] || PAYMENT_META.UNKNOWN;
+
 const pickFirstNonEmpty = (values = []) => {
   for (const value of values) {
     if (value === null || value === undefined) {
@@ -1043,14 +1102,24 @@ const OverviewSection = ({
                       {formatVND(order.totalAmount)}
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-gray-600">
-                        {order.paymentMethod || '—'}
-                      </span>
+                      {(() => {
+                        const paymentMeta = getPaymentMeta(order.paymentMethod ?? order.paymentType);
+                        return (
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${paymentMeta.badge}`}>
+                            {paymentMeta.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-gray-600">
-                        {order.status || '—'}
-                      </span>
+                      {(() => {
+                        const statusMeta = getStatusMeta(order.status ?? order.orderStatus);
+                        return (
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${statusMeta.badge}`}>
+                            {statusMeta.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {formatDate(order.createdAt)}
