@@ -1,4 +1,11 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '../../utils/formatCurrency';
 import OrderDetailModal from './OrderDetailModal';
@@ -10,6 +17,7 @@ import { ProductService } from '../../services/modules/products/productService';
 import { ShopService } from '../../services/modules/shop/shopService';
 import { resolveProductArtisanId } from '../../utils/productOwnership';
 import { LanguageContext } from '../../context/LanguageContext';
+import { UserContext } from '../../context/UserContext';
 
 const productCache = new Map();
 const shopCache = new Map();
@@ -25,6 +33,29 @@ const pickFirstNonEmpty = (values = []) => {
     }
   }
   return null;
+};
+
+const toAbsoluteUrl = (value) => {
+  if (!value) return '';
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) {
+    return '';
+  }
+  if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) {
+    return raw;
+  }
+  const base = (
+    (process.env.REACT_APP_CDN_BASE_URL
+      || process.env.REACT_APP_STORAGE_BASE_URL
+      || process.env.REACT_APP_API_BASE_URL
+      || '')
+  ).trim();
+  if (!base) {
+    return raw.startsWith('/') ? raw : `/${raw}`;
+  }
+  const normalizedBase = base.replace(/\/$/, '');
+  const normalizedPath = raw.startsWith('/') ? raw : `/${raw}`;
+  return `${normalizedBase}${normalizedPath}`;
 };
 
 const normalizeShopData = (raw, fallback = {}) => {
@@ -150,6 +181,23 @@ const deriveShopFallback = ({ order, item, product }) => {
   };
 };
 
+const resolveProductImage = (product) => {
+  if (!product) return '';
+  const candidate = pickFirstNonEmpty([
+    Array.isArray(product.images) && product.images[0],
+    Array.isArray(product.images) && product.images[0]?.url,
+    Array.isArray(product.images) && product.images[0]?.imageUrl,
+    Array.isArray(product.images) && product.images[0]?.imageURL,
+    Array.isArray(product.images) && product.images[0]?.thumb,
+    product.image,
+    product.imageUrl,
+    product.imageURL,
+    product.thumbnail,
+    product.thumb,
+  ]);
+  return toAbsoluteUrl(candidate);
+};
+
 const buildArtisanHref = (artisanId) => {
   if (!artisanId) return null;
   return `/artisan-shop?artisanId=${encodeURIComponent(artisanId)}`;
@@ -208,7 +256,216 @@ function OrderCard({ order, onRefresh }) {
   const [confirmingReceived, setConfirmingReceived] = useState(false);
   const [shopInfo, setShopInfo] = useState(null);
   const [shopLoading, setShopLoading] = useState(false);
+  const { userInfo } = useContext(UserContext);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackModalStage, setFeedbackModalStage] = useState('prompt');
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [feedbackModalOrder, setFeedbackModalOrder] = useState(null);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const feedbackProductCache = useRef(new Map());
 
+  const deriveFeedbackItems = useCallback((targetOrder) => {
+    const items = Array.isArray(targetOrder?.items) ? targetOrder.items : [];
+    return items.map((item, index) => {
+      const product = item?.product || item?.productInfo || {};
+      const productId = pickFirstNonEmpty([
+        product?.id,
+        product?.productId,
+        product?.productID,
+        item?.productId,
+        item?.productID,
+      ]);
+      const name = pickFirstNonEmpty([
+        product?.name,
+        product?.productName,
+        product?.title,
+        product?.displayName,
+        item?.productName,
+        item?.name,
+      ]) || `Sản phẩm ${index + 1}`;
+      const unitPrice = Number(item?.unitPrice ?? item?.price ?? item?.totalPrice ?? 0);
+      const quantity = Number(item?.quantity ?? item?.qty ?? 1);
+      const priceLabel = unitPrice > 0 ? formatCurrency(unitPrice) : '';
+      const productImage = pickFirstNonEmpty([
+        item?.productImage,
+        item?.productImageUrl,
+        item?.productImageURL,
+        item?.image,
+        item?.imageUrl,
+        item?.imageURL,
+        Array.isArray(product?.images) && product.images[0]?.url,
+        Array.isArray(product?.images) && product.images[0]?.imageUrl,
+        Array.isArray(product?.images) && product.images[0]?.imageURL,
+        Array.isArray(product?.images) && product.images[0]?.thumb,
+        product?.image,
+        product?.imageUrl,
+        product?.imageURL,
+        product?.thumbnail,
+        product?.thumb,
+      ]);
+      return {
+        id: `${targetOrder?.orderNumber || 'order'}-${productId || index}`,
+        productId: productId || null,
+        name,
+        productImage,
+        quantity,
+        priceLabel,
+        label: name,
+        selected: Boolean(productId),
+        rating: 5,
+        comment: '',
+      };
+    });
+  }, []);
+
+  const loadFeedbackProductDetails = useCallback(async (targetOrder) => {
+    if (!targetOrder) return;
+    const ids = Array.from(new Set(
+      (Array.isArray(targetOrder.items) ? targetOrder.items : [])
+        .map((item) => pickFirstNonEmpty([
+          item?.productId,
+          item?.productID,
+          item?.product?.id,
+          item?.product?.productId,
+        ]))
+        .filter(Boolean),
+    ));
+    if (!ids.length) return;
+
+    const details = new Map();
+    await Promise.all(ids.map(async (productId) => {
+      if (feedbackProductCache.current.has(productId)) {
+        details.set(productId, feedbackProductCache.current.get(productId));
+        return;
+      }
+      try {
+        const productData = await ProductService.getProductById(productId);
+        feedbackProductCache.current.set(productId, productData);
+        details.set(productId, productData);
+      } catch (error) {
+        console.error('Unable to load product data for feedback:', productId, error);
+      }
+    }));
+
+    if (!details.size) return;
+
+    setFeedbackItems((prev) => prev.map((item) => {
+      if (!item.productId) return item;
+      const productData = details.get(item.productId);
+      if (!productData) return item;
+      const updatedName = pickFirstNonEmpty([
+        productData.name,
+        productData.productName,
+        productData.displayName,
+        productData.title,
+        item.name,
+      ]);
+      return {
+        ...item,
+        name: updatedName || item.name,
+        productImage: resolveProductImage(productData) || item.productImage,
+      };
+    }));
+  }, [resolveProductImage]);
+
+  const openFeedbackModal = useCallback((targetOrder) => {
+    if (!targetOrder) {
+      return;
+    }
+    setFeedbackModalOrder(targetOrder);
+    setFeedbackItems(deriveFeedbackItems(targetOrder));
+    setFeedbackModalStage('prompt');
+    setFeedbackModalOpen(true);
+    setFeedbackSubmitting(false);
+    loadFeedbackProductDetails(targetOrder);
+  }, [deriveFeedbackItems, loadFeedbackProductDetails]);
+
+  const closeFeedbackModal = useCallback(() => {
+    setFeedbackModalOpen(false);
+    setFeedbackModalStage('prompt');
+    setFeedbackItems([]);
+    setFeedbackModalOrder(null);
+    setFeedbackSubmitting(false);
+  }, []);
+
+  const confirmOrderReceived = useCallback(async (orderNumber, options = {}) => {
+    if (!orderNumber) {
+      return false;
+    }
+    const { refresh = true } = options;
+    setConfirmingReceived(true);
+    try {
+      await OrderService.confirmOrderReceived(orderNumber);
+      toast.success(t('orderHistory.list.toast.confirmSuccess'));
+      if (refresh) {
+        if (onRefresh) {
+          onRefresh();
+        } else {
+          window.location.reload();
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error confirming order received:', error);
+      toast.error(t('orderHistory.list.toast.confirmError'));
+      return false;
+    } finally {
+      setConfirmingReceived(false);
+    }
+  }, [onRefresh, t]);
+
+  const handleFeedbackDecline = useCallback(async () => {
+    if (!feedbackModalOrder) {
+      closeFeedbackModal();
+      return;
+    }
+    await confirmOrderReceived(feedbackModalOrder.orderNumber);
+    closeFeedbackModal();
+  }, [confirmOrderReceived, feedbackModalOrder, closeFeedbackModal]);
+
+  const handleFeedbackItemChange = useCallback((index, field, value) => {
+    setFeedbackItems((prev) => prev.map((item, idx) => (
+      idx === index
+        ? { ...item, [field]: value }
+        : item
+    )));
+  }, []);
+
+  const handleSubmitFeedback = useCallback(async () => {
+    if (!feedbackModalOrder) {
+      return;
+    }
+    const selectedItems = feedbackItems.filter((item) => item.selected && item.productId);
+    if (selectedItems.length === 0) {
+      toast.info('Vui lòng chọn ít nhất một sản phẩm để đánh giá.');
+      return;
+    }
+    const userId = userInfo?.userID || userInfo?.userId || userInfo?.id;
+    if (!userId) {
+      toast.error('Không thể gửi đánh giá khi chưa đăng nhập.');
+      return;
+    }
+    setFeedbackSubmitting(true);
+    try {
+      await confirmOrderReceived(feedbackModalOrder.orderNumber, { refresh: false });
+      await Promise.all(selectedItems.map((item) => ProductService.submitFeedback(item.productId, userId, {
+        rating: Number(item.rating) || 5,
+        comment: item.comment?.trim() || ' ',
+      })));
+      toast.success('Cảm ơn bạn đã gửi đánh giá.');
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        window.location.reload();
+      }
+      closeFeedbackModal();
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast.error(error?.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }, [closeFeedbackModal, confirmOrderReceived, feedbackItems, feedbackModalOrder, onRefresh, userInfo]);
   useEffect(() => {
     let canceled = false;
 
@@ -439,24 +696,6 @@ function OrderCard({ order, onRefresh }) {
   const canRequestReturn = order.status === 'Shipping' && withinReturnWindow;
   const canConfirmReceived = ['Shipping', 'Paid'].includes(order.status);
 
-  const handleConfirmReceived = async () => {
-    try {
-      setConfirmingReceived(true);
-      await OrderService.confirmOrderReceived(order.orderNumber);
-      toast.success(t('orderHistory.list.toast.confirmSuccess'));
-      if (onRefresh) {
-        onRefresh();
-      } else {
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error('Error confirming order received:', error);
-      toast.error(t('orderHistory.list.toast.confirmError'));
-    } finally {
-      setConfirmingReceived(false);
-    }
-  };
-
   return (
     <>
       <div className="w-full max-w-[1152px] bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -552,7 +791,7 @@ function OrderCard({ order, onRefresh }) {
           )}
           {canConfirmReceived && (
             <button
-              onClick={handleConfirmReceived}
+              onClick={() => openFeedbackModal(order)}
               disabled={confirmingReceived}
               className={`px-4 py-2 bg-emerald-600 text-white rounded-lg transition-colors font-nunito text-sm font-medium ${
                 confirmingReceived ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-700'
@@ -603,10 +842,141 @@ function OrderCard({ order, onRefresh }) {
       />
       <ReturnOrderDialog
         isOpen={showReturnDialog}
-        orderNumber={order.orderNumber}
         onClose={() => setShowReturnDialog(false)}
+        orderNumber={order.orderNumber}
         onSuccess={() => setShowReturnDialog(false)}
       />
+      {feedbackModalOpen && feedbackModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {feedbackModalStage === 'prompt' ? 'Đã nhận hàng' : 'Đánh giá sản phẩm'}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {feedbackModalStage === 'prompt'
+                    ? 'Bạn có muốn để lại đánh giá cho đơn hàng này không?'
+                    : 'Chọn sản phẩm bạn muốn đánh giá và viết nhận xét.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeFeedbackModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            {feedbackModalStage === 'prompt' ? (
+              <div className="mt-6 flex flex-col gap-3 md:flex-row md:justify-end">
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                  onClick={closeFeedbackModal}
+                >
+                  Để sau
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
+                  onClick={handleFeedbackDecline}
+                  disabled={confirmingReceived}
+                >
+                  Không, chỉ xác nhận
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-opacity-90 transition"
+                  onClick={() => setFeedbackModalStage('form')}
+                >
+                  Có, tôi muốn đánh giá
+                </button>
+              </div>
+            ) : (
+              <>
+            <div className="mt-6 max-h-[60vh] space-y-4 overflow-y-auto pr-2">
+              {feedbackItems.map((item, index) => (
+                <div key={item.id} className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {item.productImage ? (
+                        <img
+                          src={item.productImage}
+                          alt={item.name}
+                          className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-gray-200" />
+                      )}
+                      <div className="space-y-0.5 text-sm">
+                        <p className="font-semibold text-gray-800">{item.name}</p>
+                        <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                          {item.quantity ? <span>Số lượng: {item.quantity}</span> : null}
+                          {item.priceLabel ? <span>Đơn giá: {item.priceLabel}</span> : null}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-3 text-xs text-gray-600">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={item.selected}
+                          onChange={(event) => handleFeedbackItemChange(index, 'selected', event.target.checked)}
+                          className="h-4 w-4 rounded border"
+                        />
+                        <span className="font-semibold text-gray-800">Đánh giá sản phẩm này</span>
+                      </label>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <span>Đánh giá:</span>
+                        <select
+                          value={item.rating}
+                          onChange={(event) => handleFeedbackItemChange(index, 'rating', Number(event.target.value))}
+                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                        >
+                          {[5, 4, 3, 2, 1].map((value) => (
+                            <option key={value} value={value}>
+                              {value} sao
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <textarea
+                    value={item.comment}
+                    placeholder="Chia sẻ cảm nhận của bạn..."
+                    onChange={(event) => handleFeedbackItemChange(index, 'comment', event.target.value)}
+                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    rows={3}
+                  />
+                </div>
+              ))}
+                </div>
+                <div className="mt-6 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackModalStage('prompt')}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                    disabled={feedbackSubmitting}
+                  >
+                    Quay lại
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitFeedback}
+                    disabled={feedbackSubmitting || confirmingReceived}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {feedbackSubmitting ? 'Đang gửi...' : 'Gửi đánh giá và xác nhận'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
