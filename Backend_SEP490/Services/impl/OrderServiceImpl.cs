@@ -1574,7 +1574,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
           .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && !o.Status.Equals("Cancelled"))
           .ToList();
 
-        var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m));
+        var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee);
         var result = new ResponseDTOTodayRevenue
         {
             Revenue = revenue,
@@ -1790,7 +1790,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
          .Where(o => o.Status.Equals("WaitingForPickup"))
          .ToList();
 
-        var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee + (o.ShippingProviderFee ?? 0m));
+        var revenue = ordersToday.Sum(o => (o.TotalAmount + o.DiscountAmount) - o.ShippingFee);
         var result = new ResponseDTOTodayRevenue
         {
             Revenue = revenue,
