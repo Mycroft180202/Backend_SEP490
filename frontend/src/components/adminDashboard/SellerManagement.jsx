@@ -584,7 +584,7 @@ const SellerManagement = () => {
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý đơn</h2>
+            <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý đơn đăng ký</h2>
             <p className="text-sm text-gray-600 mt-1">Theo dõi và xử lý các đơn đăng ký trở thành nghệ nhân</p>
           </div>
         </div>
