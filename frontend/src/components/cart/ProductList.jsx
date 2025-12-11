@@ -233,20 +233,6 @@ const ProductList = ({
   const total = derivedSubtotal + shippingFee;
   const displayedCount = totalCount ?? baseItems.length;
 
-  const selectableItemIds = useMemo(
-    () => (
-      items
-        .filter((item) => !isUnavailable(item))
-        .map((item) => getItemKey(item))
-        .filter((key) => Boolean(key))
-    ),
-    [items, getItemKey],
-  );
-
-  const allSelected = selectableItemIds.length > 0
-    && selectableItemIds.every((id) => selectedItemIds.has(id));
-  const partiallySelected = selectedItemIds.size > 0 && !allSelected;
-
   const selectedItems = useMemo(
     () => items.filter((item) => {
       const key = getItemKey(item);
@@ -277,29 +263,6 @@ const ProductList = ({
   const summaryQuantity = selectionActive ? selectedQuantity : 0;
   const summarySubtotal = selectionActive ? selectedSubtotal : 0;
   const summaryTotal = summarySubtotal + shippingFee;
-
-  const toggleAllSelection = useCallback((checked) => {
-    if (!checked) {
-      setSelectedItemIds(new Set());
-      return;
-    }
-
-    const next = new Set();
-    const known = knownItemIdsRef.current instanceof Set
-      ? new Set(knownItemIdsRef.current)
-      : new Set();
-
-    items.forEach((item) => {
-      const key = getItemKey(item);
-      if (!key || isUnavailable(item)) return;
-      next.add(key);
-      known.add(key);
-    });
-
-    knownItemIdsRef.current = known;
-    selectionInitializedRef.current = true;
-    setSelectedItemIds(next);
-  }, [items, getItemKey]);
 
   const toggleItemSelection = useCallback((item, checked) => {
     const key = getItemKey(item);
@@ -741,47 +704,6 @@ const ProductList = ({
               : t('cart.empty')}
           </p>
         </div>
-        {items.length > 0 && (
-          <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
-            <label className="inline-flex items-center gap-2 text-sm text-[#8B4513] font-semibold cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="w-5 h-5 accent-[#8B4513]"
-                checked={allSelected}
-                ref={(element) => {
-                  if (element) {
-                    element.indeterminate = partiallySelected;
-                  }
-                }}
-                onChange={(event) => toggleAllSelection(event.target.checked)}
-                disabled={!selectableItemIds.length}
-              />
-              <span>{translate('cart.selectAll', 'Chọn tất cả')}</span>
-            </label>
-            <div className="flex flex-col items-start sm:items-end gap-2">
-              <span className="inline-flex items-center gap-2 bg-[#FFF8EE] text-[#8B4513] px-4 py-2 rounded-full border border-[#D4A574]/50">
-                {selectedItems.length
-                  ? (
-                    <>
-                      🧮 {t('cart.selectedSummary', {
-                        count: selectedQuantity,
-                        amount: formatCurrency(selectedSubtotal, priceSuffix),
-                      })}
-                    </>
-                  )
-                  : (
-                    <>
-                      ℹ️ {translate('cart.emptySelection', 'Chọn sản phẩm để xem tổng tiền.')}
-                    </>
-                  )}
-              </span>
-              <span className="inline-flex items-center gap-2 bg-[#FFF1E5] text-[#8B4513] px-4 py-2 rounded-full border border-[#D4A574]/50">
-                🧺 {t('cart.subtotal')}:{' '}
-                <strong>{formatCurrency(subtotal, priceSuffix)}</strong>
-              </span>
-            </div>
-          </div>
-        )}
       </header>
 
       {loading ? (
@@ -1251,30 +1173,20 @@ const ProductList = ({
 
           <aside className="bg-white border border-[#efe7db] rounded-2xl shadow-xl p-6 h-fit lg:sticky lg:top-6">
             <h2 className="text-xl font-semibold text-[#8B4513] mb-6">{t('cart.summaryTitle')}</h2>
-            <div className="mb-4 bg-[#FFF8EE] border border-[#F3D5B5] rounded-xl px-4 py-3 text-sm text-[#8B4513]">
-              {selectionActive ? (
+            {selectionActive && (
+              <div className="mb-4 bg-[#FFF8EE] border border-[#F3D5B5] rounded-xl px-4 py-3 text-sm text-[#8B4513]">
                 <p className="font-semibold">
                   {t('cart.selectedSummary', {
                     count: summaryQuantity,
                     amount: formatCurrency(summarySubtotal, priceSuffix),
                   })}
                 </p>
-              ) : (
-                <p className="font-semibold">
-                  {translate('cart.emptySelection', 'Chọn sản phẩm để xem tổng tiền.')}
-                </p>
-              )}
-            </div>
+              </div>
+            )}
             <div className="space-y-4">
               <div className="flex justify-between text-gray-600">
                 <span>{translate('cart.selectedCountLabel', 'Sản phẩm đã chọn')}</span>
                 <span className="font-semibold text-[#8B4513]">{summaryQuantity}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>{translate('cart.selectedAmountLabel', 'Tạm tính')}</span>
-                <span className="font-semibold text-[#8B4513]">
-                  {formatCurrency(summarySubtotal, priceSuffix)}
-                </span>
               </div>
               <div className="border-t border-gray-200 pt-4 flex justify-between text-lg font-semibold text-[#8B4513]">
                 <span>{t('cart.total')}</span>
