@@ -166,9 +166,19 @@ const ProductDetail = () => {
     locationKey: 'fromCollection',
     contextKey: NavigationKeys.LAST_COLLECTION,
   });
+  const profileNavigationNode = useResolvedNavigationNode({
+    locationKey: 'fromProfile',
+  });
 
   const breadcrumbItems = useMemo(() => {
     const items = [{ label: 'Trang chủ', href: '/' }];
+    if (profileNavigationNode?.label && profileNavigationNode?.href) {
+      items.push({
+        label: profileNavigationNode.label,
+        href: profileNavigationNode.href,
+        state: profileNavigationNode.state,
+      });
+    }
     const productCrumbLabel = product?.name || 'Chi tiết sản phẩm';
     if (collectionNode?.label && collectionNode?.href) {
       items.push({
@@ -189,7 +199,7 @@ const ProductDetail = () => {
     }
     items.push({ label: productCrumbLabel });
     return items;
-  }, [collectionNode, product?.name, productListNode]);
+  }, [collectionNode, product?.name, productListNode, profileNavigationNode]);
   const productNavigationNode = useMemo(() => {
     if (!product?.id) {
       return null;

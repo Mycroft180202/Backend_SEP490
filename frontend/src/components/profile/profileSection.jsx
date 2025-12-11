@@ -4,6 +4,7 @@
   useRef,
   useCallback,
   useContext,
+  useMemo,
 } from 'react';
 import { useNavigate } from "react-router-dom";
 import { AuthService } from '../../services/modules/auth/authService';
@@ -491,6 +492,18 @@ function ProfileSection({ initialFocus, profileNode }) {
   const monthInputRef = useRef(null);
   const yearInputRef = useRef(null);
   const navigate = useNavigate();
+  const wishlistProfileNode = useMemo(() => ({
+    label: translate('profile.sidebar.wishlist', 'Sản phẩm đã thích'),
+    href: '/profile',
+    state: { profileFocus: 'wishlist' },
+  }), [translate]);
+  const getSidebarItemClass = (section) => (
+    `flex items-center gap-2 font-semibold cursor-pointer px-3 py-2 rounded-2xl transition-all ${
+      activeSection === section
+        ? 'text-[#9e211f] bg-gradient-to-r from-[#fef5f2] via-transparent to-white border border-[#9e211f]/20 shadow-[0_0_15px_rgba(158,33,31,0.2)]'
+        : 'text-gray-600 hover:text-[#9e211f]'
+    }`
+  );
   const resolveAddressNames = useCallback(async (addresses) => {
     if (!Array.isArray(addresses) || addresses.length === 0) return [];
 
@@ -1182,7 +1195,7 @@ function ProfileSection({ initialFocus, profileNode }) {
         <nav className="w-full mt-6">
           <ul className="space-y-4">
             <li
-              className={`flex items-center gap-2 font-semibold cursor-pointer ${activeSection === 'info' ? 'text-[#9e211f]' : 'text-gray-600 hover:text-[#9e211f]'}`}
+              className={getSidebarItemClass('info')}
               onClick={() => setActiveSection('info')}
             >
               <FaUserCircle /> {translate('profile.sidebar.accountInfo', 'Thông tin tài khoản')}
@@ -1201,7 +1214,7 @@ function ProfileSection({ initialFocus, profileNode }) {
               <FaHistory /> {translate('profile.sidebar.orderHistory', 'Lịch sử mua hàng')}
             </li>
             <li
-              className={`flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f] ${activeSection === 'wishlist' ? 'text-[#9e211f]' : ''}`}
+              className={getSidebarItemClass('wishlist')}
               onClick={() => {
                 setActiveSection('wishlist');
                 loadWishlist();
@@ -1210,7 +1223,7 @@ function ProfileSection({ initialFocus, profileNode }) {
               <FaHeart /> {translate('profile.sidebar.wishlist', 'Sản phẩm đã thích')}
             </li>
             <li
-              className={`flex items-center gap-2 text-gray-600 cursor-pointer hover:text-[#9e211f] ${activeSection === 'artisanRegistration' ? 'text-[#9e211f]' : ''}`}
+              className={getSidebarItemClass('artisanRegistration')}
               onClick={() => {
                 if (isArtisan) {
                   navigate('/artisan-shop');
@@ -1225,7 +1238,7 @@ function ProfileSection({ initialFocus, profileNode }) {
                 : translate('profile.sidebar.artisanRegister', 'Đăng ký làm người bán hàng')}
             </li>
             <li
-              className={`flex items-center gap-2 cursor-pointer ${activeSection === 'changePassword' ? 'text-[#9e211f]' : 'text-gray-600 hover:text-[#9e211f]'}`}
+              className={getSidebarItemClass('changePassword')}
               onClick={() => setActiveSection('changePassword')}
             >
               <FaLock /> {translate('profile.sidebar.changePassword', 'Đổi mật khẩu')}
@@ -1640,7 +1653,11 @@ function ProfileSection({ initialFocus, profileNode }) {
                       rating={product.rating || 0}
                       stock={product.stock}
                       shopName={product.shopName || product.displayName || ''}
-                      onClick={() => window.location.assign(`/product-detail/${product.id || product.productId}`)}
+                      onClick={() => navigate(`/product-detail/${product.id || product.productId}`, {
+                        state: {
+                          fromProfile: wishlistProfileNode,
+                        },
+                      })}
                       onToggleWishlist={async () => {
                         try {
                           const wishItemId = item.wishListItemId || item.id;
@@ -1866,4 +1883,3 @@ function ProfileSection({ initialFocus, profileNode }) {
 }
 
 export default ProfileSection;
-
