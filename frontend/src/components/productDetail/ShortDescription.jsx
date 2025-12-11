@@ -165,7 +165,7 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
     || product?.shopName
     || product?.artisanName
     || product?.displayName
-    || 'Hoa Lac Handicraft';
+    || 'HoaLac Handicraft';
 
   const totalSold = Number(product?.quantitySale ?? product?.sold ?? 0);
 

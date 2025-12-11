@@ -41,7 +41,7 @@ const Footer = () => {
       <div className="max-w-[1440px] mx-auto flex flex-col justify-center items-center gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
           <img src="/images/OnlyLogo.png" alt="Logo" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover bg-white shadow" />
-          <h2 className="font-alata text-xl sm:text-2xl leading-[42px] sm:leading-[48px]">Hoa Lac Handicraft</h2>
+          <h2 className="font-alata text-xl sm:text-2xl leading-[42px] sm:leading-[48px]">HoaLac Handicraft</h2>
         </div>
 
         <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-10">

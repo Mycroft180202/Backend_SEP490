@@ -104,7 +104,7 @@ const DocumentTitleUpdater = () => {
     ];
 
     const brand = t('pageTitles.brand');
-    const resolvedBrand = brand && brand !== 'pageTitles.brand' ? brand : 'Hoa Lac Handicraft';
+    const resolvedBrand = brand && brand !== 'pageTitles.brand' ? brand : 'HoaLac Handicraft';
     const match = routeTitleMap.find((route) => route.pattern.test(normalizedPath));
     const fallbackKey = normalizedPath === '/' ? 'pageTitles.home' : 'pageTitles.notFound';
     const targetKey = match ? match.key : fallbackKey;
