@@ -347,7 +347,7 @@ function ChangePasswordSection({ email }) {
                   {translate('profile.changePassword.noticeTitle', 'Lưu ý bảo mật')}
                 </p>
                 <p>
-                  {translate('profile.changePassword.noticeContent', 'Mã OTP có hiệu lực trong thời gian ngắn. Không chia sẻ mã cho bất kỳ ai để bảo vệ tài khoản của bạn.')}
+                  {translate('profile.changePassword.noticeContent', 'Mã OTP chỉ có hiệu lực trong 5 phút. Không chia sẻ mã cho bất kỳ ai để bảo vệ tài khoản của bạn.')}
                 </p>
               </div>
             </div>
