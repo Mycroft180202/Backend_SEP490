@@ -55,6 +55,18 @@ const OrderSuccess = () => {
     return Number.isFinite(numeric) ? numeric : null;
   };
 
+  const statusLabel = useMemo(() => {
+    if (!order?.status) {
+      return t('order.statusPending') || 'Pending';
+    }
+
+    if (order.status === 'WaitingForPickup') {
+      return 'Chờ xác nhận';
+    }
+
+    return order.status;
+  }, [order?.status, t]);
+
   const { subtotal, shippingFee, discount, total } = useMemo(() => {
     if (!order) {
       return {
@@ -186,7 +198,7 @@ const OrderSuccess = () => {
                       {t('order.status') || 'Trạng thái'}:
                     </span>
                     <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold">
-                      {order.status || 'Pending'}
+                      {statusLabel}
                     </span>
                   </div>
 
