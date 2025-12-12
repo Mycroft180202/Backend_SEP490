@@ -5,7 +5,6 @@ import {
   FaClipboardList,
   FaUsersCog,
   FaBlog,
-  FaSearch,
   FaChartBar,
   FaUsers,
   FaTicketAlt,
@@ -161,14 +160,6 @@ const AdminDashboard = () => {
               <p className="text-gray-600 font-nunito">Chào mừng trở lại, Admin!</p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
               <div className="flex items-center gap-2">
                 <img 
                   src={userInfo?.userUrlImage || '/images/default-avatar.png'} 

@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
-import { FaBell, FaShoppingCart, FaSearch } from 'react-icons/fa';
+import { FaBell, FaShoppingCart } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 import { NotificationService } from '../../services/modules/notification/notificationService';
 import { NotificationHub } from '../../services/modules/notification/notificationHub';
@@ -21,7 +21,6 @@ const Header = () => {
   const navigate = useNavigate();
   const { setContextValue } = useNavigationContext();
   const [isDropdownVisible, setDropdownVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isNotificationVisible, setNotificationVisible] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
@@ -337,21 +336,6 @@ const Header = () => {
           <span className={`block w-5 h-[2px] rounded-full transition ${isMobileMenuOpen ? 'opacity-0' : 'bg-white'}`} />
           <span className={`block w-5 h-[2px] rounded-full transition ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px] bg-yellow-200' : 'bg-white'}`} />
         </button>
-
-        {/* Search - Hidden on mobile, visible on md+ */}
-        <div className="hidden md:block relative">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder={t('header.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
-          />
-        </div>
-
-        {/* Mobile Search Icon */}
-        <FaSearch className="md:hidden text-white text-lg cursor-pointer" />
 
         {userInfo ? (
           <div className="relative flex items-center gap-2 sm:gap-3 lg:gap-4">
