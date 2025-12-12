@@ -1141,30 +1141,6 @@ const ProductList = ({
                     })}
                   </div>
 
-                  <footer className="px-5 py-4 border-t border-[#f1e4d1] bg-[#fffaf3] flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="text-sm text-gray-600">
-                      <p className="font-semibold text-[#8B4513]">{translate('cart.shopSubtotal', 'Tổng tiền đơn hàng')}</p>
-                      <p>{formatCurrency(groupSubtotal, priceSuffix)}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!groupHasSelection && groupHasAvailable) {
-                          handleShopSelectionChange(group.items, true);
-                        }
-                        openCheckoutForItems(
-                          groupHasSelection ? groupSelectedItems : group.items,
-                          group.shopName,
-                        );
-                      }}
-                      disabled={!groupHasAvailable}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-[#8B4513] text-white font-semibold hover:bg-[#D4A574] transition disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {groupHasAvailable
-                        ? translate('cart.checkoutShop', 'Đặt hàng')
-                        : translate('cart.checkoutShopDisabled', 'Tất cả sản phẩm đã hết hàng')}
-                    </button>
-                  </footer>
                 </section>
               );
             })}
