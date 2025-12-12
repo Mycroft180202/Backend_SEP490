@@ -13,7 +13,8 @@ public class UnitOfWork: IUnitOfWork
         ICartItemRepositories cartItem, IWishListItemRepositories wishListItem,IProductCollectionRepositories productCollection, IVoucherRepositories voucher,
         IOrderDetailRepositories orderDetail, IShipmentRepositories shipment, INotificationRepository notification, IReportRepository report,
         IPaymentRepository payment, IProductShippingProfileRepository productShippingProfile, ISellerShippingProfileRepository sellerShippingProfile,
-        IShipmentHistoryRepository shipmentHistory, IArtisanApplicationRepository artisanApplications, IStoryTellingRepositories storyTelling)
+        IShipmentHistoryRepository shipmentHistory, IArtisanApplicationRepository artisanApplications, IStoryTellingRepositories storyTelling,
+        ISellerReputationRepository sellerReputations)
     {
         _context = context;
         Products = product;
@@ -43,6 +44,7 @@ public class UnitOfWork: IUnitOfWork
         ShipmentHistory = shipmentHistory;
         ArtisanApplications = artisanApplications;
         StoryTelling = storyTelling;
+        SellerReputations = sellerReputations;
     }
 
     public async Task<IDbContextTransaction> BeginTransactionAsync()
@@ -90,5 +92,6 @@ public class UnitOfWork: IUnitOfWork
     public IShipmentHistoryRepository ShipmentHistory { get; }
     public IArtisanApplicationRepository ArtisanApplications { get; }
     public IStoryTellingRepositories StoryTelling { get; }
+    public ISellerReputationRepository SellerReputations { get; }
 
 }

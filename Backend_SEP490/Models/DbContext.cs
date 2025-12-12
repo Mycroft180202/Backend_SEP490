@@ -34,6 +34,8 @@ namespace Backend_SEP490.Models
         public DbSet<ShipmentHistory> ShipmentHistories { get; set; }
         public DbSet<ArtisanApplication> ArtisanApplications { get; set; }
         public DbSet<StoryTelling> StoryTellings { get; set; }
+        public DbSet<SellerReputation> SellerReputations { get; set; }
+        public DbSet<SellerReputationHistory> SellerReputationHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -121,6 +123,25 @@ namespace Backend_SEP490.Models
                 .HasOne(u => u.SellerShippingProfile)
                 .WithOne(p => p.Seller)
                 .HasForeignKey<SellerShippingProfile>(p => p.SellerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SellerReputation>()
+                .HasKey(r => r.SellerId);
+
+            modelBuilder.Entity<SellerReputation>()
+                .Property(r => r.Score)
+                .HasDefaultValue(100);
+
+            modelBuilder.Entity<SellerReputation>()
+                .HasOne(r => r.Seller)
+                .WithOne(u => u.SellerReputation)
+                .HasForeignKey<SellerReputation>(r => r.SellerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SellerReputationHistory>()
+                .HasOne(h => h.Reputation)
+                .WithMany(r => r.Histories)
+                .HasForeignKey(h => h.SellerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // ========== CART ==========

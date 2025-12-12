@@ -13,6 +13,7 @@ public interface INotificationService
     Task<int> MarkAllAsReadAsync(string userId);
     Task<bool> RemoveAsync(string userId, string notificationId);
     Task AdminSendNotificationAsync(string adminId, AdminSendNotificationRequest request);
+    Task NotifySimpleAsync(string userId, string type, string message);
 
     Task NotifyOrderCreatedAsync(
         Order order,

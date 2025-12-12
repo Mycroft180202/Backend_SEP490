@@ -12,6 +12,7 @@ using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Repositories.impl;
+using Backend_SEP490.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -22,11 +23,13 @@ public class OrderServiceImpl : GenericServices, IOrderService
     private const string PlatformSellerId = "PLATFORM";
     private const string PaymentTypeCod = "COD";
     private const string PaymentTypeVnpay = "VNPAY";
+    private const int SellerPenaltyPoints = 5;
 
     private readonly INotificationService _notificationService;
     private readonly IGhnShippingService _ghnShippingService;
     private readonly IShipmentRealtimeService _shipmentRealtimeService;
     private readonly IVoucherService _voucherService;
+    private readonly ISellerReputationService _sellerReputationService;
     private readonly ILogger<OrderServiceImpl> _logger;
     private readonly GhnSettings _ghnSettings;
 
@@ -37,6 +40,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         IGhnShippingService ghnShippingService,
         IShipmentRealtimeService shipmentRealtimeService,
         IVoucherService voucherService,
+        ISellerReputationService sellerReputationService,
         IOptions<GhnSettings> ghnOptions,
         ILogger<OrderServiceImpl> logger) : base(mapper, unitOfWork)
     {
@@ -44,6 +48,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         _ghnShippingService = ghnShippingService;
         _shipmentRealtimeService = shipmentRealtimeService;
         _voucherService = voucherService;
+        _sellerReputationService = sellerReputationService;
         _logger = logger;
         _ghnSettings = ghnOptions.Value;
     }
@@ -854,6 +859,51 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return (true, "Confirm received successfully!");
     }
 
+    public async Task<(bool Success, string Message)> ConfirmOrderByArtisanAsync(string? artisanId, string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(artisanId))
+        {
+            return (false, "Artisan id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return (false, "Order number is required.");
+        }
+
+        var order = await _context.Order.GetAllOrderByNumberAsync(orderNumber);
+        if (order == null)
+        {
+            return (false, "Order not found!");
+        }
+
+        if (string.Equals(order.Status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order already cancelled.");
+        }
+
+        if (string.Equals(order.Status, OrderStatuses.Completed, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Order already completed.");
+        }
+
+        var artisanMatch = await DoesOrderBelongToArtisanAsync(order, artisanId);
+        if (!artisanMatch)
+        {
+            return (false, "You are not authorized to update this order.");
+        }
+
+        if (order.ArtisanConfirmedAt.HasValue)
+        {
+            return (true, "Order already confirmed.");
+        }
+
+        order.ArtisanConfirmedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return (true, "Order confirmed successfully.");
+    }
+
     public async Task<(bool Success, string Message)> MarkOrderAsShippingByArtisanAsync(string? artisanId, string orderNumber)
     {
         if (string.IsNullOrWhiteSpace(artisanId))
@@ -926,9 +976,145 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         order.Status = OrderStatuses.Shipping;
+        order.ArtisanConfirmedAt ??= DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         return (true, "Order marked as shipping.");
+    }
+
+    public async Task<int> CancelUnconfirmedOrdersAsync(TimeSpan maxAge, CancellationToken cancellationToken)
+    {
+        var window = maxAge <= TimeSpan.Zero ? TimeSpan.FromHours(24) : maxAge;
+        var threshold = DateTime.UtcNow.Subtract(window);
+        var candidates = await _context.Order.GetUnconfirmedOrdersBeforeAsync(threshold);
+        if (candidates == null || candidates.Count == 0)
+        {
+            return 0;
+        }
+
+        var cancelled = 0;
+        foreach (var order in candidates)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            var success = await AutoCancelOrderAsync(order, cancellationToken);
+            if (success)
+            {
+                cancelled++;
+            }
+        }
+
+        return cancelled;
+    }
+
+    private async Task<bool> AutoCancelOrderAsync(Order order, CancellationToken cancellationToken)
+    {
+        var trackedOrder = await _context.Order.GetAllOrderByIdAsync(order.Id);
+        if (trackedOrder == null)
+        {
+            return false;
+        }
+
+        if (trackedOrder.ArtisanConfirmedAt.HasValue ||
+            string.Equals(trackedOrder.Status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trackedOrder.Status, OrderStatuses.Completed, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trackedOrder.Status, OrderStatuses.Shipping, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var artisanId = await ResolveArtisanIdAsync(trackedOrder);
+        if (string.IsNullOrWhiteSpace(artisanId))
+        {
+            _logger.LogWarning("Unable to resolve artisan for order {OrderId} during auto-cancel.", trackedOrder.Id);
+            return false;
+        }
+
+        var shipments = trackedOrder.Shipments ?? await _context.Shipment.GetByOrderIdAsync(trackedOrder.Id) ?? new List<Shipment>();
+        var cancelledShipments = new List<Shipment>();
+
+        foreach (var shipment in shipments)
+        {
+            if (!string.IsNullOrWhiteSpace(shipment.TrackingNumber) &&
+                shipment.Provider.StartsWith("GHN", StringComparison.OrdinalIgnoreCase))
+            {
+                var cancelled = await _ghnShippingService.CancelOrderAsync(
+                    shipment.TrackingNumber,
+                    trackedOrder.OrderNumber,
+                    "Auto-cancel: seller did not confirm order within 24h");
+
+                if (!cancelled)
+                {
+                    _logger.LogWarning(
+                        "Failed to cancel GHN shipment {TrackingNumber} for order {OrderId} (auto-cancel).",
+                        shipment.TrackingNumber,
+                        trackedOrder.Id);
+                }
+            }
+
+            shipment.ShippingStatus = "cancelled";
+            shipment.DeliveredAt = DateTime.UtcNow;
+            await AddShipmentHistoryEntryAsync(shipment, "cancelled", "Auto-cancelled after seller inactivity");
+            cancelledShipments.Add(shipment);
+        }
+
+        trackedOrder.Status = OrderStatuses.Cancelled;
+        await RestoreOrderStockAsync(trackedOrder);
+        await _context.SaveChangesAsync();
+
+        foreach (var shipment in cancelledShipments)
+        {
+            await _shipmentRealtimeService.BroadcastAsync(trackedOrder.CustomerId, shipment, "Shipment cancelled");
+        }
+
+        await HandleAutoCancelNotificationsAndCompensationAsync(trackedOrder, artisanId, cancellationToken);
+        return true;
+    }
+
+    private async Task HandleAutoCancelNotificationsAndCompensationAsync(Order order, string artisanId, CancellationToken cancellationToken)
+    {
+        var artisanUser = !string.IsNullOrWhiteSpace(artisanId)
+            ? await _context.Users.GetByIdAsync(artisanId)
+            : null;
+        var shopName = artisanUser?.ShopName ?? artisanUser?.DisplayName ?? "cua hang";
+
+        var customerMessage = $"Don hang {order.OrderNumber} cua ban da bi {shopName} huy do khong xac nhan trong 24h.";
+        if (!string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            await _notificationService.NotifySimpleAsync(order.CustomerId, NotificationTypes.OrderAutoCancelled, customerMessage);
+        }
+
+        if (!string.IsNullOrWhiteSpace(artisanId))
+        {
+            var artisanMessage = $"Don {order.OrderNumber} bi huy do khong xac nhan trong 24h.";
+            await _notificationService.NotifySimpleAsync(artisanId, NotificationTypes.OrderAutoCancelled, artisanMessage);
+        }
+
+        if (string.Equals(order.PaymentType, PaymentTypeVnpay, StringComparison.OrdinalIgnoreCase) && order.TotalAmount > 0)
+        {
+            var payments = await _context.Payments.GetByOrderIdAsync(order.Id);
+            var isPaid = payments?.Any(p => string.Equals(p.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)) == true;
+
+            if (isPaid && !string.IsNullOrWhiteSpace(order.CustomerId))
+            {
+                await _voucherService.CreateRefundVoucherAsync(order.CustomerId, order, order.TotalAmount, "Seller did not confirm order");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(artisanId))
+        {
+            var penaltyResult = await _sellerReputationService.ApplyMissedConfirmationPenaltyAsync(artisanId, order, cancellationToken);
+            var penaltyMessage = $"Ban bi tru {SellerPenaltyPoints} diem uy tin do khong xac nhan don {order.OrderNumber}. Diem hien tai: {penaltyResult.NewScore}.";
+            if (penaltyResult.LockedAccount)
+            {
+                penaltyMessage += " Tai khoan cua ban da bi khoa.";
+            }
+
+            await _notificationService.NotifySimpleAsync(artisanId, NotificationTypes.SellerReputationPenalty, penaltyMessage);
+        }
     }
 
     public async Task<bool> CreateShipmentsAfterPaymentAsync(string orderId)
@@ -1522,6 +1708,42 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .ThenBy(a => a.Id)
             .ToList();
         return ordered.FirstOrDefault();
+    }
+
+    private async Task<string?> ResolveArtisanIdAsync(Order order)
+    {
+        var orderItems = await EnsureOrderItemsLoadedAsync(order);
+        if (orderItems == null || orderItems.Count == 0)
+        {
+            return null;
+        }
+
+        var productIds = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .Select(item => item.ProductID!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (productIds.Count == 0)
+        {
+            return null;
+        }
+
+        var products = await _context.Products.GetProductsByIdsAsync(productIds);
+        var artisanIds = products
+            .Where(p => !string.IsNullOrWhiteSpace(p.ArtisanId))
+            .Select(p => p.ArtisanId!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return artisanIds.Count == 1 ? artisanIds[0] : null;
+    }
+
+    private async Task<bool> DoesOrderBelongToArtisanAsync(Order order, string artisanId)
+    {
+        var resolved = await ResolveArtisanIdAsync(order);
+        return !string.IsNullOrWhiteSpace(resolved) &&
+               string.Equals(resolved, artisanId, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<Order?> GetOrderByNumberForUserAsync(string? userId, string? orderNumber)

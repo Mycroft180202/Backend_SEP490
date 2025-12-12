@@ -1,4 +1,4 @@
-using Backend_SEP490.Config;
+ï»¿using Backend_SEP490.Config;
 using Backend_SEP490.Hubs;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
@@ -22,7 +22,7 @@ using System.IO;
 var builder = WebApplication.CreateBuilder(args);
 
 // ----------------------
-// Load environment variables t? file .env (n?u có)
+// Load environment variables t? file .env (n?u cÃ³)
 // ----------------------
 var envFilePath = Path.Combine(builder.Environment.ContentRootPath, ".env");
 if (File.Exists(envFilePath))
@@ -167,6 +167,7 @@ builder.Services.AddScoped<ISellerShippingProfileRepository, SellerShippingProfi
 builder.Services.AddScoped<IShipmentHistoryRepository, ShipmentHistoryRepository>();
 builder.Services.AddScoped<IArtisanApplicationRepository, ArtisanApplicationRepository>();
 builder.Services.AddScoped<IStoryTellingRepositories, StoryTellingRepositoriesImpl>();
+builder.Services.AddScoped<ISellerReputationRepository, SellerReputationRepository>();
 
 // ----------------------
 // Services
@@ -190,6 +191,7 @@ builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService>();
 builder.Services.AddScoped<IStoryTellingService, StoryTellingServiceImpl>();
 builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<ISellerReputationService, SellerReputationService>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
 builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
@@ -214,7 +216,7 @@ builder.Services.AddScoped<ISellerShippingProfileService, SellerShippingProfileS
 builder.Services.AddScoped<IShipmentRealtimeService, ShipmentRealtimeService>();
 
 // ----------------------
-// -É-âng k++ AutoMapper (qu+¬t to+án bß+Ö assemblies -æß+â t+¼m Profile)
+// -Ã‰-Ã¢ng k++ AutoMapper (qu+Â¬t to+Ã¡n bÃŸ+Ã– assemblies -Ã¦ÃŸ+Ã¢ t+Â¼m Profile)
 // ----------------------
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
@@ -360,4 +362,7 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
 public partial class Program { }
+
+
+
 

@@ -35,5 +35,6 @@ public interface IUnitOfWork: IDisposable
     IShipmentHistoryRepository ShipmentHistory { get; }
     IArtisanApplicationRepository ArtisanApplications { get; }
     IStoryTellingRepositories StoryTelling { get; }
+    ISellerReputationRepository SellerReputations { get; }
 
 }

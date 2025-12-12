@@ -225,6 +225,30 @@ public class OrderController : ControllerBase
     }
 
     [Authorize(Roles = "Artisan")]
+    [HttpPost("orders/{orderNumber}/confirm-artisan")]
+    public async Task<IActionResult> ConfirmOrderByArtisan([FromRoute] string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return BadRequest("Order number is required.");
+        }
+
+        var artisanId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(artisanId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _orderServices.ConfirmOrderByArtisanAsync(artisanId, orderNumber);
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result.Message);
+    }
+
+    [Authorize(Roles = "Artisan")]
     [HttpPost("orders/{orderNumber}/mark-shipping")]
     public async Task<IActionResult> MarkOrderAsShipping([FromRoute] string orderNumber)
     {

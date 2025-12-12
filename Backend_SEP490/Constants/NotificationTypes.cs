@@ -1,4 +1,4 @@
-namespace Backend_SEP490.Constants;
+﻿namespace Backend_SEP490.Constants;
 
 public static class NotificationTypes
 {
@@ -15,4 +15,7 @@ public static class NotificationTypes
     public const string ArtisanApplicationRejected = "ARTISAN_APPLICATION_REJECTED";
     public const string VoucherGift = "VOUCHER_GIFT";
     public const string VoucherReminder = "VOUCHER_REMINDER";
+    public const string OrderAutoCancelled = "ORDER_AUTO_CANCELLED";
+    public const string SellerReputationPenalty = "SELLER_REPUTATION_PENALTY";
 }
+

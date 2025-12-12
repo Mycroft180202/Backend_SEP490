@@ -20,7 +20,7 @@ public class User
     public int? Rating { get; set; }
     public int? AdminLevel { get; set; }
 
-    // 👇 Thêm 2 cột mới
+   
     public string? UserUrlImage { get; set; }
     public string? ShopUrlImage { get; set; }
 
@@ -39,4 +39,5 @@ public class User
     public ICollection<ArtisanApplication>? ArtisanApplications { get; set; }
     public ICollection<WishListItem>? WishListItems { get; set; }
     public SellerShippingProfile? SellerShippingProfile { get; set; }
+    public SellerReputation? SellerReputation { get; set; }
 }

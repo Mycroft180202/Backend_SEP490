@@ -152,6 +152,19 @@ public class NotificationServicesImpl : GenericServices, INotificationService
             adminId, notification.Id, request.TargetUserId);
     }
 
+    public async Task NotifySimpleAsync(string userId, string type, string message)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        var notification = CreateNotification(userId, type, message);
+        await _context.Notifications.AddAsync(notification);
+        await _context.SaveChangesAsync();
+        await SendRealtimeAsync(notification);
+    }
+
     public async Task NotifyOrderCreatedAsync(
         Order order,
         IReadOnlyCollection<OrderItem> orderItems,

@@ -16,18 +16,21 @@ namespace Backend_SEP490.Controllers
         private readonly IOrderService _orderService;
         private readonly IProductServices _productServices;
         private readonly IReportService _reportServices;
+        private readonly ISellerReputationService _sellerReputationService;
 
 
         public DashBoardController(
             IUserServices userServices,
             IOrderService orderService,
             IProductServices productServices,
-            IReportService reportServices)
+            IReportService reportServices,
+            ISellerReputationService sellerReputationService)
         {
             _userServices = userServices;
             _orderService = orderService;
             _productServices = productServices;
             _reportServices = reportServices;
+            _sellerReputationService = sellerReputationService;
         }
 
         // GET /users
@@ -303,6 +306,19 @@ namespace Backend_SEP490.Controllers
             }
 
             return Ok(users);
+        }
+
+        [Authorize(Roles = "Artisan")]
+        [HttpGet("artisan/reputation/history")]
+        public async Task<IActionResult> GetReputationHistory([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var history = await _sellerReputationService.GetHistoryAsync(userId, pageIndex, pageSize, HttpContext.RequestAborted);
+            return Ok(history);
         }
 
         private bool TryGetUserId(out string userId)

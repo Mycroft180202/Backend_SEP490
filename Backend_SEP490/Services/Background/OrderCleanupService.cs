@@ -1,4 +1,5 @@
 using Backend_SEP490.Repositories;
+using Backend_SEP490.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,9 @@ public class OrderCleanupService : BackgroundService
         {
             using var scope = _scopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var orderService = scope.ServiceProvider.GetRequiredService<IOrderService>();
+
+            await orderService.CancelUnconfirmedOrdersAsync(TimeSpan.FromHours(24), cancellationToken);
 
             var thresholdUtc = DateTime.UtcNow.Subtract(PaymentGracePeriod);
             var candidates = await unitOfWork.Order.GetPendingOrdersBeforeAsync(thresholdUtc);

@@ -55,6 +55,20 @@ namespace Backend_SEP490.Repositories.impl
                 .ToListAsync();
         }
 
+        public async Task<List<Order>> GetUnconfirmedOrdersBeforeAsync(DateTime thresholdUtc)
+        {
+            return await _context.Orders
+                .Include(o => o.Shipments)
+                .Include(o => o.OrderItems)
+                .Where(o =>
+                    o.ArtisanConfirmedAt == null &&
+                    o.CreateAt <= thresholdUtc &&
+                    o.Status != OrderStatuses.Cancelled &&
+                    o.Status != OrderStatuses.Completed &&
+                    o.Status != OrderStatuses.Shipping)
+                .ToListAsync();
+        }
+
         public void RemoveRange(IEnumerable<Order> orders)
         {
             _context.Orders.RemoveRange(orders);

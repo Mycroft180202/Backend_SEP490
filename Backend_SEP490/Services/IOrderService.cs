@@ -14,6 +14,7 @@ namespace Backend_SEP490.Services
         Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request);
         Task<(bool Success, string Message)> ConfirmOrderReceivedAsync(string? userId, string orderNumber);
         Task<(bool Success, string Message)> MarkOrderAsShippingByArtisanAsync(string? artisanId, string orderNumber);
+        Task<(bool Success, string Message)> ConfirmOrderByArtisanAsync(string? artisanId, string orderNumber);
         Task<Order?> GetOrderByNumberForUserAsync(string? userId, string? orderNumber);
         Task<bool> CreateShipmentsAfterPaymentAsync(string orderId);
         Task<PagedResult<ResponseDTOOrder>> GetOrdersPagedAsync(int pageIndex, int pageSize, string? paymentStatus);
@@ -26,5 +27,6 @@ namespace Backend_SEP490.Services
         Task<IEnumerable<ResponseDTOMonthRevenuePercentage>> GetAdminRevenuePrecentageInMonthAsync(int? year, int? month);
         Task<IEnumerable<ResponseDTOMonthRevenuePercentage>> GetArtisanRevenuePrecentageInMonthAsync(string? userId, int? year, int? month);
         Task<(bool Success, decimal Fee, int? ServiceIdUsed, string? Message)> PreviewCartShippingFeeAsync(string? userId, int toDistrictId, string toWardCode);
+        Task<int> CancelUnconfirmedOrdersAsync(TimeSpan maxAge, CancellationToken cancellationToken);
     }
 }
