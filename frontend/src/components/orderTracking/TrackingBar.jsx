@@ -62,7 +62,6 @@ export default function TrackingBar() {
 								// 3 label giữa: mỗi label căn giữa giữa 2 dấu tích của nó, tách riêng từng label
 								if (idx === 1) {
 									
-									const center = (steps[0].left + steps[1].left) / 2 - 144;
 									return (
 										<p
 											key={step.label}

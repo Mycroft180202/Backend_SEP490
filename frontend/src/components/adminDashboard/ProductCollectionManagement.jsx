@@ -132,10 +132,6 @@ const ProductCollectionManagement = () => {
     }
   };
 
-  const handleToggleActive = async (item) => {
-    // no-op: trạng thái chỉnh trong form
-  };
-
   const handleDelete = async (id) => {
     if (!window.confirm('Xoá bộ sưu tập này?')) return;
     try {

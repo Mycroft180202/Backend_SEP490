@@ -2,47 +2,6 @@ import React from 'react';
 
 const TrackingDetail = ({ trackingData }) => {
   // Danh sách các trạng thái theo thứ tự
-  const statuses = [
-    {
-      key: 'payment_confirmed',
-      label: 'Đã thanh toán',
-      description: null
-    },
-    {
-      key: 'preparing',
-      label: 'Người gửi đang chuẩn bị hàng',
-      description: null
-    },
-    {
-      key: 'shipped_to_carrier',
-      label: 'Đơn hàng đã được gửi cho đơn vị vận chuyển',
-      description: null
-    },
-    {
-      key: 'arrived_at_warehouse',
-      label: 'Đơn hàng đã đến kho Hanoi SOC',
-      description: null
-    },
-    {
-      key: 'out_for_delivery',
-      label: 'Đơn hàng đã được bàn giao cho đơn vị vận chuyển',
-      description: null
-    },
-    {
-      key: 'delivered',
-      label: 'Người gửi đang chuẩn bị hàng',
-      description: null
-    }
-  ];
-
-  // Hàm kiểm tra trạng thái hiện tại
-  const getStatusIndex = (currentStatus) => {
-    const index = statuses.findIndex(s => s.key === currentStatus);
-    return index !== -1 ? index : 0;
-  };
-
-  const currentStatusIndex = trackingData ? getStatusIndex(trackingData.status) : 0;
-
   // Dữ liệu mẫu nếu không có trackingData
   const defaultData = [
     {

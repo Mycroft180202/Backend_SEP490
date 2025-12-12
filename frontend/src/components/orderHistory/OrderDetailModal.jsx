@@ -144,6 +144,7 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
       orderDetail.shippingProviderFee,
       orderDetail.deliveryFee,
       orderDetail.shippingCost,
+      orderDetail.feeShipping,
     ];
     const fee = candidateFees.find((value) => value !== undefined && value !== null);
     if (fee !== undefined && fee !== null && Number.isFinite(Number(fee))) {
@@ -155,6 +156,16 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
   const grandTotal = Number.isFinite(rawTotal)
     ? rawTotal
     : subtotal + shippingFee - discountAmount;
+
+  const finalTotal = Number.isFinite(rawTotal) ? rawTotal : grandTotal;
+
+  const voucherDiscount = (() => {
+    if (!Number.isFinite(finalTotal)) {
+      return 0;
+    }
+    const computed = subtotal + shippingFee - finalTotal;
+    return computed > 0 ? computed : 0;
+  })();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -300,10 +311,10 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
                 <span className="text-gray-600">{t('orderHistory.detailModal.summary.shippingFee')}</span>
                 <span className="text-gray-800 font-semibold">{formatCurrency(shippingFee)}</span>
               </div>
-              {discountAmount > 0 && (
+              {voucherDiscount > 0 && (
                 <div className="flex justify-between text-sm font-nunito text-red-600">
-                  <span>{t('orderHistory.detailModal.summary.discount')}</span>
-                  <span>-{formatCurrency(discountAmount)}</span>
+                  <span>{t('orderHistory.detailModal.summary.voucherDiscount')}</span>
+                  <span>-{formatCurrency(voucherDiscount)}</span>
                 </div>
               )}
               <div className="border-t border-gray-200 pt-3 flex justify-between items-center">

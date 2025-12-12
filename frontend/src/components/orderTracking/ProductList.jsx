@@ -2,7 +2,6 @@
 // https://www.figma.com/design/LVsmHJotknx0isQ2MZ6775/Web-%C4%90%E1%BB%93-%C3%81n?node-id=1-2489
 import React from "react";
 
-const imgVuesaxLinearArrowRight = "https://www.figma.com/api/mcp/asset/7e9e7028-a5c4-4271-9bbc-dd0a67ca2830";
 const imgLine13 = "https://www.figma.com/api/mcp/asset/5d1290b1-e766-4040-9642-4a518617dd65";
 
 export default function ProductList() {

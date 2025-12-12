@@ -221,19 +221,6 @@ const StorytellingDetail = () => {
                 __html: story.content || '<p>Nội dung sẽ được cập nhật.</p>',
               }}
             />
-            <div className="pt-6 border-t border-amber-50 flex flex-wrap gap-4 text-sm text-gray-500">
-              <span>
-                Người tạo:
-                {' '}
-                <strong>{story.createdById || 'Hệ thống'}</strong>
-              </span>
-              <span className="w-1 h-1 rounded-full bg-gray-300" />
-              <span>
-                Story ID:
-                {' '}
-                {story.id}
-              </span>
-            </div>
           </article>
         </section>
 

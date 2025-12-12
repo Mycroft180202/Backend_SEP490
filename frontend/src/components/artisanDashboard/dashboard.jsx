@@ -708,6 +708,7 @@ const ArtisanDashboard = () => {
                 latestOrders={latestOrders}
                 formatCurrency={formatCurrency}
                 onNavigateToProducts={() => setActiveTab('products')}
+                onNavigateToOrders={() => setActiveTab('orders')}
               />
             )
           )}

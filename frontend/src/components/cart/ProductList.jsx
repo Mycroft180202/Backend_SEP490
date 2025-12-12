@@ -217,10 +217,10 @@ const ProductList = ({
     }
   };
 
-  const isUnavailable = (item) => (
+  const isUnavailable = useCallback((item) => (
     item?.isActive === false
     || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
-  );
+  ), []);
 
   const baseItems = allItems && allItems.length ? allItems : items;
   const availableItems = baseItems.filter((item) => !isUnavailable(item));
@@ -229,7 +229,6 @@ const ProductList = ({
     0,
   );
   const shippingFee = summary?.shipping ?? 0;
-  const subtotal = derivedSubtotal;
   const total = derivedSubtotal + shippingFee;
   const displayedCount = totalCount ?? baseItems.length;
 
@@ -240,7 +239,7 @@ const ProductList = ({
       if (isUnavailable(item)) return false;
       return selectedItemIds.has(key);
     }),
-    [items, selectedItemIds, getItemKey],
+    [items, selectedItemIds, getItemKey, isUnavailable],
   );
 
   const selectedQuantity = useMemo(
@@ -314,7 +313,7 @@ const ProductList = ({
       }
     });
     knownItemIdsRef.current = known;
-  }, [getItemKey]);
+  }, [getItemKey, isUnavailable]);
 
   const openCheckoutForItems = useCallback((selectedItems, context = null) => {
     const baseItems = Array.isArray(selectedItems) ? selectedItems : [];
@@ -415,7 +414,7 @@ const ProductList = ({
       selectionInitializedRef.current = true;
       return next;
     });
-  }, [items, getItemKey]);
+  }, [items, getItemKey, isUnavailable]);
 
   useEffect(() => {
     if (!Array.isArray(items) || items.length === 0) {
@@ -630,7 +629,7 @@ const ProductList = ({
     });
 
     return Array.from(names);
-  }, [groupedShops, selectedItemIds, getItemKey, shopDetails]);
+  }, [groupedShops, selectedItemIds, getItemKey, shopDetails, isUnavailable]);
 
   const summaryContext = useMemo(() => {
     if (selectedShopNames.length === 1) {

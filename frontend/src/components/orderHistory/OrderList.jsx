@@ -366,7 +366,7 @@ function OrderCard({ order, onRefresh }) {
         productImage: resolveProductImage(productData) || item.productImage,
       };
     }));
-  }, [resolveProductImage]);
+  }, []);
 
   const openFeedbackModal = useCallback((targetOrder) => {
     if (!targetOrder) {

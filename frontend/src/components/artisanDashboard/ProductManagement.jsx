@@ -189,11 +189,11 @@ const ProductManagement = () => {
     loadCategories();
   }, []);
 
-  const categoryNameOf = (id) => {
+  const categoryNameOf = useCallback((id) => {
     if (!id) return '';
     const found = categories.find((c) => c.id === id || c.categoryId === id);
     return found?.name || id;
-  };
+  }, [categories]);
 
   const lowStockProducts = useMemo(
     () => products.filter((product) => (product.stock ?? 0) > 0 && product.stock < LOW_STOCK_THRESHOLD),
@@ -233,7 +233,7 @@ const ProductManagement = () => {
       || (filterStatus === 'Hết hàng' && product.stock <= 0)
       || product.status === filterStatus;
     return matchSearch && matchCategory && matchStatus;
-  }), [products, searchTerm, filterCategory, filterStatus, categories]);
+  }), [products, searchTerm, filterCategory, filterStatus, categoryNameOf]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
   const currentProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);

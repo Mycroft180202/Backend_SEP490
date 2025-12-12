@@ -1,11 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FaHome,
-  FaProductHunt,
-  FaClipboardList,
-  FaChartLine,
-  FaCog,
   FaSignOutAlt,
   FaBars,
   FaTimes,

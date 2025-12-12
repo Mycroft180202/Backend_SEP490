@@ -84,7 +84,7 @@ const OrderManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [pageIndex, setPageIndex] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const pageSize = 10;
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -95,13 +95,13 @@ const OrderManagement = () => {
   const [addressDetails, setAddressDetails] = useState({});
   const [productCache, setProductCache] = useState({});
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = useCallback((amount) => {
     const numericAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
     return `${new Intl.NumberFormat('vi-VN', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(numericAmount)} VND`;
-  };
+  }, []);
 
   const fetchAllOrders = useCallback(async (params = {}) => {
     let page = 1;
@@ -389,14 +389,14 @@ const OrderManagement = () => {
     fetchProductDetails(productIds);
   }, [orders, fetchProductDetails]);
 
-  const formatDate = (value) => {
+  const formatDate = useCallback((value) => {
     if (!value) return '--';
     try {
       return new Date(value).toLocaleString('vi-VN');
     } catch (error) {
       return value;
     }
-  };
+  }, []);
 
   const getCustomerName = useCallback(
     (customerId) => {

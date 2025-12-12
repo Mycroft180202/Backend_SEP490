@@ -595,9 +595,9 @@ const translations = {
         quantity: 'Số lượng',
         lineTotal: 'Thành tiền',
         summary: {
-          subtotal: 'Tạm tính',
+          subtotal: 'Tiền sản phẩm',
           shippingFee: 'Phí vận chuyển',
-          discount: 'Giảm giá',
+          voucherDiscount: 'Phí giảm giá từ Voucher',
           total: 'Tổng cộng',
         },
         shippingAddress: {
@@ -1320,9 +1320,9 @@ const translations = {
         quantity: 'Quantity',
         lineTotal: 'Line total',
         summary: {
-          subtotal: 'Subtotal',
+          subtotal: 'Product amount',
           shippingFee: 'Shipping fee',
-          discount: 'Discount',
+          voucherDiscount: 'Voucher discount fee',
           total: 'Grand total',
         },
         shippingAddress: {

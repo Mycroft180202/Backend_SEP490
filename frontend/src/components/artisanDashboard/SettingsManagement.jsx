@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FaStore,
   FaMapMarkerAlt,
@@ -88,7 +88,7 @@ const SettingsManagement = () => {
     return parts.join(', ');
   };
 
-  const normalizeShopData = (data) => ({
+  const normalizeShopData = useCallback((data) => ({
     shopName: data?.shopName || data?.displayName || '',
     bio: data?.bio || data?.description || '',
     address: extractAddress(data?.addresses) || data?.address || '',
@@ -96,7 +96,7 @@ const SettingsManagement = () => {
     shopUrlImage: data?.shopUrlImage || '',
     artisanId: data?.userID || data?.userId || null,
     ownerName: data?.displayName || data?.ownerName || '',
-  });
+  }), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,7 +142,7 @@ const SettingsManagement = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [normalizeShopData]);
 
   const infoItems = useMemo(() => {
     if (!shopInfo) return [];

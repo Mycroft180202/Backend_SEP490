@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   FaDollarSign,
   FaChartLine,
@@ -215,6 +215,7 @@ const OverviewSection = ({
   latestOrders = [],
   formatCurrency,
   onNavigateToProducts,
+  onNavigateToOrders,
 }) => {
   const monthNames = useMemo(
     () => [
@@ -558,6 +559,18 @@ const OverviewSection = ({
     (item) => item.revenue > 0 || item.orders > 0,
   );
 
+  const unconfirmedOrdersCount = useMemo(() => {
+    if (!Array.isArray(latestOrders) || latestOrders.length === 0) {
+      return 0;
+    }
+    return latestOrders.reduce((count, order) => {
+      if (normalizeStatusKey(order?.status ?? order?.orderStatus ?? order?.statusName) === 'WAITING_FOR_PICKUP') {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+  }, [latestOrders]);
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -605,10 +618,21 @@ const OverviewSection = ({
         <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Đơn hàng hôm nay</p>
+              <p className="text-sm text-gray-500">Đơn hàng cần xử lý</p>
               <h3 className="mt-2 text-3xl font-bold text-gray-800">
                 {formatNumber(summary.todayOrders)}
               </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Chưa xác nhận: <strong>{formatNumber(unconfirmedOrdersCount)}</strong>
+              </p>
+              <button
+                type="button"
+                onClick={() => onNavigateToOrders?.()}
+                className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#8B4513] hover:text-[#A25C2B] focus:outline-none"
+              >
+                Quản lý đơn hàng
+                <span aria-hidden>→</span>
+              </button>
             </div>
             <div className="rounded-full bg-blue-100 p-4 text-blue-600">
               <FaShoppingCart className="text-2xl" />
