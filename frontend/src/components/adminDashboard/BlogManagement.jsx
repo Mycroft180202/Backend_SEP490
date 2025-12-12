@@ -489,14 +489,10 @@ const BlogManagement = ({ isAdmin = true }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
           <p className="text-sm text-gray-600">Tổng bài viết</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-sm text-gray-600">Đã xuất bản</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{stats.published}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
           <p className="text-sm text-gray-600">Bản nháp</p>
@@ -506,8 +502,8 @@ const BlogManagement = ({ isAdmin = true }) => {
           <p className="text-sm text-gray-600">Đã lưu trữ</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.archived}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-          <p className="text-sm text-gray-600">Đang hiển thị</p>
+        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+          <p className="text-sm text-gray-600">Đã xuất bản (Hiển thị)</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{stats.visible}</p>
         </div>
       </div>
@@ -961,4 +957,3 @@ BlogManagement.propTypes = {
 };
 
 export default BlogManagement;
-
