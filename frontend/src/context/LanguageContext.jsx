@@ -312,7 +312,7 @@ const translations = {
       },
       whyUs: {
         titleLine1: 'Vì sao lại chọn',
-        titleLine2: 'Hoalachandicraft?',
+        titleLine2: 'Hoa Lac Handicraft?',
         reasons: {
           first: 'Chân thật & thủ công: Mỗi sản phẩm đều được làm bằng tay, tỉ mỉ trong từng chi tiết, mang hồn cốt của người thợ Việt.',
           second: 'Gắn kết truyền thống & hiện đại: Chúng tôi giữ nguyên nét xưa, nhưng thể hiện theo phong cách gần gũi, phù hợp với đời sống hôm nay.',
@@ -1037,7 +1037,7 @@ const translations = {
       },
       whyUs: {
         titleLine1: 'Why choose',
-        titleLine2: 'Hoalachandicraft?',
+        titleLine2: 'Hoa Lac Handicraft?',
         reasons: {
           first: 'Authentic & handcrafted: Every piece is meticulously handmade, carrying the soul of Vietnamese artisans.',
           second: 'Bridging tradition & modern life: We honor timeless designs while adapting them for today’s living spaces.',
