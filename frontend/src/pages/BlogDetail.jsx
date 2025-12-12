@@ -194,7 +194,7 @@ const BlogDetail = () => {
 
     return (
       <>
-        <section className="relative isolate">
+        <section className="relative isolate min-h-[520px]">
           <div className="absolute inset-0">
             <img
               src={resolveImage(blog)}
@@ -216,12 +216,6 @@ const BlogDetail = () => {
                 {' '}
                 <strong>{authorName}</strong>
               </span>
-              <span className="w-1 h-1 rounded-full bg-white/60" />
-              <span>
-                {t('blogDetail.postedIn')}
-                {': '}
-                {blog.category || t('blogDetail.categoryFallback')}
-              </span>
             </div>
           </div>
         </section>
@@ -235,19 +229,6 @@ const BlogDetail = () => {
               className="prose prose-2xl max-w-none text-gray-800 leading-relaxed blog-detail-content"
               dangerouslySetInnerHTML={{ __html: blog.content || `<p>${t('blogDetail.contentUpdating')}</p>` }}
             />
-            <div className="pt-6 border-t border-amber-50 flex flex-wrap gap-4 text-sm text-gray-500">
-              <span>
-                {t('blogDetail.statusLabel')}
-                {': '}
-                <strong>{blog.postStatus || t('blogDetail.statusFallback')}</strong>
-              </span>
-              <span className="w-1 h-1 rounded-full bg-gray-300" />
-              <span>
-                {t('blogDetail.idLabel')}
-                {': '}
-                {blog.id}
-              </span>
-            </div>
           </article>
         </section>
 
@@ -310,7 +291,7 @@ const BlogDetail = () => {
     <div className="min-h-screen bg-[#fff9f0] flex flex-col">
       <Header />
       <div className="bg-[#fff4e5]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-start">
           <Breadcrumb items={breadcrumbItems} floating />
         </div>
       </div>
@@ -323,4 +304,3 @@ const BlogDetail = () => {
 };
 
 export default BlogDetail;
-

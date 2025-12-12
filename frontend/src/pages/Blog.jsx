@@ -12,7 +12,7 @@ import { NavigationKeys } from '../context/NavigationContext';
 import useNavigationNode from '../hooks/useNavigationNode';
 
 const API_PAGE_SIZE = 9;
-const GRID_PAGE_SIZE = 6;
+const GRID_PAGE_SIZE = 3;
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1600&q=80';
 
 const formatDate = (value, locale = 'vi-VN', fallback = '') => {
@@ -182,7 +182,7 @@ const Blog = () => {
     const hero = blogs[0];
     const highlightStart = 1;
     const highlights = blogs.slice(highlightStart, highlightStart + 3);
-    const archive = blogs.slice(hero ? 1 : 0);
+    const archive = blogs;
 
     return { hero, highlights, archive };
   }, [blogs]);
