@@ -1,7 +1,9 @@
+using System;
 using System.Linq;
 using Backend_SEP490.DTOs.External.Ghn;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
+using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,10 +16,12 @@ namespace Backend_SEP490.Controllers;
 public class GhnShippingController : ControllerBase
 {
     private readonly IGhnShippingService _ghnShippingService;
+    private readonly IOrderService _orderService;
 
-    public GhnShippingController(IGhnShippingService ghnShippingService)
+    public GhnShippingController(IGhnShippingService ghnShippingService, IOrderService orderService)
     {
         _ghnShippingService = ghnShippingService;
+        _orderService = orderService;
     }
 
     [AllowAnonymous]
@@ -29,6 +33,22 @@ public class GhnShippingController : ControllerBase
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
+        }
+
+        var userId = User.GetUserId();
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var preview = await _orderService.PreviewCartShippingFeeAsync(userId, request.ToDistrictId, request.ToWardCode);
+            if (preview.Success)
+            {
+                var roundedFee = (int)Math.Round(preview.Fee, 0, MidpointRounding.AwayFromZero);
+                var previewResult = new ShippingFeeResponse
+                {
+                    TotalFee = roundedFee
+                };
+
+                return Ok(previewResult);
+            }
         }
 
         var serviceRequest = new GhnCalculateFeeRequest

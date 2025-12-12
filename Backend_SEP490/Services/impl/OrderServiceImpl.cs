@@ -298,6 +298,68 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
     }
 
+    public async Task<(bool Success, decimal Fee, int? ServiceIdUsed, string? Message)> PreviewCartShippingFeeAsync(
+        string? userId,
+        int toDistrictId,
+        string toWardCode)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return (false, 0m, null, "User id is required.");
+        }
+
+        if (toDistrictId <= 0 || string.IsNullOrWhiteSpace(toWardCode))
+        {
+            return (false, 0m, null, "Destination is required.");
+        }
+
+        var previewRequest = new RequestCreateOrder
+        {
+            ShippingServiceId = _ghnSettings.ServiceId ?? 0,
+            ServiceTypeId = _ghnSettings.ServiceTypeId,
+            PaymentMethod = PaymentTypeCod,
+            RequiredNote = _ghnSettings.RequiredNote,
+            PaymentTypeId = _ghnSettings.PaymentTypeId
+        };
+
+        var (itemsResolved, orderItemInputs, itemError) = await ResolveOrderItemsAsync(userId, previewRequest);
+        if (!itemsResolved || orderItemInputs.Count == 0)
+        {
+            return (false, 0m, null, itemError ?? "Cart is empty.");
+        }
+
+        var artisanIds = orderItemInputs
+            .Select(info => info.Product?.ArtisanId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (artisanIds.Count != 1)
+        {
+            return (false, 0m, null, "Moi don hang chi duoc phep chua san pham tu mot cua hang. Vui long tao don rieng.");
+        }
+
+        var destination = new Address
+        {
+            GhnDistrictId = toDistrictId,
+            GhnWardCode = toWardCode
+        };
+
+        var (feeSuccess, fee, serviceIdUsed, feeError) = await CalculateShippingFeeAsync(
+            previewRequest,
+            artisanIds[0],
+            destination,
+            orderItemInputs);
+
+        if (!feeSuccess)
+        {
+            return (false, 0m, null, feeError ?? "Unable to calculate shipping fee.");
+        }
+
+        return (true, fee, serviceIdUsed, null);
+    }
+
     private async Task<(bool Success, List<OrderItemInput> Items, string? Message)> ResolveOrderItemsAsync(
         string userId,
         RequestCreateOrder request)

@@ -73,10 +73,7 @@ namespace Backend_SEP490.Repositories.impl
             }
 
             var query = _context.Orders
-                .Include(o => o.OrderItems)
-                .Include(o => o.Shipments)
-                .Include(o => o.Payments)
-                .OrderByDescending(o => o.CreateAt)
+                .AsNoTracking()
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(paymentStatus))
@@ -93,9 +90,14 @@ namespace Backend_SEP490.Repositories.impl
             }
 
             var totalCount = await query.CountAsync();
+
             var orders = await query
+                .OrderByDescending(o => o.CreateAt)
                 .Skip((pageIndex - 1) * pageSize)
                 .Take(pageSize)
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .AsSplitQuery()
                 .ToListAsync();
 
             return (orders, totalCount);
