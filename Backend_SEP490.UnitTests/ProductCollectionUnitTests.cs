@@ -1,19 +1,10 @@
 ﻿using AutoMapper;
 using Backend_SEP490.DTOs.Request;
-using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Services.impl;
 using CloudinaryDotNet;
-using CloudinaryDotNet.Actions;
-using Microsoft.AspNetCore.Http;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace Backend_SEP490.UnitTests
 {
@@ -139,47 +130,39 @@ namespace Backend_SEP490.UnitTests
         }
 
 
-        //[Fact(DisplayName = "CreateAsync - Uploads image and returns entity")]
-        //public async Task CreateAsync_UploadsImageAndReturnsEntity()
-        //{
-        //    var fileMock = new Mock<IFormFile>();
-        //    var ms = new MemoryStream();
-        //    var writer = new StreamWriter(ms);
-        //    writer.Write("dummy");
-        //    writer.Flush();
-        //    ms.Position = 0;
+        [Fact(DisplayName = "CreateAsync - Uploads image and returns entity")]
+        public async Task CreateAsync_UploadsImageAndReturnsEntity()
+        {
 
-        //    fileMock.Setup(f => f.OpenReadStream()).Returns(ms);
-        //    fileMock.Setup(f => f.FileName).Returns("test.jpg");
+            var ms = new MemoryStream();
+            var writer = new StreamWriter(ms);
+            writer.Write("dummy");
+            writer.Flush();
+            ms.Position = 0;
+            _unitOfWorkMock.Setup(u => u.ProductCollections.GetProductsByIdsAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync(new List<Product>());
 
-        //    var uploadResult = new ImageUploadResult { SecureUrl = new Uri("http://cloudinary/test.jpg") };
-        //    _cloudinaryMock.Setup(c => c.UploadAsync(It.IsAny<ImageUploadParams>(), default))
-        //        .ReturnsAsync(uploadResult);
+            _unitOfWorkMock.Setup(u => u.ProductCollections.AddAsync(It.IsAny<ProductCollection>()))
+                .Returns(Task.CompletedTask);
 
-        //    _unitOfWorkMock.Setup(u => u.ProductCollections.GetProductsByIdsAsync(It.IsAny<List<string>>()))
-        //        .ReturnsAsync(new List<Product>());
+            _unitOfWorkMock.Setup(u => u.ProductCollections.SaveChangesAsync())
+                .Returns(Task.CompletedTask);
 
-        //    _unitOfWorkMock.Setup(u => u.ProductCollections.AddAsync(It.IsAny<ProductCollection>()))
-        //        .Returns(Task.CompletedTask);
+            var dto = new RequestDTOCreateProductCollection
+            {
+                Title = "Test Collection",
+                Headline = "Headline",
+                Content = "Content",
+                ImageFile = null,
+                CreatedById = "User1",
+                ProductIds = new List<string> { "P1", "P2" }
+            };
 
-        //    _unitOfWorkMock.Setup(u => u.ProductCollections.SaveChangesAsync())
-        //        .Returns(Task.CompletedTask);
+            var result = await _service.CreateAsync(dto);
 
-        //    var dto = new RequestDTOCreateProductCollection
-        //    {
-        //        Title = "Test Collection",
-        //        Headline = "Headline",
-        //        Content = "Content",
-        //        ImageFile = fileMock.Object,
-        //        CreatedById = "User1",
-        //        ProductIds = new List<string> { "P1", "P2" }
-        //    };
-
-        //    var result = await _service.CreateAsync(dto);
-
-        //    Assert.Equal("Test Collection", result.Title);
-        //    Assert.NotNull(result.Image);
-        //}
+            Assert.Equal("Test Collection", result.Title);
+            Assert.NotNull(result.Image);
+        }
 
         [Fact(DisplayName = "SoftDeleteProductCollectionAsync - Success")]
         public async Task SoftDeleteProductCollectionAsync_Success()
