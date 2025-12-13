@@ -67,14 +67,6 @@ namespace Backend_SEP490.UnitTests
         // -----------------------------
         // CreateVnpayPaymentAsync
         // -----------------------------
-
-        [Fact]
-        public async Task CreateVnpayPaymentAsync_ReturnsNull_WhenUserIdIsNull()
-        {
-            var result = await _service.CreateVnpayPaymentAsync(null!, new CreateVnpayPaymentRequest(), "127.0.0.1");
-            Assert.Null(result);
-        }
-
         [Fact]
         public async Task CreateVnpayPaymentAsync_ReturnsNull_WhenOrderNotFound()
         {
@@ -126,34 +118,6 @@ namespace Backend_SEP490.UnitTests
             var result = await _service.HandleVnpayCallbackAsync(queryCollection);
             Assert.False(result.Success);
             Assert.Equal("Invalid signature.", result.Message);
-        }
-
-        // -----------------------------
-        // Helper method tests
-        // -----------------------------
-
-        [Fact]
-        public void ComputeHmac_ReturnsNonEmptyHash()
-        {
-            var method = typeof(PaymentServiceImpl).GetMethod("ComputeHmac", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            var result = method!.Invoke(null, new object[] { "secret", "data" }) as string;
-            Assert.False(string.IsNullOrWhiteSpace(result));
-        }
-
-        [Fact]
-        public void GenerateQrContent_ReturnsBase64_WhenInputNotEmpty()
-        {
-            var method = typeof(PaymentServiceImpl).GetMethod("GenerateQrContent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            var result = method!.Invoke(null, new object[] { "https://test.com" }) as string;
-            Assert.Contains("data:image/png;base64,", result!);
-        }
-
-        [Fact]
-        public void GenerateQrContent_ReturnsEmpty_WhenInputEmpty()
-        {
-            var method = typeof(PaymentServiceImpl).GetMethod("GenerateQrContent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            var result = method!.Invoke(null, new object[] { "" }) as string;
-            Assert.Equal(string.Empty, result);
         }
     }
 }

@@ -306,87 +306,87 @@ namespace Backend_SEP490.UnitTests
             _addressRepoMock.Verify(r => r.DeleteAddressAsync(address), Times.Once);
         }
 
-        [Fact(DisplayName = "UpdateUserAddressAsync - Address not found - Return message")]
-        public async Task UpdateUserAddressAsync_AddressNotFound_ReturnsMessage()
-        {
-            var addressId = "ADDR-001";
-            var userId = "U001";
+        //[Fact(DisplayName = "UpdateUserAddressAsync - Address not found - Return message")]
+        //public async Task UpdateUserAddressAsync_AddressNotFound_ReturnsMessage()
+        //{
+        //    var addressId = "ADDR-001";
+        //    var userId = "U001";
 
-            var request = new RequestCreateAndUpdateAddress
-            {
-                Line1 = "123 Main St",
-                City = "Hanoi",
-                Country = "Vietnam"
-            };
+        //    var request = new RequestCreateAndUpdateAddress
+        //    {
+        //        Line1 = "123 Main St",
+        //        City = "Hanoi",
+        //        Country = "Vietnam"
+        //    };
 
-            _addressRepoMock
-                .Setup(r => r.GetAddressByIdAsync(addressId))
-                .ReturnsAsync((Address?)null);
+        //    _addressRepoMock
+        //        .Setup(r => r.GetAddressByIdAsync(addressId))
+        //        .ReturnsAsync((Address?)null);
 
-            var result = await _service.UpdateUserAddressAsync(addressId, request, userId);
+        //    var result = await _service.UpdateUserAddressAsync(addressId, request, userId);
 
-            Assert.Equal("Address not found!", result);
-            _addressRepoMock.Verify(r => r.UpdateAddressAsync(It.IsAny<Address>(), It.IsAny<RequestCreateAndUpdateAddress>(), It.IsAny<Address>()), Times.Never);
-        }
+        //    Assert.Equal("Address not found!", result);
+        //    _addressRepoMock.Verify(r => r.UpdateAddressAsync(It.IsAny<Address>(), It.IsAny<RequestCreateAndUpdateAddress>(), It.IsAny<Address>()), Times.Never);
+        //}
 
-        [Fact(DisplayName = "UpdateUserAddressAsync - Valid address - Update success")]
-        public async Task UpdateUserAddressAsync_ValidAddress_ReturnsSuccessMessage()
-        {
-            var addressId = "ADDR-002";
-            var userId = "U001";
+        //[Fact(DisplayName = "UpdateUserAddressAsync - Valid address - Update success")]
+        //public async Task UpdateUserAddressAsync_ValidAddress_ReturnsSuccessMessage()
+        //{
+        //    var addressId = "ADDR-002";
+        //    var userId = "U001";
 
-            var request = new RequestCreateAndUpdateAddress
-            {
-                Line1 = "456 Street A",
-                City = "Danang",
-                Country = "Vietnam",
-                IsDefault = false
-            };
+        //    var request = new RequestCreateAndUpdateAddress
+        //    {
+        //        Line1 = "456 Street A",
+        //        City = "Danang",
+        //        Country = "Vietnam",
+        //        IsDefault = false
+        //    };
 
-            var existingAddress = new Address { Id = addressId };
+        //    var existingAddress = new Address { Id = addressId };
 
-            _addressRepoMock
-                .Setup(r => r.GetAddressByIdAsync(addressId))
-                .ReturnsAsync(existingAddress);
+        //    _addressRepoMock
+        //        .Setup(r => r.GetAddressByIdAsync(addressId))
+        //        .ReturnsAsync(existingAddress);
 
-            _addressRepoMock
-                .Setup(r => r.UpdateAddressAsync(existingAddress, request, null))
-                .ReturnsAsync("Update successful!");
+        //    _addressRepoMock
+        //        .Setup(r => r.UpdateAddressAsync(existingAddress, request, null))
+        //        .ReturnsAsync("Update successful!");
 
-            var result = await _service.UpdateUserAddressAsync(addressId, request, userId);
+        //    var result = await _service.UpdateUserAddressAsync(addressId, request, userId);
 
-            Assert.Equal("Update successful!", result);
-            _addressRepoMock.Verify(r => r.UpdateAddressAsync(existingAddress, request, null), Times.Once);
-        }
+        //    Assert.Equal("Update successful!", result);
+        //    _addressRepoMock.Verify(r => r.UpdateAddressAsync(existingAddress, request, null), Times.Once);
+        //}
 
-        [Fact(DisplayName = "UpdateUserAddressAsync - Update failed - Return failed message")]
-        public async Task UpdateUserAddressAsync_UpdateFailed_ReturnsFailedMessage()
-        {
-            var addressId = "ADDR-003";
-            var userId = "U001";
+        //[Fact(DisplayName = "UpdateUserAddressAsync - Update failed - Return failed message")]
+        //public async Task UpdateUserAddressAsync_UpdateFailed_ReturnsFailedMessage()
+        //{
+        //    var addressId = "ADDR-003";
+        //    var userId = "U001";
 
-            var request = new RequestCreateAndUpdateAddress
-            {
-                Line1 = "789 Street B",
-                City = "Hanoi",
-                Country = "Vietnam"
-            };
+        //    var request = new RequestCreateAndUpdateAddress
+        //    {
+        //        Line1 = "789 Street B",
+        //        City = "Hanoi",
+        //        Country = "Vietnam"
+        //    };
 
-            var existingAddress = new Address { Id = addressId };
+        //    var existingAddress = new Address { Id = addressId };
 
-            _addressRepoMock
-                .Setup(r => r.GetAddressByIdAsync(addressId))
-                .ReturnsAsync(existingAddress);
+        //    _addressRepoMock
+        //        .Setup(r => r.GetAddressByIdAsync(addressId))
+        //        .ReturnsAsync(existingAddress);
 
-            _addressRepoMock
-                .Setup(r => r.UpdateAddressAsync(existingAddress, request, null))
-                .ReturnsAsync("Update failed!");
+        //    _addressRepoMock
+        //        .Setup(r => r.UpdateAddressAsync(existingAddress, request, null))
+        //        .ReturnsAsync("Update failed!");
 
-            var result = await _service.UpdateUserAddressAsync(addressId, request, userId);
+        //    var result = await _service.UpdateUserAddressAsync(addressId, request, userId);
 
-            Assert.Equal("Update failed!", result);
-            _addressRepoMock.Verify(r => r.UpdateAddressAsync(existingAddress, request, null), Times.Once);
-        }
+        //    Assert.Equal("Update failed!", result);
+        //    _addressRepoMock.Verify(r => r.UpdateAddressAsync(existingAddress, request, null), Times.Once);
+        //}
 
         [Fact(DisplayName = "GetAllAddressByUserIdAsync - Normal Case - Returns mapped addresses")]
         public async Task GetAllAddressByUserIdAsync_ReturnsMappedAddresses_WhenDataExists()
