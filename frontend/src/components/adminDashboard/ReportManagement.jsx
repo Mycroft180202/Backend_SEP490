@@ -255,17 +255,12 @@ const ReportManagement = () => {
     return `${typeLabel}${report.targetName ? ` • ${report.targetName}` : ''}`;
   };
 
-  const isAssignedToCurrentAdmin = useMemo(() => {
-    if (!detailReport?.assignedAdminId || !currentAdminId) return false;
-    return detailReport.assignedAdminId.toLowerCase() === currentAdminId.toLowerCase();
-  }, [detailReport, currentAdminId]);
-
-  const allowAssignment = useMemo(() => {
+  const canTakeAssignment = useMemo(() => {
     if (!detailReport) return false;
     if (!currentAdminId) return false;
-    if (!detailReport.assignedAdminId) return ['Pending', 'Appealed'].includes(detailReport.status);
-    return isAssignedToCurrentAdmin;
-  }, [detailReport, currentAdminId, isAssignedToCurrentAdmin]);
+    if (detailReport.assignedAdminId) return false;
+    return ['Pending', 'Appealed'].includes(detailReport.status);
+  }, [detailReport, currentAdminId]);
 
   const statusUpdateDisabled = useMemo(() => {
     if (!detailReport?.assignedAdminId) return false;
@@ -531,7 +526,7 @@ const ReportManagement = () => {
                     </div>
                   </div>
 
-                  {allowAssignment && (
+                  {canTakeAssignment && (
                     <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
                       <div className="flex items-center gap-2 text-blue-700 font-semibold mb-2">
                         <FaUserShield /> Nhận xử lý báo cáo

@@ -201,11 +201,6 @@ const StorytellingDetail = () => {
                 <strong>{formatDate(story.updatedAt || story.createdAt)}</strong>
               </span>
               <span className="w-1 h-1 rounded-full bg-white/60" />
-              <span>
-                Mã sản phẩm:
-                {' '}
-                <strong>{story.productId}</strong>
-              </span>
             </div>
           </div>
         </section>

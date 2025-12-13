@@ -199,7 +199,7 @@ const ContactSection = () => {
                 <div className="flex flex-col items-start">
                   <span className="font-nunito text-sm text-[#1C355E]">{t('home.contactSection.hotlineLabel')}</span>
                   <a href="tel:+84266211366" className="font-nunito text-lg font-semibold text-[#1C355E] hover:text-[#0f254a] transition-colors">
-                    0266 211 366
+                    0921 643 475
                   </a>
                 </div>
               </div>

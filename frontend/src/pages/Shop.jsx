@@ -84,16 +84,23 @@ const Shop = () => {
       return;
     }
 
-    const meta = productListNode?.meta;
+    const hasProductListState = Boolean(location.state?.fromProductList);
+    const meta = hasProductListState ? productListNode?.meta : null;
     if (meta) {
       if (meta.category !== undefined) setSelectedCategory(meta.category);
       if (meta.searchValue !== undefined) setSearchValue(meta.searchValue);
       if (meta.searchQuery !== undefined) setSearchQuery(meta.searchQuery);
       if (meta.sortOption !== undefined) setSortOption(meta.sortOption);
       if (meta.pageIndex !== undefined) setPageIndex(meta.pageIndex);
+    } else {
+      setSelectedCategory(null);
+      setSearchValue('');
+      setSearchQuery('');
+      setSortOption('');
+      setPageIndex(1);
     }
     setFiltersInitialized(true);
-  }, [filtersInitialized, presetFilters, productListNode]);
+  }, [filtersInitialized, location.state?.fromProductList, presetFilters, productListNode]);
 
   const shopListNode = useMemo(() => ({
     label: t('nav.shop'),

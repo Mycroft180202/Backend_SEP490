@@ -7,9 +7,6 @@ import { ProductService } from '../../services/modules/products/productService';
 
 const Detail = ({ product, categoryName, shopInfo }) => {
   const [tab, setTab] = useState('description');
-  const [rating, setRating] = useState(0);
-  const [hoveredRating, setHoveredRating] = useState(0);
-  const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbacks, setFeedbacks] = useState([]);
   const [feedbacksLoading, setFeedbacksLoading] = useState(false);
@@ -55,59 +52,6 @@ const Detail = ({ product, categoryName, shopInfo }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, product?.id]);
-
-  // Handle submit feedback
-  const handleSubmitFeedback = async () => {
-    if (!userInfo?.userID) {
-      toast.error('Vui lòng đăng nhập để đánh giá');
-      navigate('/login');
-      return;
-    }
-
-    if (rating === 0) {
-      toast.error('Vui lòng chọn số sao đánh giá');
-      return;
-    }
-
-    if (comment.trim() === '') {
-      toast.error('Vui lòng nhập bình luận');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      const feedbackData = {
-        rating,
-        comment: comment.trim()
-      };
-
-      await ProductService.submitFeedback(product.id, userInfo.userID, feedbackData);
-      
-      toast.success('Cảm ơn bạn đã đánh giá sản phẩm!');
-      setRating(0);
-      setComment('');
-      // Reload feedbacks
-      fetchFeedbacks(1);
-    } catch (error) {
-      console.error('Error submitting feedback:', error);
-      const rawMessage =
-        error?.response?.data?.message
-        || error?.response?.data?.title
-        || error?.message
-        || '';
-
-      const normalizedMessage = String(rawMessage).trim();
-      const fallbackMessage = 'Bạn chỉ có thể đánh giá sau khi mua sản phẩm thành công.';
-
-      const message = normalizedMessage
-        && normalizedMessage !== 'Request failed with status code 400'
-        ? normalizedMessage
-        : fallbackMessage;
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // Handle edit feedback
   const handleEditFeedback = (feedback) => {
@@ -324,68 +268,6 @@ const Detail = ({ product, categoryName, shopInfo }) => {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Feedback Form */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-[#D4A574]/30">
-              <h3 className="text-2xl font-bold text-[#8B4513] mb-6 flex items-center gap-3">
-                <FaComments className="text-[#D4A574]" />
-                Đánh giá sản phẩm
-              </h3>
-
-              {/* Rating Stars */}
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-700 mb-3">Chọn số sao đánh giá:</p>
-                <div className="flex gap-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      onMouseEnter={() => setHoveredRating(star)}
-                      onMouseLeave={() => setHoveredRating(0)}
-                      className="transition-transform hover:scale-110 focus:outline-none"
-                      title={`${star} sao`}
-                    >
-                      <FaStar
-                        size={32}
-                        className={`transition-all ${
-                          (hoveredRating || rating) >= star
-                            ? 'text-yellow-400 drop-shadow-md'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Comment */}
-              <div className="mb-6">
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">Viết bình luận của bạn:</label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                  rows="5"
-                />
-                <p className="text-xs text-gray-500 mt-1">{comment.length}/500 ký tự</p>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="button"
-                onClick={handleSubmitFeedback}
-                disabled={isSubmitting}
-                className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all ${
-                  isSubmitting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-[#D4A574] to-[#8B4513] hover:from-[#8B4513] hover:to-[#D4A574] shadow-md'
-                }`}
-              >
-                {isSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
-              </button>
-            </div>
-
             {/* Feedbacks List */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-[#D4A574]/30">
               <h3 className="text-2xl font-bold text-[#8B4513] mb-6 flex items-center gap-3">

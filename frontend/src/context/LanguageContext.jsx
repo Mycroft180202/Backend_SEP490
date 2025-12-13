@@ -251,7 +251,7 @@ const translations = {
         badge: 'Tinh hoa chọn lọc',
         title: 'Sản phẩm nổi bật',
         description: 'Những tác phẩm thủ công được yêu thích nhất, hội tụ sự tỉ mỉ của người nghệ nhân Hòa Lạc và chất liệu truyền thống.',
-        cta: 'Xem cửa hàng',
+        cta: 'Mua sắm',
       },
       contactSection: {
         badge: 'Kết nối với Hòa Lạc',

@@ -53,15 +53,32 @@ export const GHNLocationService = {
     if (!payload || !payload.toDistrictId || !payload.toWardCode) {
       return 0;
     }
-    const defaultPayload = {
-      service_type_id: 2,
-      weight: 500,
-      height: 10,
-      length: 20,
-      width: 10,
-      insurance_value: 0,
+
+    const toDistrictId = Number(
+      payload.toDistrictId
+      ?? payload.to_district_id
+      ?? payload.toDistrictID,
+    );
+    const toWardCode = String(
+      payload.toWardCode
+      ?? payload.to_ward_code
+      ?? payload.toWardCode,
+    ).trim();
+
+    if (!Number.isFinite(toDistrictId) || !toWardCode) {
+      return 0;
+    }
+
+    const serviceId = Number(payload.serviceId ?? payload.service_id ?? 2);
+    const serviceTypeId = Number(payload.serviceTypeId ?? payload.serviceTypeID ?? payload.service_type_id ?? 2);
+
+    const finalPayload = {
+      toDistrictId,
+      toWardCode,
+      serviceId: Number.isFinite(serviceId) ? serviceId : 2,
+      serviceTypeId: Number.isFinite(serviceTypeId) ? serviceTypeId : 2,
     };
-    const finalPayload = { ...defaultPayload, ...payload };
+
     const response = await axiosClient.post('/api/ghn/shipping/fee', finalPayload);
     const data = response?.data;
     const fee = Number(

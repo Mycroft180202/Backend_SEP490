@@ -421,7 +421,7 @@ function ChangePasswordSection({ email }) {
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-700">
                 <p className="font-semibold">
-                  {translate('profile.changePassword.passwordGuideTitle', 'Gợi ý mật khẩu mạnh')}
+                  {translate('profile.changePassword.passwordGuideTitle', 'Yêu cầu đặt lại mật khẩu')}
                 </p>
                 <ul className="list-disc pl-5">
                   <li>{translate('profile.changePassword.passwordGuideLength', 'Tối thiểu 6 ký tự')}</li>
@@ -473,6 +473,8 @@ function ProfileSection({ initialFocus, profileNode }) {
   const [editedProfile, setEditedProfile] = useState(null);
   const [dobFields, setDobFields] = useState({ day: '', month: '', year: '' });
   const [dobInvalid, setDobInvalid] = useState(false);
+  const [phoneInvalid, setPhoneInvalid] = useState(false);
+  const [addressPhoneInvalid, setAddressPhoneInvalid] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
@@ -491,6 +493,10 @@ function ProfileSection({ initialFocus, profileNode }) {
   const dayInputRef = useRef(null);
   const monthInputRef = useRef(null);
   const yearInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
+  const phoneInvalidToastShownRef = useRef(false);
+  const addressPhoneInputRef = useRef(null);
+  const addressPhoneInvalidToastShownRef = useRef(false);
   const navigate = useNavigate();
   const wishlistProfileNode = useMemo(() => ({
     label: translate('profile.sidebar.wishlist', 'Sản phẩm đã thích'),
@@ -872,6 +878,84 @@ function ProfileSection({ initialFocus, profileNode }) {
 
   const handleInputChange = (field, value) => {
     setEditedProfile({ ...editedProfile, [field]: value });
+    if (field === 'phone') {
+      setPhoneInvalid(false);
+    }
+  };
+
+  const normalizeVietnamPhone = (value) => {
+    const raw = (value || '').trim();
+    if (!raw) return { normalized: '', isValid: false, reason: 'empty' };
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return { normalized: '', isValid: false, reason: 'invalid' };
+
+    let normalized = digits;
+    if (normalized.startsWith('84') && normalized.length === 11) {
+      normalized = `0${normalized.slice(2)}`;
+    }
+
+    if (!/^0\d{9}$/.test(normalized)) {
+      return { normalized, isValid: false, reason: 'format' };
+    }
+    return { normalized, isValid: true };
+  };
+
+  const getFirstInvalidDobField = ({ day, month, year }) => {
+    const trimmedDay = (day || '').trim();
+    const trimmedMonth = (month || '').trim();
+    const trimmedYear = (year || '').trim();
+
+    if (trimmedDay.length !== 2) return 'day';
+    if (trimmedMonth.length !== 2) return 'month';
+    if (trimmedYear.length !== 4) return 'year';
+
+    const numericDay = Number(trimmedDay);
+    const numericMonth = Number(trimmedMonth);
+    const numericYear = Number(trimmedYear);
+
+    if (!Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12) return 'month';
+    if (!Number.isInteger(numericYear)) return 'year';
+
+    const maxDay = buildValidDate(numericYear, numericMonth, 1)
+      ? new Date(numericYear, numericMonth, 0).getDate()
+      : 31;
+    if (!Number.isInteger(numericDay) || numericDay < 1 || numericDay > maxDay) return 'day';
+    return null;
+  };
+
+  const normalizeDobFieldOnBlur = (field, rawValue, current) => {
+    const numeric = (rawValue || '').replace(/\D/g, '');
+    if (!numeric) return '';
+    if (field === 'year') {
+      return numeric.slice(0, 4);
+    }
+
+    const padded = numeric.slice(0, 2).padStart(2, '0');
+    const value = Number(padded);
+
+    if (field === 'month') {
+      if (!Number.isFinite(value) || value <= 0) return '';
+      return String(Math.min(12, value)).padStart(2, '0');
+    }
+
+    if (field === 'day') {
+      if (!Number.isFinite(value) || value <= 0) return '';
+      const numericMonth = Number((current.month || '').trim());
+      const numericYear = Number((current.year || '').trim());
+      let maxDay = 31;
+      if (
+        Number.isInteger(numericMonth)
+        && numericMonth >= 1
+        && numericMonth <= 12
+        && Number.isInteger(numericYear)
+        && String(current.year || '').trim().length === 4
+      ) {
+        maxDay = new Date(numericYear, numericMonth, 0).getDate();
+      }
+      return String(Math.min(maxDay, value)).padStart(2, '0');
+    }
+
+    return padded;
   };
 
   const handleDobFieldChange = (field, rawValue) => {
@@ -905,12 +989,31 @@ function ProfileSection({ initialFocus, profileNode }) {
     }
   };
 
-  const handleDobBlur = (field) => {
-    if (field !== 'year') {
+  const isDobFieldElement = (element) => element
+    && (element === dayInputRef.current
+      || element === monthInputRef.current
+      || element === yearInputRef.current);
+
+  const handleDobBlur = (field, event) => {
+    const nextTarget = event?.relatedTarget;
+    if (isDobFieldElement(nextTarget)) {
       return;
     }
 
-    const result = evaluateDobFields(dobFields);
+    setDobFields((prev) => {
+      const normalized = normalizeDobFieldOnBlur(field, prev[field], prev);
+      if (normalized === prev[field]) {
+        return prev;
+      }
+      return { ...prev, [field]: normalized };
+    });
+
+    const fieldsToEvaluate = {
+      ...dobFields,
+      [field]: normalizeDobFieldOnBlur(field, dobFields[field], dobFields),
+    };
+
+    const result = evaluateDobFields(fieldsToEvaluate);
     if (result.status === 'empty') {
       setDobInvalid(false);
       handleInputChange('dob', '');
@@ -933,7 +1036,14 @@ function ProfileSection({ initialFocus, profileNode }) {
       : 'Ngày sinh không hợp lệ.';
     toast.error(translate(messageKey, fallback));
     setTimeout(() => {
-      yearInputRef.current?.focus();
+      const firstInvalid = getFirstInvalidDobField(fieldsToEvaluate);
+      if (firstInvalid === 'day') {
+        dayInputRef.current?.focus();
+      } else if (firstInvalid === 'month') {
+        monthInputRef.current?.focus();
+      } else {
+        yearInputRef.current?.focus();
+      }
     }, 0);
   };
 
@@ -942,7 +1052,14 @@ function ProfileSection({ initialFocus, profileNode }) {
     if (dobEvaluation.status === 'invalid') {
       setDobInvalid(true);
       toast.error(translate('profile.info.dobInvalid', 'Ngày sinh không hợp lệ.'));
-      dayInputRef.current?.focus();
+      const firstInvalid = getFirstInvalidDobField(dobFields);
+      if (firstInvalid === 'month') {
+        monthInputRef.current?.focus();
+      } else if (firstInvalid === 'year') {
+        yearInputRef.current?.focus();
+      } else {
+        dayInputRef.current?.focus();
+      }
       return;
     }
     if (dobEvaluation.status === 'age') {
@@ -958,8 +1075,17 @@ function ProfileSection({ initialFocus, profileNode }) {
 
     try {
       setLoading(true);
+
+      const phoneResult = normalizeVietnamPhone(editedProfile.phone);
+      if (!phoneResult.isValid) {
+        setPhoneInvalid(true);
+        toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+        phoneInputRef.current?.focus();
+        return;
+      }
+
       const updateData = {
-        PhoneNumber: editedProfile.phone,
+        PhoneNumber: phoneResult.normalized,
         DisplayName: editedProfile.name,
         Dob: dobValue,
         // Không gửi UserUrlImage khi chỉ update thông tin text
@@ -984,8 +1110,11 @@ function ProfileSection({ initialFocus, profileNode }) {
         setDistricts([]);
         setWards([]);
         setEditingAddressId(null);
+        setAddressPhoneInvalid(false);
       } else {
         loadProvinces();
+        setAddressPhoneInvalid(false);
+        addressPhoneInvalidToastShownRef.current = false;
       }
       return !prev;
     });
@@ -1070,6 +1199,15 @@ function ProfileSection({ initialFocus, profileNode }) {
       return;
     }
 
+    const phoneResult = normalizeVietnamPhone(phone);
+    if (!phoneResult.isValid) {
+      setAddressPhoneInvalid(true);
+      toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+      addressPhoneInputRef.current?.focus();
+      return;
+    }
+    setAddressPhoneInvalid(false);
+
     const districtId = Number(districtIdValue);
     const provinceId = Number(provinceIdValue);
     if (Number.isNaN(districtId) || Number.isNaN(provinceId)) {
@@ -1087,7 +1225,7 @@ function ProfileSection({ initialFocus, profileNode }) {
       posttalCode: '',
       isDefault: Boolean(newAddress.isDefault),
       contactName: name,
-      contactPhone: phone,
+      contactPhone: phoneResult.normalized,
       ghnProvinceId: provinceId,
       ghnDistrictId: districtId,
       ghnWardCode: wardCodeValue,
@@ -1270,10 +1408,33 @@ function ProfileSection({ initialFocus, profileNode }) {
                 <label className="block mb-2 font-medium">{translate('profile.info.phoneLabel', 'Số điện thoại')}</label>
                 {isEditMode ? (
                   <input
+                    ref={phoneInputRef}
                     type="text"
+                    inputMode="numeric"
+                    onFocus={() => {
+                      phoneInvalidToastShownRef.current = false;
+                    }}
                     value={editedProfile.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="w-full border rounded px-4 py-2"
+                    onChange={(e) => {
+                      const raw = e.target.value || '';
+                      const hasInvalidChars = /[^\d\s+().-]/.test(raw);
+                      if (hasInvalidChars && !phoneInvalidToastShownRef.current) {
+                        phoneInvalidToastShownRef.current = true;
+                        toast.error(translate('profile.info.phoneOnlyNumbers', 'Số điện thoại chỉ được nhập số.'));
+                      }
+                      const next = raw.replace(/\D/g, '');
+                      handleInputChange('phone', next);
+                    }}
+                    onBlur={() => {
+                      const raw = (editedProfile.phone || '').trim();
+                      if (!raw) return;
+                      const result = normalizeVietnamPhone(raw);
+                      if (!result.isValid) {
+                        setPhoneInvalid(true);
+                        toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+                      }
+                    }}
+                    className={`w-full border rounded px-4 py-2 ${phoneInvalid ? 'border-red-500' : ''}`}
                   />
                 ) : (
                   <div className="flex items-center border rounded px-4 py-2 bg-white">
@@ -1306,6 +1467,7 @@ function ProfileSection({ initialFocus, profileNode }) {
                       value={dobFields.day}
                       onChange={(e) => handleDobFieldChange('day', e.target.value)}
                       onKeyDown={(e) => handleDobFieldKeyDown('day', e)}
+                      onBlur={(e) => handleDobBlur('day', e)}
                       className="w-12 text-center outline-none bg-transparent"
                       maxLength={2}
                     />
@@ -1318,6 +1480,7 @@ function ProfileSection({ initialFocus, profileNode }) {
                       value={dobFields.month}
                       onChange={(e) => handleDobFieldChange('month', e.target.value)}
                       onKeyDown={(e) => handleDobFieldKeyDown('month', e)}
+                      onBlur={(e) => handleDobBlur('month', e)}
                       className="w-12 text-center outline-none bg-transparent"
                       maxLength={2}
                     />
@@ -1330,7 +1493,7 @@ function ProfileSection({ initialFocus, profileNode }) {
                       value={dobFields.year}
                       onChange={(e) => handleDobFieldChange('year', e.target.value)}
                       onKeyDown={(e) => handleDobFieldKeyDown('year', e)}
-                      onBlur={() => handleDobBlur('year')}
+                      onBlur={(e) => handleDobBlur('year', e)}
                       className="w-16 text-center outline-none bg-transparent"
                       maxLength={4}
                     />
@@ -1506,9 +1669,33 @@ function ProfileSection({ initialFocus, profileNode }) {
                       </label>
                       <input
                         type="text"
-                        className="w-full border rounded px-3 py-2"
+                        ref={addressPhoneInputRef}
+                        inputMode="numeric"
+                        className={`w-full border rounded px-3 py-2 ${addressPhoneInvalid ? 'border-red-500' : ''}`}
                         value={newAddress.phone}
-                        onChange={(e) => handleAddressFieldChange('phone', e.target.value)}
+                        onFocus={() => {
+                          addressPhoneInvalidToastShownRef.current = false;
+                        }}
+                        onChange={(e) => {
+                          const raw = e.target.value || '';
+                          const hasInvalidChars = /[^\d\s+().-]/.test(raw);
+                          if (hasInvalidChars && !addressPhoneInvalidToastShownRef.current) {
+                            addressPhoneInvalidToastShownRef.current = true;
+                            toast.error(translate('profile.info.phoneOnlyNumbers', 'Số điện thoại chỉ được nhập số.'));
+                          }
+                          const next = raw.replace(/\D/g, '');
+                          handleAddressFieldChange('phone', next);
+                          setAddressPhoneInvalid(false);
+                        }}
+                        onBlur={() => {
+                          const raw = (newAddress.phone || '').trim();
+                          if (!raw) return;
+                          const result = normalizeVietnamPhone(raw);
+                          if (!result.isValid) {
+                            setAddressPhoneInvalid(true);
+                            toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+                          }
+                        }}
                       />
                     </div>
                     <div>

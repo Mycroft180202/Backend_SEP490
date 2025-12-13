@@ -289,10 +289,15 @@ function OrderCard({ order, onRefresh }) {
   const { userInfo } = useContext(UserContext);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackModalStage, setFeedbackModalStage] = useState('prompt');
+  const [feedbackSubmitMode, setFeedbackSubmitMode] = useState('confirm');
   const [feedbackItems, setFeedbackItems] = useState([]);
   const [feedbackModalOrder, setFeedbackModalOrder] = useState(null);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackReviewLoading, setFeedbackReviewLoading] = useState(false);
   const feedbackProductCache = useRef(new Map());
+  const feedbackReviewedCache = useRef(new Map());
+  const [completedReviewLoading, setCompletedReviewLoading] = useState(false);
+  const [completedAllReviewed, setCompletedAllReviewed] = useState(false);
 
   const deriveFeedbackItems = useCallback((targetOrder) => {
     const items = Array.isArray(targetOrder?.items) ? targetOrder.items : [];
@@ -342,11 +347,112 @@ function OrderCard({ order, onRefresh }) {
         priceLabel,
         label: name,
         selected: Boolean(productId),
+        reviewed: false,
         rating: 5,
         comment: '',
       };
     });
   }, []);
+
+  const isFeedbackFromUser = useCallback((feedback, userId) => {
+    if (!feedback || !userId) return false;
+    const normalizedUserId = String(userId).trim().toLowerCase();
+    const candidate = (
+      feedback.customerId
+      ?? feedback.userId
+      ?? feedback.userID
+      ?? feedback.userIDd
+      ?? feedback.IdduserId
+      ?? feedback.idUser
+      ?? feedback.user
+    );
+    if (!candidate) return false;
+    return String(candidate).trim().toLowerCase() === normalizedUserId;
+  }, []);
+
+  const checkProductReviewed = useCallback(async (productId, userId) => {
+    if (!productId || !userId) return false;
+    const cacheKey = `${String(userId).toLowerCase()}::${String(productId)}`;
+    if (feedbackReviewedCache.current.has(cacheKey)) {
+      return Boolean(feedbackReviewedCache.current.get(cacheKey));
+    }
+
+    let reviewed = false;
+    try {
+      let pageIndex = 1;
+      let safety = 0;
+      while (!reviewed && safety < 10) {
+        safety += 1;
+        const response = await ProductService.getFeedbacks(productId, pageIndex, 50);
+        const items = Array.isArray(response?.items) ? response.items : [];
+        reviewed = items.some((fb) => isFeedbackFromUser(fb, userId));
+        const totalPages = Number(response?.totalPages);
+        if (reviewed) break;
+        if (Number.isFinite(totalPages) && totalPages > 0) {
+          if (pageIndex >= totalPages) break;
+          pageIndex += 1;
+          continue;
+        }
+        if (items.length < 50) break;
+        pageIndex += 1;
+      }
+    } catch (error) {
+      reviewed = false;
+    }
+
+    feedbackReviewedCache.current.set(cacheKey, reviewed);
+    return reviewed;
+  }, [isFeedbackFromUser]);
+
+  useEffect(() => {
+    let canceled = false;
+    const ensureCompletedReviewStatus = async () => {
+      if (order?.status !== 'Completed') {
+        setCompletedAllReviewed(false);
+        setCompletedReviewLoading(false);
+        return;
+      }
+      const userId = userInfo?.userID || userInfo?.userId || userInfo?.id;
+      if (!userId) {
+        setCompletedAllReviewed(false);
+        setCompletedReviewLoading(false);
+        return;
+      }
+
+      const productIds = Array.from(new Set(
+        (Array.isArray(order.items) ? order.items : [])
+          .map((item) => pickFirstNonEmpty([
+            item?.productId,
+            item?.productID,
+            item?.product?.id,
+            item?.product?.productId,
+          ]))
+          .filter(Boolean),
+      ));
+
+      if (!productIds.length) {
+        setCompletedAllReviewed(true);
+        setCompletedReviewLoading(false);
+        return;
+      }
+
+      setCompletedReviewLoading(true);
+      try {
+        const results = await Promise.all(productIds.map((pid) => checkProductReviewed(pid, userId)));
+        if (canceled) return;
+        setCompletedAllReviewed(results.every(Boolean));
+      } finally {
+        if (!canceled) {
+          setCompletedReviewLoading(false);
+        }
+      }
+    };
+
+    ensureCompletedReviewStatus();
+    return () => {
+      canceled = true;
+    };
+  }, [checkProductReviewed, order?.items, order?.status, userInfo]);
 
   const loadFeedbackProductDetails = useCallback(async (targetOrder) => {
     if (!targetOrder) return;
@@ -402,21 +508,73 @@ function OrderCard({ order, onRefresh }) {
     if (!targetOrder) {
       return;
     }
+    const mode = targetOrder?.status === 'Completed' ? 'review' : 'confirm';
     setFeedbackModalOrder(targetOrder);
     setFeedbackItems(deriveFeedbackItems(targetOrder));
-    setFeedbackModalStage('prompt');
+    setFeedbackSubmitMode(mode);
+    setFeedbackModalStage(mode === 'review' ? 'form' : 'prompt');
     setFeedbackModalOpen(true);
     setFeedbackSubmitting(false);
+    setFeedbackReviewLoading(false);
     loadFeedbackProductDetails(targetOrder);
   }, [deriveFeedbackItems, loadFeedbackProductDetails]);
 
   const closeFeedbackModal = useCallback(() => {
     setFeedbackModalOpen(false);
     setFeedbackModalStage('prompt');
+    setFeedbackSubmitMode('confirm');
     setFeedbackItems([]);
     setFeedbackModalOrder(null);
     setFeedbackSubmitting(false);
+    setFeedbackReviewLoading(false);
   }, []);
+
+  useEffect(() => {
+    let canceled = false;
+    const applyReviewedFlags = async () => {
+      if (!feedbackModalOpen || !feedbackModalOrder) return;
+      const userId = userInfo?.userID || userInfo?.userId || userInfo?.id;
+      if (!userId) return;
+
+      setFeedbackReviewLoading(true);
+      try {
+        const ids = Array.from(new Set(
+          (Array.isArray(feedbackModalOrder.items) ? feedbackModalOrder.items : [])
+            .map((item) => pickFirstNonEmpty([
+              item?.productId,
+              item?.productID,
+              item?.product?.id,
+              item?.product?.productId,
+            ]))
+            .filter(Boolean),
+        ));
+        if (!ids.length) return;
+
+        const results = await Promise.all(ids.map(async (pid) => [pid, await checkProductReviewed(pid, userId)]));
+        if (canceled) return;
+        const reviewedMap = new Map(results);
+
+        setFeedbackItems((prev) => prev.map((item) => {
+          if (!item.productId) return item;
+          const reviewed = Boolean(reviewedMap.get(item.productId));
+          return {
+            ...item,
+            reviewed,
+            selected: reviewed ? false : item.selected,
+          };
+        }));
+      } finally {
+        if (!canceled) {
+          setFeedbackReviewLoading(false);
+        }
+      }
+    };
+
+    applyReviewedFlags();
+    return () => {
+      canceled = true;
+    };
+  }, [checkProductReviewed, feedbackModalOpen, feedbackModalOrder, userInfo]);
 
   const confirmOrderReceived = useCallback(async (orderNumber, options = {}) => {
     if (!orderNumber) {
@@ -477,12 +635,34 @@ function OrderCard({ order, onRefresh }) {
     }
     setFeedbackSubmitting(true);
     try {
-      await confirmOrderReceived(feedbackModalOrder.orderNumber, { refresh: false });
-      await Promise.all(selectedItems.map((item) => ProductService.submitFeedback(item.productId, userId, {
+      const reviewChecks = await Promise.all(
+        selectedItems.map(async (item) => [item, await checkProductReviewed(item.productId, userId)]),
+      );
+      const eligibleItems = reviewChecks
+        .filter(([, reviewed]) => !reviewed)
+        .map(([item]) => item);
+
+      if (eligibleItems.length === 0) {
+        toast.info('Bạn đã đánh giá tất cả sản phẩm đã chọn.');
+        return;
+      }
+
+      if (eligibleItems.length !== selectedItems.length) {
+        toast.info('Một số sản phẩm đã được đánh giá trước đó và sẽ được bỏ qua.');
+      }
+
+      if (feedbackSubmitMode === 'confirm') {
+        await confirmOrderReceived(feedbackModalOrder.orderNumber, { refresh: false });
+      }
+      await Promise.all(eligibleItems.map((item) => ProductService.submitFeedback(item.productId, userId, {
         rating: Number(item.rating) || 5,
         comment: item.comment?.trim() || ' ',
       })));
       toast.success('Cảm ơn bạn đã gửi đánh giá.');
+      eligibleItems.forEach((item) => {
+        const cacheKey = `${String(userId).toLowerCase()}::${String(item.productId)}`;
+        feedbackReviewedCache.current.set(cacheKey, true);
+      });
       if (onRefresh) {
         onRefresh();
       } else {
@@ -495,7 +675,7 @@ function OrderCard({ order, onRefresh }) {
     } finally {
       setFeedbackSubmitting(false);
     }
-  }, [closeFeedbackModal, confirmOrderReceived, feedbackItems, feedbackModalOrder, onRefresh, userInfo]);
+  }, [checkProductReviewed, closeFeedbackModal, confirmOrderReceived, feedbackItems, feedbackModalOrder, feedbackSubmitMode, onRefresh, userInfo]);
   useEffect(() => {
     let canceled = false;
 
@@ -789,8 +969,8 @@ function OrderCard({ order, onRefresh }) {
             </div>
           </div>
         )}
-        {/* Order Actions */}
-        <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex gap-3">
+            {/* Order Actions */}
+            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex gap-3">
           <button
             onClick={() => setShowDetailModal(true)}
             className="px-4 py-2 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-nunito text-sm font-medium"
@@ -824,6 +1004,22 @@ function OrderCard({ order, onRefresh }) {
               {confirmingReceived
                 ? t('orderHistory.list.actions.confirming')
                 : t('orderHistory.list.actions.confirmReceived')}
+            </button>
+          )}
+          {order.status === 'Completed' && (
+            <button
+              type="button"
+              onClick={() => openFeedbackModal(order)}
+              disabled={completedReviewLoading || completedAllReviewed}
+              className={`px-4 py-2 rounded-lg transition-colors font-nunito text-sm font-medium ${
+                completedAllReviewed
+                  ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                  : completedReviewLoading
+                    ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                    : 'bg-amber-500 text-white hover:bg-amber-600'
+              }`}
+            >
+              {completedReviewLoading ? 'Đang kiểm tra...' : (completedAllReviewed ? 'Đã đánh giá' : 'Đánh giá')}
             </button>
           )}
           {['WaitingForPickup', 'Paid'].includes(order.status) && (
@@ -948,16 +1144,20 @@ function OrderCard({ order, onRefresh }) {
                           type="checkbox"
                           checked={item.selected}
                           onChange={(event) => handleFeedbackItemChange(index, 'selected', event.target.checked)}
+                          disabled={item.reviewed}
                           className="h-4 w-4 rounded border"
                         />
-                        <span className="font-semibold text-gray-800">Đánh giá sản phẩm này</span>
+                        <span className={`font-semibold ${item.reviewed ? 'text-gray-500' : 'text-gray-800'}`}>
+                          {item.reviewed ? 'Đã đánh giá' : 'Đánh giá sản phẩm này'}
+                        </span>
                       </label>
                       <div className="flex items-center gap-2 text-xs text-gray-600">
                         <span>Đánh giá:</span>
                         <select
                           value={item.rating}
                           onChange={(event) => handleFeedbackItemChange(index, 'rating', Number(event.target.value))}
-                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                          disabled={!item.selected || item.reviewed}
+                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs disabled:bg-gray-100 disabled:text-gray-500"
                         >
                           {[5, 4, 3, 2, 1].map((value) => (
                             <option key={value} value={value}>
@@ -972,7 +1172,8 @@ function OrderCard({ order, onRefresh }) {
                     value={item.comment}
                     placeholder="Chia sẻ cảm nhận của bạn..."
                     onChange={(event) => handleFeedbackItemChange(index, 'comment', event.target.value)}
-                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    disabled={!item.selected || item.reviewed}
+                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none disabled:bg-gray-100 disabled:text-gray-500"
                     rows={3}
                   />
                 </div>
@@ -981,19 +1182,23 @@ function OrderCard({ order, onRefresh }) {
                 <div className="mt-6 flex items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setFeedbackModalStage('prompt')}
+                    onClick={() => (feedbackSubmitMode === 'review' ? closeFeedbackModal() : setFeedbackModalStage('prompt'))}
                     className="px-4 py-2 text-sm font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
                     disabled={feedbackSubmitting}
                   >
-                    Quay lại
+                    {feedbackSubmitMode === 'review' ? 'Đóng' : 'Quay lại'}
                   </button>
                   <button
                     type="button"
                     onClick={handleSubmitFeedback}
-                    disabled={feedbackSubmitting || confirmingReceived}
+                    disabled={feedbackSubmitting || feedbackReviewLoading || (feedbackSubmitMode === 'confirm' && confirmingReceived)}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {feedbackSubmitting ? 'Đang gửi...' : 'Gửi đánh giá và xác nhận'}
+                    {feedbackSubmitting
+                      ? 'Đang gửi...'
+                      : (feedbackReviewLoading
+                        ? 'Đang kiểm tra...'
+                        : (feedbackSubmitMode === 'confirm' ? 'Gửi đánh giá và xác nhận' : 'Gửi đánh giá'))}
                   </button>
                 </div>
               </>

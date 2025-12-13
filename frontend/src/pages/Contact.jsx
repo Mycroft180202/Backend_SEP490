@@ -96,14 +96,14 @@ const Contact = () => {
                     </li>
                     <li>
                       <strong className="block text-gray-800">{t('contact.phone')}</strong>
-                      <a href="tel:+842469999999" className="hover:text-[#9e211f] transition">
-                        (+84) 24 6999 9999
+                      <a href="tel:+84921643475" className="hover:text-[#9e211f] transition">
+                        (+84) 921 643 475
                       </a>
                     </li>
                     <li>
                       <strong className="block text-gray-800">{t('contact.emailLabel')}</strong>
                       <a href="mailto:hello@hoalachandicraft.vn" className="hover:text-[#9e211f] transition">
-                        hello@hoalachandicraft.vn
+                        onlineartisancraftstore@gmail.com
                       </a>
                     </li>
                     <li>
