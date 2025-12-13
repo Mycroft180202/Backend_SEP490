@@ -75,6 +75,14 @@ class ArtisanDashboardService {
     const response = await axiosClient.post(`/api/Order/orders/${orderNumber}/mark-shipping`);
     return response.data;
   }
+
+  async confirmOrderByArtisan(orderNumber) {
+    if (!orderNumber) {
+      throw new Error('Missing order number');
+    }
+    const response = await axiosClient.post(`/api/Order/orders/${orderNumber}/confirm-artisan`);
+    return response.data;
+  }
 }
 
 export const ArtisanDashboardServiceInstance = new ArtisanDashboardService();

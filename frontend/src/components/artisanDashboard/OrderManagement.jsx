@@ -12,6 +12,7 @@ import {
   FaQuestionCircle,
   FaSearch,
   FaSpinner,
+  FaTruck,
   FaTimes,
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -29,8 +30,16 @@ const STATUS_META = {
     label: 'Chờ xác nhận',
     badge: 'bg-yellow-100 text-yellow-700',
   },
+  ARTISAN_CONFIRMED: {
+    label: 'Đơn hàng đã được xác nhận',
+    badge: 'bg-green-100 text-green-700',
+  },
+  PAID_WAITING_CONFIRMATION: {
+    label: 'Đơn hàng đã được thanh toán, chờ xác nhận',
+    badge: 'bg-yellow-100 text-yellow-700',
+  },
   SHIPPING: {
-    label: 'Đã xác nhận',
+    label: 'Shipping',
     badge: 'bg-blue-100 text-blue-700',
   },
   PAID: {
@@ -98,6 +107,27 @@ const normalizePaymentKey = (value) => {
   return PAYMENT_META[upper] ? upper : 'UNKNOWN';
 };
 
+const resolveArtisanConfirmedAt = (order) =>
+  order?.artisanConfirmedAt
+  ?? order?.ArtisanConfirmedAt
+  ?? order?.artisanConfirmedAtUtc
+  ?? order?.artisanConfirmedAtUTC
+  ?? null;
+
+const isArtisanConfirmed = (order) => Boolean(resolveArtisanConfirmedAt(order));
+
+const getDisplayStatusKeyForOrder = (order) => {
+  const normalized = normalizeStatusKey(order?.status ?? order?.orderStatus);
+  const paymentKey = normalizePaymentKey(order?.paymentType ?? order?.paymentMethod);
+  if (normalized === 'PAID' && paymentKey === 'VNPAY' && !isArtisanConfirmed(order)) {
+    return 'PAID_WAITING_CONFIRMATION';
+  }
+  if (normalized === 'WAITING_FOR_PICKUP' && isArtisanConfirmed(order)) {
+    return 'ARTISAN_CONFIRMED';
+  }
+  return normalized;
+};
+
 const formatDateTime = (value) => {
   if (!value) return '--';
   const date = new Date(value);
@@ -120,6 +150,27 @@ const canMarkAsShipping = (statusKey, paymentKey) => {
   return statusKey === 'PAID';
 };
 
+const canConfirmByArtisan = (order) => {
+  const statusKey = normalizeStatusKey(order?.status ?? order?.orderStatus);
+  if (statusKey === 'CANCELLED' || statusKey === 'COMPLETED' || statusKey === 'SHIPPING') {
+    return false;
+  }
+  const paymentKey = normalizePaymentKey(order?.paymentType ?? order?.paymentMethod);
+  if (statusKey === 'WAITING_FOR_PICKUP') {
+    return !isArtisanConfirmed(order);
+  }
+  if (paymentKey === 'VNPAY' && statusKey === 'PAID') {
+    return !isArtisanConfirmed(order);
+  }
+  return false;
+};
+
+const canTransferToShipping = (order) => {
+  const statusKey = normalizeStatusKey(order?.status ?? order?.orderStatus);
+  const paymentKey = normalizePaymentKey(order?.paymentType ?? order?.paymentMethod);
+  return canMarkAsShipping(statusKey, paymentKey) && isArtisanConfirmed(order);
+};
+
 const OrderManagement = () => {
   const [pageIndex, setPageIndex] = useState(1);
   const [orders, setOrders] = useState([]);
@@ -130,6 +181,7 @@ const OrderManagement = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updatingOrderNumber, setUpdatingOrderNumber] = useState(null);
   const [confirmOrderNumber, setConfirmOrderNumber] = useState(null);
+  const [shippingOrderNumber, setShippingOrderNumber] = useState(null);
   const handleCloseDetail = useCallback(() => setSelectedOrder(null), []);
   const addressCacheRef = useRef(new Map());
   const productCacheRef = useRef(new Map());
@@ -358,6 +410,7 @@ const OrderManagement = () => {
           status: statusKey,
           paymentType: paymentKey,
           totalAmount: Number(order?.totalAmount ?? order?.amount ?? order?.total ?? 0),
+          artisanConfirmedAt: resolveArtisanConfirmedAt(order),
           createdAt:
             order?.createAt
             ?? order?.createdAt
@@ -482,7 +535,7 @@ const OrderManagement = () => {
       setUpdatingOrderNumber(orderNumber);
       try {
         await ArtisanDashboardService.markOrderAsShipping(orderNumber);
-        toast.success('Đơn hàng đã xác nhận');
+        toast.success('Đơn hàng đã chuyển sang bên giao hàng');
         await fetchOrders();
         setSelectedOrder((current) => (current?.orderNumber === orderNumber
           ? { ...current, status: 'SHIPPING' }
@@ -498,10 +551,29 @@ const OrderManagement = () => {
   );
 
   const handleConfirmShipping = useCallback(async () => {
+    if (!shippingOrderNumber) return;
+    await handleMarkAsShipping(shippingOrderNumber);
+    setShippingOrderNumber(null);
+  }, [shippingOrderNumber, handleMarkAsShipping]);
+
+  const handleConfirmOrder = useCallback(async () => {
     if (!confirmOrderNumber) return;
-    await handleMarkAsShipping(confirmOrderNumber);
+    setUpdatingOrderNumber(confirmOrderNumber);
+    try {
+      await ArtisanDashboardService.confirmOrderByArtisan(confirmOrderNumber);
+      toast.success('Đơn hàng đã được xác nhận');
+      await fetchOrders();
+      setSelectedOrder((current) => (current?.orderNumber === confirmOrderNumber
+        ? { ...current, artisanConfirmedAt: new Date().toISOString() }
+        : current));
+    } catch (error) {
+      console.error('Không thể xác nhận đơn hàng:', error);
+      toast.error(error?.response?.data?.message || 'Không thể xác nhận đơn hàng');
+    } finally {
+      setUpdatingOrderNumber(null);
+    }
     setConfirmOrderNumber(null);
-  }, [confirmOrderNumber, handleMarkAsShipping]);
+  }, [confirmOrderNumber, fetchOrders]);
 
   const handlePageChange = (pageNumber) => {
     if (pageNumber === pageIndex) {
@@ -670,8 +742,8 @@ const OrderManagement = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(order.status)}`}>
-                        {formatStatusLabel(order.status)}
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(getDisplayStatusKeyForOrder(order))}`}>
+                        {formatStatusLabel(getDisplayStatusKeyForOrder(order))}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{formatDateTime(order.createdAt)}</td>
@@ -685,7 +757,7 @@ const OrderManagement = () => {
                         >
                           <FaEye />
                         </button>
-                        {canMarkAsShipping(order.status, order.paymentType) ? (
+                        {canConfirmByArtisan(order) ? (
                           <button
                             type="button"
                             className="text-green-600 transition hover:text-green-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -697,6 +769,25 @@ const OrderManagement = () => {
                               <FaSpinner className="animate-spin" />
                             ) : (
                               <FaCheck />
+                            )}
+                          </button>
+                        ) : null}
+                        {canMarkAsShipping(order.status, order.paymentType) ? (
+                          <button
+                            type="button"
+                            className="text-blue-600 transition hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            title={
+                              canTransferToShipping(order)
+                                ? 'Chuyển sang bên giao hàng'
+                                : 'Cần xác nhận đơn hàng trước khi chuyển giao'
+                            }
+                            onClick={() => setShippingOrderNumber(order.orderNumber)}
+                            disabled={!canTransferToShipping(order) || updatingOrderNumber === order.orderNumber}
+                          >
+                            {updatingOrderNumber === order.orderNumber ? (
+                              <FaSpinner className="animate-spin" />
+                            ) : (
+                              <FaTruck />
                             )}
                           </button>
                         ) : null}
@@ -756,14 +847,18 @@ const OrderManagement = () => {
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
             <FaQuestionCircle className="text-base text-primary" /> Ghi chú thao tác
           </h3>
-          <div className="grid gap-3 text-sm text-gray-600 md:grid-cols-2">
+          <div className="grid gap-3 text-sm text-gray-600 md:grid-cols-3">
             <div className="flex items-center gap-2">
               <FaEye className="text-blue-600 text-lg" />
               <span>Xem chi tiết đơn hàng</span>
             </div>
             <div className="flex items-center gap-2">
               <FaCheck className="text-green-600 text-lg" />
-              <span>Xác nhận đơn hàng </span>
+              <span>Xác nhận đơn hàng</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FaTruck className="text-blue-600 text-lg" />
+              <span>Chuyển sang bên giao hàng</span>
             </div>
           </div>
         </div>
@@ -786,7 +881,7 @@ const OrderManagement = () => {
                 <button
                   type="button"
                   className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={handleConfirmShipping}
+                  onClick={handleConfirmOrder}
                   disabled={updatingOrderNumber === confirmOrderNumber}
                 >
                   {updatingOrderNumber === confirmOrderNumber ? (
@@ -795,6 +890,39 @@ const OrderManagement = () => {
                     <FaCheck className="h-4 w-4" />
                   )}
                   <span>Xác nhận</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {shippingOrderNumber && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+              <h3 className="text-lg font-semibold text-gray-800">Chuyển sang bên giao hàng</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Bạn có chắc chắn muốn chuyển đơn hàng <strong>{shippingOrderNumber}</strong> sang bên giao hàng không?
+              </p>
+              <div className="mt-6 flex justify-end gap-3 text-sm">
+                <button
+                  type="button"
+                  className="rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => setShippingOrderNumber(null)}
+                  disabled={updatingOrderNumber === shippingOrderNumber}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleConfirmShipping}
+                  disabled={updatingOrderNumber === shippingOrderNumber}
+                >
+                  {updatingOrderNumber === shippingOrderNumber ? (
+                    <FaSpinner className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FaTruck className="h-4 w-4" />
+                  )}
+                  <span>Chuyển giao</span>
                 </button>
               </div>
             </div>
@@ -841,8 +969,8 @@ const OrderManagement = () => {
                 </div>
                 <div>
                   <p className="text-xs uppercase text-gray-500">Trạng thái</p>
-                  <span className={`mt-1 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(selectedOrder.status)}`}>
-                    {formatStatusLabel(selectedOrder.status)}
+                  <span className={`mt-1 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(getDisplayStatusKeyForOrder(selectedOrder))}`}>
+                    {formatStatusLabel(getDisplayStatusKeyForOrder(selectedOrder))}
                   </span>
                 </div>
                 <div>
@@ -917,21 +1045,43 @@ const OrderManagement = () => {
               </div>
             </div>
             <div className="flex justify-between border-t bg-gray-50 px-6 py-3">
-              {canMarkAsShipping(selectedOrder.status, selectedOrder.paymentType) ? (
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                  onClick={() => handleMarkAsShipping(selectedOrder.orderNumber)}
-                  disabled={updatingOrderNumber === selectedOrder.orderNumber}
-                >
-                  {updatingOrderNumber === selectedOrder.orderNumber ? (
-                    <FaSpinner className="animate-spin" />
-                  ) : (
-                    <FaCheck />
-                  )}
-                  <span>Xác nhận đơn hàng</span>
-                </button>
-              ) : <div />}
+              <div className="flex flex-wrap gap-2">
+                {canConfirmByArtisan(selectedOrder) ? (
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                    onClick={() => setConfirmOrderNumber(selectedOrder.orderNumber)}
+                    disabled={updatingOrderNumber === selectedOrder.orderNumber}
+                  >
+                    {updatingOrderNumber === selectedOrder.orderNumber ? (
+                      <FaSpinner className="animate-spin" />
+                    ) : (
+                      <FaCheck />
+                    )}
+                    <span>Xác nhận đơn hàng</span>
+                  </button>
+                ) : null}
+                {canMarkAsShipping(selectedOrder.status, selectedOrder.paymentType) ? (
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                    onClick={() => setShippingOrderNumber(selectedOrder.orderNumber)}
+                    disabled={!canTransferToShipping(selectedOrder) || updatingOrderNumber === selectedOrder.orderNumber}
+                    title={
+                      canTransferToShipping(selectedOrder)
+                        ? 'Chuyển sang bên giao hàng'
+                        : 'Cần xác nhận đơn hàng trước khi chuyển giao'
+                    }
+                  >
+                    {updatingOrderNumber === selectedOrder.orderNumber ? (
+                      <FaSpinner className="animate-spin" />
+                    ) : (
+                      <FaTruck />
+                    )}
+                    <span>Chuyển giao</span>
+                  </button>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={handleCloseDetail}

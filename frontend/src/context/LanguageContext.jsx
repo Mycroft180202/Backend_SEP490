@@ -541,6 +541,8 @@ const translations = {
         Completed: 'Đã nhận hàng',
         Cancelled: 'Đã hủy',
         Paid: 'Đã thanh toán',
+        paidWaitingConfirmation: 'Đã thanh toán chờ bên Cửa hàng xác nhận',
+        paidConfirmedAwaitingShipping: 'Đơn hàng đã được xác nhận, Cửa hàng đang chuẩn bị gửi hàng cho bên vận chuyển',
         default: 'Không xác định',
       },
       loading: 'Đang tải...',
@@ -559,7 +561,6 @@ const translations = {
         paymentMethodVNPAY: 'VNPAY',
         totalLabel: 'Tổng tiền',
         viewShop: 'Xem cửa hàng',
-        shippedNotice: 'Đơn hàng đã được chuyển đến bộ phận giao hàng.',
         actions: {
           viewDetail: 'Xem chi tiết',
           requestReturn: 'Hoàn đơn',
@@ -1266,6 +1267,8 @@ const translations = {
         Completed: 'Delivered',
         Cancelled: 'Cancelled',
         Paid: 'Paid',
+        paidWaitingConfirmation: 'Paid, awaiting shop confirmation',
+        paidConfirmedAwaitingShipping: 'Order confirmed, the shop is preparing to hand it over to the carrier',
         default: 'Unknown',
       },
       loading: 'Loading...',
@@ -1284,7 +1287,6 @@ const translations = {
         paymentMethodVNPAY: 'VNPAY',
         totalLabel: 'Total',
         viewShop: 'View shop',
-        shippedNotice: 'The order has been handed over to the delivery team.',
         actions: {
           viewDetail: 'View details',
           requestReturn: 'Return order',

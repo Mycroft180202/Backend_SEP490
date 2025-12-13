@@ -204,22 +204,52 @@ const buildArtisanHref = (artisanId) => {
 };
 
 // Status badge component
-function StatusBadge({ status }) {
+function StatusBadge({ order }) {
   const { t } = useContext(LanguageContext);
+  const status = order?.status;
+  const paymentType = order?.paymentType;
+  const artisanConfirmedAt = order?.artisanConfirmedAt ?? order?.ArtisanConfirmedAt ?? null;
+  const isVnpayPaidAwaitingConfirmation = paymentType === 'VNPAY'
+    && status === 'Paid'
+    && !artisanConfirmedAt;
+  const isConfirmedAwaitingShipping = ['WaitingForPickup', 'Paid'].includes(status)
+    && Boolean(artisanConfirmedAt);
   const STATUS_STYLES = {
     WaitingForPickup: { bg: '#FFF3CD', text: '#856404' },
     Shipping: { bg: '#DBEAFE', text: '#1E3A8A' },
     Paid: { bg: '#D4EDDA', text: '#155724' },
+    PaidWaitingConfirmation: { bg: '#FFF3CD', text: '#856404' },
+    PaidConfirmedAwaitingShipping: { bg: '#DBEAFE', text: '#1E3A8A' },
     Completed: { bg: '#D1FAE5', text: '#065F46' },
     Cancelled: { bg: '#F8D7DA', text: '#721C24' },
   };
 
   const DEFAULT_STATUS_STYLE = { bg: '#E2E3E5', text: '#383D41' };
-  const style = STATUS_STYLES[status] || DEFAULT_STATUS_STYLE;
-  const rawLabel = t(`orderHistory.statuses.${status}`);
-  const label = rawLabel && !rawLabel.includes('orderHistory.statuses.')
-    ? rawLabel
-    : t('orderHistory.statuses.default');
+  const paidWaitingRaw = t('orderHistory.statuses.paidWaitingConfirmation');
+  const paidWaitingLabel = paidWaitingRaw && !paidWaitingRaw.includes('orderHistory.statuses.paidWaitingConfirmation')
+    ? paidWaitingRaw
+    : 'Đã thanh toán chờ bên Cửa hàng xác nhận';
+  const paidConfirmedRaw = t('orderHistory.statuses.paidConfirmedAwaitingShipping');
+  const paidConfirmedLabel = paidConfirmedRaw && !paidConfirmedRaw.includes('orderHistory.statuses.paidConfirmedAwaitingShipping')
+    ? paidConfirmedRaw
+    : 'Đơn hàng đã được xác nhận, Cửa hàng đang chuẩn bị gửi hàng cho bên vận chuyển';
+
+  const style = isConfirmedAwaitingShipping
+    ? STATUS_STYLES.PaidConfirmedAwaitingShipping
+    : isVnpayPaidAwaitingConfirmation
+    ? STATUS_STYLES.PaidWaitingConfirmation
+    : (STATUS_STYLES[status] || DEFAULT_STATUS_STYLE);
+
+  const label = isConfirmedAwaitingShipping
+    ? paidConfirmedLabel
+    : isVnpayPaidAwaitingConfirmation
+    ? paidWaitingLabel
+    : (() => {
+      const rawLabel = t(`orderHistory.statuses.${status}`);
+      return rawLabel && !rawLabel.includes('orderHistory.statuses.')
+        ? rawLabel
+        : t('orderHistory.statuses.default');
+    })();
 
   return (
     <span
@@ -694,7 +724,7 @@ function OrderCard({ order, onRefresh }) {
     && order.status === 'WaitingForPickup';
   const withinReturnWindow = order.paymentType !== 'VNPAY' || daysSinceCreated <= 2;
   const canRequestReturn = order.status === 'Shipping' && withinReturnWindow;
-  const canConfirmReceived = ['Shipping', 'Paid'].includes(order.status);
+  const canConfirmReceived = order.status === 'Shipping';
 
   return (
     <>
@@ -708,7 +738,7 @@ function OrderCard({ order, onRefresh }) {
               </p>
               <p className="font-nunito text-sm text-gray-600">{formattedDate}</p>
             </div>
-            <StatusBadge status={order.status} />
+            <StatusBadge order={order} />
           </div>
           <div className="flex items-center gap-8 text-sm font-nunito">
             <div>
@@ -759,12 +789,6 @@ function OrderCard({ order, onRefresh }) {
             </div>
           </div>
         )}
-        {order.paymentType === 'VNPAY' && order.status === 'Paid' && (
-          <div className="px-6 py-3 bg-white text-sm font-nunito text-primary border-t border-gray-200">
-            {t('orderHistory.list.shippedNotice')}
-          </div>
-        )}
-
         {/* Order Actions */}
         <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex gap-3">
           <button
