@@ -306,7 +306,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
     public async Task<(bool Success, decimal Fee, int? ServiceIdUsed, string? Message)> PreviewCartShippingFeeAsync(
         string? userId,
         int toDistrictId,
-        string toWardCode)
+        string toWardCode,
+        int? serviceId,
+        int? serviceTypeId)
     {
         if (string.IsNullOrWhiteSpace(userId))
         {
@@ -320,8 +322,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         var previewRequest = new RequestCreateOrder
         {
-            ShippingServiceId = _ghnSettings.ServiceId ?? 0,
-            ServiceTypeId = _ghnSettings.ServiceTypeId,
+            ShippingServiceId = serviceId ?? _ghnSettings.ServiceId ?? 0,
+            ServiceTypeId = serviceTypeId ?? _ghnSettings.ServiceTypeId,
             PaymentMethod = PaymentTypeCod,
             RequiredNote = _ghnSettings.RequiredNote,
             PaymentTypeId = _ghnSettings.PaymentTypeId

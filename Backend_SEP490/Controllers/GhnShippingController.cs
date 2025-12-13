@@ -24,7 +24,6 @@ public class GhnShippingController : ControllerBase
         _orderService = orderService;
     }
 
-    [AllowAnonymous]
     [HttpPost("fee")]
     public async Task<IActionResult> CalculateFee(
         [FromBody] CalculateShippingFeeRequest request,
@@ -36,42 +35,27 @@ public class GhnShippingController : ControllerBase
         }
 
         var userId = User.GetUserId();
-        if (!string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            var preview = await _orderService.PreviewCartShippingFeeAsync(userId, request.ToDistrictId, request.ToWardCode);
-            if (preview.Success)
-            {
-                var roundedFee = (int)Math.Round(preview.Fee, 0, MidpointRounding.AwayFromZero);
-                var previewResult = new ShippingFeeResponse
-                {
-                    TotalFee = roundedFee
-                };
-
-                return Ok(previewResult);
-            }
+            return Unauthorized();
         }
 
-        var serviceRequest = new GhnCalculateFeeRequest
-        {
-            ToDistrictId = request.ToDistrictId,
-            ToWardCode = request.ToWardCode
-        };
+        var preview = await _orderService.PreviewCartShippingFeeAsync(
+            userId,
+            request.ToDistrictId,
+            request.ToWardCode,
+            request.ServiceId,
+            request.ServiceTypeId);
 
-        var response = await _ghnShippingService.CalculateShippingFeeAsync(serviceRequest, cancellationToken);
-        if (response == null)
+        if (!preview.Success)
         {
-            return StatusCode(500, new { message = "Unable to request GHN shipping fee at the moment." });
+            return BadRequest(new { message = preview.Message ?? "Unable to calculate shipping fee." });
         }
 
-        var successCodes = new[] { 0, 200 };
-        if (!successCodes.Contains(response.Code) || response.Data == null)
-        {
-            return BadRequest(new { response.Code, response.Message });
-        }
-
+        var roundedFee = (int)Math.Round(preview.Fee, 0, MidpointRounding.AwayFromZero);
         var result = new ShippingFeeResponse
         {
-            TotalFee = response.Data.Total
+            TotalFee = roundedFee
         };
 
         return Ok(result);

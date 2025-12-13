@@ -10,4 +10,10 @@ public class CalculateShippingFeeRequest
     [Required]
     [StringLength(20)]
     public string ToWardCode { get; set; } = string.Empty;
+
+    [Range(1, int.MaxValue)]
+    public int? ServiceId { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int? ServiceTypeId { get; set; }
 }
