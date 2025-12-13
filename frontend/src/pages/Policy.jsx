@@ -49,7 +49,7 @@ const Policy = () => {
                 <h2 className="text-2xl font-semibold text-[#9e211f] mb-3">
                   {t('policy.privacyTitle')}
                 </h2>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
                   {t('policy.privacyContent')}
                 </p>
               </section>
@@ -58,7 +58,7 @@ const Policy = () => {
                 <h2 className="text-2xl font-semibold text-[#9e211f] mb-3">
                   {t('policy.shippingTitle')}
                 </h2>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
                   {t('policy.shippingContent')}
                 </p>
               </section>
@@ -67,7 +67,7 @@ const Policy = () => {
                 <h2 className="text-2xl font-semibold text-[#9e211f] mb-3">
                   {t('policy.returnTitle')}
                 </h2>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
                   {t('policy.returnContent')}
                 </p>
               </section>
