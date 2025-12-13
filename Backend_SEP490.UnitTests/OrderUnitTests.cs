@@ -306,14 +306,14 @@ namespace Backend_SEP490.UnitTests
             Assert.Single(result.Items);
         }
 
-        //[Fact(DisplayName = "GetAllOrderByUserIdAsync - Invalid userId returns empty")]
-        //public async Task GetAllOrderByUserIdAsync_InvalidUserId_ReturnsEmpty()
-        //{
-        //    // Act
-        //    var result = await _orderService.GetAllOrderByUserIdAsync(null, null);
+        [Fact(DisplayName = "GetAllOrderByUserIdAsync - Invalid userId returns empty")]
+        public async Task GetAllOrderByUserIdAsync_InvalidUserId_ReturnsEmpty()
+        {
+            // Act
+            var result = await _orderService.GetAllOrderByUserIdAsync(null, null);
 
-        //    // Assert
-        //    Assert.Empty(result.Items);
-        //}
+            // Assert
+            Assert.Empty(result.Items);
+        }
     }
 }
