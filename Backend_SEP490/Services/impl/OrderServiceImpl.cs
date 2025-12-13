@@ -529,13 +529,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
             shopId = _ghnSettings.ShopId;
         }
 
-        var requestModel = new GhnCalculateFeeRequest
+        var baseRequestModel = new GhnCalculateFeeRequest
         {
             ShopId = shopId,
             TokenOverride = string.IsNullOrWhiteSpace(sellerProfile?.GhnToken) ? null : sellerProfile!.GhnToken,
             FromDistrictId = fromDistrictId,
             FromWardCode = fromWardCode,
-            ServiceId = request.ShippingServiceId,
             ServiceTypeId = request.ServiceTypeId,
             ToDistrictId = destination.GhnDistrictId.Value,
             ToWardCode = destination.GhnWardCode!,
@@ -558,14 +557,35 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         serviceCandidates.Add(null);
-        var distinctCandidates = serviceCandidates.Distinct().ToList();
+        var distinctCandidates = serviceCandidates
+            .Select(id => id.HasValue && id.Value <= 0 ? null : id)
+            .Distinct()
+            .ToList();
 
         var successCodes = new[] { 0, 200 };
         string? lastErrorMessage = null;
 
         foreach (var candidateServiceId in distinctCandidates)
         {
-            requestModel.ServiceId = candidateServiceId;
+            var requestModel = new GhnCalculateFeeRequest
+            {
+                ShopId = baseRequestModel.ShopId,
+                TokenOverride = baseRequestModel.TokenOverride,
+                FromDistrictId = baseRequestModel.FromDistrictId,
+                FromWardCode = baseRequestModel.FromWardCode,
+                ServiceId = candidateServiceId,
+                ServiceTypeId = baseRequestModel.ServiceTypeId > 0
+                    ? baseRequestModel.ServiceTypeId
+                    : _ghnSettings.ServiceTypeId,
+                ToDistrictId = baseRequestModel.ToDistrictId,
+                ToWardCode = baseRequestModel.ToWardCode,
+                Weight = baseRequestModel.Weight,
+                Length = baseRequestModel.Length,
+                Width = baseRequestModel.Width,
+                Height = baseRequestModel.Height,
+                InsuranceValue = baseRequestModel.InsuranceValue
+            };
+
             var response = await _ghnShippingService.CalculateShippingFeeAsync(requestModel);
             if (response == null)
             {
