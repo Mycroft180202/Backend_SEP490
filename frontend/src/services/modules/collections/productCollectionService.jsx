@@ -19,6 +19,7 @@ export const ProductCollectionService = {
     if (form.headline) formData.append('Headline', form.headline);
     if (form.content) formData.append('Content', form.content);
     if (form.imageFile) formData.append('ImageFile', form.imageFile);
+    if (typeof form.isActive === 'boolean') formData.append('IsActive', form.isActive);
     if (Array.isArray(form.productIds)) {
       form.productIds.forEach((p) => formData.append('ProductIds', p));
     }

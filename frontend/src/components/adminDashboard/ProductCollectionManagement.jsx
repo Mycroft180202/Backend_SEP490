@@ -1,7 +1,7 @@
 import React, {
   useEffect, useState, useMemo,
 } from 'react';
-import { FaPlus, FaTrash, FaEdit, FaImages } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaImages, FaSpinner } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { ProductCollectionService } from '../../services/modules/collections/productCollectionService';
 import { ProductService } from '../../services/modules/products/productService';
@@ -24,12 +24,22 @@ const ProductCollectionManagement = () => {
   const [preview, setPreview] = useState('');
   const [productOptions, setProductOptions] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [savingCollection, setSavingCollection] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deletingCollection, setDeletingCollection] = useState(false);
 
   const loadCollections = async () => {
     try {
       setLoading(true);
       const res = await ProductCollectionService.list();
-      setCollections(res || []);
+      const list = Array.isArray(res) ? res : [];
+      setCollections(list.map((item) => ({
+        ...item,
+        isActive:
+          typeof item?.isActive === 'boolean'
+            ? item.isActive
+            : (typeof item?.IsActive === 'boolean' ? item.IsActive : Boolean(item?.is_active)),
+      })));
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Không thể tải bộ sưu tập');
@@ -87,7 +97,14 @@ const ProductCollectionManagement = () => {
         headline: detail?.headline || item.headline || '',
         content: detail?.content || item.content || '',
         productIds: productIds.map((pid) => pid?.toString()).filter(Boolean),
-        isActive: typeof detail?.isActive === 'boolean' ? detail.isActive : item.isActive ?? true,
+        isActive:
+          typeof detail?.isActive === 'boolean'
+            ? detail.isActive
+            : (typeof detail?.IsActive === 'boolean'
+              ? detail.IsActive
+              : (typeof item?.isActive === 'boolean'
+                ? item.isActive
+                : (typeof item?.IsActive === 'boolean' ? item.IsActive : true))),
         imageFile: null,
       });
       setPreview(detail?.image || item.image || '');
@@ -101,6 +118,10 @@ const ProductCollectionManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (savingCollection) {
+      return;
+    }
+    setSavingCollection(true);
     try {
       if (editingId) {
         await ProductCollectionService.updateInfo({
@@ -120,6 +141,7 @@ const ProductCollectionManagement = () => {
           content: formData.content,
           productIds: formData.productIds,
           imageFile: formData.imageFile,
+          isActive: formData.isActive,
         });
         toast.success('Đã tạo bộ sưu tập');
       }
@@ -129,18 +151,39 @@ const ProductCollectionManagement = () => {
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Không thể lưu bộ sưu tập');
+    } finally {
+      setSavingCollection(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Xoá bộ sưu tập này?')) return;
+  const handleDelete = (item) => {
+    const id = item?.productCollectionId || item?.id;
+    if (!id) return;
+    setDeleteConfirm({
+      id,
+      title: item?.title || 'bộ sưu tập',
+    });
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deletingCollection) return;
+    setDeleteConfirm(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm?.id) return;
+    if (deletingCollection) return;
     try {
-      await ProductCollectionService.remove(id);
+      setDeletingCollection(true);
+      await ProductCollectionService.remove(deleteConfirm.id);
       toast.success('Đã xoá bộ sưu tập');
-      loadCollections();
+      setDeleteConfirm(null);
+      await loadCollections();
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Không thể xoá bộ sưu tập');
+    } finally {
+      setDeletingCollection(false);
     }
   };
 
@@ -150,7 +193,7 @@ const ProductCollectionManagement = () => {
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Quản lý bộ sưu tập</h2>
+          <h2 className="text-xl font-bold text-gray-800">Quản lý bộ sưu tập sản phẩm</h2>
           <p className="text-sm text-gray-500">Tổng {list.length} bộ sưu tập</p>
         </div>
         <button
@@ -197,7 +240,7 @@ const ProductCollectionManagement = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(item.productCollectionId || item.id)}
+                      onClick={() => handleDelete(item)}
                       className="inline-flex items-center gap-1 text-red-600 hover:text-red-800"
                     >
                       <FaTrash /> Xoá
@@ -326,18 +369,61 @@ const ProductCollectionManagement = () => {
                 <button
                   type="button"
                   onClick={() => { setModalOpen(false); clearForm(); }}
-                  className="px-4 py-2 rounded-lg border border-gray-300"
+                  disabled={savingCollection}
+                  className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Huỷ
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[#9e211f] text-white"
+                  disabled={savingCollection}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#9e211f] text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingId ? 'Cập nhật' : 'Tạo mới'}
+                  {savingCollection ? <FaSpinner className="animate-spin" /> : null}
+                  {savingCollection ? 'Đang lưu...' : (editingId ? 'Cập nhật' : 'Tạo mới')}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-800">Xác nhận xoá</h3>
+              <button
+                type="button"
+                onClick={closeDeleteConfirm}
+                className="text-gray-500 hover:text-gray-700 disabled:opacity-60"
+                disabled={deletingCollection}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-5 text-sm text-gray-700">
+              Bạn có chắc chắn muốn xoá bộ sưu tập <span className="font-semibold">{deleteConfirm.title}</span> không?
+            </div>
+            <div className="flex justify-end gap-3 bg-gray-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={closeDeleteConfirm}
+                disabled={deletingCollection}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deletingCollection}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingCollection ? <FaSpinner className="animate-spin" /> : null}
+                {deletingCollection ? 'Đang xoá...' : 'Xoá'}
+              </button>
+            </div>
           </div>
         </div>
       )}
