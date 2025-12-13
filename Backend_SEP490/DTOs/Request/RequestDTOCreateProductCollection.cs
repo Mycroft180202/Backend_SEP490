@@ -24,5 +24,8 @@ namespace Backend_SEP490.DTOs.Request
 
         [StringLength(50, ErrorMessage = "Mã người tạo không được vượt quá 50 ký tự")]
         public string? CreatedById { get; set; }
+
+        [Required]
+        public bool IsActive { get; set; }
     }
 }

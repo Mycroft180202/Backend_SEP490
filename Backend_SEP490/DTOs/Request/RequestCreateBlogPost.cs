@@ -11,8 +11,8 @@ namespace Backend_SEP490.DTOs.Request
         [Required(ErrorMessage = "Nội dung bài viết không được để trống")]
         [MinLength(20, ErrorMessage = "Nội dung bài viết phải có ít nhất 20 ký tự")]
         public string Content { get; set; }
-
-
+        [Required]
+        public string PostStatus { get; set; }
         public IFormFile?  Image { get; set; }
     }
 }
