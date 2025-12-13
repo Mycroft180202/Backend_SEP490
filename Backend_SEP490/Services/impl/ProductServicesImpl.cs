@@ -337,8 +337,81 @@ public class ProductServicesImpl: GenericServices, IProductServices
         if (pageSize <= 0)
             pageSize = 10;
 
+        var normalizedSearch = productName?.Trim();
+        var hasSearch = !string.IsNullOrWhiteSpace(normalizedSearch);
+        var searchFilter = hasSearch ? normalizedSearch : null;
+
+        if (hasSearch)
+        {
+            var filteredProducts = await _context.Products.GetProductsAsync(categoryId, isActive);
+
+            double[]? searchEmbedding = null;
+            try
+            {
+                searchEmbedding = await _embeddingService.GenerateEmbeddingAsync(normalizedSearch!);
+            }
+            catch
+            {
+                // If embedding fails we still keep text-only search working
+                searchEmbedding = null;
+            }
+
+            var scoredProducts = filteredProducts
+                .Select(p =>
+                {
+                    var textScore = CalculateTextScore(p, normalizedSearch!);
+                    var embeddingVector = GetEmbeddingVector(p.EmbeddingJson);
+                    double embeddingScore = 0;
+
+                    if (searchEmbedding != null
+                        && embeddingVector != null
+                        && searchEmbedding.Length == embeddingVector.Length)
+                    {
+                        embeddingScore = CalculateCosineSimilarity(searchEmbedding, embeddingVector);
+                    }
+
+                    return new
+                    {
+                        Product = p,
+                        TextScore = textScore,
+                        EmbeddingScore = embeddingScore,
+                        Score = textScore + embeddingScore
+                    };
+                })
+                .Where(x => x.TextScore > 0 || x.EmbeddingScore > 0)
+                .ToList();
+
+            var ordered = scoredProducts
+                .OrderByDescending(x => x.Score);
+
+            ordered = (sortOrder ?? string.Empty).ToLower() switch
+            {
+                "asc" or "lowtohigh" => ordered.ThenBy(x => x.Product.Price),
+                "desc" or "hightolow" => ordered.ThenByDescending(x => x.Product.Price),
+                "atoz" => ordered.ThenBy(x => x.Product.Name),
+                "ztoa" => ordered.ThenByDescending(x => x.Product.Name),
+                _ => ordered
+            };
+
+            var pagedItems = ordered
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => x.Product)
+                .ToList();
+
+            var resultItems = await MapAndEnrichProductsAsync(pagedItems);
+
+            return new PagedResult<ResponseDTOProduct>
+            {
+                TotalCount = scoredProducts.Count,
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+                Items = resultItems
+            };
+        }
+
         var pagedProducts = await _context.Products.GetProductsAsync(
-            productName,
+            searchFilter,
             categoryId,
             isActive,
             pageIndex,
@@ -366,7 +439,50 @@ public class ProductServicesImpl: GenericServices, IProductServices
             magA += a[i] * a[i];
             magB += b[i] * b[i];
         }
+        if (magA == 0 || magB == 0) return 0;
         return dot / (Math.Sqrt(magA) * Math.Sqrt(magB));
+    }
+
+    private double[]? GetEmbeddingVector(JsonDocument? embeddingDoc)
+    {
+        try
+        {
+            if (embeddingDoc == null || embeddingDoc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            return embeddingDoc
+                .RootElement
+                .EnumerateArray()
+                .Select(e => e.GetDouble())
+                .ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private double CalculateTextScore(Product product, string searchText)
+    {
+        double score = 0;
+        if (!string.IsNullOrEmpty(product.Name) && product.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 2;
+        }
+
+        if (!string.IsNullOrEmpty(product.ShortDescription) && product.ShortDescription.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 1;
+        }
+
+        if (!string.IsNullOrEmpty(product.LongDescription) && product.LongDescription.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 0.5;
+        }
+
+        return score;
     }
 
 

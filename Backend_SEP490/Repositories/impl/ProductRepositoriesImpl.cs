@@ -80,9 +80,15 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
 
     public async Task<IEnumerable<Product>> GetProductsByNameAsync(string productName)
     {
+        var normalized = productName?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return new List<Product>();
+        }
+
         var product = await _context.Products
             .AsNoTracking()
-            .Where(o => o.Name == productName)
+            .Where(o => EF.Functions.ILike(o.Name, $"%{normalized}%"))
             .ToListAsync();
         return product;
     }
@@ -112,14 +118,19 @@ public class ProductRepositoriesImpl : GenericRepositoryImpl<Product>, IProductR
             .AsNoTracking()
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(productName))
-            query = query.Where(p => p.Name.Contains(productName));
-
         if (!string.IsNullOrEmpty(categoryId))
             query = query.Where(p => p.Category == categoryId);
 
         if (isActive.HasValue)
             query = query.Where(p => p.IsActive == isActive.Value);
+
+        var trimmedName = productName?.Trim();
+        if (!string.IsNullOrWhiteSpace(trimmedName))
+            query = query.Where(p =>
+                EF.Functions.ILike(p.Name, $"%{trimmedName}%") ||
+                (!string.IsNullOrEmpty(p.ShortDescription) && EF.Functions.ILike(p.ShortDescription, $"%{trimmedName}%")) ||
+                (!string.IsNullOrEmpty(p.LongDescription) && EF.Functions.ILike(p.LongDescription, $"%{trimmedName}%"))
+            );
 
         query = (sortOrder ?? string.Empty).ToLower() switch
         {
