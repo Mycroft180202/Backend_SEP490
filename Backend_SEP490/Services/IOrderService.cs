@@ -32,6 +32,12 @@ namespace Backend_SEP490.Services
             string toWardCode,
             int? serviceId,
             int? serviceTypeId);
+
+        Task<(bool Success, decimal Fee, int? ServiceIdUsed, string? Message)> PreviewSimpleShippingFeeAsync(
+            int toDistrictId,
+            string toWardCode,
+            int? serviceId,
+            int? serviceTypeId);
         Task<int> CancelUnconfirmedOrdersAsync(TimeSpan maxAge, CancellationToken cancellationToken);
     }
 }

@@ -72,11 +72,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return CreateOrderResult.Failure("addressId is required.");
         }
 
-        if (request.ShippingServiceId <= 0)
-        {
-            return CreateOrderResult.Failure("shippingServiceId must be greater than zero.");
-        }
-
         var paymentType = NormalizePaymentType(request.PaymentMethod);
         if (paymentType == null)
         {
@@ -177,7 +172,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 ShippingFee = shippingFee,
                 ShipingAddressId = address.Id,
                 ShippingServiceId = resolvedShippingServiceId,
-                ShippingServiceTypeId = request.ServiceTypeId,
+                ShippingServiceTypeId = request.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
                 ShippingPaymentTypeId = request.PaymentTypeId,
                 ShippingRequiredNote = request.RequiredNote,
                 ShippingToProvinceId = address.GhnProvinceId,
@@ -322,17 +317,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         var previewRequest = new RequestCreateOrder
         {
-            ShippingServiceId = serviceId ?? _ghnSettings.ServiceId ?? 0,
+            ShippingServiceId = serviceId ?? _ghnSettings.ServiceId,
             ServiceTypeId = serviceTypeId ?? _ghnSettings.ServiceTypeId,
             PaymentMethod = PaymentTypeCod,
             RequiredNote = _ghnSettings.RequiredNote,
             PaymentTypeId = _ghnSettings.PaymentTypeId
         };
-
-        if (previewRequest.ShippingServiceId <= 0 && (!_ghnSettings.ServiceId.HasValue || _ghnSettings.ServiceId.Value <= 0))
-        {
-            return (false, 0m, null, "Thiếu serviceId để tính phí GHN. Vui lòng cung cấp serviceId.");
-        }
 
         var (itemsResolved, orderItemInputs, itemError) = await ResolveOrderItemsAsync(userId, previewRequest);
         if (!itemsResolved || orderItemInputs.Count == 0)
@@ -370,6 +360,132 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         return (true, fee, serviceIdUsed, null);
+    }
+
+    public async Task<(bool Success, decimal Fee, int? ServiceIdUsed, string? Message)> PreviewSimpleShippingFeeAsync(
+        int toDistrictId,
+        string toWardCode,
+        int? serviceId,
+        int? serviceTypeId)
+    {
+        if (toDistrictId <= 0 || string.IsNullOrWhiteSpace(toWardCode))
+        {
+            return (false, 0m, null, "Destination is required.");
+        }
+
+        if (_ghnSettings.FromDistrictId <= 0 || string.IsNullOrWhiteSpace(_ghnSettings.FromWardCode))
+        {
+            return (false, 0m, null, "Thiếu cấu hình địa chỉ lấy hàng GHN (FromDistrictId/FromWardCode).");
+        }
+
+        var baseRequestModel = new GhnCalculateFeeRequest
+        {
+            ShopId = _ghnSettings.ShopId > 0 ? _ghnSettings.ShopId : null,
+            TokenOverride = null,
+            FromDistrictId = _ghnSettings.FromDistrictId,
+            FromWardCode = _ghnSettings.FromWardCode,
+            ServiceTypeId = serviceTypeId,
+            ToDistrictId = toDistrictId,
+            ToWardCode = toWardCode,
+            Weight = Math.Max(_ghnSettings.DefaultItemWeight, 1000),
+            Length = _ghnSettings.DefaultParcelLength,
+            Width = _ghnSettings.DefaultParcelWidth,
+            Height = _ghnSettings.DefaultParcelHeight,
+            InsuranceValue = _ghnSettings.DefaultInsuranceValue ?? 0
+        };
+
+        var serviceCandidates = new List<int?>();
+        if (serviceId.HasValue && serviceId.Value > 0)
+        {
+            serviceCandidates.Add(serviceId);
+        }
+        if (_ghnSettings.ServiceId.HasValue && _ghnSettings.ServiceId.Value > 0)
+        {
+            serviceCandidates.Add(_ghnSettings.ServiceId);
+        }
+
+        var distinctCandidates = serviceCandidates
+            .Select(id => id.HasValue && id.Value <= 0 ? null : id)
+            .Distinct()
+            .ToList();
+
+        var successCodes = new[] { 0, 200 };
+        string? lastErrorMessage = null;
+
+        foreach (var candidateServiceId in distinctCandidates)
+        {
+            var requestModel = new GhnCalculateFeeRequest
+            {
+                ShopId = baseRequestModel.ShopId,
+                TokenOverride = baseRequestModel.TokenOverride,
+                FromDistrictId = baseRequestModel.FromDistrictId,
+                FromWardCode = baseRequestModel.FromWardCode,
+                ServiceId = candidateServiceId,
+                ServiceTypeId = baseRequestModel.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
+                ToDistrictId = baseRequestModel.ToDistrictId,
+                ToWardCode = baseRequestModel.ToWardCode,
+                Weight = baseRequestModel.Weight,
+                Length = baseRequestModel.Length,
+                Width = baseRequestModel.Width,
+                Height = baseRequestModel.Height,
+                InsuranceValue = baseRequestModel.InsuranceValue
+            };
+
+            var response = await _ghnShippingService.CalculateShippingFeeAsync(requestModel);
+            if (response != null
+                && successCodes.Contains(response.Code)
+                && response.Data?.Total.HasValue == true
+                && response.Data.Total.Value > 0)
+            {
+                var fee = Convert.ToDecimal(response.Data.Total.Value);
+                return (true, fee, candidateServiceId, null);
+            }
+
+            lastErrorMessage = response?.Message ?? lastErrorMessage;
+        }
+
+        // Fallback: auto discover service for this route
+        var availableServices = await _ghnShippingService.GetAvailableServicesAsync(
+            baseRequestModel.FromDistrictId.Value,
+            baseRequestModel.ToDistrictId,
+            baseRequestModel.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
+            baseRequestModel.ShopId,
+            baseRequestModel.TokenOverride);
+
+        var firstAvailable = availableServices?.FirstOrDefault();
+        if (firstAvailable != null)
+        {
+            var fallbackRequest = new GhnCalculateFeeRequest
+            {
+                ShopId = baseRequestModel.ShopId,
+                TokenOverride = baseRequestModel.TokenOverride,
+                FromDistrictId = baseRequestModel.FromDistrictId,
+                FromWardCode = baseRequestModel.FromWardCode,
+                ServiceId = firstAvailable.ServiceId,
+                ServiceTypeId = firstAvailable.ServiceTypeId ?? baseRequestModel.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
+                ToDistrictId = baseRequestModel.ToDistrictId,
+                ToWardCode = baseRequestModel.ToWardCode,
+                Weight = baseRequestModel.Weight,
+                Length = baseRequestModel.Length,
+                Width = baseRequestModel.Width,
+                Height = baseRequestModel.Height,
+                InsuranceValue = baseRequestModel.InsuranceValue
+            };
+
+            var autoResponse = await _ghnShippingService.CalculateShippingFeeAsync(fallbackRequest);
+            if (autoResponse != null
+                && successCodes.Contains(autoResponse.Code)
+                && autoResponse.Data?.Total.HasValue == true
+                && autoResponse.Data.Total.Value > 0)
+            {
+                var fee = Convert.ToDecimal(autoResponse.Data.Total.Value);
+                return (true, fee, firstAvailable.ServiceId, null);
+            }
+
+            lastErrorMessage = autoResponse?.Message ?? lastErrorMessage;
+        }
+
+        return (false, 0m, null, lastErrorMessage ?? "Khong the tinh phi giao hang.");
     }
 
     private async Task<(bool Success, List<OrderItemInput> Items, string? Message)> ResolveOrderItemsAsync(
@@ -523,10 +639,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
             return (false, 0m, null, "Cua hang chua cau hinh dia chi lay hang cho GHN. Vui long cap nhat thong tin van chuyen.");
         }
 
-        var weight = CalculateTotalWeight(mappedItems, null, shippingProfiles);
-        var length = ResolveDimension(mappedItems, null, shippingProfiles, p => p.LengthCm, _ghnSettings.DefaultParcelLength);
-        var width = ResolveDimension(mappedItems, null, shippingProfiles, p => p.WidthCm, _ghnSettings.DefaultParcelWidth);
-        var height = ResolveDimension(mappedItems, null, shippingProfiles, p => p.HeightCm, _ghnSettings.DefaultParcelHeight);
+        // GHN yêu cầu kích thước/khối lượng hợp lệ; cố định theo cấu hình thay vì lấy từ sản phẩm
+        var fixedWeight = Math.Max(_ghnSettings.DefaultItemWeight, 1000); // GHN yêu cầu khối lượng tối thiểu
+        var fixedLength = _ghnSettings.DefaultParcelLength > 0 ? _ghnSettings.DefaultParcelLength : 30;
+        var fixedWidth = _ghnSettings.DefaultParcelWidth > 0 ? _ghnSettings.DefaultParcelWidth : 20;
+        var fixedHeight = _ghnSettings.DefaultParcelHeight > 0 ? _ghnSettings.DefaultParcelHeight : 10;
+        var fixedInsurance = _ghnSettings.DefaultInsuranceValue ?? 0;
 
         int? shopId = sellerProfile?.GhnShopId;
         if ((!shopId.HasValue || shopId.Value <= 0) && _ghnSettings.ShopId > 0)
@@ -540,18 +658,18 @@ public class OrderServiceImpl : GenericServices, IOrderService
             TokenOverride = string.IsNullOrWhiteSpace(sellerProfile?.GhnToken) ? null : sellerProfile!.GhnToken,
             FromDistrictId = fromDistrictId,
             FromWardCode = fromWardCode,
-            ServiceTypeId = request.ServiceTypeId,
+            ServiceTypeId = request.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
             ToDistrictId = destination.GhnDistrictId.Value,
             ToWardCode = destination.GhnWardCode!,
-            Weight = Math.Max(weight, _ghnSettings.DefaultItemWeight),
-            Length = length,
-            Width = width,
-            Height = height,
-            InsuranceValue = (int)Math.Round(mappedItems.Sum(item => item.UnitPrice * item.Quantity))
+            Weight = fixedWeight,
+            Length = fixedLength,
+            Width = fixedWidth,
+            Height = fixedHeight,
+            InsuranceValue = fixedInsurance
         };
 
         var serviceCandidates = new List<int?>();
-        if (request.ShippingServiceId > 0)
+        if (request.ShippingServiceId.HasValue && request.ShippingServiceId.Value > 0)
         {
             serviceCandidates.Add(request.ShippingServiceId);
         }
@@ -565,11 +683,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
             .Distinct()
             .ToList();
 
-        if (distinctCandidates.Count == 0 || distinctCandidates.All(id => !id.HasValue))
-        {
-            return (false, 0m, null, "Thiếu serviceId để tính phí GHN. Vui lòng cung cấp serviceId hoặc cấu hình mặc định.");
-        }
-
         var successCodes = new[] { 0, 200 };
         string? lastErrorMessage = null;
 
@@ -582,7 +695,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 FromDistrictId = baseRequestModel.FromDistrictId,
                 FromWardCode = baseRequestModel.FromWardCode,
                 ServiceId = candidateServiceId,
-                ServiceTypeId = baseRequestModel.ServiceTypeId > 0
+                ServiceTypeId = (baseRequestModel.ServiceTypeId.HasValue && baseRequestModel.ServiceTypeId.Value > 0)
                     ? baseRequestModel.ServiceTypeId
                     : _ghnSettings.ServiceTypeId,
                 ToDistrictId = baseRequestModel.ToDistrictId,
@@ -624,6 +737,52 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 response.Message,
                 artisanId,
                 candidateServiceId);
+        }
+
+        // Fallback: auto-discover service_id from GHN for this route
+        var availableServices = await _ghnShippingService.GetAvailableServicesAsync(
+            fromDistrictId.Value,
+            destination.GhnDistrictId.Value,
+            (baseRequestModel.ServiceTypeId.HasValue && baseRequestModel.ServiceTypeId.Value > 0) ? baseRequestModel.ServiceTypeId : _ghnSettings.ServiceTypeId,
+            baseRequestModel.ShopId,
+            baseRequestModel.TokenOverride);
+
+        var firstAvailable = availableServices?.FirstOrDefault();
+        if (firstAvailable != null)
+        {
+            var fallbackRequest = new GhnCalculateFeeRequest
+            {
+                ShopId = baseRequestModel.ShopId,
+                TokenOverride = baseRequestModel.TokenOverride,
+                FromDistrictId = baseRequestModel.FromDistrictId,
+                FromWardCode = baseRequestModel.FromWardCode,
+                ServiceId = firstAvailable.ServiceId,
+                ServiceTypeId = firstAvailable.ServiceTypeId ?? baseRequestModel.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
+                ToDistrictId = baseRequestModel.ToDistrictId,
+                ToWardCode = baseRequestModel.ToWardCode,
+                Weight = baseRequestModel.Weight,
+                Length = baseRequestModel.Length,
+                Width = baseRequestModel.Width,
+                Height = baseRequestModel.Height,
+                InsuranceValue = baseRequestModel.InsuranceValue
+            };
+
+            var autoResponse = await _ghnShippingService.CalculateShippingFeeAsync(fallbackRequest);
+            if (autoResponse != null
+                && successCodes.Contains(autoResponse.Code)
+                && autoResponse.Data?.Total.HasValue == true
+                && autoResponse.Data.Total.Value > 0)
+            {
+                var fee = Convert.ToDecimal(autoResponse.Data.Total.Value);
+                return (true, fee, firstAvailable.ServiceId, null);
+            }
+
+            lastErrorMessage = autoResponse?.Message ?? lastErrorMessage;
+            _logger.LogWarning(
+                "GHN fallback fee calculation still failed for artisan {ArtisanId} using auto service {ServiceId}: {Message}",
+                artisanId,
+                firstAvailable.ServiceId,
+                autoResponse?.Message);
         }
 
         return (false, 0m, null, lastErrorMessage ?? "Khong the tinh phi giao hang cho don nay.");

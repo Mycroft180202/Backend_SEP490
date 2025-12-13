@@ -24,7 +24,7 @@ public class GhnShippingController : ControllerBase
         _orderService = orderService;
     }
 
-    [HttpPost("fee")]
+    [HttpPost("fee/test")]
     public async Task<IActionResult> CalculateFee(
         [FromBody] CalculateShippingFeeRequest request,
         CancellationToken cancellationToken)
@@ -42,6 +42,36 @@ public class GhnShippingController : ControllerBase
 
         var preview = await _orderService.PreviewCartShippingFeeAsync(
             userId,
+            request.ToDistrictId,
+            request.ToWardCode,
+            request.ServiceId,
+            request.ServiceTypeId);
+
+        if (!preview.Success)
+        {
+            return BadRequest(new { message = preview.Message ?? "Unable to calculate shipping fee." });
+        }
+
+        var roundedFee = (int)Math.Round(preview.Fee, 0, MidpointRounding.AwayFromZero);
+        var result = new ShippingFeeResponse
+        {
+            TotalFee = roundedFee
+        };
+
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("fee")]
+    public async Task<IActionResult> CalculateFeeSimple(
+        [FromBody] SimpleShippingFeeRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var preview = await _orderService.PreviewSimpleShippingFeeAsync(
             request.ToDistrictId,
             request.ToWardCode,
             request.ServiceId,

@@ -15,6 +15,7 @@ public class GhnShippingService : IGhnShippingService
     private static readonly Uri CreateOrderEndpoint = new("/shiip/public-api/v2/shipping-order/create", UriKind.Relative);
     private static readonly Uri CancelOrderEndpoint = new("/shiip/public-api/v2/shipping-order/cancel", UriKind.Relative);
     private static readonly Uri CalculateFeeEndpoint = new("/shiip/public-api/v2/shipping-order/fee", UriKind.Relative);
+    private static readonly Uri AvailableServicesEndpoint = new("/shiip/public-api/v2/shipping-order/available-services", UriKind.Relative);
 
     private readonly HttpClient _httpClient;
     private readonly GhnSettings _settings;
@@ -286,7 +287,7 @@ public class GhnShippingService : IGhnShippingService
             to_ward_code = requestModel.ToWardCode,
             height = requestModel.Height ?? _settings.DefaultParcelHeight,
             length = requestModel.Length ?? _settings.DefaultParcelLength,
-            weight = requestModel.Weight > 0 ? requestModel.Weight : _settings.DefaultItemWeight,
+            weight = Math.Max(requestModel.Weight, Math.Max(_settings.DefaultItemWeight, 1000)),
             width = requestModel.Width ?? _settings.DefaultParcelWidth,
             insurance_value = requestModel.InsuranceValue ?? 0,
             coupon = requestModel.CouponCode
@@ -318,6 +319,82 @@ public class GhnShippingService : IGhnShippingService
         }
 
         return parsed;
+    }
+
+    public async Task<IReadOnlyList<GhnAvailableService>?> GetAvailableServicesAsync(
+        int fromDistrictId,
+        int toDistrictId,
+        int? serviceTypeId,
+        int? shopIdOverride = null,
+        string? tokenOverride = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.Token) || _settings.ShopId <= 0)
+        {
+            _logger.LogWarning("GHN settings are missing Token or ShopId. Unable to query available services.");
+            return null;
+        }
+
+        if (fromDistrictId <= 0 || toDistrictId <= 0)
+        {
+            _logger.LogWarning("Invalid from/to districts when querying GHN available services.");
+            return null;
+        }
+
+        var shopId = shopIdOverride.HasValue && shopIdOverride.Value > 0
+            ? shopIdOverride.Value
+            : _settings.ShopId;
+
+        var payload = new
+        {
+            shop_id = shopId,
+            from_district = fromDistrictId,
+            to_district = toDistrictId,
+            service_type_id = serviceTypeId ?? _settings.ServiceTypeId
+        };
+
+        var request = BuildJsonRequest(
+            HttpMethod.Post,
+            AvailableServicesEndpoint,
+            payload,
+            tokenOverride,
+            shopId);
+
+        var (success, content, statusCode) = await SendAsync(
+            request,
+            $"available-services-{fromDistrictId}-{toDistrictId}",
+            cancellationToken);
+
+        if (!success)
+        {
+            return null;
+        }
+
+        var parsed = JsonSerializer.Deserialize<GhnAvailableServiceResponse>(content, _serializerOptions);
+        if (parsed == null || parsed.Data == null)
+        {
+            _logger.LogWarning(
+                "GHN available services response empty for route {From}->{To}. Status {Status}. Content: {Content}",
+                fromDistrictId,
+                toDistrictId,
+                statusCode,
+                content);
+            return null;
+        }
+
+        var successCodes = new[] { 0, 200 };
+        if (!successCodes.Contains(parsed.Code))
+        {
+            _logger.LogWarning(
+                "GHN available services returned code {Code} for route {From}->{To}: {Message}",
+                parsed.Code,
+                fromDistrictId,
+                toDistrictId,
+                parsed.Message);
+            return null;
+        }
+
+        return parsed.Data;
     }
 
     private HttpRequestMessage BuildJsonRequest(

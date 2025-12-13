@@ -23,4 +23,12 @@ public interface IGhnShippingService
     Task<GhnCalculateFeeResponse?> CalculateShippingFeeAsync(
         GhnCalculateFeeRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<GhnAvailableService>?> GetAvailableServicesAsync(
+        int fromDistrictId,
+        int toDistrictId,
+        int? serviceTypeId,
+        int? shopIdOverride = null,
+        string? tokenOverride = null,
+        CancellationToken cancellationToken = default);
 }

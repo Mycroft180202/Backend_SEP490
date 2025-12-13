@@ -25,4 +25,5 @@ public class GhnSettings
     public int DefaultParcelLength { get; set; } = 20; // cm
     public int DefaultParcelWidth { get; set; } = 20;  // cm
     public int DefaultParcelHeight { get; set; } = 10; // cm
+    public int? DefaultInsuranceValue { get; set; } = 0;
 }

@@ -11,8 +11,7 @@ public class RequestCreateOrder
     [Required]
     public string AddressId { get; set; } = default!;
 
-    [Range(1, int.MaxValue, ErrorMessage = "shippingServiceId must be greater than zero")]
-    public int ShippingServiceId { get; set; }
+    public int? ShippingServiceId { get; set; }
 
     [Required]
     [RegularExpression("^(COD|VNPAY)$", ErrorMessage = "Payment method must be COD or VNPAY.")]
@@ -29,7 +28,7 @@ public class RequestCreateOrder
     public int PaymentTypeId { get; set; } = 2;
 
     [Range(1, int.MaxValue, ErrorMessage = "service_type_id must be greater than zero.")]
-    public int ServiceTypeId { get; set; } = 2;
+    public int? ServiceTypeId { get; set; } = 2;
 
     [StringLength(50)]
     public string? BankCode { get; set; }
