@@ -46,7 +46,7 @@ namespace Backend_SEP490.Services.impl
                 Content = request.Content,
                 Image = url,
                 AuthorId = userid,
-                PostStatus = "Active",
+                PostStatus = request.PostStatus,
                 PublishedAt = DateTime.UtcNow
             };
 

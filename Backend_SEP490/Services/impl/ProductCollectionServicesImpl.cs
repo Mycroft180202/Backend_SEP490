@@ -84,8 +84,6 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
             return null;
         }
 
-
-
         // Tạo entity mới
         var entity = new ProductCollection
         {   
@@ -95,7 +93,7 @@ public class ProductCollectionServicesImpl: GenericServices, IProductCollectionS
             Image = url,
             CreatedDate = DateTime.UtcNow,
             CreatedById = dto.CreatedById,
-            IsActive = true
+            IsActive = dto.IsActive
         };
 
         if (dto.ProductIds != null && dto.ProductIds.Any())
