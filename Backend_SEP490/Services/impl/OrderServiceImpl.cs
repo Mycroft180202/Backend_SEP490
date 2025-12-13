@@ -329,6 +329,11 @@ public class OrderServiceImpl : GenericServices, IOrderService
             PaymentTypeId = _ghnSettings.PaymentTypeId
         };
 
+        if (previewRequest.ShippingServiceId <= 0 && (!_ghnSettings.ServiceId.HasValue || _ghnSettings.ServiceId.Value <= 0))
+        {
+            return (false, 0m, null, "Thiếu serviceId để tính phí GHN. Vui lòng cung cấp serviceId.");
+        }
+
         var (itemsResolved, orderItemInputs, itemError) = await ResolveOrderItemsAsync(userId, previewRequest);
         if (!itemsResolved || orderItemInputs.Count == 0)
         {
@@ -555,12 +560,15 @@ public class OrderServiceImpl : GenericServices, IOrderService
         {
             serviceCandidates.Add(_ghnSettings.ServiceId);
         }
-
-        serviceCandidates.Add(null);
         var distinctCandidates = serviceCandidates
             .Select(id => id.HasValue && id.Value <= 0 ? null : id)
             .Distinct()
             .ToList();
+
+        if (distinctCandidates.Count == 0 || distinctCandidates.All(id => !id.HasValue))
+        {
+            return (false, 0m, null, "Thiếu serviceId để tính phí GHN. Vui lòng cung cấp serviceId hoặc cấu hình mặc định.");
+        }
 
         var successCodes = new[] { 0, 200 };
         string? lastErrorMessage = null;
