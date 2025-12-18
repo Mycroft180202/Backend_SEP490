@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+const normalizeBaseUrl = (value) => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+};
+
 const axiosClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL,
+  baseURL: normalizeBaseUrl(process.env.REACT_APP_API_BASE_URL),
   timeout: Number(process.env.REACT_APP_API_TIMEOUT) || 30000,
 });
 

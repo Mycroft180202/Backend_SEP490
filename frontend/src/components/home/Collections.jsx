@@ -53,11 +53,6 @@ const Collections = () => {
               {t('home.collections.description')}
             </p>
           </div>
-          {activeCollections.length > pageSize && (
-            <div className="hidden md:block md:pb-1">
-              <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
-            </div>
-          )}
         </div>
 
         {error && (
@@ -104,7 +99,7 @@ const Collections = () => {
           )}
         </div>
         {activeCollections.length > pageSize && (
-          <div className="mt-10 flex justify-center md:hidden">
+          <div className="mt-10 flex justify-center">
             <Pagination totalPages={totalPages} pageIndex={pageIndex} setPageIndex={setPageIndex} />
           </div>
         )}
