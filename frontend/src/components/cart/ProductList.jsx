@@ -68,6 +68,7 @@ const ProductList = ({
 }) => {
   const { t } = useContext(LanguageContext);
   const [quantityDrafts, setQuantityDrafts] = useState({});
+  const activeDraftKeyRef = useRef(null);
   const [confirmState, setConfirmState] = useState({
     open: false,
     targetId: null,
@@ -219,8 +220,40 @@ const ProductList = ({
 
   const isUnavailable = useCallback((item) => (
     item?.isActive === false
+    || item?.product?.isActive === false
     || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
   ), []);
+
+  useEffect(() => {
+    if (!Array.isArray(items)) return;
+
+    const knownIds = new Set(items.map(getItemKey).filter(Boolean));
+    setQuantityDrafts((prev) => {
+      const next = {};
+      const activeKey = activeDraftKeyRef.current;
+
+      Object.keys(prev || {}).forEach((key) => {
+        if (key && key === activeKey) {
+          next[key] = prev[key];
+        }
+      });
+
+      items.forEach((item) => {
+        const key = getItemKey(item);
+        if (!key || key === activeKey) return;
+        next[key] = String(item?.quantity ?? 1);
+      });
+
+      // Drop any drafts for removed items (except active input).
+      Object.keys(next).forEach((key) => {
+        if (key !== activeKey && !knownIds.has(key)) {
+          delete next[key];
+        }
+      });
+
+      return next;
+    });
+  }, [items, getItemKey]);
 
   const baseItems = allItems && allItems.length ? allItems : items;
   const availableItems = baseItems.filter((item) => !isUnavailable(item));
@@ -1040,6 +1073,9 @@ const ProductList = ({
                                     inputMode="numeric"
                                     pattern="[0-9]*"
                                     value={draftValue}
+                                    onFocus={() => {
+                                      activeDraftKeyRef.current = draftKey;
+                                    }}
                                     onChange={(event) => {
                                       if (isUpdating || itemUnavailable) return;
                                       const raw = event.target.value;
@@ -1048,6 +1084,9 @@ const ProductList = ({
                                     }}
                                     onBlur={async () => {
                                       if (isUpdating || itemUnavailable) return;
+                                      if (activeDraftKeyRef.current === draftKey) {
+                                        activeDraftKeyRef.current = null;
+                                      }
                                       const raw = quantityDrafts[draftKey];
                                       if (raw === undefined) return;
                                       if (raw === '') {
