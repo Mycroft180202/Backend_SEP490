@@ -8,6 +8,7 @@ using Backend_SEP490.Repositories;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 using RequestDTOProduct = Backend_SEP490.DTOs.Response.RequestDTOProduct;
 
@@ -20,13 +21,15 @@ public class ProductServicesImpl: GenericServices, IProductServices
     private readonly IProductImagesServices _productImagesServices;
     private readonly Cloudinary _cloudinary;
     private readonly IEmbeddingService _embeddingService;
-    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IEmbeddingService embeddingService,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary) : base(mapper, unitOfWork)
+    private readonly ILogger<ProductServicesImpl> _logger;
+    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IEmbeddingService embeddingService,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary, ILogger<ProductServicesImpl> logger) : base(mapper, unitOfWork)
     {
         _userServices= userServices;
         _feedbackServices = feedbackServices;
         _productImagesServices = productImagesServices;
         _cloudinary = cloudinary;
         _embeddingService = embeddingService;
+        _logger = logger;
     }
 
     private async Task<List<DTOs.Request.ResponseDTOProduct>> MapAndEnrichProductsAsync(IEnumerable<Product> products)
@@ -350,8 +353,9 @@ public class ProductServicesImpl: GenericServices, IProductServices
             {
                 searchEmbedding = await _embeddingService.GenerateEmbeddingAsync(normalizedSearch!);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Embedding generation failed for search text: {SearchText}", normalizedSearch);
                 // If embedding fails we still keep text-only search working
                 searchEmbedding = null;
             }
