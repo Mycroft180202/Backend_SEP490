@@ -1,4 +1,7 @@
-﻿using AutoMapper;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using AutoMapper;
 using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.DTOs.Response;
@@ -9,34 +12,146 @@ namespace Backend_SEP490.Services.impl
 {
     public class CartServiceImpl : GenericServices, ICartService
     {
-        public CartServiceImpl(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        private readonly ICommerceRealtimeService _realtimeService;
+
+        public CartServiceImpl(
+            IMapper mapper,
+            IUnitOfWork unitOfWork,
+            ICommerceRealtimeService realtimeService) : base(mapper, unitOfWork)
         {
+            _realtimeService = realtimeService;
         }
+
         private string GenerateID(string prefix, string userId) => $"{prefix}-{userId}-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+
         public async Task<ResponseDTOCart> GetCartByUserIdAsync(string userId, int pageIndex, int pageSize)
         {
-            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
-            if(cart == null)
+            var cart = await EnsureCartAsync(userId);
+            if (cart == null)
             {
-                Cart newCart = new Cart
-                {
-                    Id =  GenerateID("Cart", userId),
-                    CustomerID = userId,
-                    CreateAt = DateTime.UtcNow
-                };
-                var status = await _context.Cart.AddCartAsync(newCart);
-                if (!status) return null;
-
-                cart = await _context.Cart.GetCartByUserIdAsync(userId);
+                return null;
             }
-            int count = cart.CartItems.Count;
 
-            var pagedCartItems = cart.CartItems.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
+            return await BuildCartResponseAsync(cart, pageIndex, pageSize);
+        }
 
-            //Map từng cart item sang DTO
+        public async Task<string> AddCartItemAsync(string userId, RequestAddCartItem request)
+        {
+            var cart = await EnsureCartAsync(userId);
+            if (cart == null)
+            {
+                return "Unable to create cart!";
+            }
+
+            var product = await _context.Products.GetProductByIdAsync(request.ProductId);
+            if (product == null)
+            {
+                return "Product not found!";
+            }
+
+            var item = cart.CartItems?.FirstOrDefault(ci => ci.ProductId == request.ProductId);
+
+            if (item != null)
+            {
+                if (item.Quantity + request.quantity > product.Stock)
+                {
+                    return "Out of stock!";
+                }
+
+                var updateMessage = await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + request.quantity);
+                await TryBroadcastCartAsync(userId, updateMessage);
+                return updateMessage;
+            }
+
+            var cartItem = new CartItem
+            {
+                Id = $"{cart.Id}-{request.ProductId}",
+                ProductId = request.ProductId,
+                CartId = cart.Id,
+                Quantity = request.quantity,
+                PriceAtAdd = request.PriceAtAdd
+            };
+
+            var addMessage = await _context.CartItem.AddCartItemAsync(cartItem);
+            await TryBroadcastCartAsync(userId, addMessage);
+            return addMessage;
+        }
+
+        public async Task<string> UpdateCartItemAsync(string cartItemId, int quatity)
+        {
+            var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
+            if (cartItem == null)
+            {
+                return "CartItem not found!";
+            }
+
+            var product = await _context.Products.GetProductByIdAsync(cartItem.ProductId);
+            if (product == null)
+            {
+                return "Product not found!";
+            }
+
+            if (quatity > product.Stock)
+            {
+                return "Out of stock!";
+            }
+
+            string message;
+            if (quatity == 0)
+            {
+                message = await _context.CartItem.DeleteCartItemAsync(cartItem);
+            }
+            else
+            {
+                message = await _context.CartItem.UpdateCartItemAsync(cartItem, quatity);
+            }
+
+            await TryBroadcastCartAsync(cartItem.Cart?.CustomerID, message);
+            return message;
+        }
+
+        public async Task<string> DeleteCartItemAsync(string cartItemId)
+        {
+            var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
+            if (cartItem == null) return "CartItem not found!";
+            var status = await _context.CartItem.DeleteCartItemAsync(cartItem);
+            await TryBroadcastCartAsync(cartItem.Cart?.CustomerID, status);
+            return status;
+        }
+
+        private async Task<Cart?> EnsureCartAsync(string userId)
+        {
+            var cart = await _context.Cart.GetCartByUserIdAsync(userId);
+            if (cart != null)
+            {
+                return cart;
+            }
+
+            var newCart = new Cart
+            {
+                Id = GenerateID("Cart", userId),
+                CustomerID = userId,
+                CreateAt = DateTime.UtcNow
+            };
+            var status = await _context.Cart.AddCartAsync(newCart);
+            if (!status)
+            {
+                return null;
+            }
+
+            return await _context.Cart.GetCartByUserIdAsync(userId);
+        }
+
+        private async Task<ResponseDTOCart> BuildCartResponseAsync(Cart cart, int pageIndex, int pageSize)
+        {
+            var totalItems = cart.CartItems?.Count ?? 0;
+            var pagedCartItems = cart.CartItems?
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToList() ?? new List<CartItem>();
+
             var mappedCartItems = _mapper.Map<IEnumerable<ResponseDTOCartItem>>(pagedCartItems);
 
-            //Bổ sung lấy ảnh cho mỗi product
             foreach (var item in mappedCartItems)
             {
                 if (item.Product != null)
@@ -50,84 +165,43 @@ namespace Backend_SEP490.Services.impl
             var cartItemPagination = new PagedResult<ResponseDTOCartItem>
             {
                 Items = mappedCartItems,
-                TotalCount = count,
+                TotalCount = totalItems,
                 PageIndex = pageIndex,
                 PageSize = pageSize
             };
 
-            // Map phần cart (không bao gồm items)
             var result = _mapper.Map<ResponseDTOCart>(cart);
             result.CartItems = cartItemPagination;
 
             return result;
         }
-        public async Task<string> AddCartItemAsync(string userId, RequestAddCartItem request)
+
+        private async Task TryBroadcastCartAsync(string? userId, string statusMessage)
         {
-            //Check xem sản phẩm đó có trong giỏ hàng hay chưa
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(statusMessage) ||
+                (!statusMessage.Contains("success", StringComparison.OrdinalIgnoreCase) &&
+                 !statusMessage.Contains("succes", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
             var cart = await _context.Cart.GetCartByUserIdAsync(userId);
             if (cart == null)
             {
-                Cart newCart = new Cart
-                {
-                    Id = GenerateID("Cart", userId),
-                    CustomerID = userId,
-                    CreateAt = DateTime.UtcNow
-                };
-                var status = await _context.Cart.AddCartAsync(newCart);
-                if (!status) return null;
-
-                cart = await _context.Cart.GetCartByUserIdAsync(userId);
+                return;
             }
 
-            var product = await _context.Products.GetProductByIdAsync(request.ProductId);
-            var item = cart.CartItems.Where(ci => ci.ProductId.Equals(request.ProductId)).FirstOrDefault();
-
-           //Nếu có thì add 1 vào sản phẩm đó
-            if (item != null)
+            var dto = await BuildCartResponseAsync(cart, 1, Math.Max(cart.CartItems?.Count ?? 0, 10));
+            if (dto != null)
             {
-                if (item.Quantity + request.quantity > product.Stock)
-                {
-                    return "Out of stock!";
-                }
-                return await _context.CartItem.UpdateCartItemAsync(item, item.Quantity.Value + request.quantity);
+                dto.CartItems!.PageSize = dto.CartItems.TotalCount;
+                await _realtimeService.SendCartSnapshotAsync(userId, dto);
             }
-
-            //Nếu chưa có thì tạo mới sản phẩm đó trong CartItem
-            var cartItem = new CartItem
-            {
-                Id = cart.Id + "-" + request.ProductId,
-                ProductId = request.ProductId,
-                CartId = cart.Id,
-                Quantity = request.quantity,
-                PriceAtAdd = request.PriceAtAdd
-            };
-
-            return await _context.CartItem.AddCartItemAsync(cartItem);
-
-        }
-
-        public async Task<string> UpdateCartItemAsync(string cartItemId, int quatity)
-        {
-            var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
-            var product = await _context.Products.GetProductByIdAsync(cartItem.ProductId);
-            if (quatity > product.Stock)
-            {
-                return "Out of stock!";
-            }
-            if(quatity == 0)
-            {
-                return await _context.CartItem.DeleteCartItemAsync(cartItem);
-            } 
-                
-            if (cartItem == null) return "CartItem not found!";
-            return await _context.CartItem.UpdateCartItemAsync(cartItem, quatity);
-        }
-        public async Task<string> DeleteCartItemAsync(string cartItemId)
-        {
-            var cartItem = await _context.CartItem.GetCartItemByIdAsync(cartItemId);
-            if(cartItem == null) return "CartItem not found!";
-            var status = await _context.CartItem.DeleteCartItemAsync(cartItem);
-            return status;
         }
     }
 }

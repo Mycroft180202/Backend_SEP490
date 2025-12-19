@@ -31,6 +31,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
     private readonly IVoucherService _voucherService;
     private readonly ISellerReputationService _sellerReputationService;
     private readonly ILogger<OrderServiceImpl> _logger;
+    private readonly ICommerceRealtimeService _realtimeService;
     private readonly GhnSettings _ghnSettings;
 
     public OrderServiceImpl(
@@ -41,6 +42,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         IShipmentRealtimeService shipmentRealtimeService,
         IVoucherService voucherService,
         ISellerReputationService sellerReputationService,
+        ICommerceRealtimeService realtimeService,
         IOptions<GhnSettings> ghnOptions,
         ILogger<OrderServiceImpl> logger) : base(mapper, unitOfWork)
     {
@@ -49,6 +51,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         _shipmentRealtimeService = shipmentRealtimeService;
         _voucherService = voucherService;
         _sellerReputationService = sellerReputationService;
+        _realtimeService = realtimeService;
         _logger = logger;
         _ghnSettings = ghnOptions.Value;
     }
@@ -219,6 +222,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            await PublishInventoryRealtimeAsync(orderItems, order.CustomerId);
 
             var response = CreateOrderResult.Succeeded(
                 orderId,
@@ -287,6 +291,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 await ClearUserCartAsync(userId);
             }
 
+            await PublishOrderRealtimeAsync(order, response.Message ?? "Order created");
             return response;
         }
         catch
@@ -779,6 +784,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
         order.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(order);
         await _context.SaveChangesAsync();
+        var cancelledOrderItems = await EnsureOrderItemsLoadedAsync(order);
+        await PublishInventoryRealtimeAsync(cancelledOrderItems, null);
         foreach (var shipment in cancelledShipments)
         {
             await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment cancelled");
@@ -794,6 +801,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
         }
 
+        await PublishOrderRealtimeAsync(order, message);
         return message;
     }
 
@@ -855,6 +863,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             }
         }
 
+        await PublishOrderRealtimeAsync(order, "Order marked as completed");
         return (true, "Confirm received successfully!");
     }
 
@@ -900,6 +909,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         order.ArtisanConfirmedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
+        await PublishOrderRealtimeAsync(order, "Order confirmed by artisan");
         return (true, "Order confirmed successfully.");
     }
 
@@ -978,6 +988,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         order.ArtisanConfirmedAt ??= DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
+        await PublishOrderRealtimeAsync(order, "Order marked as shipping");
         return (true, "Order marked as shipping.");
     }
 
@@ -1063,6 +1074,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
         trackedOrder.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(trackedOrder);
         await _context.SaveChangesAsync();
+        var autoCancelledItems = await EnsureOrderItemsLoadedAsync(trackedOrder);
+        await PublishInventoryRealtimeAsync(autoCancelledItems, null);
 
         foreach (var shipment in cancelledShipments)
         {
@@ -1070,6 +1083,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         await HandleAutoCancelNotificationsAndCompensationAsync(trackedOrder, artisanId, cancellationToken);
+        await PublishOrderRealtimeAsync(trackedOrder, "Order auto cancelled");
         return true;
     }
 
@@ -1138,6 +1152,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 {
                     order.Status = OrderStatuses.Shipping;
                     await _context.SaveChangesAsync();
+                    await PublishOrderRealtimeAsync(order, "Order is shipping");
                 }
                 return true;
             }
@@ -1404,6 +1419,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 {
                     await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment created");
                 }
+                await PublishOrderRealtimeAsync(order, "Order is shipping");
             }
         }
         catch (Exception ex)
@@ -2098,4 +2114,85 @@ public class OrderServiceImpl : GenericServices, IOrderService
             PageSize = pageSize
         };
     }
+
+    private RealtimeOrderDto BuildOrderRealtimeDto(Order order, string? message)
+    {
+        return new RealtimeOrderDto
+        {
+            OrderId = order?.Id,
+            OrderNumber = order?.OrderNumber,
+            Status = order?.Status,
+            TotalAmount = order?.TotalAmount ?? 0m,
+            PaymentType = order?.PaymentType,
+            UpdatedAt = DateTime.UtcNow,
+            Message = message
+        };
+    }
+
+    private Task PublishOrderRealtimeAsync(Order order, string? message)
+    {
+        if (order == null || string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            return Task.CompletedTask;
+        }
+
+        var dto = BuildOrderRealtimeDto(order, message);
+        return _realtimeService.SendOrderUpdateAsync(order.CustomerId!, dto);
+    }
+
+    private async Task PublishInventoryRealtimeAsync(IEnumerable<OrderItem> orderItems, string? excludeUserId)
+    {
+        if (orderItems == null)
+        {
+            return;
+        }
+
+        var productIds = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .Select(item => item.ProductID!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (productIds.Count == 0)
+        {
+            return;
+        }
+
+        var stockUpdates = new List<RealtimeProductStockDto>();
+        var adjustmentDtos = new List<RealtimeCartItemAdjustmentDto>();
+
+        foreach (var productId in productIds)
+        {
+            var product = await _context.Products.GetProductByIdAsync(productId);
+            if (product == null)
+            {
+                continue;
+            }
+
+            stockUpdates.Add(new RealtimeProductStockDto
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Stock = product.Stock,
+                IsActive = product.IsActive
+            });
+
+            var adjustments = await SynchronizeCartItemsWithProductStockAsync(product.Id, excludeUserId);
+            if (adjustments.Count > 0)
+            {
+                adjustmentDtos.AddRange(BuildCartAdjustmentDtos(adjustments));
+            }
+        }
+
+        if (stockUpdates.Count > 0)
+        {
+            await _realtimeService.BroadcastProductStockAsync(stockUpdates);
+        }
+
+        if (adjustmentDtos.Count > 0)
+        {
+            await _realtimeService.SendCartAdjustmentsAsync(adjustmentDtos);
+        }
+    }
+
 }

@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+using System.Linq;
+using System.Text.Json;
 using AutoMapper;
 using Backend_SEP490.Data;
 using Backend_SEP490.DTOs.Request;
@@ -20,13 +21,15 @@ public class ProductServicesImpl: GenericServices, IProductServices
     private readonly IProductImagesServices _productImagesServices;
     private readonly Cloudinary _cloudinary;
     private readonly IEmbeddingService _embeddingService;
-    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IEmbeddingService embeddingService,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary) : base(mapper, unitOfWork)
+    private readonly ICommerceRealtimeService _realtimeService;
+    public ProductServicesImpl(IMapper mapper, IUnitOfWork unitOfWork,IEmbeddingService embeddingService,IUserServices userServices,IFeedbackServices feedbackServices,IProductImagesServices productImagesServices , Cloudinary cloudinary, ICommerceRealtimeService realtimeService) : base(mapper, unitOfWork)
     {
         _userServices= userServices;
         _feedbackServices = feedbackServices;
         _productImagesServices = productImagesServices;
         _cloudinary = cloudinary;
         _embeddingService = embeddingService;
+        _realtimeService = realtimeService;
     }
 
     private async Task<List<DTOs.Request.ResponseDTOProduct>> MapAndEnrichProductsAsync(IEnumerable<Product> products)
@@ -245,6 +248,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
             }
         }
 
+        await BroadcastProductStockAsync(newProduct);
         return true;
     }
 
@@ -275,6 +279,8 @@ public class ProductServicesImpl: GenericServices, IProductServices
 
         if (existingProduct == null)
             throw new Exception("Product not found");
+
+        var originalStock = existingProduct.Stock;
 
         // C?p nh?t th?ng tin co b?n
         existingProduct.Name = productDto.Name;
@@ -321,6 +327,11 @@ public class ProductServicesImpl: GenericServices, IProductServices
             existingProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
         }
         await _context.Products.UpdateAsync(existingProduct);
+        if (originalStock != existingProduct.Stock)
+        {
+            await BroadcastProductStockAsync(existingProduct);
+            await SendCartAdjustmentsAsync(existingProduct.Id);
+        }
         return true;
     }
 
@@ -491,6 +502,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         var product = await _context.Products.GetProductByIdAsync(productId);
         product.IsActive = false;
         await _context.Products.UpdateAsync(product);
+        await BroadcastProductStockAsync(product);
         return true;
     }
 
@@ -505,6 +517,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         product.IsActive = isActive;
         product.UpdateAt = DateTime.UtcNow;
         await _context.Products.UpdateAsync(product);
+        await BroadcastProductStockAsync(product);
         return true;
     }
 
@@ -899,5 +912,43 @@ public class ProductServicesImpl: GenericServices, IProductServices
             OutOfStock = product.Where(p => p.Stock == 0).Count()
         };
         return result;
+    }
+
+    private Task BroadcastProductStockAsync(Product product)
+    {
+        if (product == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var dto = new RealtimeProductStockDto
+        {
+            ProductId = product.Id,
+            ProductName = product.Name,
+            Stock = product.Stock,
+            IsActive = product.IsActive
+        };
+
+        return _realtimeService.BroadcastProductStockAsync(new[] { dto });
+    }
+
+    private async Task SendCartAdjustmentsAsync(string productId)
+    {
+        if (string.IsNullOrWhiteSpace(productId))
+        {
+            return;
+        }
+
+        var adjustments = await SynchronizeCartItemsWithProductStockAsync(productId, null);
+        if (adjustments.Count == 0)
+        {
+            return;
+        }
+
+        var dtos = BuildCartAdjustmentDtos(adjustments).ToList();
+        if (dtos.Count > 0)
+        {
+            await _realtimeService.SendCartAdjustmentsAsync(dtos);
+        }
     }
 }

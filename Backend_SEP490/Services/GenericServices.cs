@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
+using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 
@@ -12,6 +13,19 @@ public class GenericServices
 {
     protected readonly IMapper _mapper;
     protected readonly IUnitOfWork _context;
+    protected const string CartStockAdjustmentReasonOutOfStock = "OutOfStock";
+    protected const string CartStockAdjustmentReasonLimited = "LimitedByStock";
+
+    protected record CartStockAdjustment(
+        string UserId,
+        string CartId,
+        string CartItemId,
+        string ProductId,
+        string? ProductName,
+        int RequestedQuantity,
+        int AppliedQuantity,
+        int AvailableStock,
+        string Reason);
 
     public GenericServices(IMapper mapper, IUnitOfWork unitOfWork)
     {
@@ -177,5 +191,112 @@ public class GenericServices
         }
 
         order.IsInventoryReserved = false;
+    }
+
+    protected async Task<IReadOnlyList<CartStockAdjustment>> SynchronizeCartItemsWithProductStockAsync(
+        string productId,
+        string? excludeUserId = null)
+    {
+        if (string.IsNullOrWhiteSpace(productId))
+        {
+            return Array.Empty<CartStockAdjustment>();
+        }
+
+        var product = await _context.Products.GetProductByIdAsync(productId);
+        if (product == null)
+        {
+            return Array.Empty<CartStockAdjustment>();
+        }
+
+        var cartItems = await _context.CartItem.GetCartItemsByProductIdWithCartAsync(productId);
+        if (cartItems == null || cartItems.Count == 0)
+        {
+            return Array.Empty<CartStockAdjustment>();
+        }
+
+        var availableStock = Math.Max(product.Stock, 0);
+        var adjustments = new List<CartStockAdjustment>();
+
+        foreach (var cartItem in cartItems)
+        {
+            var cart = cartItem.Cart;
+            var userId = cart?.CustomerID;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(excludeUserId) &&
+                string.Equals(userId, excludeUserId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var requestedQuantity = Math.Max(cartItem.Quantity ?? 0, 0);
+            if (availableStock <= 0)
+            {
+                await _context.CartItem.DeleteCartItemAsync(cartItem);
+                adjustments.Add(new CartStockAdjustment(
+                    userId,
+                    cart?.Id ?? string.Empty,
+                    cartItem.Id,
+                    cartItem.ProductId ?? product.Id,
+                    cartItem.Product?.Name ?? product.Name,
+                    requestedQuantity,
+                    0,
+                    availableStock,
+                    CartStockAdjustmentReasonOutOfStock));
+                continue;
+            }
+
+            if (requestedQuantity <= availableStock)
+            {
+                continue;
+            }
+
+            await _context.CartItem.UpdateCartItemAsync(cartItem, availableStock);
+            adjustments.Add(new CartStockAdjustment(
+                userId,
+                cart?.Id ?? string.Empty,
+                cartItem.Id,
+                cartItem.ProductId ?? product.Id,
+                cartItem.Product?.Name ?? product.Name,
+                requestedQuantity,
+                availableStock,
+                availableStock,
+                CartStockAdjustmentReasonLimited));
+        }
+
+        return adjustments;
+    }
+
+    protected IEnumerable<RealtimeCartItemAdjustmentDto> BuildCartAdjustmentDtos(IEnumerable<CartStockAdjustment> adjustments)
+    {
+        if (adjustments == null)
+        {
+            yield break;
+        }
+
+        foreach (var adjustment in adjustments)
+        {
+            if (adjustment == null || string.IsNullOrWhiteSpace(adjustment.UserId))
+            {
+                continue;
+            }
+
+            yield return new RealtimeCartItemAdjustmentDto
+            {
+                UserId = adjustment.UserId,
+                CartId = string.IsNullOrWhiteSpace(adjustment.CartId) ? null : adjustment.CartId,
+                CartItemId = adjustment.CartItemId,
+                ProductId = adjustment.ProductId,
+                ProductName = adjustment.ProductName,
+                RequestedQuantity = adjustment.RequestedQuantity,
+                AppliedQuantity = adjustment.AppliedQuantity,
+                AvailableStock = adjustment.AvailableStock,
+                Reason = adjustment.Reason,
+                GeneratedAt = DateTime.UtcNow
+            };
+        }
     }
 }

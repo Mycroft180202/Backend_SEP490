@@ -192,6 +192,7 @@ builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService
 builder.Services.AddScoped<IStoryTellingService, StoryTellingServiceImpl>();
 builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<ISellerReputationService, SellerReputationService>();
+builder.Services.AddScoped<ICommerceRealtimeService, CommerceRealtimeService>();
 builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
 builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
 builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>

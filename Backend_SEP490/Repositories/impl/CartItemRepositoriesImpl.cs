@@ -1,4 +1,6 @@
-﻿using Backend_SEP490.Models;
+using System;
+using System.Linq;
+using Backend_SEP490.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend_SEP490.Repositories.impl
@@ -44,7 +46,24 @@ namespace Backend_SEP490.Repositories.impl
 
         public async Task<CartItem> GetCartItemByIdAsync(string cartItemId)
         {
-            return await _context.CartItems.Where(ci => ci.Id.Equals(cartItemId)).FirstOrDefaultAsync();
+            return await _context.CartItems
+                .Include(ci => ci.Cart)
+                .Include(ci => ci.Product)
+                .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
+        }
+
+        public async Task<IReadOnlyList<CartItem>> GetCartItemsByProductIdWithCartAsync(string productId)
+        {
+            if (string.IsNullOrWhiteSpace(productId))
+            {
+                return Array.Empty<CartItem>();
+            }
+
+            return await _context.CartItems
+                .Include(ci => ci.Cart)
+                .Include(ci => ci.Product)
+                .Where(ci => ci.ProductId == productId)
+                .ToListAsync();
         }
 
         public async Task<string> DeleteCartItemAsync(CartItem cartItem)

@@ -9,6 +9,7 @@ namespace Backend_SEP490.Mapper
         public CartMapper() 
         {
             CreateMap<Cart, ResponseDTOCart>()
+                .ForMember(dest => dest.CartId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.Customer, opt => opt.MapFrom(src => src.Customer))
                 .ForMember(dest => dest.TotalAmount,
                            opt => opt.MapFrom(src => src.CartItems != null

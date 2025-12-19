@@ -22,6 +22,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
     private readonly INotificationService _notificationService;
     private readonly IOrderService _orderService;
     private readonly IVoucherService _voucherService;
+    private readonly ICommerceRealtimeService _realtimeService;
     private readonly VnpaySettings _vnpaySettings;
     private readonly ILogger<PaymentServiceImpl> _logger;
     private static readonly string[] VietnamTimeZoneIds = { "SE Asia Standard Time", "Asia/Ho_Chi_Minh" };
@@ -33,12 +34,14 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         INotificationService notificationService,
         IOrderService orderService,
         IVoucherService voucherService,
+        ICommerceRealtimeService realtimeService,
         IOptions<VnpaySettings> vnpayOptions,
         ILogger<PaymentServiceImpl> logger) : base(mapper, unitOfWork)
     {
         _notificationService = notificationService;
         _orderService = orderService;
         _voucherService = voucherService;
+        _realtimeService = realtimeService;
         _vnpaySettings = vnpayOptions.Value;
         _logger = logger;
     }
@@ -137,6 +140,8 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             await _context.Payments.AddAsync(payment);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            var reservedItems = await EnsureOrderItemsLoadedAsync(order);
+            await PublishInventoryRealtimeAsync(reservedItems, order.CustomerId);
 
             return new VnpayPaymentResponse
             {
@@ -261,6 +266,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         await _context.SaveChangesAsync();
 
         var order = await _context.Order.GetAllOrderByIdAsync(payment.OrderID);
+        await PublishPaymentRealtimeAsync(payment, order);
         var customerId = order?.CustomerId;
         var orderNumber = order?.OrderNumber;
 
@@ -289,6 +295,8 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         {
             await RestoreOrderStockAsync(order);
             await _context.SaveChangesAsync();
+            var restoredItems = await EnsureOrderItemsLoadedAsync(order);
+            await PublishInventoryRealtimeAsync(restoredItems, null);
         }
 
         if (!string.IsNullOrWhiteSpace(customerId))
@@ -300,6 +308,8 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         {
             await _orderService.CreateShipmentsAfterPaymentAsync(payment.OrderID);
         }
+
+        await PublishOrderRealtimeAsync(order, $"Payment status updated: {normalizedStatus}");
     }
 
     private static bool ShouldClearCartAfterPayment(Order? order, string normalizedStatus)
@@ -553,6 +563,104 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
         {
             await _context.SaveChangesAsync();
         }
+    }
+
+
+    private async Task PublishInventoryRealtimeAsync(IEnumerable<OrderItem> orderItems, string? excludeUserId)
+    {
+        if (orderItems == null)
+        {
+            return;
+        }
+
+        var productIds = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .Select(item => item.ProductID!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (productIds.Count == 0)
+        {
+            return;
+        }
+
+        var stockUpdates = new List<RealtimeProductStockDto>();
+        var adjustmentDtos = new List<RealtimeCartItemAdjustmentDto>();
+
+        foreach (var productId in productIds)
+        {
+            var product = await _context.Products.GetProductByIdAsync(productId);
+            if (product == null)
+            {
+                continue;
+            }
+
+            stockUpdates.Add(new RealtimeProductStockDto
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Stock = product.Stock,
+                IsActive = product.IsActive
+            });
+
+            var adjustments = await SynchronizeCartItemsWithProductStockAsync(product.Id, excludeUserId);
+            if (adjustments.Count > 0)
+            {
+                adjustmentDtos.AddRange(BuildCartAdjustmentDtos(adjustments));
+            }
+        }
+
+        if (stockUpdates.Count > 0)
+        {
+            await _realtimeService.BroadcastProductStockAsync(stockUpdates);
+        }
+
+        if (adjustmentDtos.Count > 0)
+        {
+            await _realtimeService.SendCartAdjustmentsAsync(adjustmentDtos);
+        }
+    }
+
+    private Task PublishPaymentRealtimeAsync(Payment payment, Order? order)
+    {
+        if (payment == null || order == null || string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            return Task.CompletedTask;
+        }
+
+        var dto = new RealtimePaymentDto
+        {
+            PaymentId = payment.Id,
+            OrderId = payment.OrderID,
+            OrderNumber = order.OrderNumber,
+            Status = payment.PaymentStatus,
+            Amount = payment.Amount,
+            ProcessedAt = payment.ProccessedAt,
+            ProviderCode = payment.ProviderXlnd
+        };
+
+        return _realtimeService.SendPaymentUpdateAsync(order.CustomerId!, dto);
+    }
+
+    private Task PublishOrderRealtimeAsync(Order? order, string? message)
+    {
+        if (order == null || string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            return Task.CompletedTask;
+        }
+
+        var dto = new RealtimeOrderDto
+        {
+            OrderId = order.Id,
+            OrderNumber = order.OrderNumber,
+            Status = order.Status,
+            TotalAmount = order.TotalAmount,
+            PaymentType = order.PaymentType,
+            UpdatedAt = DateTime.UtcNow,
+            Message = message
+        };
+
+        return _realtimeService.SendOrderUpdateAsync(order.CustomerId!, dto);
     }
 
 }
