@@ -106,6 +106,20 @@ const Cart = () => {
     };
   }, [fetchCart, navigate, t, token]);
 
+  useEffect(() => {
+    if (!token) return () => {};
+    if (typeof window === 'undefined') return () => {};
+
+    const handleCartUpdated = () => {
+      fetchCart();
+    };
+
+    window.addEventListener('cart:updated', handleCartUpdated);
+    return () => {
+      window.removeEventListener('cart:updated', handleCartUpdated);
+    };
+  }, [fetchCart, token]);
+
   const handleQuantityChange = async (cartItemId, quantity, options = {}) => {
     const targetItem = items.find(
       (item) => (item.cartItemId || item.id) === cartItemId,

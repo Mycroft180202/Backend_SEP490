@@ -93,6 +93,33 @@ const OrderHistory = () => {
     fetchOrders(1);
   }, [fetchOrders]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+
+    let refreshTimeout = null;
+    const scheduleRefresh = () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        fetchOrders(currentPage);
+      }, 400);
+    };
+
+    const handleRealtimeOrderUpdate = () => scheduleRefresh();
+    const handleRealtimePaymentUpdate = () => scheduleRefresh();
+    const handleRealtimeShipmentUpdate = () => scheduleRefresh();
+
+    window.addEventListener('realtime:orderUpdated', handleRealtimeOrderUpdate);
+    window.addEventListener('realtime:paymentUpdated', handleRealtimePaymentUpdate);
+    window.addEventListener('realtime:shipmentStatusUpdated', handleRealtimeShipmentUpdate);
+
+    return () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      window.removeEventListener('realtime:orderUpdated', handleRealtimeOrderUpdate);
+      window.removeEventListener('realtime:paymentUpdated', handleRealtimePaymentUpdate);
+      window.removeEventListener('realtime:shipmentStatusUpdated', handleRealtimeShipmentUpdate);
+    };
+  }, [currentPage, fetchOrders]);
+
   const applyFilters = useCallback((items) => {
     if (!Array.isArray(items)) return [];
 

@@ -30,6 +30,7 @@ import OrderSuccess from './pages/OrderSuccess';
 import PaymentResult from './pages/PaymentResult';
 import ArtisanDashboard from './components/artisanDashboard/dashboard';
 import StorytellingDetail from './pages/StorytellingDetail';
+import RealtimeBootstrap from './services/realtime/RealtimeBootstrap';
 
 const resolveRoleName = (role) => {
   if (typeof role === 'string') return role;
@@ -125,6 +126,7 @@ function App() {
         <NavigationProvider>
           <Router>
             <>
+              <RealtimeBootstrap />
               <ScrollToTop />
               <DocumentTitleUpdater />
               <Routes>
