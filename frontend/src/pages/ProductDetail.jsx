@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import Footer from '../components/shared/Footer';
 import Header from '../components/shared/Header';
 import Breadcrumb from '../components/shared/Breadcrumb';
@@ -319,6 +320,37 @@ const ProductDetail = () => {
       canceled = true;
     };
   }, [product?.artisanId, product?.artisanID, shopInfo?.image, shopInfo?.artisanId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+
+    const handleStockUpdated = (event) => {
+      const update = event?.detail || null;
+      const updatedProductId = update?.productId;
+      if (!updatedProductId) return;
+
+      const currentId = product?.id ?? product?.productId;
+      if (!currentId || String(currentId) !== String(updatedProductId)) return;
+
+      setProduct((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stock: typeof update.stock === 'number' ? update.stock : prev.stock,
+          isActive: typeof update.isActive === 'boolean' ? update.isActive : prev.isActive,
+        };
+      });
+
+      if (update?.isActive === false) {
+        toast.info('Sản phẩm hiện đã ngừng bán.');
+      }
+    };
+
+    window.addEventListener('realtime:productStockUpdated', handleStockUpdated);
+    return () => {
+      window.removeEventListener('realtime:productStockUpdated', handleStockUpdated);
+    };
+  }, [product?.id, product?.productId]);
 
   if (loading) {
     return (

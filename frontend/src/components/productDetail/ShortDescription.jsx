@@ -63,6 +63,10 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
   };
 
   const handleQuantityChange = (type) => {
+    if (product?.isActive === false) {
+      toast.error('Sản phẩm hiện đã ngừng bán.');
+      return;
+    }
     if (type === 'increase' && quantity < product.stock) {
       setQuantity((prev) => prev + 1);
     } else if (type === 'decrease' && quantity > 1) {
@@ -85,6 +89,10 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
   };
 
   const validateQuantity = () => {
+    if (product?.isActive === false) {
+      toast.error('Sản phẩm hiện đã ngừng bán.');
+      return false;
+    }
     if (product.stock <= 0) {
       toast.error('Sản phẩm đã hết hàng.');
       return false;
@@ -470,7 +478,7 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
                   type="button"
                   onClick={() => handleAddToCart(false)}
                   className="flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#8B4513] text-white text-lg font-semibold shadow-lg hover:bg-[#DDA15E] transition-all duration-300 disabled:opacity-60"
-                  disabled={product.stock <= 0}
+                  disabled={product.stock <= 0 || product.isActive === false}
                 >
                   <FaShoppingCart />
                   {t('productCard.addToCart')}
@@ -479,7 +487,7 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
                   type="button"
                   onClick={() => handleAddToCart(true)}
                   className="flex items-center justify-center gap-2 px-6 py-3 rounded-full border-2 border-[#8B4513] text-[#8B4513] text-lg font-semibold hover:bg-[#FFF8E7] transition-all duration-300 disabled:opacity-60"
-                  disabled={product.stock <= 0}
+                  disabled={product.stock <= 0 || product.isActive === false}
                 >
                   <FaBolt />
                   {t('productCard.buyNow')}

@@ -359,6 +359,39 @@ const ArtisanShop = () => {
     setPageIndex(idx);
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+
+    const handleStockUpdated = (event) => {
+      const update = event?.detail || null;
+      const updatedProductId = update?.productId;
+      if (!updatedProductId) return;
+
+      const applyUpdate = (product) => {
+        if (!product) return product;
+        const productId = product.id ?? product.productId;
+        if (String(productId) !== String(updatedProductId)) return product;
+        return {
+          ...product,
+          stock: typeof update.stock === 'number' ? update.stock : product.stock,
+          isActive: typeof update.isActive === 'boolean' ? update.isActive : product.isActive,
+        };
+      };
+
+      setAllProducts((prev) => (Array.isArray(prev) ? prev.map(applyUpdate) : prev));
+      setProducts((prev) => {
+        if (!Array.isArray(prev) || prev.length === 0) return prev;
+        const next = prev.map(applyUpdate);
+        return next;
+      });
+    };
+
+    window.addEventListener('realtime:productStockUpdated', handleStockUpdated);
+    return () => {
+      window.removeEventListener('realtime:productStockUpdated', handleStockUpdated);
+    };
+  }, []);
+
   if (error) {
     return <div className="text-center text-red-600 mt-10">{`${t('general.errorPrefix')}${error}`}</div>;
   }

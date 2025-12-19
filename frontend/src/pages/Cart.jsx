@@ -26,6 +26,7 @@ const Cart = () => {
   const [summary, setSummary] = useState({ subtotal: 0, shipping: 0, total: 0 });
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const toastShownRef = useRef(false);
+  const lastStockUpdateRef = useRef(new Map());
   const redirectTimeoutRef = useRef(null);
 
   const token = useMemo(
@@ -119,6 +120,55 @@ const Cart = () => {
       window.removeEventListener('cart:updated', handleCartUpdated);
     };
   }, [fetchCart, token]);
+
+  useEffect(() => {
+    if (!token) return () => {};
+    if (typeof window === 'undefined') return () => {};
+
+    const handleStockUpdated = (event) => {
+      const update = event?.detail || null;
+      const updatedProductId = update?.productId;
+      if (!updatedProductId) return;
+
+      setItems((prev) => {
+        if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+        let touched = false;
+        const next = prev.map((item) => {
+          if (!item) return item;
+          if (String(item.productId) !== String(updatedProductId)) return item;
+          touched = true;
+          return {
+            ...item,
+            stock: typeof update.stock === 'number' ? update.stock : item.stock,
+            isActive: typeof update.isActive === 'boolean' ? update.isActive : item.isActive,
+            product: item.product
+              ? {
+                ...item.product,
+                stock: typeof update.stock === 'number' ? update.stock : item.product.stock,
+                isActive: typeof update.isActive === 'boolean' ? update.isActive : item.product.isActive,
+              }
+              : item.product,
+          };
+        });
+
+        return touched ? next : prev;
+      });
+
+      if (typeof update.isActive === 'boolean' && update.isActive === false) {
+        const toastKey = `${updatedProductId}:${update.isActive}:${update.stock}`;
+        if (lastStockUpdateRef.current.get(updatedProductId) !== toastKey) {
+          lastStockUpdateRef.current.set(updatedProductId, toastKey);
+          toast.info('Một sản phẩm trong giỏ hàng vừa bị ngừng bán.');
+        }
+      }
+    };
+
+    window.addEventListener('realtime:productStockUpdated', handleStockUpdated);
+    return () => {
+      window.removeEventListener('realtime:productStockUpdated', handleStockUpdated);
+    };
+  }, [token]);
 
   const handleQuantityChange = async (cartItemId, quantity, options = {}) => {
     const targetItem = items.find(

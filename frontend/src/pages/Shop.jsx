@@ -303,6 +303,42 @@ const Shop = () => {
     }
   }, [userInfo]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+
+    const handleStockUpdated = (event) => {
+      const update = event?.detail || null;
+      const updatedProductId = update?.productId;
+      if (!updatedProductId) return;
+
+      setProducts((prev) => {
+        if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+        let touched = false;
+        const next = prev
+          .map((product) => {
+            if (!product) return product;
+            const productId = product.id ?? product.productId;
+            if (String(productId) !== String(updatedProductId)) return product;
+            touched = true;
+            return {
+              ...product,
+              stock: typeof update.stock === 'number' ? update.stock : product.stock,
+              isActive: typeof update.isActive === 'boolean' ? update.isActive : product.isActive,
+            };
+          })
+          .filter((product) => product?.isActive !== false);
+
+        return touched ? next : prev;
+      });
+    };
+
+    window.addEventListener('realtime:productStockUpdated', handleStockUpdated);
+    return () => {
+      window.removeEventListener('realtime:productStockUpdated', handleStockUpdated);
+    };
+  }, []);
+
   return (
     <div className="bg-gradient-to-b from-[#FFFBF0] to-[#FFF8E7] min-h-screen">
       <Header />
