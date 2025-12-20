@@ -5,12 +5,20 @@ const HUB_URL = `${process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, '')}/hubs/
 let connection = null;
 let startPromise = null;
 
+const isDebugEnabled = () => {
+  try {
+    return localStorage.getItem('debugRealtime') === '1';
+  } catch (_) {
+    return false;
+  }
+};
+
 const buildConnection = () => new HubConnectionBuilder()
   .withUrl(HUB_URL, {
     accessTokenFactory: () => localStorage.getItem('accessToken') || '',
   })
   .withAutomaticReconnect()
-  .configureLogging(LogLevel.Error)
+  .configureLogging(isDebugEnabled() ? LogLevel.Information : LogLevel.Error)
   .build();
 
 const startConnection = async () => {
@@ -19,6 +27,11 @@ const startConnection = async () => {
   }
   if (connection.state === 'Connected') return connection;
   if (!startPromise) {
+    if (isDebugEnabled()) {
+      connection.onreconnecting((err) => console.log('[SignalR] reconnecting', err));
+      connection.onreconnected((id) => console.log('[SignalR] reconnected', id));
+      connection.onclose((err) => console.log('[SignalR] closed', err));
+    }
     startPromise = connection
       .start()
       .catch((err) => {
@@ -28,6 +41,7 @@ const startConnection = async () => {
       })
       .then(() => {
         startPromise = null;
+        if (isDebugEnabled()) console.log('[SignalR] connected', HUB_URL);
         return connection;
       });
   }
@@ -65,4 +79,6 @@ export const NotificationHub = {
     if (!connection) connection = buildConnection();
     return connection;
   },
+
+  isDebugEnabled,
 };

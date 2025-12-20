@@ -3,6 +3,8 @@ import { toast } from 'react-toastify';
 import { UserContext } from '../../context/UserContext';
 import { NotificationHub } from '../modules/notification/notificationHub';
 
+const isDebugEnabled = () => NotificationHub?.isDebugEnabled?.() === true;
+
 const emitWindowEvent = (name, detail) => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(name, { detail }));
@@ -75,13 +77,19 @@ export default function RealtimeBootstrap() {
         const connection = await NotificationHub.ensureConnected();
         if (isCancelled) return;
 
+        if (isDebugEnabled()) {
+          console.log('[Realtime] handlers attached');
+        }
+
         const onCartUpdated = (cart) => {
+          if (isDebugEnabled()) console.log('[Realtime] CartUpdated', cart);
           emitWindowEvent('realtime:cartUpdated', cart);
           emitWindowEvent('cart:updated');
         };
 
         const onCartItemAdjusted = (adjustment) => {
           const normalizedAdjustment = normalizeCartItemAdjustment(adjustment);
+          if (isDebugEnabled()) console.log('[Realtime] CartItemAdjusted', normalizedAdjustment);
           emitWindowEvent('realtime:cartItemAdjusted', normalizedAdjustment);
           emitWindowEvent('cart:updated');
 
@@ -96,18 +104,23 @@ export default function RealtimeBootstrap() {
         };
 
         const onOrderUpdated = (orderUpdate) => {
+          if (isDebugEnabled()) console.log('[Realtime] OrderUpdated', orderUpdate);
           emitWindowEvent('realtime:orderUpdated', orderUpdate);
         };
 
         const onPaymentUpdated = (paymentUpdate) => {
+          if (isDebugEnabled()) console.log('[Realtime] PaymentUpdated', paymentUpdate);
           emitWindowEvent('realtime:paymentUpdated', paymentUpdate);
         };
 
         const onProductStockUpdated = (stockUpdate) => {
-          emitWindowEvent('realtime:productStockUpdated', normalizeStockUpdate(stockUpdate));
+          const normalized = normalizeStockUpdate(stockUpdate);
+          if (isDebugEnabled()) console.log('[Realtime] ProductStockUpdated', normalized);
+          emitWindowEvent('realtime:productStockUpdated', normalized);
         };
 
         const onShipmentStatusUpdated = (shipmentUpdate) => {
+          if (isDebugEnabled()) console.log('[Realtime] ShipmentStatusUpdated', shipmentUpdate);
           emitWindowEvent('realtime:shipmentStatusUpdated', shipmentUpdate);
         };
 
