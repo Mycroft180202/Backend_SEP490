@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { UserProvider, UserContext } from './context/UserContext';
 import { LanguageProvider, LanguageContext } from './context/LanguageContext';
@@ -119,6 +119,22 @@ const DocumentTitleUpdater = () => {
 
   return null;
 };
+
+const AdminAccessEnforcer = () => {
+  const { userInfo } = useContext(UserContext);
+  const location = useLocation();
+
+  const roleList = Array.isArray(userInfo?.roles) ? userInfo.roles : [];
+  const isAdmin = hasRole(roleList, 'Admin');
+
+  if (!isAdmin) return null;
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  if (normalizedPath !== '/admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return null;
+};
 function App() {
   return (
     <UserProvider>
@@ -129,6 +145,7 @@ function App() {
               <RealtimeBootstrap />
               <ScrollToTop />
               <DocumentTitleUpdater />
+              <AdminAccessEnforcer />
               <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/about" element={<AboutUs />} />

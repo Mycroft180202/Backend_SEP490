@@ -66,6 +66,12 @@ const Header = () => {
       if (isMountedRef.current) setCartCount(0);
       return;
     }
+    const roleSnapshot = Array.isArray(userInfo?.roles) ? userInfo.roles : [];
+    const isAdminUser = roleSnapshot.some((role) => (typeof role === 'string' ? role : role?.name) === 'Admin');
+    if (isAdminUser) {
+      if (isMountedRef.current) setCartCount(0);
+      return;
+    }
     try {
       const cart = await CartService.getCart(1, 50);
       const totalItems = computeCartCount(cart);
@@ -236,14 +242,19 @@ const Header = () => {
     return value && value !== key ? value : fallback;
   }, [t]);
 
-  const navItems = useMemo(() => ([
-    { path: '/', label: resolveLabel('nav.home', 'Trang chủ') },
-    { path: '/about', label: resolveLabel('nav.about', 'Giới thiệu') },
-    { path: '/shop', label: resolveLabel('nav.shop', 'Cửa hàng') },
-    { path: '/blog', label: resolveLabel('nav.blog', 'Blog') },
-    { path: '/contact', label: resolveLabel('nav.contact', 'Liên hệ') },
-    { path: '/policy', label: resolveLabel('nav.policy', 'Chính sách') },
-  ]), [resolveLabel]);
+  const navItems = useMemo(() => {
+    if (isAdmin) {
+      return [{ path: '/admin', label: 'Admin' }];
+    }
+    return [
+      { path: '/', label: resolveLabel('nav.home', 'Trang chủ') },
+      { path: '/about', label: resolveLabel('nav.about', 'Giới thiệu') },
+      { path: '/shop', label: resolveLabel('nav.shop', 'Cửa hàng') },
+      { path: '/blog', label: resolveLabel('nav.blog', 'Blog') },
+      { path: '/contact', label: resolveLabel('nav.contact', 'Liên hệ') },
+      { path: '/policy', label: resolveLabel('nav.policy', 'Chính sách') },
+    ];
+  }, [isAdmin, resolveLabel]);
 
   const profileEntryNode = useMemo(() => {
     if (location.pathname === '/profile') {
@@ -418,18 +429,20 @@ const Header = () => {
         )}
 
         {/* Cart Icon */}
-        <div className="relative">
-          <FaShoppingCart
-            className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
-            title={t('header.cartTooltip')}
-            onClick={() => navigate('/cart')}
-          />
-          {cartCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-semibold rounded-full px-[3px] min-w-[16px] h-[16px] flex items-center justify-center leading-none">
-              {cartCount > 99 ? '99+' : cartCount}
-            </span>
-          )}
-        </div>
+        {!isAdmin && (
+          <div className="relative">
+            <FaShoppingCart
+              className="text-white text-lg sm:text-xl cursor-pointer hover:text-yellow-200 transition"
+              title={t('header.cartTooltip')}
+              onClick={() => navigate('/cart')}
+            />
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-semibold rounded-full px-[3px] min-w-[16px] h-[16px] flex items-center justify-center leading-none">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Notifications */}
         <div

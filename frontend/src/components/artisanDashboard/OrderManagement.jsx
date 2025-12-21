@@ -668,8 +668,8 @@ const OrderManagement = () => {
       <div className="rounded-xl bg-white p-6 shadow-md">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="font-alata text-xl font-bold text-gray-800">Quản lý đơn hàng</h2>
-            <p className="mt-1 text-sm text-gray-600">Quản lý và theo dõi đơn hàng của shop</p>
+            <h2 className="font-alata text-xl font-bold text-gray-800">Tất cả đơn hàng</h2>
+            <p className="mt-1 text-sm text-gray-600">Theo dõi đơn hàng </p>
           </div>
           <button
             type="button"

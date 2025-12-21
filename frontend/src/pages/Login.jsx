@@ -13,6 +13,16 @@ import {
 import { LanguageContext } from '../context/LanguageContext';
 import { validateStrongPassword } from '../utils/passwordValidation';
 
+const resolveRoleName = (role) => {
+  if (typeof role === 'string') return role;
+  return role?.name || role?.roleName || role?.value || '';
+};
+
+const hasRole = (roles, requiredRole) => {
+  const target = typeof requiredRole === 'string' ? requiredRole.toLowerCase() : '';
+  return roles.some((role) => resolveRoleName(role).toLowerCase() === target);
+};
+
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -142,10 +152,12 @@ const Login = () => {
           });
           return;
         }
+        const roleList = Array.isArray(user?.roles) ? user.roles : [];
+        const isAdmin = hasRole(roleList, 'Admin');
         toast.success(t('auth.login.toastSuccess'), {
           position: "top-right",
           autoClose: 1000,
-          onClose: () => navigate('/')
+          onClose: () => navigate(isAdmin ? '/admin' : '/')
         });
       } else {
         toast.error(t('auth.login.toastInvalid'), {

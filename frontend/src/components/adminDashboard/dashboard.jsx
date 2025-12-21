@@ -204,12 +204,6 @@ const AdminDashboard = () => {
                 />
                 <div className="text-right">
                   <p className="font-semibold text-sm">{userInfo?.displayName || userInfo?.username || 'Admin User'}</p>
-                  <p className="text-xs text-gray-500">
-                    {(userInfo?.roles || [])
-                      .map((r) => (typeof r === 'string' ? r : r?.name))
-                      .filter(Boolean)
-                      .join(', ') || 'Administrator'}
-                  </p>
                 </div>
               </div>
             </div>
