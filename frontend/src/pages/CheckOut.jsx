@@ -13,6 +13,7 @@ import Footer from '../components/shared/Footer';
 import CheckoutBanner from '../components/checkOut/CheckoutBanner';
 import ProductReview from '../components/checkOut/ProductReview';
 import AddressSelector from '../components/checkOut/AddressSelector';
+import AddressManageModal from '../components/checkOut/AddressManageModal';
 import PaymentMethod from '../components/checkOut/PaymentMethod';
 import OrderSummary from '../components/checkOut/OrderSummary';
 import { CartService } from '../services/modules/cart/cartService';
@@ -166,6 +167,7 @@ const CheckOut = () => {
   const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [shippingFee, setShippingFee] = useState(0);
@@ -179,11 +181,16 @@ const CheckOut = () => {
   const redirectTimeoutRef = useRef(null);
   const pendingShopFetchRef = useRef(new Set());
   const removedUnavailableToastShownRef = useRef(false);
+  const selectedAddressRef = useRef(null);
 
   const token = useMemo(
     () => (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null),
     [],
   );
+
+  useEffect(() => {
+    selectedAddressRef.current = selectedAddress;
+  }, [selectedAddress]);
 
   const priceSuffix = t('productCard.priceSuffix') || '₫';
 
@@ -581,7 +588,15 @@ const CheckOut = () => {
     }
   }, [filterCartItemsBySelection, t, token]);
 
-  const fetchAddresses = useCallback(async () => {
+  const getAddressId = useCallback((address) => (
+    address?.id
+    ?? address?.addressId
+    ?? address?.shippingAddressId
+    ?? address?.code
+    ?? null
+  ), []);
+
+  const fetchAddresses = useCallback(async (options = {}) => {
     if (!token) return;
     try {
       setLoadingAddresses(true);
@@ -605,8 +620,32 @@ const CheckOut = () => {
       const resolved = await resolveAddressNames(prepared);
 
       setAddresses(resolved);
-      const defaultAddress = resolved.find((addr) => addr.isDefault) || resolved[0] || null;
-      setSelectedAddress(defaultAddress);
+      const preferId = options?.preferAddressId ? String(options.preferAddressId) : null;
+      const currentSelected = selectedAddressRef.current;
+      const currentSelectedId = currentSelected
+        ? String(getAddressId(currentSelected) ?? currentSelected.__internalId ?? '')
+        : '';
+
+      const preferred = preferId
+        ? resolved.find((addr) => String(getAddressId(addr) ?? addr.__internalId ?? '') === preferId)
+        : null;
+      const preserved = !preferred && currentSelectedId
+        ? resolved.find((addr) => String(getAddressId(addr) ?? addr.__internalId ?? '') === currentSelectedId)
+        : null;
+      const fallback = resolved.find((addr) => addr.isDefault) || resolved[0] || null;
+
+      const nextSelected = preferred || preserved || fallback;
+      const nextSelectedId = nextSelected
+        ? String(getAddressId(nextSelected) ?? nextSelected.__internalId ?? '')
+        : '';
+
+      setSelectedAddress((prev) => {
+        const prevId = prev ? String(getAddressId(prev) ?? prev.__internalId ?? '') : '';
+        if (prevId && nextSelectedId && prevId === nextSelectedId && !preferId) {
+          return prev;
+        }
+        return nextSelected;
+      });
     } catch (error) {
       console.error(error);
       const message =
@@ -619,7 +658,7 @@ const CheckOut = () => {
     } finally {
       setLoadingAddresses(false);
     }
-  }, [resolveAddressNames, t, token]);
+  }, [getAddressId, resolveAddressNames, t, token]);
 
   const fetchVouchers = useCallback(async () => {
     if (!token) return;
@@ -1197,14 +1236,16 @@ const CheckOut = () => {
                   onAddressSelect={(address) => {
                     setSelectedAddress(address);
                   }}
-                  onManageClick={() => navigate('/profile', {
-                    state: {
-                      from: '/checkout',
-                      fromProfileOrigin: checkoutNavigationNode,
-                      profileFocus: 'addresses',
-                    },
-                  })}
+                  onManageClick={() => setAddressModalOpen(true)}
                   allowManage
+                />
+                <AddressManageModal
+                  isOpen={addressModalOpen}
+                  onClose={() => setAddressModalOpen(false)}
+                  existingAddresses={addresses}
+                  onCreated={async ({ createdAddressId } = {}) => {
+                    await fetchAddresses(createdAddressId ? { preferAddressId: createdAddressId } : undefined);
+                  }}
                 />
                 <PaymentMethod
                   selectedMethod={selectedPaymentMethod}

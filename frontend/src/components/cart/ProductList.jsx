@@ -1187,6 +1187,11 @@ const ProductList = ({
 
           <aside className="bg-white border border-[#efe7db] rounded-2xl shadow-xl p-6 h-fit lg:sticky lg:top-6">
             <h2 className="text-xl font-semibold text-[#8B4513] mb-6">{t('cart.summaryTitle')}</h2>
+            {!selectionActive && (
+              <p className="mb-3 text-xs text-gray-500">
+                * Chọn sản phẩm để tiến hành đặt hàng
+              </p>
+            )}
             {selectionActive && (
               <div className="mb-4 bg-[#FFF8EE] border border-[#F3D5B5] rounded-xl px-4 py-3 text-sm text-[#8B4513]">
                 <p className="font-semibold">

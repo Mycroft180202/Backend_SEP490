@@ -1,9 +1,49 @@
 import axiosClient from '../../api/axiosConfig';
 import { API_ENDPOINTS } from '../../api/endpoints';
 
+const CART_CACHE_MAX_AGE_MS = 15000;
+const cartCache = {
+  ts: 0,
+  quantitiesByProductId: new Map(),
+};
+
 const emitCartUpdated = () => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('cart:updated'));
+};
+
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  return str.length ? str : null;
+};
+
+const updateCartCache = (items) => {
+  if (!Array.isArray(items)) return;
+  const next = new Map();
+  items.forEach((item) => {
+    const pid = normalizeId(item?.productId || item?.product?.id || item?.product?.productId);
+    if (!pid) return;
+    const qty = Number(item?.quantity ?? 0);
+    if (!Number.isFinite(qty)) return;
+    next.set(pid, (next.get(pid) || 0) + qty);
+  });
+  cartCache.quantitiesByProductId = next;
+  cartCache.ts = Date.now();
+};
+
+const getCachedQuantity = (productId) => {
+  const pid = normalizeId(productId);
+  if (!pid) return null;
+  if (!cartCache.ts || Date.now() - cartCache.ts > CART_CACHE_MAX_AGE_MS) return null;
+  return cartCache.quantitiesByProductId.get(pid) ?? 0;
+};
+
+const clampPositiveInt = (value, fallback = 1) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const floored = Math.floor(parsed);
+  return floored > 0 ? floored : fallback;
 };
 
 const normalizeCartItems = (data) => {
@@ -65,6 +105,7 @@ export const CartService = {
     });
     const data = response?.data || {};
     const items = normalizeCartItems(data);
+    updateCartCache(items);
 
     const subtotal = items.reduce(
       (total, item) => total + (item.price || 0) * (item.quantity || 0),
@@ -84,6 +125,10 @@ export const CartService = {
     };
   },
 
+  getCachedQuantity(productId) {
+    return getCachedQuantity(productId);
+  },
+
   addItem: async (productId, priceAtAdd = 0, quantity = 1) => {
     const payload = {
       productId,
@@ -93,6 +138,55 @@ export const CartService = {
     const response = await axiosClient.post(API_ENDPOINTS.CART.ROOT, payload);
     emitCartUpdated();
     return response.data;
+  },
+
+  addItemValidated: async (productId, priceAtAdd = 0, quantity = 1, stock) => {
+    const requested = clampPositiveInt(quantity, 1);
+    const cachedQty = getCachedQuantity(productId);
+    const currentQty = cachedQty ?? (() => null)();
+
+    let existingQty = currentQty;
+    if (existingQty === null) {
+      try {
+        await CartService.getCart(1, 200);
+        const pid = normalizeId(productId);
+        existingQty = pid ? cartCache.quantitiesByProductId.get(pid) ?? 0 : 0;
+      } catch (error) {
+        existingQty = 0;
+      }
+    }
+
+    const stockLimit = Number(stock);
+    const hasStockLimit = Number.isFinite(stockLimit) && stockLimit >= 0;
+    const remaining = hasStockLimit ? Math.max(0, Math.floor(stockLimit) - (existingQty || 0)) : null;
+
+    if (hasStockLimit && remaining <= 0) {
+      return {
+        success: false,
+        requested,
+        added: 0,
+        message: 'Số lượng sản phẩm trong giỏ đã đạt tối đa theo tồn kho.',
+      };
+    }
+
+    const toAdd = hasStockLimit ? Math.min(requested, remaining) : requested;
+    await CartService.addItem(productId, priceAtAdd, toAdd);
+
+    // Optimistically update cache; realtime/backend can correct if needed.
+    const pid = normalizeId(productId);
+    if (pid) {
+      const nextQty = (existingQty || 0) + toAdd;
+      cartCache.quantitiesByProductId.set(pid, nextQty);
+      cartCache.ts = Date.now();
+    }
+
+    return {
+      success: true,
+      requested,
+      added: toAdd,
+      limited: hasStockLimit && toAdd < requested,
+      remainingAfter: hasStockLimit ? Math.max(0, Math.floor(stockLimit) - ((existingQty || 0) + toAdd)) : null,
+    };
   },
 
   updateItem: async (cartItemId, quantity) => {

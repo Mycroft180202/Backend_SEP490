@@ -149,8 +149,21 @@ const Shop = () => {
 
     if (!ensureAuthenticated('messages.loginToAddCart', 'Đăng nhập để thêm vào giỏ hàng.')) return;
     try {
-      await CartService.addItem(productId, price, quantity);
-      toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
+      const stock = productOrId && typeof productOrId === 'object' ? productOrId.stock : undefined;
+      const result = await CartService.addItemValidated(productId, price, quantity, stock);
+      if (!result?.success) {
+        toast.error(
+          result?.message
+          || resolveMessage('messages.addToCartError', 'Không thể thêm sản phẩm vào giỏ hàng.'),
+        );
+        return;
+      }
+
+      if (result.limited) {
+        toast.info(`Chỉ thêm được ${result.added} sản phẩm do tồn kho.`);
+      } else {
+        toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
+      }
       if (redirect) {
         navigate('/cart');
       }

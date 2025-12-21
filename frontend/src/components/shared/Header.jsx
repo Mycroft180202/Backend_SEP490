@@ -15,6 +15,13 @@ import { NotificationHub } from '../../services/modules/notification/notificatio
 import { CartService } from '../../services/modules/cart/cartService';
 import { NavigationKeys, useNavigationContext } from '../../context/NavigationContext';
 
+const appendCacheBuster = (url, buster) => {
+  if (!url) return url;
+  if (!buster) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}v=${encodeURIComponent(String(buster))}`;
+};
+
 const Header = () => {
   const { userInfo } = useContext(UserContext);
   const { language, changeLanguage, t } = useContext(LanguageContext);
@@ -29,6 +36,7 @@ const Header = () => {
   const [cartCount, setCartCount] = useState(0);
   const notificationHoverRef = useRef(false);
   const isMountedRef = useRef(true);
+  const avatarBust = typeof window !== 'undefined' ? localStorage.getItem('avatarBust') : null;
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -345,7 +353,7 @@ const Header = () => {
               onMouseLeave={() => setDropdownVisible(false)}
             >
               <img
-                src={userInfo.userUrlImage || '/images/default-avatar.png'}
+                src={appendCacheBuster(userInfo.userUrlImage || '/images/default-avatar.png', avatarBust)}
                 alt="User Avatar"
                 className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover cursor-pointer"
               />

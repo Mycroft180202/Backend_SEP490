@@ -193,8 +193,17 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
     if (!validateQuantity()) return;
     if (!ensureAuthenticated()) return;
     try {
-      await CartService.addItem(product.id, product.price ?? 0, quantity);
-      toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
+      const result = await CartService.addItemValidated(product.id, product.price ?? 0, quantity, product.stock);
+      if (!result?.success) {
+        toast.error(result?.message || t('messages.addToCartError'));
+        return;
+      }
+
+      if (result.limited) {
+        toast.info(`Chỉ thêm được ${result.added} sản phẩm dựa trên số lượng sản phẩm có sẵn và sản phẩm trong giỏ hàng của bạn.`);
+      } else {
+        toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
+      }
       if (redirect) {
         navigate('/cart');
       }

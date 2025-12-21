@@ -35,6 +35,7 @@ import ProductCard from '../shared/ProductCard';
 import ArtisanRegistrationForm from './ArtisanRegistrationForm';
 import { toast } from 'react-toastify';
 import { LanguageContext } from '../../context/LanguageContext';
+import { UserContext } from '../../context/UserContext';
 
 const mapUserProfile = (data) => ({
   name: data.displayName || data.fullName || '',
@@ -454,6 +455,7 @@ function ChangePasswordSection({ email }) {
 // Component ProfileSection
 function ProfileSection({ initialFocus, profileNode }) {
   const { t } = useContext(LanguageContext);
+  const { updateUserInfo } = useContext(UserContext);
   const translate = useCallback(
     (key, fallback, replacements) => {
       const value = t(key, replacements);
@@ -846,6 +848,12 @@ function ProfileSection({ initialFocus, profileNode }) {
 
       await AuthService.updateProfile(updateData);
       await refreshUserProfile();
+      try {
+        localStorage.setItem('avatarBust', String(Date.now()));
+      } catch (error) {
+        console.warn('Unable to persist avatar bust:', error);
+      }
+      await updateUserInfo();
       toast.success(translate('profile.avatar.updateSuccess', 'Cập nhật ảnh đại diện thành công!'));
     } catch (err) {
       console.error('Update avatar error:', err);
@@ -1093,6 +1101,7 @@ function ProfileSection({ initialFocus, profileNode }) {
 
       await AuthService.updateProfile(updateData);
       await refreshUserProfile();
+      await updateUserInfo();
       setIsEditMode(false);
       toast.success(translate('profile.info.updateSuccess', 'Cập nhật thông tin thành công!'));
     } catch (err) {

@@ -27,6 +27,7 @@ const Cart = () => {
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const toastShownRef = useRef(false);
   const lastStockUpdateRef = useRef(new Map());
+  const authHandledRef = useRef(false);
   const redirectTimeoutRef = useRef(null);
 
   const token = useMemo(
@@ -51,6 +52,28 @@ const Cart = () => {
       setSummary({ subtotal, shipping, total });
     } catch (error) {
       console.error(error);
+
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        if (!authHandledRef.current) {
+          authHandledRef.current = true;
+          try {
+            localStorage.removeItem('accessToken');
+          } catch (_) {
+            // ignore
+          }
+          if (!toastShownRef.current) {
+            toast.info('Bạn cần đăng nhập để xem giỏ hàng của bạn', { toastId: 'cart-login-required' });
+            toastShownRef.current = true;
+          }
+          setItems([]);
+          setSummary({ subtotal: 0, shipping: 0, total: 0 });
+          setLoading(false);
+          navigate('/login', { replace: true, state: { from: '/cart' } });
+        }
+        return;
+      }
+
       const message =
         error?.response?.data?.message
         || error?.response?.data?.title
@@ -61,7 +84,7 @@ const Cart = () => {
     } finally {
       setLoading(false);
     }
-  }, [t, token]);
+  }, [navigate, t, token]);
 
   const cartTitle = t('cart.title');
   const cartListNode = useMemo(() => ({
@@ -77,7 +100,7 @@ const Cart = () => {
   useEffect(() => {
     if (!token) {
       if (!toastShownRef.current) {
-        toast.info(t('messages.loginRequired'));
+        toast.info('Bạn cần đăng nhập để xem giỏ hàng của bạn', { toastId: 'cart-login-required' });
         toastShownRef.current = true;
       }
       setItems([]);
@@ -285,7 +308,7 @@ const Cart = () => {
 
   const handleCheckout = (selectedItems = items) => {
     if (!token) {
-      toast.info(t('messages.loginRequired'));
+      toast.info('Bạn cần đăng nhập để xem giỏ hàng của bạn', { toastId: 'cart-login-required' });
       navigate('/login', { replace: true, state: { from: '/cart' } });
       return;
     }
