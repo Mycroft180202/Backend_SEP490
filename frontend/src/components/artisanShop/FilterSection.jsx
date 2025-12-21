@@ -1,0 +1,30 @@
+import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UserContext } from '../../context/UserContext';
+import { LanguageContext } from '../../context/LanguageContext';
+
+const FilterSection = ({ artisanId }) => {
+  const navigate = useNavigate();
+  const { userInfo } = useContext(UserContext);
+  const { t } = useContext(LanguageContext);
+  const isArtisan = userInfo?.roles?.some((role) => (typeof role === 'string' ? role : role.name) === 'Artisan');
+  const isOwner = artisanId && (userInfo?.userID === artisanId || userInfo?.userId === artisanId);
+
+  return (
+    <section className="bg-white shadow-sm border-b border-gray-100">
+      <div className="max-w-screen-xl mx-auto px-6 md:px-8 py-4 flex items-center justify-end gap-4">
+        {isArtisan && isOwner && (
+          <button
+            type="button"
+            onClick={() => navigate('/artisan-dashboard')}
+            className="px-4 py-2 rounded-md bg-[#8B4513] text-white text-sm font-medium shadow hover:bg-[#703814] transition-colors"
+          >
+            {t('header.artisanDashboard')}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+};
+
+export default FilterSection;
