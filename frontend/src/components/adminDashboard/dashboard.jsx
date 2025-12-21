@@ -9,7 +9,8 @@ import {
   FaUsers,
   FaTicketAlt,
   FaListUl,
-  FaSpinner
+  FaSpinner,
+  FaCog
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import Sidebar from './Sidebar';
@@ -23,6 +24,7 @@ import BlogManagement from './BlogManagement';
 import VoucherManagement from './VoucherManagement';
 import ProductCollectionManagement from './ProductCollectionManagement';
 import CategoryManagement from './CategoryManagement';
+import AdminSettings from './AdminSettings';
 import { UserContext } from '../../context/UserContext';
 import AdminDashboardService from '../../services/modules/admin/adminDashboardService.jsx';
 
@@ -171,6 +173,7 @@ const AdminDashboard = () => {
     { id: 'collections', icon: FaTicketAlt, label: 'Bộ sưu tập sản phẩm', path: '/admin/collections' },
     { id: 'reports', icon: FaChartBar, label: 'Báo cáo & Khiếu nại', path: '/admin/reports' },
     { id: 'blog', icon: FaBlog, label: 'Bài viết', path: '/admin/blog' },
+    { id: 'settings', icon: FaCog, label: 'Cài đặt', path: '/admin/settings' },
   ];
 
   return (
@@ -248,6 +251,8 @@ const AdminDashboard = () => {
           {activeTab === 'reports' && <ReportManagement />}
 
           {activeTab === 'blog' && <BlogManagement />}
+
+          {activeTab === 'settings' && <AdminSettings />}
         </div>
       </main>
     </div>

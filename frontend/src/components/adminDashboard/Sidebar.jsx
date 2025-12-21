@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   FaSignOutAlt,
   FaBars,
@@ -7,11 +6,9 @@ import {
 } from 'react-icons/fa';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuItems }) => {
-  const navigate = useNavigate();
-
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   return (

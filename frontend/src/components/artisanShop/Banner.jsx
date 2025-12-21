@@ -57,9 +57,6 @@ const Banner = ({
                 <h1 className="font-alata text-2xl md:text-3xl lg:text-4xl font-bold drop-shadow-lg">
                   {displayTitle}
                 </h1>
-                {displayAuthor && (
-                  <p className="text-sm md:text-base text-white/90 mt-1">Bởi {displayAuthor}</p>
-                )}
               </div>
 
               <p className="font-nunito text-sm md:text-base text-white/90 leading-relaxed max-w-3xl">

@@ -12,7 +12,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   return (
