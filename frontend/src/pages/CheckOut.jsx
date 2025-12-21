@@ -16,6 +16,7 @@ import AddressSelector from '../components/checkOut/AddressSelector';
 import AddressManageModal from '../components/checkOut/AddressManageModal';
 import PaymentMethod from '../components/checkOut/PaymentMethod';
 import OrderSummary from '../components/checkOut/OrderSummary';
+import TermsConfirmModal from '../components/checkOut/TermsConfirmModal';
 import { CartService } from '../services/modules/cart/cartService';
 import { AuthService } from '../services/modules/auth/authService';
 import { OrderService } from '../services/modules/orders/orderService';
@@ -28,6 +29,8 @@ import useNavigationNode from '../hooks/useNavigationNode';
 import { resolveProductArtisanId } from '../utils/productOwnership';
 
 const STORAGE_SELECTED_CART_IDS = 'checkoutSelectedCartIds';
+const STORAGE_TERMS_ACCEPTED = 'checkoutTermsAccepted';
+const STORAGE_TERMS_PENDING = 'checkoutTermsPending';
 
 const normalizeSelectionIds = (value) => {
   if (!Array.isArray(value)) {
@@ -168,6 +171,8 @@ const CheckOut = () => {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [shippingFee, setShippingFee] = useState(0);
@@ -187,6 +192,30 @@ const CheckOut = () => {
     () => (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null),
     [],
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const accepted = sessionStorage.getItem(STORAGE_TERMS_ACCEPTED) === '1';
+      setTermsAccepted(accepted);
+      const pending = sessionStorage.getItem(STORAGE_TERMS_PENDING) === '1';
+      if (pending) {
+        sessionStorage.removeItem(STORAGE_TERMS_PENDING);
+        setTermsModalOpen(true);
+      }
+    } catch (error) {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(STORAGE_TERMS_ACCEPTED, termsAccepted ? '1' : '0');
+    } catch (error) {
+      // ignore
+    }
+  }, [termsAccepted]);
 
   useEffect(() => {
     selectedAddressRef.current = selectedAddress;
@@ -1196,6 +1225,18 @@ const CheckOut = () => {
   };
 
   const hasCartItems = cartItems.length > 0;
+  const orderDisabled = !selectedAddress || !hasCartItems;
+
+  const handlePlaceOrderClick = () => {
+    if (placingOrder || orderDisabled) {
+      return;
+    }
+    if (!termsAccepted) {
+      setTermsModalOpen(true);
+      return;
+    }
+    handlePlaceOrder();
+  };
 
   return (
     <div className="min-h-screen flex flex-col checkout-shell">
@@ -1267,9 +1308,9 @@ const CheckOut = () => {
                   voucherLoading={voucherLoading}
                   total={cartSummary.total}
                   currencySuffix={priceSuffix}
-                  onPlaceOrder={handlePlaceOrder}
+                  onPlaceOrder={handlePlaceOrderClick}
                   placingOrder={placingOrder}
-                  disabled={!selectedAddress || !hasCartItems}
+                  disabled={orderDisabled}
                 />
                 {!selectedAddress && (
                   <p className="text-sm text-red-500 mt-3 text-center">
@@ -1281,6 +1322,27 @@ const CheckOut = () => {
           )}
         </div>
       </main>
+
+      <TermsConfirmModal
+        isOpen={termsModalOpen}
+        checked={termsAccepted}
+        confirming={placingOrder}
+        onCheckedChange={setTermsAccepted}
+        onViewPolicy={() => {
+          try {
+            sessionStorage.setItem(STORAGE_TERMS_PENDING, '1');
+          } catch (error) {
+            // ignore
+          }
+          setTermsModalOpen(false);
+        }}
+        onCancel={() => setTermsModalOpen(false)}
+        onConfirm={() => {
+          if (!termsAccepted) return;
+          setTermsModalOpen(false);
+          handlePlaceOrder();
+        }}
+      />
 
       <Footer />
     </div>

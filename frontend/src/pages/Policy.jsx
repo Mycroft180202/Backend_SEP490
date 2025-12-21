@@ -1,5 +1,5 @@
-import React, { useContext, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useContext, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import Breadcrumb from '../components/shared/Breadcrumb';
@@ -8,6 +8,13 @@ import { LanguageContext } from '../context/LanguageContext';
 const Policy = () => {
   const { t } = useContext(LanguageContext);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const returnTo = useMemo(() => location.state?.returnTo || null, [location.state?.returnTo]);
+  const returnLabel = useMemo(
+    () => location.state?.returnLabel || 'Quay lại',
+    [location.state?.returnLabel],
+  );
 
   useEffect(() => {
     if (!location.hash) {
@@ -34,6 +41,17 @@ const Policy = () => {
               floating
             />
           </div>
+          {returnTo && (
+            <div className="absolute right-6 top-6 z-10">
+              <button
+                type="button"
+                onClick={() => navigate(returnTo)}
+                className="px-4 py-2 rounded-xl bg-[#9e211f] text-white font-semibold shadow hover:opacity-95 transition"
+              >
+                {returnLabel}
+              </button>
+            </div>
+          )}
           <div className="max-w-5xl mx-auto px-6 lg:px-8 space-y-10">
             <header className="text-center space-y-4">
               <h1 className="text-4xl font-alata text-[#8B4513]">

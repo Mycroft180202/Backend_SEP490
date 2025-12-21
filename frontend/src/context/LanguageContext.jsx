@@ -723,7 +723,7 @@ const translations = {
       vnpayMultiShopMessage: 'Thanh toán VNPay không khả dụng khi đơn hàng chứa sản phẩm từ nhiều cửa hàng. Vui lòng chọn phương thức thanh toán khác.',
       address: {
         title: 'Địa chỉ giao hàng',
-        manage: 'Quản lý',
+        manage: 'Thêm mới địa chỉ giao hàng',
         empty: 'Chưa có địa chỉ giao hàng được lưu.',
         manageCta: 'Quản lý địa chỉ',
         placeholder: 'Chưa chọn địa chỉ',
@@ -1588,7 +1588,7 @@ const translations = {
       vnpayMultiShopMessage: 'VNPay checkout is unavailable when your order contains items from multiple shops. Please choose another payment method.',
       address: {
         title: 'Shipping address',
-        manage: 'Manage',
+        manage: 'Add new address',
         empty: 'No saved shipping addresses yet.',
         manageCta: 'Manage addresses',
         placeholder: 'No address selected',
