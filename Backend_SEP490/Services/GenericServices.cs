@@ -150,9 +150,9 @@ public class GenericServices
                 }
 
                 var affected = await _context.ExecuteSqlInterpolatedAsync(
-                    $@"UPDATE Products
-                       SET Stock = Stock - {quantity}
-                       WHERE Id = {productId} AND IsActive = 1 AND Stock >= {quantity}");
+                    $@"UPDATE ""Products""
+                       SET ""Stock"" = ""Stock"" - {quantity}
+                       WHERE ""Id"" = {productId} AND ""IsActive"" = TRUE AND ""Stock"" >= {quantity}");
 
                 if (affected <= 0)
                 {
@@ -260,9 +260,9 @@ public class GenericServices
                 }
 
                 await _context.ExecuteSqlInterpolatedAsync(
-                    $@"UPDATE Products
-                       SET Stock = Stock + {quantity}
-                       WHERE Id = {productId}");
+                    $@"UPDATE ""Products""
+                       SET ""Stock"" = ""Stock"" + {quantity}
+                       WHERE ""Id"" = {productId}");
             }
 
             order.IsInventoryReserved = false;
@@ -302,15 +302,15 @@ public class GenericServices
 
         var now = DateTime.UtcNow;
         await _context.ExecuteSqlInterpolatedAsync(
-            $@"UPDATE Vouchers
-               SET UsedCount = UsedCount - 1,
-                   IsActive = CASE
-                       WHEN (UsedCount - 1) < UsageLimit AND StartDate <= {now} AND EndDate >= {now} THEN 1
-                       ELSE IsActive
+            $@"UPDATE ""Vouchers""
+               SET ""UsedCount"" = ""UsedCount"" - 1,
+                   ""IsActive"" = CASE
+                       WHEN (""UsedCount"" - 1) < ""UsageLimit"" AND ""StartDate"" <= {now} AND ""EndDate"" >= {now} THEN TRUE
+                       ELSE ""IsActive""
                    END
-               WHERE VoucherId = {voucherId.Value}
-                 AND UsageLimit IS NOT NULL
-                 AND UsedCount > 0");
+               WHERE ""VoucherId"" = {voucherId.Value}
+                 AND ""UsageLimit"" IS NOT NULL
+                 AND ""UsedCount"" > 0");
     }
 
     protected async Task<IReadOnlyList<CartStockAdjustment>> SynchronizeCartItemsWithProductStockAsync(

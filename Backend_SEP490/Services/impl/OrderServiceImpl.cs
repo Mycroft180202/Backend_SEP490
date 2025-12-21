@@ -795,15 +795,15 @@ public class OrderServiceImpl : GenericServices, IOrderService
         {
             var voucherId = voucher.VoucherId;
             var affected = await _context.ExecuteSqlInterpolatedAsync(
-                $@"UPDATE Vouchers
-                   SET UsedCount = UsedCount + 1,
-                       IsActive = CASE WHEN UsedCount + 1 >= UsageLimit THEN 0 ELSE 1 END
-                   WHERE VoucherId = {voucherId}
-                     AND IsActive = 1
-                     AND StartDate <= {now}
-                     AND EndDate >= {now}
-                     AND UsageLimit IS NOT NULL
-                     AND UsedCount < UsageLimit");
+                $@"UPDATE ""Vouchers""
+                   SET ""UsedCount"" = ""UsedCount"" + 1,
+                       ""IsActive"" = CASE WHEN ""UsedCount"" + 1 >= ""UsageLimit"" THEN FALSE ELSE TRUE END
+                   WHERE ""VoucherId"" = {voucherId}
+                     AND ""IsActive"" = TRUE
+                     AND ""StartDate"" <= {now}
+                     AND ""EndDate"" >= {now}
+                     AND ""UsageLimit"" IS NOT NULL
+                     AND ""UsedCount"" < ""UsageLimit""");
 
             if (affected <= 0)
             {
