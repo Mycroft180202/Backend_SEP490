@@ -1148,12 +1148,6 @@ public class OrderServiceImpl : GenericServices, IOrderService
             var existingShipments = await _context.Shipment.GetByOrderIdAsync(order.Id);
             if (existingShipments != null && existingShipments.Any())
             {
-                if (!string.Equals(order.Status, OrderStatuses.Shipping, StringComparison.OrdinalIgnoreCase))
-                {
-                    order.Status = OrderStatuses.Shipping;
-                    await _context.SaveChangesAsync();
-                    await PublishOrderRealtimeAsync(order, "Order is shipping");
-                }
                 return true;
             }
 
@@ -1413,13 +1407,12 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             if (anyShipmentCreated)
             {
-                order.Status = OrderStatuses.Shipping;
                 await _context.SaveChangesAsync();
                 foreach (var shipment in createdShipments)
                 {
                     await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment created");
                 }
-                await PublishOrderRealtimeAsync(order, "Order is shipping");
+                await PublishOrderRealtimeAsync(order, "Shipment created");
             }
         }
         catch (Exception ex)
