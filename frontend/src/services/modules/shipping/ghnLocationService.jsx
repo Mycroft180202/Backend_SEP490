@@ -71,6 +71,7 @@ export const GHNLocationService = {
 
     const serviceId = Number(payload.serviceId ?? payload.service_id ?? 2);
     const serviceTypeId = Number(payload.serviceTypeId ?? payload.serviceTypeID ?? payload.service_type_id ?? 2);
+    const weight = Number(payload.weight ?? payload.Weight ?? payload.weightValue ?? payload.weight_value);
 
     const finalPayload = {
       toDistrictId,
@@ -78,6 +79,9 @@ export const GHNLocationService = {
       serviceId: Number.isFinite(serviceId) ? serviceId : 2,
       serviceTypeId: Number.isFinite(serviceTypeId) ? serviceTypeId : 2,
     };
+    if (Number.isFinite(weight) && weight > 0) {
+      finalPayload.weight = Math.round(weight);
+    }
 
     const response = await axiosClient.post('/api/ghn/shipping/fee', finalPayload);
     const data = response?.data;

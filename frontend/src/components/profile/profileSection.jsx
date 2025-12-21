@@ -497,6 +497,7 @@ function ProfileSection({ initialFocus, profileNode }) {
   const dayInputRef = useRef(null);
   const monthInputRef = useRef(null);
   const yearInputRef = useRef(null);
+  const nameInputRef = useRef(null);
   const phoneInputRef = useRef(null);
   const phoneInvalidToastShownRef = useRef(false);
   const cancelEditToastSuppressionRef = useRef(false);
@@ -1067,6 +1068,13 @@ function ProfileSection({ initialFocus, profileNode }) {
   };
 
   const handleSaveProfile = async () => {
+    const normalizedName = (editedProfile?.name || '').trim();
+    if (normalizedName.length < 3 || normalizedName.length > 50) {
+      toast.error(translate('profile.info.nameLengthInvalid', 'Tên người dùng phải từ 3 đến 50 ký tự.'));
+      nameInputRef.current?.focus();
+      return;
+    }
+
     const dobEvaluation = evaluateDobFields(dobFields);
     if (dobEvaluation.status === 'invalid') {
       setDobInvalid(true);
@@ -1105,7 +1113,7 @@ function ProfileSection({ initialFocus, profileNode }) {
 
       const updateData = {
         PhoneNumber: phoneResult.normalized,
-        DisplayName: editedProfile.name,
+        DisplayName: normalizedName,
         Dob: dobValue,
         // Không gửi UserUrlImage khi chỉ update thông tin text
       };
@@ -1417,6 +1425,7 @@ function ProfileSection({ initialFocus, profileNode }) {
               <div>
                 <label className="block mb-2 font-medium">{translate('profile.info.nameLabel', 'Tên')}</label>
                 <input 
+                  ref={nameInputRef}
                   type="text" 
                   value={isEditMode ? editedProfile.name : profile.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}

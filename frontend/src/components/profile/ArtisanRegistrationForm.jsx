@@ -210,7 +210,7 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess, defaultEmail = ""
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (birthDate.getTime() > todayStart.getTime()) {
-      toast.warning("NgÃ y sinh khÃ´ng Ä‘Æ°á»£c á»Ÿ tÆ°Æ¡ng lai");
+      toast.warning("Ngày sinh không được nằm trong tương lai");
       return false;
     }
 
@@ -221,18 +221,18 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess, defaultEmail = ""
     }
 
     if (age < 18) {
-      toast.warning("Báº¡n pháº£i Ä‘á»§ 18 tuá»•i má»›i Ä‘Æ°á»£c Ä‘Äƒng kÃ½ lÃ m ngÆ°á»i bÃ¡n hÃ ng");
+      toast.warning("Người bán hàng phải từ 18 tuổi trở lên");
       return false;
     }
 
     const yearsOfExperience = Number(formData.yearsOfExperience) || 0;
     if (yearsOfExperience < 0) {
-      toast.warning("NÄƒm kinh nghiá»‡m khÃ´ng há»£p lá»‡");
+      toast.warning("Năm kinh nghiệm không được là số âm");
       return false;
     }
 
     if (yearsOfExperience > age) {
-      toast.warning("NÄƒm kinh nghiá»‡m khÃ´ng Ä‘Æ°á»£c lÆ°á»›n hÆ¡n sá»‘ tuá»•i cá»§a báº¡n");
+      toast.warning("Năm kinh nghiệm không được lớn hơn số tuổi của bạn");
       return false;
     }
 
@@ -310,12 +310,12 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess, defaultEmail = ""
     }
 
     if (!formData.identityFrontImageFile) {
-      toast.warning("Vui lÃ²ng chá»n áº£nh máº·t trÆ°á»›c CMND/CCCD");
+      toast.warning("Vui lòng nhập ảnh mặt trước CMND/CCCD");
       return;
     }
 
     if (!formData.identityBackImageFile) {
-      toast.warning("Vui lÃ²ng chá»n áº£nh máº·t sau CMND/CCCD");
+      toast.warning("Vui lòng nhập ảnh mặt sau CMND/CCCD");
       return;
     }
 

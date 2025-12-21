@@ -187,6 +187,7 @@ const CheckOut = () => {
   const pendingShopFetchRef = useRef(new Set());
   const removedUnavailableToastShownRef = useRef(false);
   const selectedAddressRef = useRef(null);
+  const shippingFeeCacheRef = useRef(new Map());
 
   const token = useMemo(
     () => (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null),
@@ -279,35 +280,35 @@ const CheckOut = () => {
     }
   }, []);
 
-  const calculateShipping = useCallback(async (address, weight) => {
+  const getShippingFeeForAddress = useCallback(async (address, weight) => {
     if (!address || !address.ghnDistrictId || !address.ghnWardCode) {
-      setShippingFee(0);
       return 0;
     }
-    // avoid duplicate requests for same target + weight
-    if (!calculateShipping.lastRequest) calculateShipping.lastRequest = { key: null };
-    const key = `${address.ghnDistrictId}::${address.ghnWardCode}::${Math.round(weight || 500)}`;
-    if (calculateShipping.lastRequest.key === key) {
-      return calculateShipping.lastRequest.fee || 0;
-    }
-    try {
-      setShippingLoading(true);
-      const fee = await GHNLocationService.getShippingFee({
-        toDistrictId: Number(address.ghnDistrictId),
-        toWardCode: address.ghnWardCode,
-        weight: weight > 0 ? Math.round(weight) : 500,
-      });
-      setShippingFee(fee);
-      calculateShipping.lastRequest.key = key;
-      calculateShipping.lastRequest.fee = fee;
-      setShippingLoading(false);
-      return fee;
-    } catch (err) {
-      console.error('Calculate shipping error:', err);
-      setShippingFee(0);
-      setShippingLoading(false);
+
+    const toDistrictId = Number(address.ghnDistrictId);
+    const toWardCode = String(address.ghnWardCode || '').trim();
+    if (!Number.isFinite(toDistrictId) || !toWardCode) {
       return 0;
     }
+
+    const normalizedWeight = Number.isFinite(Number(weight)) && Number(weight) > 0
+      ? Math.round(Number(weight))
+      : 500;
+
+    const cacheKey = `${toDistrictId}::${toWardCode}::${normalizedWeight}`;
+    const cached = shippingFeeCacheRef.current.get(cacheKey);
+    if (Number.isFinite(cached)) {
+      return cached;
+    }
+
+    const fee = await GHNLocationService.getShippingFee({
+      toDistrictId,
+      toWardCode,
+      weight: normalizedWeight,
+    });
+
+    shippingFeeCacheRef.current.set(cacheKey, fee);
+    return fee;
   }, []);
 
   // keep a ref of latest shippingFee to avoid recreating callbacks that depend on it
@@ -810,64 +811,83 @@ const CheckOut = () => {
     }, 0)
   ), [cartItems]);
 
-  // First-load: calculate immediately when both cart and addresses finish loading and address is selected
+  const computeWeight = useCallback((items) => (
+    (Array.isArray(items) ? items : []).reduce((total, item) => {
+      const weightPerItem = Number(item?.product?.weight ?? item?.weight ?? 0);
+      if (!Number.isFinite(weightPerItem) || weightPerItem <= 0) {
+        return total;
+      }
+      return total + weightPerItem * (item.quantity || 0);
+    }, 0)
+  ), []);
+
+  // Calculate shipping: for multi-shop checkout, shipping is the sum of each shop's shipping fee.
   useEffect(() => {
     let mounted = true;
-    const doImmediateCalc = async () => {
+    let timer = null;
+
+    const calculate = async () => {
       if (!selectedAddress || !cartItems.length) {
         setShippingFee(0);
         setCartSummary((s) => ({ ...s, shipping: 0, total: (s.subtotal || 0) + 0 }));
         return;
       }
-      const fee = await calculateShipping(selectedAddress, totalWeight);
-      if (!mounted) return;
-      console.log('First-load shipping calculated:', fee);
-      setCartSummary((s) => {
-        const newTotal = (s.subtotal || 0) + (fee || 0);
-        console.log('Updated cart summary - subtotal:', s.subtotal, 'shipping:', fee, 'total:', newTotal);
-        return { ...s, shipping: fee, total: newTotal };
-      });
-    };
 
-    if (!loadingCart && !loadingAddresses && selectedAddress) {
-      doImmediateCalc();
-    }
-    return () => { mounted = false; };
-  }, [loadingCart, loadingAddresses, selectedAddress, totalWeight, calculateShipping, cartItems.length]);
+      try {
+        setShippingLoading(true);
+        const groups = groupedCartItems.length ? groupedCartItems : groupCartItemsByArtisan(cartItems);
+        const multiple = groups.length > 1;
 
-  // Recalculate shipping when selected address or cart weight changes (with debounce)
-  useEffect(() => {
-    let mounted = true;
-    let timer = null;
-    const scheduleCalc = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(async () => {
-        if (!selectedAddress || !cartItems.length) {
-          setShippingFee(0);
-          setCartSummary((s) => ({ ...s, shipping: 0, total: (s.subtotal || 0) + 0 }));
-          return;
+        let shippingTotal = 0;
+        if (!multiple) {
+          shippingTotal = await getShippingFeeForAddress(selectedAddress, totalWeight);
+        } else {
+          const fees = await Promise.all(
+            groups.map((group) => getShippingFeeForAddress(selectedAddress, computeWeight(group.items))),
+          );
+          shippingTotal = fees.reduce((sum, fee) => sum + (Number(fee) || 0), 0);
         }
-        const fee = await calculateShipping(selectedAddress, totalWeight);
+
         if (!mounted) return;
-        console.log('Debounced shipping calculated:', fee);
-        setCartSummary((s) => {
-          const newTotal = (s.subtotal || 0) + (fee || 0);
-          console.log('Updated cart summary - subtotal:', s.subtotal, 'shipping:', fee, 'total:', newTotal);
-          return { ...s, shipping: fee, total: newTotal };
-        });
-      }, 200);
+
+        setShippingFee(shippingTotal);
+        setCartSummary((s) => ({
+          ...s,
+          shipping: shippingTotal,
+          total: (Number(s.subtotal) || 0) + (Number(shippingTotal) || 0),
+        }));
+      } catch (error) {
+        console.error('Calculate shipping error:', error);
+        if (!mounted) return;
+        setShippingFee(0);
+        setCartSummary((s) => ({ ...s, shipping: 0, total: (Number(s.subtotal) || 0) + 0 }));
+      } finally {
+        if (mounted) {
+          setShippingLoading(false);
+        }
+      }
     };
 
-    // Only debounce if we're already done loading (not the initial load)
     if (!loadingCart && !loadingAddresses) {
-      scheduleCalc();
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(calculate, 200);
     }
 
     return () => {
       mounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [selectedAddress, totalWeight, calculateShipping, loadingCart, loadingAddresses, cartItems.length]);
+  }, [
+    cartItems,
+    computeWeight,
+    getShippingFeeForAddress,
+    groupedCartItems,
+    groupCartItemsByArtisan,
+    loadingAddresses,
+    loadingCart,
+    selectedAddress,
+    totalWeight,
+  ]);
 
   const handlePlaceOrder = async () => {
     const validCartItems = cartItems.filter((item) => !isUnavailable(item));
@@ -960,7 +980,7 @@ const CheckOut = () => {
       const groupSubtotal = computeSubtotal(group.items);
       const groupWeight = computeWeight(group.items);
       const shippingFeeForGroup = multipleGroups
-        ? await calculateShipping(selectedAddress, groupWeight)
+        ? await getShippingFeeForAddress(selectedAddress, groupWeight)
         : latestShippingFee;
       const groupDiscount = multipleGroups ? 0 : discountValue;
       const computedTotal = Math.max(groupSubtotal + shippingFeeForGroup - groupDiscount, 0);
