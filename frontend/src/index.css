@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Alata&family=Nunito:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Nunito', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+select,
+button {
+  caret-color: auto;
+}

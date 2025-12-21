@@ -1,6 +1,0 @@
-@Backend_SEP490_HostAddress = http://localhost:5263
-
-GET {{Backend_SEP490_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
