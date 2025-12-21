@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
+using Backend_SEP490.Constants;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
@@ -64,6 +65,55 @@ public class GenericServices
         }
 
         //await _context.Cart.DeleteCartAsync(cart);
+    }
+
+    protected async Task RemoveUserCartItemsAsync(string? customerId, IEnumerable<string?>? productIds)
+    {
+        if (string.IsNullOrWhiteSpace(customerId))
+        {
+            return;
+        }
+
+        if (productIds == null)
+        {
+            return;
+        }
+
+        var normalizedProductIds = productIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (normalizedProductIds.Count == 0)
+        {
+            return;
+        }
+
+        var cart = await _context.Cart.GetCartByUserIdAsync(customerId);
+        if (cart == null || cart.CartItems == null || cart.CartItems.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var item in cart.CartItems.ToList())
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            var productId = item.ProductId?.Trim();
+            if (string.IsNullOrWhiteSpace(productId))
+            {
+                continue;
+            }
+
+            if (normalizedProductIds.Contains(productId))
+            {
+                await _context.CartItem.DeleteCartItemAsync(item);
+            }
+        }
     }
 
     protected async Task<List<OrderItem>> EnsureOrderItemsLoadedAsync(Order? order)
@@ -310,7 +360,47 @@ public class GenericServices
                    END
                WHERE ""VoucherId"" = {voucherId.Value}
                  AND ""UsageLimit"" IS NOT NULL
-                 AND ""UsedCount"" > 0");
+               AND ""UsedCount"" > 0");
+    }
+
+    protected async Task ReleaseVoucherUsageForPotentialGroupAsync(Order? order)
+    {
+        if (order == null)
+        {
+            return;
+        }
+
+        if (!order.VoucherId.HasValue || order.VoucherId.Value <= 0)
+        {
+            return;
+        }
+
+        var voucherCode = string.IsNullOrWhiteSpace(order.VoucherCode) ? null : order.VoucherCode.Trim();
+        if (string.IsNullOrWhiteSpace(voucherCode) || string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            await ReleaseVoucherUsageAsync(order.VoucherId);
+            return;
+        }
+
+        // Heuristic: multi-shop checkouts create multiple orders within a short window sharing the same voucher code.
+        // Only release voucher usage when this is the last active order in that recent group.
+        var lookbackStart = order.CreateAt.Subtract(TimeSpan.FromMinutes(10));
+        var recentOrders = await _context.Order.GetRecentOrdersForCustomerAsync(order.CustomerId, lookbackStart, 20);
+
+        var hasOtherActiveInGroup = recentOrders.Any(o =>
+            o != null
+            && !string.Equals(o.Id, order.Id, StringComparison.OrdinalIgnoreCase)
+            && o.VoucherId.HasValue
+            && o.VoucherId.Value == order.VoucherId.Value
+            && string.Equals(o.VoucherCode, voucherCode, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(o.Status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase));
+
+        if (hasOtherActiveInGroup)
+        {
+            return;
+        }
+
+        await ReleaseVoucherUsageAsync(order.VoucherId);
     }
 
     protected async Task<IReadOnlyList<CartStockAdjustment>> SynchronizeCartItemsWithProductStockAsync(

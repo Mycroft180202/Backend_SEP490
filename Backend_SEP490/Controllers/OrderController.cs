@@ -127,6 +127,31 @@ public class OrderController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("orders/multi")]
+    public async Task<IActionResult> CreateMultiShopOrders([FromBody] RequestCreateMultiShopOrder request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var userId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _orderServices.CreateMultiShopOrdersAsync(userId, request);
+        if (!result.Success)
+        {
+            return BadRequest(new { message = result.Message });
+        }
+
+        // Multi-shop VNPAY flow is handled on the frontend via batch payment endpoint.
+        return Ok(result);
+    }
+
+    [Authorize]
     [HttpPost("orders/{orderNumber}/continue-payment")]
     public async Task<IActionResult> ContinueVnpayPayment([FromRoute] string orderNumber)
     {

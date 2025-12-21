@@ -234,6 +234,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 await transaction.RollbackAsync();
                 var duplicateResponse = CreateOrderResult.Succeeded(
                     duplicateOrder.Id,
+                    duplicateOrder.OrderNumber,
                     duplicateOrder.PaymentType,
                     duplicateOrder.SubtotalAmount,
                     duplicateOrder.DiscountAmount,
@@ -326,6 +327,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             var response = CreateOrderResult.Succeeded(
                 orderId,
+                order.OrderNumber,
                 paymentType,
                 subtotal,
                 discountAmount,
@@ -388,7 +390,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
             if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
             {
-                await ClearUserCartAsync(userId);
+                await RemoveUserCartItemsAsync(userId, orderItems.Select(i => i.ProductID));
             }
 
             await PublishOrderRealtimeAsync(order, response.Message ?? "Order created");
@@ -814,6 +816,300 @@ public class OrderServiceImpl : GenericServices, IOrderService
         return (true, discount, voucher, null);
     }
 
+    public async Task<CreateMultiShopOrderResult> CreateMultiShopOrdersAsync(
+        string? userId,
+        RequestCreateMultiShopOrder request)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return CreateMultiShopOrderResult.Failure("User id is required.");
+        }
+
+        var groups = request?.Orders ?? new List<RequestCreateMultiShopOrderGroup>();
+        if (groups.Count == 0)
+        {
+            return CreateMultiShopOrderResult.Failure("No shop orders specified.");
+        }
+
+        var paymentType = request.PaymentMethod?.Trim().ToUpperInvariant() ?? PaymentTypeCod;
+        if (!string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(paymentType, PaymentTypeVnpay, StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateMultiShopOrderResult.Failure("Payment method must be COD or VNPAY.");
+        }
+
+        var transaction = await _context.BeginTransactionAsync();
+        try
+        {
+            var customer = await _context.Users.GetByIdAsync(userId);
+            if (customer == null)
+            {
+                await transaction.RollbackAsync();
+                return CreateMultiShopOrderResult.Failure("User not found.");
+            }
+
+            var address = await _context.Address.GetAddressByIdAsync(request.AddressId);
+            if (address == null)
+            {
+                await transaction.RollbackAsync();
+                return CreateMultiShopOrderResult.Failure("Shipping address not found.");
+            }
+
+            // Resolve each group's items and compute subtotals.
+            var resolvedGroups = new List<(RequestCreateOrder SingleRequest, List<OrderItemInput> Items, decimal Subtotal)>();
+            foreach (var group in groups)
+            {
+                var cartItems = group?.CartItems ?? new List<RequestCreateOrderItem>();
+                if (cartItems.Count == 0)
+                {
+                    continue;
+                }
+
+                var singleRequest = new RequestCreateOrder
+                {
+                    CartItems = cartItems,
+                    AddressId = request.AddressId,
+                    ShippingServiceId = request.ShippingServiceId,
+                    PaymentMethod = request.PaymentMethod,
+                    VoucherCodeId = null, // handled at group-level allocation
+                    RequiredNote = request.RequiredNote,
+                    PaymentTypeId = request.PaymentTypeId,
+                    ServiceTypeId = request.ServiceTypeId,
+                    BankCode = request.BankCode,
+                };
+
+                var (itemsResolved, orderItemInputs, itemError) = await ResolveOrderItemsAsync(userId, singleRequest);
+                if (!itemsResolved)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateMultiShopOrderResult.Failure(itemError ?? "Unable to resolve order items.");
+                }
+
+                if (orderItemInputs.Count == 0)
+                {
+                    continue;
+                }
+
+                var artisanIds = orderItemInputs
+                    .Select(info => info.Product?.ArtisanId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Select(id => id!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (artisanIds.Count != 1)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateMultiShopOrderResult.Failure("Moi don hang chi duoc phep chua san pham tu mot cua hang. Vui long tao don rieng.");
+                }
+
+                var subtotal = orderItemInputs.Sum(info => info.UnitPrice * info.Quantity);
+                resolvedGroups.Add((singleRequest, orderItemInputs, subtotal));
+            }
+
+            if (resolvedGroups.Count == 0)
+            {
+                await transaction.RollbackAsync();
+                return CreateMultiShopOrderResult.Failure("No order items specified.");
+            }
+
+            var combinedSubtotal = resolvedGroups.Sum(g => g.Subtotal);
+            var (voucherSuccess, discountTotal, voucher, voucherError) =
+                await ApplyVoucherAsync(userId, request.VoucherCodeId, combinedSubtotal);
+            if (!voucherSuccess)
+            {
+                await transaction.RollbackAsync();
+                return CreateMultiShopOrderResult.Failure(voucherError ?? "Unable to apply voucher.");
+            }
+
+            discountTotal = Math.Max(discountTotal, 0m);
+            // Allocate discount per shop by subtotal ratio (rounded to whole currency units).
+            var allocations = new decimal[resolvedGroups.Count];
+            if (discountTotal > 0m && combinedSubtotal > 0m)
+            {
+                decimal allocatedSum = 0m;
+                var maxSubtotalIndex = 0;
+                for (var i = 0; i < resolvedGroups.Count; i += 1)
+                {
+                    if (resolvedGroups[i].Subtotal > resolvedGroups[maxSubtotalIndex].Subtotal)
+                    {
+                        maxSubtotalIndex = i;
+                    }
+                }
+
+                for (var i = 0; i < resolvedGroups.Count; i += 1)
+                {
+                    var ratioDiscount = discountTotal * (resolvedGroups[i].Subtotal / combinedSubtotal);
+                    var floored = Math.Floor(ratioDiscount);
+                    allocations[i] = floored;
+                    allocatedSum += floored;
+                }
+
+                var remainder = discountTotal - allocatedSum;
+                if (remainder > 0m)
+                {
+                    allocations[maxSubtotalIndex] += remainder;
+                }
+            }
+
+            var results = new List<CreateOrderResult>();
+            var createdOrders = new List<(Order Order, List<OrderItem> Items)>();
+
+            for (var i = 0; i < resolvedGroups.Count; i += 1)
+            {
+                var (singleRequest, orderItemInputs, subtotal) = resolvedGroups[i];
+
+                var (feeSuccess, shippingFee, resolvedServiceId, feeError) = await CalculateShippingFeeAsync(
+                    singleRequest,
+                    address);
+                if (!feeSuccess)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateMultiShopOrderResult.Failure(feeError ?? "Unable to calculate shipping fee.");
+                }
+
+                var groupDiscount = Math.Min(Math.Max(allocations[i], 0m), subtotal + shippingFee);
+                var totalAmount = Math.Max(0m, subtotal - groupDiscount + shippingFee);
+                var resolvedShippingServiceId = resolvedServiceId ?? -1;
+
+                var orderId = $"Order-{userId}-{Guid.NewGuid():N}";
+                var order = new Order
+                {
+                    Id = orderId,
+                    OrderNumber = GenerateId("ORDER"),
+                    CustomerId = userId,
+                    Status = OrderStatuses.WaitingForPickup,
+                    PaymentType = paymentType,
+                    TotalAmount = totalAmount,
+                    SubtotalAmount = subtotal,
+                    DiscountAmount = groupDiscount,
+                    ShippingFee = shippingFee,
+                    ShipingAddressId = address.Id,
+                    ShippingServiceId = resolvedShippingServiceId,
+                    ShippingServiceTypeId = request.ServiceTypeId ?? _ghnSettings.ServiceTypeId,
+                    ShippingPaymentTypeId = request.PaymentTypeId,
+                    ShippingRequiredNote = request.RequiredNote,
+                    ShippingToProvinceId = address.GhnProvinceId,
+                    ShippingToDistrictId = address.GhnDistrictId,
+                    ShippingToWardCode = address.GhnWardCode,
+                    VoucherCode = voucher?.Code ?? request.VoucherCodeId?.Trim(),
+                    VoucherId = voucher?.VoucherId,
+                    CreateAt = DateTime.UtcNow
+                };
+
+                var addOrderStatus = await _context.Order.CreateOrderAsync(order);
+                if (!addOrderStatus)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateMultiShopOrderResult.Failure("Create order failed.");
+                }
+
+                var orderItems = orderItemInputs
+                    .Select(info => new OrderItem
+                    {
+                        Id = $"{orderId}-{info.ProductId}",
+                        OrderID = orderId,
+                        ProductID = info.ProductId,
+                        Quantity = info.Quantity,
+                        UnitPrice = info.UnitPrice
+                    })
+                    .ToList();
+                order.OrderItems = orderItems;
+
+                var addOrderItemStatus = await _context.OrderDetail.CreateOrderItemAsync(orderItems);
+                if (!addOrderItemStatus)
+                {
+                    await transaction.RollbackAsync();
+                    return CreateMultiShopOrderResult.Failure("Create order item failed.");
+                }
+
+                if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+                {
+                    var (reserveSuccess, reserveMessage) = await ReserveOrderStockAsync(order);
+                    if (!reserveSuccess)
+                    {
+                        await transaction.RollbackAsync();
+                        return CreateMultiShopOrderResult.Failure(reserveMessage ?? "Insufficient stock available for this order.");
+                    }
+                }
+
+                createdOrders.Add((order, orderItems));
+                results.Add(CreateOrderResult.Succeeded(
+                    orderId,
+                    order.OrderNumber,
+                    paymentType,
+                    subtotal,
+                    groupDiscount,
+                    shippingFee,
+                    totalAmount,
+                    order.Status,
+                    order.VoucherCode));
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            foreach (var created in createdOrders)
+            {
+                await PublishInventoryRealtimeAsync(created.Items, userId);
+            }
+
+            if (string.Equals(paymentType, PaymentTypeCod, StringComparison.OrdinalIgnoreCase))
+            {
+                for (var i = 0; i < createdOrders.Count; i += 1)
+                {
+                    var created = createdOrders[i];
+                    var order = created.Order;
+                    var orderItems = created.Items;
+
+                    var baseOptions = BuildBaseShipmentOptions(address, customer, order);
+                    var shipmentResult = await TryCreateGhnShipmentsAsync(order, orderItems, address, customer, baseOptions);
+                    if (!shipmentResult.AnyShipmentsCreated)
+                    {
+                        continue;
+                    }
+
+                    var providerData = shipmentResult.ProviderResponses
+                        .Select(r => r?.Data)
+                        .FirstOrDefault(d => d != null && !string.IsNullOrWhiteSpace(d.OrderCode));
+
+                    if (providerData?.OrderCode == null)
+                    {
+                        continue;
+                    }
+
+                    results[i] = results[i] with
+                    {
+                        GhnOrderCode = providerData.OrderCode,
+                        ExpectedDelivery = providerData.ExpectedDeliveryTime
+                    };
+
+                    if (providerData.TotalFee.HasValue)
+                    {
+                        order.ShippingProviderFee = providerData.TotalFee.Value;
+                        order.ExpectedDelivery = providerData.ExpectedDeliveryTime;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                await RemoveUserCartItemsAsync(
+                    userId,
+                    createdOrders.SelectMany(created => created.Items).Select(item => item.ProductID));
+            }
+
+            return CreateMultiShopOrderResult.Succeeded(
+                results,
+                discountTotal,
+                voucher?.Code ?? request.VoucherCodeId?.Trim());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Create multi-shop orders failed.");
+            await transaction.RollbackAsync();
+            return CreateMultiShopOrderResult.Failure("Unable to create multi-shop orders.");
+        }
+    }
+
     private sealed record OrderItemInput(string ProductId, int Quantity, decimal UnitPrice, Product Product);
 
     public async Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request)
@@ -895,7 +1191,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         order.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(order);
-        await ReleaseVoucherUsageAsync(order.VoucherId);
+        await ReleaseVoucherUsageForPotentialGroupAsync(order);
         await _context.SaveChangesAsync();
         var cancelledOrderItems = await EnsureOrderItemsLoadedAsync(order);
         await PublishInventoryRealtimeAsync(cancelledOrderItems, null);
@@ -1203,7 +1499,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         trackedOrder.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(trackedOrder);
-        await ReleaseVoucherUsageAsync(trackedOrder.VoucherId);
+        await ReleaseVoucherUsageForPotentialGroupAsync(trackedOrder);
         await _context.SaveChangesAsync();
         var autoCancelledItems = await EnsureOrderItemsLoadedAsync(trackedOrder);
         await PublishInventoryRealtimeAsync(autoCancelledItems, null);

@@ -11,6 +11,7 @@ namespace Backend_SEP490.Services
         Task<PagedResult<ResponseDTOOrder>> GetAllOrderByUserIdAsync(string? userId, RequestFilterOrder? requestFilter);
         Task<ResponseDTOOrder?> GetOrderByIdAsync(string orderId);
         Task<CreateOrderResult> CreateOrderAsync(string? userId, RequestCreateOrder request);
+        Task<CreateMultiShopOrderResult> CreateMultiShopOrdersAsync(string? userId, RequestCreateMultiShopOrder request);
         Task<string> CancelOrderAsync(string? userId, string orderId, RequestCancelOrder? request);
         Task<(bool Success, string Message)> ConfirmOrderReceivedAsync(string? userId, string orderNumber);
         Task<(bool Success, string Message)> MarkOrderAsShippingByArtisanAsync(string? artisanId, string orderNumber);

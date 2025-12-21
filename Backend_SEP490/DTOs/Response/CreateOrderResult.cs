@@ -5,6 +5,7 @@ public sealed record CreateOrderResult
     public bool Success { get; init; }
     public string Message { get; init; } = string.Empty;
     public string OrderId { get; init; } = string.Empty;
+    public string? OrderNumber { get; init; }
     public string PaymentMethod { get; init; } = string.Empty;
     public string Status { get; init; } = "PENDING";
     public decimal Subtotal { get; init; }
@@ -25,6 +26,7 @@ public sealed record CreateOrderResult
 
     public static CreateOrderResult Succeeded(
         string orderId,
+        string? orderNumber,
         string paymentMethod,
         decimal subtotal,
         decimal discount,
@@ -36,6 +38,7 @@ public sealed record CreateOrderResult
         Success = true,
         Message = $"Order created successfully ({paymentMethod}).",
         OrderId = orderId,
+        OrderNumber = orderNumber,
         PaymentMethod = paymentMethod,
         Subtotal = subtotal,
         Discount = discount,

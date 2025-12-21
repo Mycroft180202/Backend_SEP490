@@ -287,14 +287,15 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
                 !string.IsNullOrWhiteSpace(customerId) &&
                 ShouldClearCartAfterPayment(order, normalizedStatus))
             {
-                await ClearUserCartAsync(customerId!);
+                var orderItems = await EnsureOrderItemsLoadedAsync(order);
+                await RemoveUserCartItemsAsync(customerId!, orderItems.Select(i => i.ProductID));
             }
         }
         else if (order != null &&
                  string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase))
         {
             await RestoreOrderStockAsync(order);
-            await ReleaseVoucherUsageAsync(order.VoucherId);
+            await ReleaseVoucherUsageForPotentialGroupAsync(order);
             await _context.SaveChangesAsync();
             var restoredItems = await EnsureOrderItemsLoadedAsync(order);
             await PublishInventoryRealtimeAsync(restoredItems, null);
