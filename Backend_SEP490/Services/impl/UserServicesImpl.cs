@@ -75,7 +75,7 @@ public class UserServicesImpl : GenericServices, IUserServices
 
     }
 
-    public async Task<PagedResult<ResponseDTOUserShopDashboard>> GetAllArtisanAsync(int pageIndex, int pageSize)
+    public async Task<PagedResult<ResponseDTOUserShopDashboard>> GetAllArtisanAsync(int pageIndex, int pageSize, int? year = null, int? month = null)
     {
         var usersList = await _context.Users.GetAllUsersWithRoleArtisanAsync();
         var usersPage = usersList.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
@@ -86,23 +86,24 @@ public class UserServicesImpl : GenericServices, IUserServices
         {
             var user = usersPage.First(u => u.UserID == userDto.UserID);
 
-            // Tính tổng doanh thu từ các products
             decimal totalRevenue = 0m;
 
-            if (user.Products != null)
+            var artisanOrders = await _context.Order.GetAllOrderByArtisanIdAsync(user.UserID);
+            if (artisanOrders != null)
             {
-                foreach (var product in user.Products)
-                {
-                    if (product.OrderItems != null)
-                    {
-                        totalRevenue += product.OrderItems
-                            .Where(oi => oi.Order != null && oi.Order.Status.Equals("Paid", StringComparison.OrdinalIgnoreCase))
-                            .Sum(oi => oi.Quantity * oi.UnitPrice);
-                    }
-                }
+                var filteredOrders = artisanOrders.Where(o =>
+                    (o.Status?.Equals("Paid", StringComparison.OrdinalIgnoreCase) == true ||
+                     o.Status?.Equals("Completed", StringComparison.OrdinalIgnoreCase) == true) &&
+                    (!year.HasValue || year.Value <= 0 || o.CreateAt.Year == year.Value) &&
+                    (!month.HasValue || month.Value <= 0 || o.CreateAt.Month == month.Value));
+
+                totalRevenue = filteredOrders
+                    .SelectMany(o => o.OrderItems ?? Enumerable.Empty<OrderItem>())
+                    .Where(oi => oi.Product != null && oi.Product.ArtisanId == user.UserID)
+                    .Sum(oi => oi.Quantity * oi.UnitPrice);
             }
 
-            userDto.TotalRevenue = totalRevenue * 0.95m;
+            userDto.TotalRevenue = totalRevenue;
         }
         return new PagedResult<ResponseDTOUserShopDashboard>
         {

@@ -2009,7 +2009,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
           .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && !o.Status.Equals("Cancelled"))
           .ToList();
 
-        var revenue = ordersToday.Sum(o => (o.SubtotalAmount - o.DiscountAmount) - o.ShippingFee);
+        var revenue = ordersToday.Sum(o => (o.TotalAmount + o.DiscountAmount) - o.ShippingFee);
         var result = new ResponseDTOTodayRevenue
         {
             Revenue = revenue,
@@ -2043,9 +2043,9 @@ public class OrderServiceImpl : GenericServices, IOrderService
             {
                 Month = month,
                 TotalOrderNumber = (grouped.FirstOrDefault(x => x.Month == month)?.TotalOrderNumber ?? 0),
-                Revenue = (grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount
+                Revenue = ((grouped.FirstOrDefault(x => x.Month == month)?.TotalAmmount
                             - grouped.FirstOrDefault(x => x.Month == month)?.TotalShippingFee
-                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0)
+                            + grouped.FirstOrDefault(x => x.Month == month)?.TotalDiscountAmmount ?? 0))
             })
             .ToList();
 
@@ -2091,7 +2091,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 StartDate = currentStart,
                 EndDate = currentEnd,
                 TotalOrderNumber = ordersInWeek.Count(),
-                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount)
+                Revenue = (totalAmount - TotalShippingFee + TotalDiscountAmmount) * 0.5m
             });
 
             currentStart = currentEnd.AddDays(1);

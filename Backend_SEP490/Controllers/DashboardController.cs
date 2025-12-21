@@ -1,6 +1,7 @@
 ﻿using Backend_SEP490.DTOs.Request;
 using Backend_SEP490.Extensions;
 using Backend_SEP490.Services;
+using ClosedXML.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -64,9 +65,9 @@ namespace Backend_SEP490.Controllers
         // GET /users/artisans
         [Authorize(Roles = "Admin")]
         [HttpGet("users/artisans")]
-        public async Task<IActionResult> GetAllArtisans([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllArtisans([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, [FromQuery] int? year = null, [FromQuery] int? month = null)
         {
-            var users = await _userServices.GetAllArtisanAsync(pageIndex, pageSize);
+            var users = await _userServices.GetAllArtisanAsync(pageIndex, pageSize, year, month);
             if (users == null)
             {
                 return NotFound();
@@ -169,6 +170,77 @@ namespace Backend_SEP490.Controllers
             }
 
             return Ok(revenues);
+        }
+
+        // GET /admin/artisan-revenue-report?year=2025&month=12&artisanIds=U01,U02
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/artisan-revenue-report")]
+        public async Task<IActionResult> ExportArtisanRevenueReport(
+            [FromQuery] int year,
+            [FromQuery] int month,
+            [FromQuery] string? artisanIds = null)
+        {
+            if (year <= 0)
+            {
+                return BadRequest("year is required.");
+            }
+
+            if (month < 1 || month > 12)
+            {
+                return BadRequest("month must be between 1 and 12.");
+            }
+
+            var normalizedIds = string.IsNullOrWhiteSpace(artisanIds)
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : artisanIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var usersPage = await _userServices.GetAllArtisanAsync(1, int.MaxValue, year, month);
+            var artisans = usersPage?.Items?.ToList() ?? new List<Backend_SEP490.DTOs.Response.ResponseDTOUserShopDashboard>();
+
+            if (normalizedIds.Count > 0)
+            {
+                artisans = artisans
+                    .Where(a => !string.IsNullOrWhiteSpace(a.UserID) && normalizedIds.Contains(a.UserID))
+                    .ToList();
+            }
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("ArtisanRevenue");
+
+            worksheet.Cell(1, 1).Value = "Ten nghe nhan";
+            worksheet.Cell(1, 2).Value = "Cua hang";
+            worksheet.Cell(1, 3).Value = "Lien he";
+            worksheet.Cell(1, 4).Value = $"Doanh thu ({month:00}/{year})";
+
+            var header = worksheet.Range(1, 1, 1, 4);
+            header.Style.Font.Bold = true;
+            header.Style.Fill.BackgroundColor = XLColor.FromHtml("#F3F4F6");
+            header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            var row = 2;
+            foreach (var artisan in artisans.OrderBy(a => a.ShopName ?? a.DisplayName ?? a.UserID, StringComparer.OrdinalIgnoreCase))
+            {
+                worksheet.Cell(row, 1).Value = artisan.DisplayName ?? string.Empty;
+                worksheet.Cell(row, 2).Value = artisan.ShopName ?? artisan.DisplayName ?? string.Empty;
+                worksheet.Cell(row, 3).Value = artisan.PhoneNumber ?? string.Empty;
+                worksheet.Cell(row, 4).Value = artisan.TotalRevenue ?? 0m;
+                worksheet.Cell(row, 4).Style.NumberFormat.Format = "#,##0";
+                row++;
+            }
+
+            worksheet.Columns().AdjustToContents();
+
+            await using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            stream.Position = 0;
+
+            var fileName = $"BaoCaoDoanhThuNgheNhan_{month:00}_{year}.xlsx";
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
         }
 
        
