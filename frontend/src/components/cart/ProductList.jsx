@@ -92,6 +92,7 @@ const ProductList = ({
     context: null,
   });
   const [shopDetails, setShopDetails] = useState({});
+  const shopDetailsRef = useRef({});
   const pendingShopFetchRef = useRef(new Set());
 
   const [selectedItemIds, setSelectedItemIds] = useState(() => new Set());
@@ -546,7 +547,16 @@ const ProductList = ({
   const resolveShopInfo = useCallback((item) => {
     const product = item?.product || {};
     const artisanIdRaw = resolveProductArtisanId(product);
-    const artisanId = artisanIdRaw != null ? String(artisanIdRaw) : null;
+    const fallbackArtisanId = (
+      item?.artisanId
+      ?? item?.artisanID
+      ?? item?.shopId
+      ?? item?.shopID
+      ?? item?.ownerId
+      ?? item?.ownerID
+      ?? null
+    );
+    const artisanId = (artisanIdRaw ?? fallbackArtisanId) != null ? String(artisanIdRaw ?? fallbackArtisanId) : null;
     const shop = product.shop || product.store || product.artisan || {};
     const candidateNames = [
       shop.shopName,
@@ -596,6 +606,10 @@ const ProductList = ({
     };
   }, [translate]);
 
+  useEffect(() => {
+    shopDetailsRef.current = shopDetails || {};
+  }, [shopDetails]);
+
   const groupedShops = useMemo(() => {
     if (!Array.isArray(items) || items.length === 0) {
       return [];
@@ -623,6 +637,7 @@ const ProductList = ({
     }
     const pendingSet = pendingShopFetchRef.current;
 
+    const currentDetails = shopDetailsRef.current || {};
     const groupsNeedingData = groupedShops.filter((group) => {
       if (!group?.artisanId) {
         return false;
@@ -630,7 +645,7 @@ const ProductList = ({
       if (pendingSet.has(group.key)) {
         return false;
       }
-      if (shopDetails[group.key]) {
+      if (currentDetails[group.key]) {
         return false;
       }
       return true;
@@ -708,7 +723,7 @@ const ProductList = ({
     return () => {
       canceled = true;
     };
-  }, [groupedShops, shopDetails, normalizeShopData]);
+  }, [groupedShops, normalizeShopData]);
 
   const selectedShopNames = useMemo(() => {
     if (!groupedShops.length) {

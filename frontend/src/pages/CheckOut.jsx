@@ -939,10 +939,6 @@ const CheckOut = () => {
 
     const discountValue = ensureNumber(voucherDiscount);
 
-    setPlacingOrder(true);
-    const orderResults = [];
-    const failedGroups = [];
-
     const buildPayloadItems = (items) => items
       .map((item) => {
         const productId = item.productId
@@ -956,6 +952,103 @@ const CheckOut = () => {
         };
       })
       .filter(Boolean);
+
+    setPlacingOrder(true);
+    const orderResults = [];
+    const failedGroups = [];
+
+    if (multipleGroups && selectedVoucherCode) {
+      try {
+        const groupOrders = cartGroups.map((group) => ({
+          cartItems: buildPayloadItems(group.items),
+        })).filter((group) => Array.isArray(group.cartItems) && group.cartItems.length);
+
+        if (!groupOrders.length) {
+          toast.error(t('messages.cartEmpty'));
+          setPlacingOrder(false);
+          return;
+        }
+
+        const multiResponse = await OrderService.createMultiShopOrders({
+          orders: groupOrders,
+          addressId,
+          paymentMethod,
+          shippingServiceId: 53321,
+          paymentTypeId: 2,
+          serviceTypeId: 2,
+          bankCode: vnpayBankCode,
+          requiredNote: 'KHONGCHOXEMHANG',
+          voucherCodeId: selectedVoucherCode,
+        });
+
+        if (!multiResponse?.success) {
+          toast.error(multiResponse?.message || t('messages.orderError') || 'Có lỗi xảy ra khi tạo đơn hàng');
+          setPlacingOrder(false);
+          return;
+        }
+
+        const createdOrders = Array.isArray(multiResponse.orders) ? multiResponse.orders : [];
+        if (!createdOrders.length) {
+          toast.error(t('messages.orderError') || 'Có lỗi xảy ra khi tạo đơn hàng');
+          setPlacingOrder(false);
+          return;
+        }
+
+        if (paymentMethod === 'VNPAY') {
+          const orderNumbers = createdOrders
+            .map((order) => order?.orderNumber || order?.orderId)
+            .filter(Boolean);
+
+          try {
+            const batchResponse = await OrderService.createVnpayBatchPayment({
+              orderNumbers,
+              bankCode: vnpayBankCode,
+            });
+            if (batchResponse?.paymentUrl) {
+              toast.info('Đang chuyển hướng đến VNPAY...');
+              sessionStorage.setItem('vnpayOrderData', JSON.stringify({
+                success: true,
+                multiShop: true,
+                orders: createdOrders.map((order) => ({
+                  orderNumber: order?.orderNumber || order?.orderId,
+                  total: order?.total ?? order?.totalAmount ?? order?.totalAmount,
+                })),
+              }));
+              clearSelectionCache();
+              window.location.href = batchResponse.paymentUrl;
+              return;
+            }
+            toast.error('Không thể khởi tạo VNPay cho đơn nhiều shop.');
+          } catch (error) {
+            const message = extractApiErrorMessage(
+              error,
+              t('messages.orderError') || 'Không thể khởi tạo thanh toán VNPay cho đơn này',
+            );
+            toast.error(message);
+          } finally {
+            setPlacingOrder(false);
+          }
+          return;
+        }
+
+        clearSelectionCache();
+        toast.success(
+          t('checkout.multiShopSuccess', { count: createdOrders.length })
+          || `Đã tạo ${createdOrders.length} đơn hàng cho từng cửa hàng.`,
+        );
+        setPlacingOrder(false);
+        navigate('/order-history');
+        return;
+      } catch (error) {
+        const message = extractApiErrorMessage(
+          error,
+          t('messages.orderError') || 'Có lỗi xảy ra khi tạo đơn hàng',
+        );
+        toast.error(message);
+        setPlacingOrder(false);
+        return;
+      }
+    }
 
     const computeSubtotal = (items) => items.reduce(
       (total, item) => total + (Number(item.price) || 0) * (item.quantity || 0),

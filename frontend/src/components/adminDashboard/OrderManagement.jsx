@@ -647,8 +647,10 @@ const OrderManagement = () => {
     }, 0);
 
     const shippingCandidates = [
+      selectedOrder.feeShipping,
       selectedOrder.shippingFee,
       selectedOrder.shipingFee,
+      selectedOrder.shippingProviderFee,
       selectedOrder.deliveryFee,
       selectedOrder.shippingCost,
     ];

@@ -7,6 +7,11 @@ export const OrderService = {
     return response.data;
   },
 
+  async createMultiShopOrders(payload) {
+    const response = await axiosClient.post(API_ENDPOINTS.ORDERS.MULTI, payload);
+    return response.data;
+  },
+
   async getOrders(filter = {}) {
     const response = await axiosClient.post(API_ENDPOINTS.ORDERS.MY_ORDERS, filter);
     return response.data;

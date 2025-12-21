@@ -106,9 +106,20 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
   if (!isOpen) return null;
 
   // Derive monetary breakdown for order summary
-  const subtotal = orderDetail?.items?.reduce((sum, item) => (
-    sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)
-  ), 0) || 0;
+  const subtotal = (() => {
+    if (!orderDetail) return 0;
+    const candidateSubtotals = [
+      orderDetail.subtotalAmount,
+      orderDetail.subtotal,
+    ];
+    const candidate = candidateSubtotals.find((value) => value !== undefined && value !== null);
+    if (candidate !== undefined && candidate !== null && Number.isFinite(Number(candidate))) {
+      return Number(candidate);
+    }
+    return orderDetail?.items?.reduce((sum, item) => (
+      sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)
+    ), 0) || 0;
+  })();
 
   const discountAmount = (() => {
     if (!orderDetail) return 0;
@@ -160,6 +171,9 @@ function OrderDetailModal({ orderNumber, isOpen, onClose, onOrderCancelled }) {
   const finalTotal = Number.isFinite(rawTotal) ? rawTotal : grandTotal;
 
   const voucherDiscount = (() => {
+    if (discountAmount > 0) {
+      return discountAmount;
+    }
     if (!Number.isFinite(finalTotal)) {
       return 0;
     }

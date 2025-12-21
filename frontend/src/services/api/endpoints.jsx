@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
 
   ORDERS: {
     ROOT: '/api/Order/orders',
+    MULTI: '/api/Order/orders/multi',
     MY_ORDERS: '/api/Order/my-orders',
     BY_ID: (orderId) => `/api/Order/orders/${orderId}`,
     CANCEL: (orderId) => `/api/Order/orders/${orderId}/cancel`,
