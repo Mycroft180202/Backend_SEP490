@@ -26,6 +26,32 @@ namespace Backend_SEP490.Repositories.impl
             return true;
         }
 
+        public async Task<List<Order>> GetRecentOrdersForCustomerAsync(string customerId, DateTime sinceUtc, int limit = 5)
+        {
+            if (string.IsNullOrWhiteSpace(customerId))
+            {
+                return new List<Order>();
+            }
+
+            if (limit <= 0)
+            {
+                limit = 5;
+            }
+
+            var normalizedCustomerId = customerId.Trim();
+            return await _context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .Where(o =>
+                    o.CustomerId == normalizedCustomerId &&
+                    o.CreateAt >= sinceUtc &&
+                    o.Status != OrderStatuses.Cancelled &&
+                    o.Status != OrderStatuses.Completed)
+                .OrderByDescending(o => o.CreateAt)
+                .Take(limit)
+                .ToListAsync();
+        }
+
         public async Task<Order> GetAllOrderByIdAsync(string orderId)
         {
             var order = await _context.Orders

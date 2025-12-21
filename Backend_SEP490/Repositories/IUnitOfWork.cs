@@ -8,6 +8,8 @@ public interface IUnitOfWork: IDisposable
     public Task<int> SaveChangesAsync();
 
     Task<IDbContextTransaction> BeginTransactionAsync();
+    bool HasActiveTransaction();
+    Task<int> ExecuteSqlInterpolatedAsync(FormattableString sql);
     IProductRepositories Products { get; }
     IUserRepositories Users { get; }
     IFeedbackRepositories Feedback { get; }

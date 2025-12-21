@@ -6,6 +6,7 @@ using AutoMapper;
 using Backend_SEP490.DTOs.Response;
 using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Backend_SEP490.Services;
 
@@ -116,34 +117,87 @@ public class GenericServices
             return (false, "Order items missing product references.");
         }
 
-        var products = await _context.Products.GetProductsByIdsAsync(productIds);
-        var lookup = products
-            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
-            .ToDictionary(p => p.Id!.Trim(), StringComparer.OrdinalIgnoreCase);
+        var quantities = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .GroupBy(item => item.ProductID!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(item => Math.Max(item.Quantity, 0)),
+                StringComparer.OrdinalIgnoreCase);
 
-        foreach (var item in orderItems)
+        if (quantities.Count == 0)
         {
-            if (string.IsNullOrWhiteSpace(item.ProductID) ||
-                !lookup.TryGetValue(item.ProductID.Trim(), out var product))
-            {
-                return (false, $"Product {item.ProductID ?? "unknown"} not found.");
-            }
-
-            if (product.Stock < item.Quantity)
-            {
-                return (false, $"Product {product.Name} only has {product.Stock} item(s) left.");
-            }
+            return (false, "Order items missing product references.");
         }
 
-        foreach (var item in orderItems)
+        var startedTransaction = false;
+        IDbContextTransaction? transaction = null;
+        try
         {
-            var product = lookup[item.ProductID!.Trim()];
-            var quantity = Math.Max(item.Quantity, 0);
-            product.Stock = Math.Max(0, product.Stock - quantity);
-        }
+            if (!_context.HasActiveTransaction())
+            {
+                transaction = await _context.BeginTransactionAsync();
+                startedTransaction = true;
+            }
 
-        order.IsInventoryReserved = true;
-        return (true, null);
+            foreach (var entry in quantities)
+            {
+                var productId = entry.Key;
+                var quantity = entry.Value;
+                if (quantity <= 0)
+                {
+                    continue;
+                }
+
+                var affected = await _context.ExecuteSqlInterpolatedAsync(
+                    $@"UPDATE Products
+                       SET Stock = Stock - {quantity}
+                       WHERE Id = {productId} AND IsActive = 1 AND Stock >= {quantity}");
+
+                if (affected <= 0)
+                {
+                    var product = await _context.Products.GetProductByIdAsync(productId);
+                    var displayName = product?.Name ?? productId;
+                    var available = product?.Stock ?? 0;
+                    var isActive = product?.IsActive ?? true;
+                    var reason = !isActive ? "is inactive" : $"only has {available} item(s) left";
+
+                    if (startedTransaction && transaction != null)
+                    {
+                        await transaction.RollbackAsync();
+                    }
+
+                    return (false, $"Product {displayName} {reason}.");
+                }
+            }
+
+            order.IsInventoryReserved = true;
+            if (startedTransaction)
+            {
+                await _context.SaveChangesAsync();
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+            }
+
+            return (true, null);
+        }
+        catch
+        {
+            if (startedTransaction && transaction != null)
+            {
+                await transaction.RollbackAsync();
+            }
+            throw;
+        }
+        finally
+        {
+            if (startedTransaction && transaction != null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
     }
 
     protected async Task RestoreOrderStockAsync(Order? order)
@@ -172,25 +226,91 @@ public class GenericServices
             return;
         }
 
-        var products = await _context.Products.GetProductsByIdsAsync(productIds);
-        var lookup = products
-            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
-            .ToDictionary(p => p.Id!.Trim(), StringComparer.OrdinalIgnoreCase);
+        var quantities = orderItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ProductID))
+            .GroupBy(item => item.ProductID!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(item => Math.Max(item.Quantity, 0)),
+                StringComparer.OrdinalIgnoreCase);
 
-        foreach (var item in orderItems)
+        if (quantities.Count == 0)
         {
-            if (string.IsNullOrWhiteSpace(item.ProductID))
-            {
-                continue;
-            }
-
-            if (lookup.TryGetValue(item.ProductID.Trim(), out var product))
-            {
-                product.Stock += Math.Max(item.Quantity, 0);
-            }
+            order.IsInventoryReserved = false;
+            return;
         }
 
-        order.IsInventoryReserved = false;
+        var startedTransaction = false;
+        IDbContextTransaction? transaction = null;
+        try
+        {
+            if (!_context.HasActiveTransaction())
+            {
+                transaction = await _context.BeginTransactionAsync();
+                startedTransaction = true;
+            }
+
+            foreach (var entry in quantities)
+            {
+                var productId = entry.Key;
+                var quantity = entry.Value;
+                if (quantity <= 0)
+                {
+                    continue;
+                }
+
+                await _context.ExecuteSqlInterpolatedAsync(
+                    $@"UPDATE Products
+                       SET Stock = Stock + {quantity}
+                       WHERE Id = {productId}");
+            }
+
+            order.IsInventoryReserved = false;
+
+            if (startedTransaction)
+            {
+                await _context.SaveChangesAsync();
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+            }
+        }
+        catch
+        {
+            if (startedTransaction && transaction != null)
+            {
+                await transaction.RollbackAsync();
+            }
+            throw;
+        }
+        finally
+        {
+            if (startedTransaction && transaction != null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
+    }
+
+    protected async Task ReleaseVoucherUsageAsync(int? voucherId)
+    {
+        if (!voucherId.HasValue || voucherId.Value <= 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        await _context.ExecuteSqlInterpolatedAsync(
+            $@"UPDATE Vouchers
+               SET UsedCount = UsedCount - 1,
+                   IsActive = CASE
+                       WHEN (UsedCount - 1) < UsageLimit AND StartDate <= {now} AND EndDate >= {now} THEN 1
+                       ELSE IsActive
+                   END
+               WHERE VoucherId = {voucherId.Value}
+                 AND UsageLimit IS NOT NULL
+                 AND UsedCount > 0");
     }
 
     protected async Task<IReadOnlyList<CartStockAdjustment>> SynchronizeCartItemsWithProductStockAsync(

@@ -24,6 +24,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
     private const string PaymentTypeCod = "COD";
     private const string PaymentTypeVnpay = "VNPAY";
     private const int SellerPenaltyPoints = 5;
+    private static readonly TimeSpan DuplicateOrderWindow = TimeSpan.FromSeconds(60);
+    private const int DuplicateOrderLookbackLimit = 5;
 
     private readonly INotificationService _notificationService;
     private readonly IGhnShippingService _ghnShippingService;
@@ -57,6 +59,23 @@ public class OrderServiceImpl : GenericServices, IOrderService
     }
 
     private static string GenerateId(string prefix) => $"{prefix}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
+
+    private static string BuildOrderItemSignature(IEnumerable<(string ProductId, int Quantity, decimal UnitPrice)> items)
+    {
+        if (items == null)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(
+            "|",
+            items
+                .Where(i => !string.IsNullOrWhiteSpace(i.ProductId))
+                .Select(i => (ProductId: i.ProductId.Trim(), Quantity: Math.Max(i.Quantity, 0), UnitPrice: Math.Max(i.UnitPrice, 0m)))
+                .OrderBy(i => i.ProductId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(i => i.UnitPrice)
+                .Select(i => $"{i.ProductId}:{i.Quantity}:{i.UnitPrice:0.################}"));
+    }
 
     public async Task<CreateOrderResult> CreateOrderAsync(string? userId, RequestCreateOrder request)
     {
@@ -146,6 +165,87 @@ public class OrderServiceImpl : GenericServices, IOrderService
             {
                 await transaction.RollbackAsync();
                 return CreateOrderResult.Failure(feeError ?? "Unable to calculate shipping fee.");
+            }
+
+            var normalizedVoucherCode = string.IsNullOrWhiteSpace(request.VoucherCodeId)
+                ? null
+                : request.VoucherCodeId.Trim();
+
+            var candidateSignature = BuildOrderItemSignature(orderItemInputs.Select(i => (i.ProductId, i.Quantity, i.UnitPrice)));
+            var candidateServiceId = resolvedServiceId ?? -1;
+            var candidateServiceTypeId = request.ServiceTypeId ?? _ghnSettings.ServiceTypeId;
+            var candidateRequiredNote = request.RequiredNote;
+            var candidatePaymentTypeId = request.PaymentTypeId;
+            var recentOrders = await _context.Order.GetRecentOrdersForCustomerAsync(
+                userId,
+                DateTime.UtcNow.Subtract(DuplicateOrderWindow),
+                DuplicateOrderLookbackLimit);
+
+            var duplicateOrder = recentOrders.FirstOrDefault(o =>
+            {
+                if (o == null)
+                {
+                    return false;
+                }
+
+                if (!string.Equals(o.PaymentType, paymentType, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (!string.Equals(o.ShipingAddressId, address.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (!string.Equals(o.VoucherCode, normalizedVoucherCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (o.ShippingServiceId != candidateServiceId)
+                {
+                    return false;
+                }
+
+                if (o.ShippingServiceTypeId != candidateServiceTypeId)
+                {
+                    return false;
+                }
+
+                if (o.ShippingPaymentTypeId != candidatePaymentTypeId)
+                {
+                    return false;
+                }
+
+                if (!string.Equals(o.ShippingRequiredNote, candidateRequiredNote, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                var existingSignature = BuildOrderItemSignature((o.OrderItems ?? Array.Empty<OrderItem>())
+                    .Select(oi => (oi.ProductID ?? string.Empty, oi.Quantity, oi.UnitPrice)));
+
+                return string.Equals(existingSignature, candidateSignature, StringComparison.Ordinal);
+            });
+
+            if (duplicateOrder != null)
+            {
+                await transaction.RollbackAsync();
+                var duplicateResponse = CreateOrderResult.Succeeded(
+                    duplicateOrder.Id,
+                    duplicateOrder.PaymentType,
+                    duplicateOrder.SubtotalAmount,
+                    duplicateOrder.DiscountAmount,
+                    duplicateOrder.ShippingFee,
+                    duplicateOrder.TotalAmount,
+                    duplicateOrder.Status,
+                    duplicateOrder.VoucherCode) with
+                {
+                    Message = "Duplicate request detected. Returning existing order."
+                };
+
+                return duplicateResponse;
             }
 
             var (voucherSuccess, discountAmount, voucher, voucherError) =
@@ -693,10 +793,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         if (voucher.UsageLimit.HasValue)
         {
-            voucher.UsedCount++;
-            if (voucher.UsedCount >= voucher.UsageLimit.Value)
+            var voucherId = voucher.VoucherId;
+            var affected = await _context.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE Vouchers
+                   SET UsedCount = UsedCount + 1,
+                       IsActive = CASE WHEN UsedCount + 1 >= UsageLimit THEN 0 ELSE 1 END
+                   WHERE VoucherId = {voucherId}
+                     AND IsActive = 1
+                     AND StartDate <= {now}
+                     AND EndDate >= {now}
+                     AND UsageLimit IS NOT NULL
+                     AND UsedCount < UsageLimit");
+
+            if (affected <= 0)
             {
-                voucher.IsActive = false;
+                return (false, 0m, null, "Voucher da het luot su dung.");
             }
         }
 
@@ -755,6 +866,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         var shipments = await _context.Shipment.GetByOrdernumberAsync(order.OrderNumber);
+        var artisanIds = await ResolveArtisanIdsAsync(order);
         var cancelledShipments = new List<Shipment>();
         foreach (var shipment in shipments)
         {
@@ -783,12 +895,21 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         order.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(order);
+        await ReleaseVoucherUsageAsync(order.VoucherId);
         await _context.SaveChangesAsync();
         var cancelledOrderItems = await EnsureOrderItemsLoadedAsync(order);
         await PublishInventoryRealtimeAsync(cancelledOrderItems, null);
         foreach (var shipment in cancelledShipments)
         {
-            await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment cancelled");
+            if (!string.IsNullOrWhiteSpace(order.CustomerId))
+            {
+                await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment cancelled");
+            }
+
+            foreach (var artisanId in artisanIds)
+            {
+                await _shipmentRealtimeService.BroadcastAsync(artisanId, shipment, "Shipment cancelled");
+            }
         }
 
         var message = "Cancel order successfully!";
@@ -855,11 +976,20 @@ public class OrderServiceImpl : GenericServices, IOrderService
         order.Status = OrderStatuses.Completed;
         await _context.SaveChangesAsync();
 
+        var artisanIds = await ResolveArtisanIdsAsync(order);
         if (!string.IsNullOrWhiteSpace(order.CustomerId))
         {
             foreach (var shipment in updatedShipments)
             {
                 await _shipmentRealtimeService.BroadcastAsync(order.CustomerId, shipment, "Shipment delivered (confirmed by customer)");
+            }
+        }
+
+        foreach (var shipment in updatedShipments)
+        {
+            foreach (var artisanId in artisanIds)
+            {
+                await _shipmentRealtimeService.BroadcastAsync(artisanId, shipment, "Shipment delivered (confirmed by customer)");
             }
         }
 
@@ -1073,13 +1203,22 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         trackedOrder.Status = OrderStatuses.Cancelled;
         await RestoreOrderStockAsync(trackedOrder);
+        await ReleaseVoucherUsageAsync(trackedOrder.VoucherId);
         await _context.SaveChangesAsync();
         var autoCancelledItems = await EnsureOrderItemsLoadedAsync(trackedOrder);
         await PublishInventoryRealtimeAsync(autoCancelledItems, null);
 
         foreach (var shipment in cancelledShipments)
         {
-            await _shipmentRealtimeService.BroadcastAsync(trackedOrder.CustomerId, shipment, "Shipment cancelled");
+            if (!string.IsNullOrWhiteSpace(trackedOrder.CustomerId))
+            {
+                await _shipmentRealtimeService.BroadcastAsync(trackedOrder.CustomerId, shipment, "Shipment cancelled");
+            }
+
+            if (!string.IsNullOrWhiteSpace(artisanId))
+            {
+                await _shipmentRealtimeService.BroadcastAsync(artisanId, shipment, "Shipment cancelled");
+            }
         }
 
         await HandleAutoCancelNotificationsAndCompensationAsync(trackedOrder, artisanId, cancellationToken);
@@ -1720,10 +1859,16 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     private async Task<string?> ResolveArtisanIdAsync(Order order)
     {
+        var artisanIds = await ResolveArtisanIdsAsync(order);
+        return artisanIds.Count == 1 ? artisanIds[0] : null;
+    }
+
+    private async Task<List<string>> ResolveArtisanIdsAsync(Order order)
+    {
         var orderItems = await EnsureOrderItemsLoadedAsync(order);
         if (orderItems == null || orderItems.Count == 0)
         {
-            return null;
+            return new List<string>();
         }
 
         var productIds = orderItems
@@ -1734,17 +1879,15 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
         if (productIds.Count == 0)
         {
-            return null;
+            return new List<string>();
         }
 
         var products = await _context.Products.GetProductsByIdsAsync(productIds);
-        var artisanIds = products
+        return products
             .Where(p => !string.IsNullOrWhiteSpace(p.ArtisanId))
             .Select(p => p.ArtisanId!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        return artisanIds.Count == 1 ? artisanIds[0] : null;
     }
 
     private async Task<bool> DoesOrderBelongToArtisanAsync(Order order, string artisanId)
@@ -2124,13 +2267,50 @@ public class OrderServiceImpl : GenericServices, IOrderService
 
     private Task PublishOrderRealtimeAsync(Order order, string? message)
     {
-        if (order == null || string.IsNullOrWhiteSpace(order.CustomerId))
+        return PublishOrderRealtimeAsync(order, message, includeArtisans: true);
+    }
+
+    private async Task PublishOrderRealtimeAsync(Order order, string? message, bool includeArtisans)
+    {
+        if (order == null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var dto = BuildOrderRealtimeDto(order, message);
-        return _realtimeService.SendOrderUpdateAsync(order.CustomerId!, dto);
+        var tasks = new List<Task>();
+
+        if (!string.IsNullOrWhiteSpace(order.CustomerId))
+        {
+            tasks.Add(_realtimeService.SendOrderUpdateAsync(order.CustomerId!, dto));
+        }
+
+        if (includeArtisans)
+        {
+            var artisanIds = await ResolveArtisanIdsAsync(order);
+            foreach (var artisanId in artisanIds)
+            {
+                if (string.IsNullOrWhiteSpace(artisanId))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(order.CustomerId) &&
+                    string.Equals(artisanId, order.CustomerId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                tasks.Add(_realtimeService.SendOrderUpdateAsync(artisanId, dto));
+            }
+        }
+
+        if (tasks.Count == 0)
+        {
+            return;
+        }
+
+        await Task.WhenAll(tasks);
     }
 
     private async Task PublishInventoryRealtimeAsync(IEnumerable<OrderItem> orderItems, string? excludeUserId)

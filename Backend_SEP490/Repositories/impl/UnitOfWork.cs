@@ -1,4 +1,5 @@
-﻿using Backend_SEP490.Models;
+using Backend_SEP490.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Backend_SEP490.Repositories.impl;
@@ -47,9 +48,19 @@ public class UnitOfWork: IUnitOfWork
         SellerReputations = sellerReputations;
     }
 
-    public async Task<IDbContextTransaction> BeginTransactionAsync()
+    public Task<IDbContextTransaction> BeginTransactionAsync()
     {
-        return await _context.Database.BeginTransactionAsync();
+        return _context.Database.BeginTransactionAsync();
+    }
+
+    public bool HasActiveTransaction()
+    {
+        return _context.Database.CurrentTransaction != null;
+    }
+
+    public Task<int> ExecuteSqlInterpolatedAsync(FormattableString sql)
+    {
+        return _context.Database.ExecuteSqlInterpolatedAsync(sql);
     }
 
     public void Dispose()
@@ -57,18 +68,20 @@ public class UnitOfWork: IUnitOfWork
         _context.DisposeAsync();
     }
 
-    public async Task<int> CommitAsync()
+    public Task<int> CommitAsync()
     {
-        return await _context.SaveChangesAsync();
+        return _context.SaveChangesAsync();
     }
-    public async Task<int> SaveChangesAsync()
+
+    public Task<int> SaveChangesAsync()
     {
-        return await _context.SaveChangesAsync();
+        return _context.SaveChangesAsync();
     }
-    public IProductRepositories Products { get;private set;  }
-    public IUserRepositories Users { get;private set;  }
-    public IFeedbackRepositories Feedback { get;private set;  }
-    public IProductImagesRepositories ProductImages { get;private set;  }
+
+    public IProductRepositories Products { get; private set; }
+    public IUserRepositories Users { get; private set; }
+    public IFeedbackRepositories Feedback { get; private set; }
+    public IProductImagesRepositories ProductImages { get; private set; }
     public IOrderRepositories Order { get; private set; }
     public IBlogRepositories Blog { get; private set; }
     public IRefreshTokenRepository RefreshTokens { get; }
@@ -93,5 +106,5 @@ public class UnitOfWork: IUnitOfWork
     public IArtisanApplicationRepository ArtisanApplications { get; }
     public IStoryTellingRepositories StoryTelling { get; }
     public ISellerReputationRepository SellerReputations { get; }
-
 }
+

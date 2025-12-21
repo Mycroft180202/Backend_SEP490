@@ -294,6 +294,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
                  string.Equals(order.PaymentType, "VNPAY", StringComparison.OrdinalIgnoreCase))
         {
             await RestoreOrderStockAsync(order);
+            await ReleaseVoucherUsageAsync(order.VoucherId);
             await _context.SaveChangesAsync();
             var restoredItems = await EnsureOrderItemsLoadedAsync(order);
             await PublishInventoryRealtimeAsync(restoredItems, null);
