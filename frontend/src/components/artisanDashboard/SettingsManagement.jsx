@@ -11,6 +11,7 @@ import {
 import { toast } from 'react-toastify';
 import { ShopService } from '../../services/modules/shop/shopService';
 import { GHNLocationService } from '../../services/modules/shipping/ghnLocationService';
+import { normalizeVietnamPhone, sanitizeVietnamPhoneInput } from '../../utils/vietnamPhone';
 
 const buildShopAddressString = async (address) => {
   if (!address) return '';
@@ -190,6 +191,10 @@ const SettingsManagement = () => {
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
+    if (name === 'phoneNumber') {
+      setFormValues((prev) => ({ ...prev, [name]: sanitizeVietnamPhoneInput(value) }));
+      return;
+    }
     setFormValues((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -215,11 +220,21 @@ const SettingsManagement = () => {
       return;
     }
 
+    const rawPhone = (formValues.phoneNumber || '').trim();
+    if (rawPhone) {
+      const phoneResult = normalizeVietnamPhone(rawPhone);
+      if (!phoneResult.isValid) {
+        toast.error('Số điện thoại không đúng định dạng. Ví dụ: 0901234567, +84901234567.');
+        return;
+      }
+    }
+
     setUpdating(true);
     try {
+      const phoneResult = rawPhone ? normalizeVietnamPhone(rawPhone) : null;
       await ShopService.updateMyShop({
         shopName: trimmedName,
-        phoneNumber: formValues.phoneNumber.trim(),
+        phoneNumber: phoneResult?.isValid ? phoneResult.normalized : rawPhone,
         bio: formValues.bio.trim(),
         shopUrlImage: formValues.shopUrlImage || undefined,
       });

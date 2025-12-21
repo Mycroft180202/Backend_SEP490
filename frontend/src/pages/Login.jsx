@@ -11,6 +11,7 @@ import {
   FaKey,
 } from 'react-icons/fa';
 import { LanguageContext } from '../context/LanguageContext';
+import { validateStrongPassword } from '../utils/passwordValidation';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -87,8 +88,9 @@ const Login = () => {
       toast.error('Mật khẩu xác nhận không khớp.');
       return;
     }
-    if (forgotNewPassword.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự.');
+    const strongPasswordResult = validateStrongPassword(forgotNewPassword, { minLength: 8 });
+    if (!strongPasswordResult.isValid) {
+      toast.error('Mật khẩu phải có tối thiểu 8 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.');
       return;
     }
 

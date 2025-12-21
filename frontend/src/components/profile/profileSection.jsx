@@ -36,6 +36,8 @@ import ArtisanRegistrationForm from './ArtisanRegistrationForm';
 import { toast } from 'react-toastify';
 import { LanguageContext } from '../../context/LanguageContext';
 import { UserContext } from '../../context/UserContext';
+import { normalizeVietnamPhone, sanitizeVietnamPhoneInput } from '../../utils/vietnamPhone';
+import { validateStrongPassword } from '../../utils/passwordValidation';
 
 const mapUserProfile = (data) => ({
   name: data.displayName || data.fullName || '',
@@ -229,13 +231,13 @@ function ChangePasswordSection({ email }) {
       toast.error(translate('profile.changePassword.passwordRequired', 'Vui lòng điền đầy đủ mật khẩu.'));
       return;
     }
-        if (newPassword !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       toast.error(translate('profile.changePassword.passwordMismatch', 'Mật khẩu xác nhận không khớp.'));
       return;
     }
-    const strongPassword = /^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{6,}$/;
-    if (!strongPassword.test(newPassword)) {
-      toast.error(translate('profile.changePassword.passwordRule', 'Mật khẩu phải có ≥ 6 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.'));
+    const strongPasswordResult = validateStrongPassword(newPassword, { minLength: 8 });
+    if (!strongPasswordResult.isValid) {
+      toast.error(translate('profile.changePassword.passwordRule', 'Mật khẩu phải có tối thiểu 8 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.'));
       return;
     }
     setLoading(true);
@@ -398,7 +400,7 @@ function ChangePasswordSection({ email }) {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="flex-1 bg-transparent text-sm outline-none"
-                      placeholder={translate('profile.changePassword.newPasswordPlaceholder', 'Tối thiểu 6 ký tự, có chữ in hoa & ký tự đặc biệt')}
+                      placeholder={translate('profile.changePassword.newPasswordPlaceholder', 'Tối thiểu 8 ký tự, có chữ in hoa & ký tự đặc biệt')}
                     />
                   </div>
                 </div>
@@ -425,7 +427,7 @@ function ChangePasswordSection({ email }) {
                   {translate('profile.changePassword.passwordGuideTitle', 'Yêu cầu đặt lại mật khẩu')}
                 </p>
                 <ul className="list-disc pl-5">
-                  <li>{translate('profile.changePassword.passwordGuideLength', 'Tối thiểu 6 ký tự')}</li>
+                  <li>{translate('profile.changePassword.passwordGuideLength', 'Tối thiểu 8 ký tự')}</li>
                   <li>{translate('profile.changePassword.passwordGuideUpper', 'Có ít nhất một chữ cái viết hoa')}</li>
                   <li>{translate('profile.changePassword.passwordGuideSpecial', 'Chứa ký tự đặc biệt như !, @, #, ...')}</li>
                 </ul>
@@ -497,6 +499,7 @@ function ProfileSection({ initialFocus, profileNode }) {
   const yearInputRef = useRef(null);
   const phoneInputRef = useRef(null);
   const phoneInvalidToastShownRef = useRef(false);
+  const cancelEditToastSuppressionRef = useRef(false);
   const addressPhoneInputRef = useRef(null);
   const addressPhoneInvalidToastShownRef = useRef(false);
   const navigate = useNavigate();
@@ -868,11 +871,13 @@ function ProfileSection({ initialFocus, profileNode }) {
   };
 
   const handleEditToggle = () => {
+    cancelEditToastSuppressionRef.current = false;
     setIsEditMode(!isEditMode);
     if (isEditMode) {
       setEditedProfile(profile);
       setDobFields(parseDobToFields(profile?.dob));
       setDobInvalid(false);
+      setPhoneInvalid(false);
     } else {
       setDobFields(parseDobToFields((editedProfile || profile)?.dob));
       setDobInvalid(false);
@@ -891,22 +896,28 @@ function ProfileSection({ initialFocus, profileNode }) {
     }
   };
 
-  const normalizeVietnamPhone = (value) => {
-    const raw = (value || '').trim();
-    if (!raw) return { normalized: '', isValid: false, reason: 'empty' };
-    const digits = raw.replace(/\D/g, '');
-    if (!digits) return { normalized: '', isValid: false, reason: 'invalid' };
-
-    let normalized = digits;
-    if (normalized.startsWith('84') && normalized.length === 11) {
-      normalized = `0${normalized.slice(2)}`;
+  const phoneValidationMessage = useCallback((result) => {
+    if (!result || result.isValid) return '';
+    if (result.reason === 'empty') {
+      return translate(
+        'auth.register.errors.phoneRequired',
+        translate('profile.info.phoneRequired', 'Vui lòng nhập số điện thoại hợp lệ.'),
+      );
     }
-
-    if (!/^0\d{9}$/.test(normalized)) {
-      return { normalized, isValid: false, reason: 'format' };
+    if (result.reason === 'format84') {
+      return translate(
+        'auth.register.errors.phoneInvalid84',
+        translate(
+          'profile.info.phoneInvalid84',
+          'Số điện thoại +84 phải có đầu số 3, 5, 7, 8 hoặc 9 và 8 chữ số tiếp theo.',
+        ),
+      );
     }
-    return { normalized, isValid: true };
-  };
+    return translate(
+      'auth.register.errors.phoneInvalid',
+      translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'),
+    );
+  }, [translate]);
 
   const getFirstInvalidDobField = ({ day, month, year }) => {
     const trimmedDay = (day || '').trim();
@@ -1087,7 +1098,7 @@ function ProfileSection({ initialFocus, profileNode }) {
       const phoneResult = normalizeVietnamPhone(editedProfile.phone);
       if (!phoneResult.isValid) {
         setPhoneInvalid(true);
-        toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+        toast.error(phoneValidationMessage(phoneResult) || translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
         phoneInputRef.current?.focus();
         return;
       }
@@ -1211,7 +1222,7 @@ function ProfileSection({ initialFocus, profileNode }) {
     const phoneResult = normalizeVietnamPhone(phone);
     if (!phoneResult.isValid) {
       setAddressPhoneInvalid(true);
-      toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+      toast.error(phoneValidationMessage(phoneResult) || translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
       addressPhoneInputRef.current?.focus();
       return;
     }
@@ -1431,16 +1442,19 @@ function ProfileSection({ initialFocus, profileNode }) {
                         phoneInvalidToastShownRef.current = true;
                         toast.error(translate('profile.info.phoneOnlyNumbers', 'Số điện thoại chỉ được nhập số.'));
                       }
-                      const next = raw.replace(/\D/g, '');
+                      const next = sanitizeVietnamPhoneInput(raw);
                       handleInputChange('phone', next);
                     }}
                     onBlur={() => {
+                      if (cancelEditToastSuppressionRef.current) {
+                        return;
+                      }
                       const raw = (editedProfile.phone || '').trim();
                       if (!raw) return;
                       const result = normalizeVietnamPhone(raw);
                       if (!result.isValid) {
                         setPhoneInvalid(true);
-                        toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+                        toast.error(phoneValidationMessage(result) || translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
                       }
                     }}
                     className={`w-full border rounded px-4 py-2 ${phoneInvalid ? 'border-red-500' : ''}`}
@@ -1454,14 +1468,14 @@ function ProfileSection({ initialFocus, profileNode }) {
               </div>
               <div>
                 <label className="block mb-2 font-medium">{translate('profile.info.emailLabel', 'Email')}</label>
-                <div className="flex items-center border rounded px-4 py-2 bg-white">
+                <div className={`flex items-center border rounded px-4 py-2 ${isEditMode ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'}`}>
                   <FaUserCircle className="mr-2 text-gray-400" />
                   <span>{profile.email}</span>
                 </div>
               </div>
               <div>
                 <label className="block mb-2 font-medium">{translate('profile.info.usernameLabel', 'Tên đăng nhập')}</label>
-                <input type="text" value={profile.username} className="w-full border rounded px-4 py-2" readOnly />
+                <input type="text" value={profile.username} className={`w-full border rounded px-4 py-2 ${isEditMode ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'}`} readOnly />
               </div>
               <div>
                 <label className="block mb-2 font-medium">{translate('profile.info.dobLabel', 'Ngày tháng năm sinh')}</label>
@@ -1538,6 +1552,9 @@ function ProfileSection({ initialFocus, profileNode }) {
                   </button>
                   <button 
                     onClick={handleEditToggle}
+                    onMouseDown={() => {
+                      cancelEditToastSuppressionRef.current = true;
+                    }}
                     className="px-8 py-2 bg-gray-500 text-white rounded font-semibold"
                   >
                     {translate('profile.common.cancel', 'Hủy')}
@@ -1692,7 +1709,7 @@ function ProfileSection({ initialFocus, profileNode }) {
                             addressPhoneInvalidToastShownRef.current = true;
                             toast.error(translate('profile.info.phoneOnlyNumbers', 'Số điện thoại chỉ được nhập số.'));
                           }
-                          const next = raw.replace(/\D/g, '');
+                          const next = sanitizeVietnamPhoneInput(raw);
                           handleAddressFieldChange('phone', next);
                           setAddressPhoneInvalid(false);
                         }}
@@ -1702,7 +1719,7 @@ function ProfileSection({ initialFocus, profileNode }) {
                           const result = normalizeVietnamPhone(raw);
                           if (!result.isValid) {
                             setAddressPhoneInvalid(true);
-                            toast.error(translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
+                            toast.error(phoneValidationMessage(result) || translate('profile.info.phoneInvalid', 'Số điện thoại không hợp lệ.'));
                           }
                         }}
                       />
@@ -1987,6 +2004,7 @@ function ProfileSection({ initialFocus, profileNode }) {
             ) : applicationInfo && applicationInfo.status !== 'REJECTED' ? null : (
               <ArtisanRegistrationForm
                 isOpen
+                defaultEmail={profile?.email || ''}
                 onClose={() => setActiveSection('info')}
                 onSuccess={() => {
                   toast.success('Đơn đăng ký được gửi thành công!');

@@ -5,23 +5,7 @@ import { FaTimes } from 'react-icons/fa';
 import { LanguageContext } from '../../context/LanguageContext';
 import { GHNLocationService } from '../../services/modules/shipping/ghnLocationService';
 import { UserService } from '../../services/modules/users/userService';
-
-const normalizeVietnamPhone = (value) => {
-  const raw = (value || '').trim();
-  if (!raw) return { normalized: '', isValid: false, reason: 'empty' };
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) return { normalized: '', isValid: false, reason: 'invalid' };
-
-  let normalized = digits;
-  if (normalized.startsWith('84') && normalized.length === 11) {
-    normalized = `0${normalized.slice(2)}`;
-  }
-
-  if (!/^0\d{9}$/.test(normalized)) {
-    return { normalized, isValid: false, reason: 'format' };
-  }
-  return { normalized, isValid: true };
-};
+import { normalizeVietnamPhone, sanitizeVietnamPhoneInput } from '../../utils/vietnamPhone';
 
 const DEFAULT_FORM = Object.freeze({
   name: '',
@@ -288,7 +272,7 @@ export default function AddressManageModal({
                 value={form.phone}
                 onChange={(e) => {
                   const raw = e.target.value || '';
-                  const next = raw.replace(/\D/g, '');
+                  const next = sanitizeVietnamPhoneInput(raw);
                   setForm((prev) => ({ ...prev, phone: next }));
                 }}
                 disabled={saving}

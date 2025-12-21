@@ -185,6 +185,7 @@ const OrderManagement = () => {
   const handleCloseDetail = useCallback(() => setSelectedOrder(null), []);
   const addressCacheRef = useRef(new Map());
   const productCacheRef = useRef(new Map());
+  const realtimeRefreshTimeoutRef = useRef(null);
 
   const formatCurrency = useCallback((amount) => {
     const numeric = Number(amount) || 0;
@@ -459,6 +460,36 @@ const OrderManagement = () => {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      fetchOrders();
+    }, 600);
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handler = () => scheduleRealtimeRefresh();
+    window.addEventListener('realtime:notificationReceived', handler);
+    window.addEventListener('realtime:orderUpdated', handler);
+    window.addEventListener('realtime:paymentUpdated', handler);
+    window.addEventListener('realtime:shipmentStatusUpdated', handler);
+
+    return () => {
+      window.removeEventListener('realtime:notificationReceived', handler);
+      window.removeEventListener('realtime:orderUpdated', handler);
+      window.removeEventListener('realtime:paymentUpdated', handler);
+      window.removeEventListener('realtime:shipmentStatusUpdated', handler);
+      if (realtimeRefreshTimeoutRef.current) {
+        clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [scheduleRealtimeRefresh]);
 
   const filteredOrders = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();

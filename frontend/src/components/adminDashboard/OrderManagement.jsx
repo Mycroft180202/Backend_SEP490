@@ -3,6 +3,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
 } from 'react';
 import { FaEye, FaSearch, FaFileExport, FaSpinner } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -94,6 +95,8 @@ const OrderManagement = () => {
   const [customerDetails, setCustomerDetails] = useState({});
   const [addressDetails, setAddressDetails] = useState({});
   const [productCache, setProductCache] = useState({});
+  const [realtimeNonce, setRealtimeNonce] = useState(0);
+  const realtimeRefreshTimeoutRef = useRef(null);
 
   const formatCurrency = useCallback((amount) => {
     const numericAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
@@ -186,7 +189,7 @@ const OrderManagement = () => {
     return () => {
       isCancelled = true;
     };
-  }, [statusFilter, pageIndex, pageSize, paymentFilter, searchTerm]);
+  }, [statusFilter, pageIndex, pageSize, paymentFilter, searchTerm, realtimeNonce]);
 
   useEffect(() => {
     if (statusFilter === 'all') {
@@ -234,7 +237,7 @@ const OrderManagement = () => {
     return () => {
       isCancelled = true;
     };
-  }, [statusFilter, paymentFilter, searchTerm, fetchAllOrders]);
+  }, [statusFilter, paymentFilter, searchTerm, fetchAllOrders, realtimeNonce]);
 
   useEffect(() => {
     setPageIndex((previous) => (previous === 1 ? previous : 1));
@@ -580,7 +583,37 @@ const OrderManagement = () => {
 
   useEffect(() => {
     fetchOverallStats();
-  }, [fetchOverallStats]);
+  }, [fetchOverallStats, realtimeNonce]);
+
+  const scheduleRealtimeReload = useCallback(() => {
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      setRealtimeNonce((prev) => prev + 1);
+    }, 600);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handler = () => scheduleRealtimeReload();
+    window.addEventListener('realtime:notificationReceived', handler);
+    window.addEventListener('realtime:orderUpdated', handler);
+    window.addEventListener('realtime:paymentUpdated', handler);
+    window.addEventListener('realtime:shipmentStatusUpdated', handler);
+
+    return () => {
+      window.removeEventListener('realtime:notificationReceived', handler);
+      window.removeEventListener('realtime:orderUpdated', handler);
+      window.removeEventListener('realtime:paymentUpdated', handler);
+      window.removeEventListener('realtime:shipmentStatusUpdated', handler);
+      if (realtimeRefreshTimeoutRef.current) {
+        clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [scheduleRealtimeReload]);
 
   const openDetail = (order) => {
     setSelectedOrder(order);

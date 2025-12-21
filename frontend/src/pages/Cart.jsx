@@ -301,6 +301,36 @@ const Cart = () => {
     }
   };
 
+  const handleRemoveShopItems = async (shopItems = []) => {
+    const list = Array.isArray(shopItems) ? shopItems : [];
+    const ids = list
+      .map((item) => item?.cartItemId ?? item?.id)
+      .filter((id) => id !== null && id !== undefined)
+      .map((id) => String(id));
+
+    if (ids.length === 0) {
+      toast.info('Không có sản phẩm để xóa.');
+      return;
+    }
+
+    setUpdatingItemId(ids[0]);
+    try {
+      await Promise.all(ids.map((id) => CartService.removeItem(id)));
+      toast.success(`Đã xóa ${ids.length} sản phẩm khỏi giỏ hàng.`);
+      fetchCart();
+    } catch (error) {
+      console.error(error);
+      const message =
+        error?.response?.data?.message
+        || error?.response?.data?.title
+        || error?.message
+        || 'Không thể xóa sản phẩm.';
+      toast.error(message);
+    } finally {
+      setUpdatingItemId(null);
+    }
+  };
+
   const isUnavailable = (item) => (
     item?.isActive === false
     || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
@@ -371,6 +401,7 @@ const Cart = () => {
           totalCount={items.length}
           onQuantityChange={handleQuantityChange}
           onRemove={handleRemoveItem}
+          onRemoveShop={handleRemoveShopItems}
           onCheckout={handleCheckout}
           originNode={cartListNode}
         />

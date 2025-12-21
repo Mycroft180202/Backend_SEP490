@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useCallback, useRef } from 'react';
 import {
   FaHome,
   FaProductHunt,
@@ -96,6 +96,7 @@ const ArtisanDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimeoutRef = useRef(null);
   const now = new Date();
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
@@ -639,6 +640,43 @@ const ArtisanDashboard = () => {
   useEffect(() => {
     loadRevenueDistribution();
   }, [loadRevenueDistribution]);
+
+  const scheduleOverviewRefresh = useCallback(() => {
+    if (activeTab !== 'overview') {
+      return;
+    }
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      loadDashboardData();
+      loadTopProducts();
+      loadRevenueDistribution();
+    }, 500);
+  }, [activeTab, loadDashboardData, loadRevenueDistribution, loadTopProducts]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handler = () => scheduleOverviewRefresh();
+    window.addEventListener('realtime:notificationReceived', handler);
+    window.addEventListener('realtime:productStockUpdated', handler);
+    window.addEventListener('realtime:orderUpdated', handler);
+    window.addEventListener('realtime:paymentUpdated', handler);
+    window.addEventListener('realtime:shipmentStatusUpdated', handler);
+
+    return () => {
+      window.removeEventListener('realtime:notificationReceived', handler);
+      window.removeEventListener('realtime:productStockUpdated', handler);
+      window.removeEventListener('realtime:orderUpdated', handler);
+      window.removeEventListener('realtime:paymentUpdated', handler);
+      window.removeEventListener('realtime:shipmentStatusUpdated', handler);
+      if (realtimeRefreshTimeoutRef.current) {
+        clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [scheduleOverviewRefresh]);
 
   return (
     <div className="flex h-screen bg-gray-50">

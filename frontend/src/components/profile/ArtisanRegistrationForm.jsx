@@ -2,6 +2,24 @@ import React, { useState, useCallback, useEffect } from "react";
 import { FaSpinner } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { ArtisanApplicationService } from "../../services/modules/artisan/artisanApplicationService";
+import { normalizeVietnamPhone, sanitizeVietnamPhoneInput } from "../../utils/vietnamPhone";
+
+const EXPERIENCE_OPTIONS = [
+  { minYears: 0, label: "0-5 năm" },
+  { minYears: 5, label: "5-10 năm" },
+  { minYears: 10, label: "10-15 năm" },
+  { minYears: 15, label: "15-20 năm" },
+  { minYears: 20, label: "20-25 năm" },
+  { minYears: 25, label: "25+ năm" },
+];
+
+const getMaxExperienceOptionMinYears = (ageYears) => {
+  const maxAllowed = Number.isFinite(Number(ageYears)) ? Math.max(0, Number(ageYears)) : Number.POSITIVE_INFINITY;
+  const available = EXPERIENCE_OPTIONS
+    .map((opt) => opt.minYears)
+    .filter((min) => min <= maxAllowed);
+  return available.length ? Math.max(...available) : 0;
+};
 
 const buildDateString = (day, month, year) => {
   if (!day || !month || !year) return "";
@@ -10,7 +28,18 @@ const buildDateString = (day, month, year) => {
   return `${year}-${paddedMonth}-${paddedDay}T00:00`;
 };
 
-function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
+const computeAgeYears = (birthDate, asOf = new Date()) => {
+  if (!(birthDate instanceof Date) || Number.isNaN(birthDate.getTime())) return null;
+  const reference = asOf instanceof Date ? asOf : new Date();
+  let age = reference.getFullYear() - birthDate.getFullYear();
+  const m = reference.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && reference.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age;
+};
+
+function ArtisanRegistrationForm({ isOpen, onClose, onSuccess, defaultEmail = "" }) {
   const [loading, setLoading] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [termsHasRead, setTermsHasRead] = useState(false);
@@ -62,8 +91,42 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
     });
   }, [previewUrls]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const normalized = String(defaultEmail || "").trim();
+    if (!normalized) return;
+    setFormData((prev) => (prev.email === normalized ? prev : { ...prev, email: normalized }));
+  }, [defaultEmail, isOpen]);
+
+  const currentYear = new Date().getFullYear();
+  const maxDobYear = currentYear - 18;
+  const minDobYear = currentYear - 120;
+  const todayStart = new Date(currentYear, new Date().getMonth(), new Date().getDate());
+  const derivedBirthDate = formData.dobYear && formData.dobMonth && formData.dobDay
+    ? new Date(Number(formData.dobYear), Number(formData.dobMonth) - 1, Number(formData.dobDay))
+    : null;
+  const derivedAge = derivedBirthDate ? computeAgeYears(derivedBirthDate, todayStart) : null;
+  const maxExperienceYears = derivedAge === null ? 40 : Math.min(40, Math.max(0, derivedAge));
+
+  useEffect(() => {
+    if (derivedAge === null) return;
+    setFormData((prev) => {
+      const currentValue = Number(prev.yearsOfExperience) || 0;
+      const capped = currentValue > derivedAge ? getMaxExperienceOptionMinYears(derivedAge) : currentValue;
+      if (capped === currentValue) return prev;
+      return { ...prev, yearsOfExperience: capped };
+    });
+  }, [derivedAge]);
+
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
+    if (name === "phoneNumber") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: sanitizeVietnamPhoneInput(value),
+      }));
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -129,10 +192,47 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
       return false;
     }
 
-    // Validate phone format
-    const phoneRegex = /^[0-9]{10,11}$/;
-    if (!phoneRegex.test(formData.phoneNumber.replace(/\D/g, ""))) {
-      toast.warning("Số điện thoại không hợp lệ");
+    const phoneResult = normalizeVietnamPhone(formData.phoneNumber);
+    if (!phoneResult.isValid) {
+      toast.warning("Số điện thoại không đúng định dạng. Ví dụ: 0901234567, +84901234567.");
+      return false;
+    }
+
+    const birthDate = formData.dobYear && formData.dobMonth && formData.dobDay
+      ? new Date(Number(formData.dobYear), Number(formData.dobMonth) - 1, Number(formData.dobDay))
+      : null;
+
+    if (!(birthDate instanceof Date) || Number.isNaN(birthDate.getTime())) {
+      toast.warning("NgÃ y sinh khÃ´ng há»£p lá»‡");
+      return false;
+    }
+
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (birthDate.getTime() > todayStart.getTime()) {
+      toast.warning("NgÃ y sinh khÃ´ng Ä‘Æ°á»£c á»Ÿ tÆ°Æ¡ng lai");
+      return false;
+    }
+
+    const age = computeAgeYears(birthDate, todayStart);
+    if (age === null) {
+      toast.warning("NgÃ y sinh khÃ´ng há»£p lá»‡");
+      return false;
+    }
+
+    if (age < 18) {
+      toast.warning("Báº¡n pháº£i Ä‘á»§ 18 tuá»•i má»›i Ä‘Æ°á»£c Ä‘Äƒng kÃ½ lÃ m ngÆ°á»i bÃ¡n hÃ ng");
+      return false;
+    }
+
+    const yearsOfExperience = Number(formData.yearsOfExperience) || 0;
+    if (yearsOfExperience < 0) {
+      toast.warning("NÄƒm kinh nghiá»‡m khÃ´ng há»£p lá»‡");
+      return false;
+    }
+
+    if (yearsOfExperience > age) {
+      toast.warning("NÄƒm kinh nghiá»‡m khÃ´ng Ä‘Æ°á»£c lÆ°á»›n hÆ¡n sá»‘ tuá»•i cá»§a báº¡n");
       return false;
     }
 
@@ -140,9 +240,17 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
   };
 
   const submitApplication = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       setLoading(true);
-      const result = await ArtisanApplicationService.submitApplication(formData);
+      const phoneResult = normalizeVietnamPhone(formData.phoneNumber);
+      const payload = phoneResult.isValid
+        ? { ...formData, phoneNumber: phoneResult.normalized }
+        : formData;
+      const result = await ArtisanApplicationService.submitApplication(payload);
       toast.success("Đơn đăng ký được gửi thành công");
       
       // Reset form
@@ -201,6 +309,16 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
       return;
     }
 
+    if (!formData.identityFrontImageFile) {
+      toast.warning("Vui lÃ²ng chá»n áº£nh máº·t trÆ°á»›c CMND/CCCD");
+      return;
+    }
+
+    if (!formData.identityBackImageFile) {
+      toast.warning("Vui lÃ²ng chá»n áº£nh máº·t sau CMND/CCCD");
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -246,9 +364,10 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
+                readOnly={Boolean(defaultEmail)}
                 disabled={loading}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50 ${defaultEmail ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
                 placeholder="user@example.com"
               />
             </div>
@@ -323,7 +442,7 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                   className="px-2 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
                 >
                   <option value="">Năm</option>
-                  {Array.from({ length: 70 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                  {Array.from({ length: Math.max(0, maxDobYear - minDobYear + 1) }, (_, i) => maxDobYear - i).map((year) => (
                     <option key={`year-${year}`} value={year}>{year}</option>
                   ))}
                 </select>
@@ -359,7 +478,6 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                   onChange={handleFileChange}
                   disabled={loading}
                   accept="image/*"
-                  required
                   className="hidden"
                   id="identity-front"
                 />
@@ -396,7 +514,6 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                   onChange={handleFileChange}
                   disabled={loading}
                   accept="image/*"
-                  required
                   className="hidden"
                   id="identity-back"
                 />
@@ -451,9 +568,14 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg font-nunito text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-50"
               >
-                <option value="0">0 năm</option>
-                {Array.from({ length: 40 }, (_, i) => i + 1).map((year) => (
-                  <option key={`exp-${year}`} value={year}>{year} năm</option>
+                {EXPERIENCE_OPTIONS.map((opt) => (
+                  <option
+                    key={`exp-${opt.minYears}`}
+                    value={opt.minYears}
+                    disabled={derivedAge !== null && opt.minYears > maxExperienceYears}
+                  >
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -636,6 +758,9 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess }) {
                   type="button"
                   disabled={!termsHasRead || !termsAgreed}
                   onClick={async () => {
+                    if (!validateForm()) {
+                      return;
+                    }
                     setTermsAccepted(true);
                     setTermsOpen(false);
                     await submitApplication();

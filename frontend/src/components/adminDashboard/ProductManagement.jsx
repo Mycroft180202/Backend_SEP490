@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -37,6 +38,7 @@ const ProductManagement = () => {
   const [products, setProducts] = useState([]);
   const [expandedProductIds, setExpandedProductIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimeoutRef = useRef(null);
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1 });
@@ -165,6 +167,33 @@ const ProductManagement = () => {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      loadProducts();
+      loadStats();
+    }, 500);
+  }, [loadProducts, loadStats]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handler = () => scheduleRealtimeRefresh();
+    window.addEventListener('realtime:productStockUpdated', handler);
+    window.addEventListener('realtime:notificationReceived', handler);
+
+    return () => {
+      window.removeEventListener('realtime:productStockUpdated', handler);
+      window.removeEventListener('realtime:notificationReceived', handler);
+      if (realtimeRefreshTimeoutRef.current) {
+        clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [scheduleRealtimeRefresh]);
 
   useEffect(() => {
     setPageIndex((prev) => (prev === 1 ? prev : 1));

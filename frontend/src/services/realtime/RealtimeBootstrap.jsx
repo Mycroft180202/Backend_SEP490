@@ -124,12 +124,18 @@ export default function RealtimeBootstrap() {
           emitWindowEvent('realtime:shipmentStatusUpdated', shipmentUpdate);
         };
 
+        const onNotificationReceived = (notification) => {
+          if (isDebugEnabled()) console.log('[Realtime] ReceiveNotification', notification);
+          emitWindowEvent('realtime:notificationReceived', notification);
+        };
+
         connection.on('CartUpdated', onCartUpdated);
         connection.on('CartItemAdjusted', onCartItemAdjusted);
         connection.on('OrderUpdated', onOrderUpdated);
         connection.on('PaymentUpdated', onPaymentUpdated);
         connection.on('ProductStockUpdated', onProductStockUpdated);
         connection.on('ShipmentStatusUpdated', onShipmentStatusUpdated);
+        connection.on('ReceiveNotification', onNotificationReceived);
 
         cleanup = () => {
           connection.off('CartUpdated', onCartUpdated);
@@ -138,6 +144,7 @@ export default function RealtimeBootstrap() {
           connection.off('PaymentUpdated', onPaymentUpdated);
           connection.off('ProductStockUpdated', onProductStockUpdated);
           connection.off('ShipmentStatusUpdated', onShipmentStatusUpdated);
+          connection.off('ReceiveNotification', onNotificationReceived);
         };
       } catch (error) {
         console.error('Realtime bootstrap error:', error);

@@ -19,6 +19,8 @@ import { LanguageContext } from '../../context/LanguageContext';
 import { resolveProductArtisanId } from '../../utils/productOwnership';
 import { ShopService } from '../../services/modules/shop/shopService';
 
+const BUY_NOW_AUTO_SELECT_KEY = 'cart:buyNowProductId';
+
 const pickFirstNonEmpty = (values = []) => {
   for (const value of values) {
     if (value === null || value === undefined) {
@@ -63,6 +65,7 @@ const ProductList = ({
   totalCount = null,
   onQuantityChange = () => {},
   onRemove = () => {},
+  onRemoveShop = null,
   onCheckout = () => {},
   originNode = null,
 }) => {
@@ -74,6 +77,12 @@ const ProductList = ({
     targetId: null,
     loading: false,
     productName: '',
+  });
+  const [shopRemoveConfirm, setShopRemoveConfirm] = useState({
+    open: false,
+    loading: false,
+    shopName: '',
+    items: [],
   });
   const [checkoutConfirm, setCheckoutConfirm] = useState({
     open: false,
@@ -203,6 +212,34 @@ const ProductList = ({
 
   const closeRemoveConfirm = () => {
     setConfirmState({ open: false, targetId: null, loading: false, productName: '' });
+  };
+
+  const openShopRemoveConfirm = (shopName, shopItems) => {
+    setShopRemoveConfirm({
+      open: true,
+      loading: false,
+      shopName: shopName || translate('cart.shopFallback', 'Cửa hàng'),
+      items: Array.isArray(shopItems) ? shopItems : [],
+    });
+  };
+
+  const closeShopRemoveConfirm = () => {
+    setShopRemoveConfirm({ open: false, loading: false, shopName: '', items: [] });
+  };
+
+  const handleConfirmRemoveShop = async () => {
+    if (shopRemoveConfirm.loading) return;
+    if (typeof onRemoveShop !== 'function') {
+      closeShopRemoveConfirm();
+      return;
+    }
+
+    setShopRemoveConfirm((prev) => ({ ...prev, loading: true }));
+    try {
+      await onRemoveShop(shopRemoveConfirm.items);
+    } finally {
+      closeShopRemoveConfirm();
+    }
   };
 
   const handleConfirmRemove = async () => {
@@ -448,6 +485,38 @@ const ProductList = ({
       return next;
     });
   }, [items, getItemKey, isUnavailable]);
+
+  useEffect(() => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const productId = window.localStorage.getItem(BUY_NOW_AUTO_SELECT_KEY);
+    if (!productId) {
+      return;
+    }
+
+    const match = items.find((item) => String(item?.productId ?? item?.product?.id ?? '') === String(productId));
+    if (!match) {
+      window.localStorage.removeItem(BUY_NOW_AUTO_SELECT_KEY);
+      return;
+    }
+
+    const key = getItemKey(match);
+    if (!key) {
+      window.localStorage.removeItem(BUY_NOW_AUTO_SELECT_KEY);
+      return;
+    }
+
+    setSelectedItemIds(new Set([key]));
+    selectionInitializedRef.current = true;
+    knownItemIdsRef.current = new Set(items.map((item) => getItemKey(item)).filter(Boolean));
+    window.localStorage.removeItem(BUY_NOW_AUTO_SELECT_KEY);
+  }, [items, getItemKey]);
 
   useEffect(() => {
     if (!Array.isArray(items) || items.length === 0) {
@@ -750,24 +819,11 @@ const ProductList = ({
               const shopName = hydratedShop.shopName || group.shopName;
               const shopAvatar = hydratedShop.shopAvatar || group.shopAvatar;
               const shopHref = hydratedShop.shopHref !== undefined ? hydratedShop.shopHref : group.shopHref;
-              const groupSubtotal = group.items.reduce((totalPrice, groupItem) => (
-                isUnavailable(groupItem)
-                  ? totalPrice
-                  : totalPrice + (groupItem.price || 0) * (groupItem.quantity || 0)
-              ), 0);
               const groupSelectableIds = group.items
                 .filter((groupItem) => !isUnavailable(groupItem))
                 .map((groupItem) => getItemKey(groupItem))
                 .filter((key) => Boolean(key));
-              const groupSelectedItems = group.items.filter((groupItem) => {
-                const key = getItemKey(groupItem);
-                if (!key || isUnavailable(groupItem)) {
-                  return false;
-                }
-                return selectedItemIds.has(key);
-              });
               const groupHasAvailable = groupSelectableIds.length > 0;
-              const groupHasSelection = groupSelectedItems.length > 0;
               const groupAllSelected = groupSelectableIds.length > 0
                 && groupSelectableIds.every((id) => selectedItemIds.has(id));
               const groupSomeSelected = groupSelectableIds.some((id) => selectedItemIds.has(id));
@@ -820,14 +876,26 @@ const ProductList = ({
                         )}
                       </div>
                     </div>
-                    {shopHref && (
-                      <Link
-                        to={shopHref}
-                        className="inline-flex items-center text-sm font-medium text-[#8B4513] hover:text-[#B73E3E] transition"
-                      >
-                        {translate('cart.visitShop', 'Xem cửa hàng')}
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {shopHref && (
+                        <Link
+                          to={shopHref}
+                          className="inline-flex items-center text-sm font-medium text-[#8B4513] hover:text-[#B73E3E] transition"
+                        >
+                          {translate('cart.visitShop', 'Xem cửa hàng')}
+                        </Link>
+                      )}
+                      {typeof onRemoveShop === 'function' && (
+                        <button
+                          type="button"
+                          onClick={() => openShopRemoveConfirm(shopName, group.items)}
+                          className="inline-flex items-center gap-2 text-sm font-semibold text-red-600 hover:text-red-700 transition"
+                        >
+                          <FaTrash className="text-sm" />
+                          Xóa
+                        </button>
+                      )}
+                    </div>
                   </header>
 
                   <div className="px-4 py-4 space-y-5">
@@ -1261,6 +1329,43 @@ const ProductList = ({
         </div>
       )}
 
+      {shopRemoveConfirm.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 text-[#8B4513]">
+              <FaExclamationTriangle className="text-2xl" />
+              <h3 className="text-lg font-semibold">
+                {translate('cart.removeShopConfirmTitle', 'Xóa sản phẩm theo cửa hàng')}
+              </h3>
+            </div>
+            <p className="text-gray-600 leading-relaxed">
+              {translate(
+                'cart.removeShopConfirmMessage',
+                `Bạn có chắc chắn muốn xóa tất cả sản phẩm của cửa hàng "${shopRemoveConfirm.shopName}" khỏi giỏ hàng?`,
+              )}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeShopRemoveConfirm}
+                disabled={shopRemoveConfirm.loading}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition disabled:opacity-60"
+              >
+                {removeConfirmCancelText}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemoveShop}
+                disabled={shopRemoveConfirm.loading}
+                className="px-4 py-2 rounded-lg bg-[#8B4513] text-white font-semibold hover:bg-[#D4A574] transition disabled:opacity-70"
+              >
+                {shopRemoveConfirm.loading ? removingText : removeConfirmAcceptText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {checkoutConfirm.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-5">
@@ -1444,6 +1549,7 @@ ProductList.propTypes = {
   updatingItemId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   onQuantityChange: PropTypes.func,
   onRemove: PropTypes.func,
+  onRemoveShop: PropTypes.func,
   onCheckout: PropTypes.func,
   originNode: PropTypes.shape({
     label: PropTypes.string,

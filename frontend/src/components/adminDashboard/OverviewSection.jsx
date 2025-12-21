@@ -147,7 +147,7 @@ const OverviewSection = ({
         <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Doanh thu hôm nay</p>
+              <p className="text-sm text-gray-500">Doanh thu hôm nay (tạm tính)</p>
               <h3 className="mt-2 text-3xl font-bold text-gray-800">{formatVND(overview.todayRevenue)}</h3>
             </div>
             <div className="rounded-full bg-green-100 p-4 text-green-600">
@@ -159,7 +159,7 @@ const OverviewSection = ({
         <div className="rounded-xl bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Lợi nhuận {currentMonthLabel}</p>
+              <p className="text-sm text-gray-500">Doanh thu {currentMonthLabel}</p>
               <h3 className="mt-2 text-3xl font-bold text-gray-800">{formatVND(overview.monthRevenue)}</h3>
             </div>
             <div className="rounded-full bg-red-100 p-4 text-red-600">

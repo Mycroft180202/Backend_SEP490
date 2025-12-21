@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaEnvelope, FaLock, FaKey, FaPaperPlane, FaArrowLeft } from 'react-icons/fa';
 import { AuthService } from '../services/modules/auth/authService';
+import { validateStrongPassword } from '../utils/passwordValidation';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -52,8 +53,9 @@ const ForgotPassword = () => {
       toast.error('Mật khẩu xác nhận không khớp.');
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự.');
+    const strongPasswordResult = validateStrongPassword(newPassword, { minLength: 8 });
+    if (!strongPasswordResult.isValid) {
+      toast.error('Mật khẩu phải có tối thiểu 8 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.');
       return;
     }
 

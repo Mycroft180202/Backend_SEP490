@@ -165,6 +165,13 @@ const Shop = () => {
         toast.success(redirect ? t('messages.addedToCartRedirect') : t('messages.addedToCart'));
       }
       if (redirect) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('cart:buyNowProductId', String(productId));
+          }
+        } catch (_) {
+          // ignore
+        }
         navigate('/cart');
       }
     } catch (err) {

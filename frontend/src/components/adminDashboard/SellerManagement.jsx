@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FaEye, FaCheck, FaTimes, FaBan, FaUnlock, FaSearch, FaStore, FaSpinner } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { FaEye, FaCheck, FaTimes, FaBan, FaUnlock, FaSearch, FaStore, FaSpinner, FaFileExport } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { AdminSellerService } from '../../services/modules/admin/adminSellerService';
 import SellerDetailModal from './SellerDetailModal';
@@ -11,6 +11,8 @@ const SellerManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState(''); // Temporary search input with debounce
   const [filterStatus, setFilterStatus] = useState('all');
+  const [revenueYear, setRevenueYear] = useState(() => new Date().getFullYear());
+  const [revenueMonth, setRevenueMonth] = useState(() => new Date().getMonth() + 1);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
@@ -36,6 +38,11 @@ const SellerManagement = () => {
   const [reviewAdminNote, setReviewAdminNote] = useState('');
   const [reviewRejectReason, setReviewRejectReason] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMode, setExportMode] = useState('selected'); // 'selected' | 'all'
+  const [exportSelection, setExportSelection] = useState(() => new Set());
+  const [exportKeyword, setExportKeyword] = useState('');
+  const [exportingReport, setExportingReport] = useState(false);
 
   // Fetch sellers data
   const fetchSellers = useCallback(async () => {
@@ -46,7 +53,9 @@ const SellerManagement = () => {
         pageSize,
         searchTerm,
         sortBy,
-        sortOrder
+        sortOrder,
+        revenueYear,
+        revenueMonth
       );
 
       // Transform API response to match frontend format
@@ -76,12 +85,16 @@ const SellerManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchTerm, sortBy, sortOrder]);
+  }, [currentPage, pageSize, searchTerm, sortBy, sortOrder, revenueYear, revenueMonth]);
 
   // Load sellers when component mounts or filters change
   useEffect(() => {
     fetchSellers();
   }, [fetchSellers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [revenueYear, revenueMonth]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -206,6 +219,96 @@ const SellerManagement = () => {
     blocked: sellers.filter(s => s.status === 'blocked' || s.status === 'suspended').length,
     totalRevenue: sellers.reduce((sum, s) => sum + (s.revenue || 0), 0),
   };
+
+  const periodLabel = `${String(revenueMonth).padStart(2, '0')}/${revenueYear}`;
+
+  const exportCandidates = useMemo(() => {
+    const list = Array.isArray(sellers) ? sellers : [];
+    const kw = String(exportKeyword || '').trim().toLowerCase();
+    if (!kw) return list;
+    return list.filter((seller) => {
+      const name = String(seller?.name || '').toLowerCase();
+      const shop = String(seller?.shopName || '').toLowerCase();
+      const phone = String(seller?.phone || '').toLowerCase();
+      return name.includes(kw) || shop.includes(kw) || phone.includes(kw);
+    });
+  }, [exportKeyword, sellers]);
+
+  const toggleExportSelection = useCallback((sellerId) => {
+    if (!sellerId) return;
+    setExportSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(sellerId)) next.delete(sellerId);
+      else next.add(sellerId);
+      return next;
+    });
+  }, []);
+
+  const handleOpenExportModal = useCallback(() => {
+    setExportModalOpen(true);
+    setExportMode('selected');
+    setExportKeyword('');
+    setExportSelection(new Set());
+  }, []);
+
+  const handleCloseExportModal = useCallback(() => {
+    setExportModalOpen(false);
+  }, []);
+
+  const extractFilenameFromDisposition = (disposition) => {
+    if (!disposition) return null;
+    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(disposition);
+    const raw = match?.[1] || match?.[2];
+    if (!raw) return null;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  };
+
+  const downloadBlob = (blob, filename) => {
+    if (!blob) return;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || 'report.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportReport = useCallback(async () => {
+    try {
+      setExportingReport(true);
+      const artisanIds = exportMode === 'selected' ? Array.from(exportSelection) : [];
+      const response = await AdminSellerService.exportArtisanRevenueReport({
+        year: revenueYear,
+        month: revenueMonth,
+        artisanIds,
+      });
+
+      const filename =
+        extractFilenameFromDisposition(response?.headers?.['content-disposition'])
+        || `BaoCaoDoanhThuNgheNhan_${String(revenueMonth).padStart(2, '0')}_${revenueYear}.xlsx`;
+
+      const blob = response?.data instanceof Blob
+        ? response.data
+        : new Blob([response?.data], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+
+      downloadBlob(blob, filename);
+      toast.success('Đã xuất báo cáo');
+      setExportModalOpen(false);
+    } catch (error) {
+      console.error('Export report error:', error);
+      toast.error('Không thể xuất báo cáo');
+    } finally {
+      setExportingReport(false);
+    }
+  }, [exportMode, exportSelection, revenueMonth, revenueYear]);
 
   const statusOptions = [
     { value: 'ALL', label: 'Tất cả' },
@@ -389,6 +492,7 @@ const SellerManagement = () => {
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
           <p className="text-sm text-gray-600">Tổng doanh thu</p>
           <p className="text-lg font-bold text-gray-800 mt-1">{formatCurrency(stats.totalRevenue)}</p>
+          <p className="text-xs text-gray-500 mt-1">Period: {periodLabel}</p>
         </div>
       </div>
 
@@ -399,10 +503,18 @@ const SellerManagement = () => {
             <h2 className="text-xl font-bold text-gray-800 font-alata">Quản lý nghệ nhân</h2>
             <p className="text-sm text-gray-600 mt-1">Quản lý và phê duyệt tài khoản nghệ nhân</p>
           </div>
+          <button
+            type="button"
+            onClick={handleOpenExportModal}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
+          >
+            <FaFileExport />
+            Xuất báo cáo
+          </button>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="relative md:col-span-2 flex gap-2">
             <div className="relative flex-1">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -432,6 +544,34 @@ const SellerManagement = () => {
             <option value="pending">Chờ duyệt</option>
             <option value="blocked">Đã khóa</option>
           </select>
+          <select
+            value={revenueMonth}
+            onChange={(e) => setRevenueMonth(Number(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {Array.from({ length: 12 }, (_, index) => {
+              const month = index + 1;
+              return (
+                <option key={month} value={month}>
+                  Tháng {month}
+                </option>
+              );
+            })}
+          </select>
+          <select
+            value={revenueYear}
+            onChange={(e) => setRevenueYear(Number(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {Array.from({ length: 5 }, (_, index) => {
+              const year = new Date().getFullYear() - 2 + index;
+              return (
+                <option key={year} value={year}>
+                  Năm {year}
+                </option>
+              );
+            })}
+          </select>
         </div>
 
         {/* Sellers Table */}
@@ -453,7 +593,7 @@ const SellerManagement = () => {
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Nghệ nhân</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Cửa hàng</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Liên hệ</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Doanh thu</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Doanh thu ({periodLabel})</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Trạng thái</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-600 text-sm">Thao tác</th>
                 </tr>
@@ -973,6 +1113,117 @@ const SellerManagement = () => {
         onClose={handleCloseModal}
         onStatusChange={handleStatusChange}
       />
+
+      {exportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Xuất báo cáo doanh thu</h3>
+                <p className="text-sm text-gray-500 mt-1">Kỳ: {periodLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseExportModal}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <input
+                    type="radio"
+                    name="exportMode"
+                    value="selected"
+                    checked={exportMode === 'selected'}
+                    onChange={() => setExportMode('selected')}
+                  />
+                  Chọn cửa hàng để xuất
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <input
+                    type="radio"
+                    name="exportMode"
+                    value="all"
+                    checked={exportMode === 'all'}
+                    onChange={() => setExportMode('all')}
+                  />
+                  Xuất tất cả cửa hàng (trong danh sách đang tải)
+                </label>
+              </div>
+
+              {exportMode === 'selected' && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <FaSearch className="text-gray-400" />
+                    <input
+                      type="text"
+                      value={exportKeyword}
+                      onChange={(e) => setExportKeyword(e.target.value)}
+                      placeholder="Tìm theo tên nghệ nhân / cửa hàng / SĐT..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div className="max-h-72 overflow-auto border border-gray-200 rounded-lg">
+                    {exportCandidates.length === 0 ? (
+                      <div className="p-4 text-sm text-gray-500">Không có cửa hàng phù hợp.</div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {exportCandidates.map((seller) => (
+                          <li key={seller.id} className="p-3 hover:bg-gray-50">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={exportSelection.has(seller.id)}
+                                onChange={() => toggleExportSelection(seller.id)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-800">{seller.shopName}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {seller.name} • {seller.phone || '---'} • {formatCurrency(seller.revenue)}
+                                </p>
+                              </div>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Đang hiển thị danh sách nghệ nhân của trang hiện tại. Nếu cần xuất toàn bộ, chọn “Xuất tất cả cửa hàng”.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
+              <button
+                type="button"
+                onClick={handleCloseExportModal}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleExportReport}
+                disabled={exportingReport || (exportMode === 'selected' && exportSelection.size === 0)}
+                className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                {exportingReport ? <FaSpinner className="animate-spin" /> : <FaFileExport />}
+                Xuất báo cáo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

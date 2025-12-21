@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import { 
   FaHome,
   FaProductHunt,
@@ -32,6 +32,7 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimeoutRef = useRef(null);
   const [overview, setOverview] = useState({
     todayRevenue: 0,
     todayOrders: 0,
@@ -123,6 +124,41 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadDashboardData(selectedPeriod);
   }, [loadDashboardData, selectedPeriod]);
+
+  const scheduleOverviewRefresh = useCallback(() => {
+    if (activeTab !== 'overview') {
+      return;
+    }
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      loadDashboardData(selectedPeriod);
+    }, 500);
+  }, [activeTab, loadDashboardData, selectedPeriod]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handler = () => scheduleOverviewRefresh();
+    window.addEventListener('realtime:notificationReceived', handler);
+    window.addEventListener('realtime:productStockUpdated', handler);
+    window.addEventListener('realtime:orderUpdated', handler);
+    window.addEventListener('realtime:paymentUpdated', handler);
+    window.addEventListener('realtime:shipmentStatusUpdated', handler);
+
+    return () => {
+      window.removeEventListener('realtime:notificationReceived', handler);
+      window.removeEventListener('realtime:productStockUpdated', handler);
+      window.removeEventListener('realtime:orderUpdated', handler);
+      window.removeEventListener('realtime:paymentUpdated', handler);
+      window.removeEventListener('realtime:shipmentStatusUpdated', handler);
+      if (realtimeRefreshTimeoutRef.current) {
+        clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [scheduleOverviewRefresh]);
 
   const menuItems = [
     { id: 'overview', icon: FaHome, label: 'Tổng quan', path: '/admin' },

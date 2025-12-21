@@ -4,6 +4,7 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  useRef,
 } from 'react';
 import {
   FaPlus,
@@ -132,6 +133,7 @@ const ProductManagement = () => {
   const [toggleModal, setToggleModal] = useState(null);
   const [isToggling, setIsToggling] = useState(false);
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimeoutRef = useRef(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -176,6 +178,32 @@ const ProductManagement = () => {
   useEffect(() => {
     refreshProducts();
   }, [refreshProducts]);
+
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+    }
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      refreshProducts();
+    }, 500);
+  }, [refreshProducts]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handler = () => scheduleRealtimeRefresh();
+    window.addEventListener('realtime:productStockUpdated', handler);
+    window.addEventListener('realtime:notificationReceived', handler);
+
+    return () => {
+      window.removeEventListener('realtime:productStockUpdated', handler);
+      window.removeEventListener('realtime:notificationReceived', handler);
+      if (realtimeRefreshTimeoutRef.current) {
+        clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [scheduleRealtimeRefresh]);
 
   useEffect(() => {
     const loadCategories = async () => {
