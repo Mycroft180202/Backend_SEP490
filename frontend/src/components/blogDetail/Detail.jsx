@@ -2,6 +2,7 @@ import React from 'react';
 import CustomBreadcrumbs from '../shared/CustomBreadcrumbs';
 import RelationBlog from './RelationBlog';
 import { FaCalendarAlt, FaUser, FaClock, FaFacebookF, FaTwitter, FaLinkedinIn, FaLink } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const Detail = () => {
   // Sample data - replace with actual data from API/props
@@ -87,8 +88,9 @@ const Detail = () => {
         window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
         break;
       case 'copy':
-        navigator.clipboard.writeText(url);
-        alert('Đã sao chép link!');
+        navigator.clipboard.writeText(url)
+          .then(() => toast.success('Đã sao chép link!'))
+          .catch(() => toast.error('Không thể sao chép link.'));
         break;
       default:
         break;

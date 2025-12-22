@@ -12,6 +12,7 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import CartBanner from '../components/cart/CartBanner';
 import ProductList from '../components/cart/ProductList';
+import ConfirmModal from '../components/shared/ConfirmModal';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
 import { UserContext } from '../context/UserContext';
@@ -29,6 +30,7 @@ const Cart = () => {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({ subtotal: 0, shipping: 0, total: 0 });
   const [updatingItemId, setUpdatingItemId] = useState(null);
+  const [unavailableCheckoutConfirm, setUnavailableCheckoutConfirm] = useState({ open: false, items: [] });
   const toastShownRef = useRef(false);
   const lastStockUpdateRef = useRef(new Map());
   const authHandledRef = useRef(false);
@@ -356,6 +358,23 @@ const Cart = () => {
     || (typeof item?.stock === 'number' && Number(item.stock) <= 0)
   );
 
+  const proceedToCheckout = (targetItems) => {
+    const selectedIds = (targetItems || [])
+      .map((item) => item.cartItemId || item.id)
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    if (selectedIds.length) {
+      try {
+        sessionStorage.setItem('checkoutSelectedCartIds', JSON.stringify(selectedIds));
+      } catch (error) {
+        console.warn('Unable to persist selected cart items:', error);
+      }
+    }
+
+    navigate('/checkout', selectedIds.length ? { state: { selectedCartIds: selectedIds } } : undefined);
+  };
+
   const handleCheckout = (selectedItems = items) => {
     if (!token) {
       toast.info('Bạn cần đăng nhập để xem giỏ hàng của bạn', { toastId: 'cart-login-required' });
@@ -379,28 +398,11 @@ const Cart = () => {
         toast.error(t('cart.unavailableOnly'));
         return;
       }
-      const confirmMessage = t('cart.unavailableConfirm');
-      // in case window undefined (SSR), fallback to proceed automatically
-      const confirmProceed = typeof window !== 'undefined' ? window.confirm(confirmMessage) : true;
-      if (!confirmProceed) {
-        return;
-      }
+      setUnavailableCheckoutConfirm({ open: true, items: targetItems });
+      return;
     }
 
-    const selectedIds = targetItems
-      .map((item) => item.cartItemId || item.id)
-      .filter(Boolean)
-      .map((value) => String(value));
-
-    if (selectedIds.length) {
-      try {
-        sessionStorage.setItem('checkoutSelectedCartIds', JSON.stringify(selectedIds));
-      } catch (error) {
-        console.warn('Unable to persist selected cart items:', error);
-      }
-    }
-
-    navigate('/checkout', selectedIds.length ? { state: { selectedCartIds: selectedIds } } : undefined);
+    proceedToCheckout(targetItems);
   };
 
   return (
@@ -427,6 +429,25 @@ const Cart = () => {
         />
       </main>
       <Footer />
+
+      <ConfirmModal
+        isOpen={unavailableCheckoutConfirm.open}
+        title="Xác nhận thanh toán"
+        description={t('cart.unavailableConfirm')}
+        confirmText="Tiếp tục"
+        cancelText="Hủy"
+        onCancel={() => setUnavailableCheckoutConfirm({ open: false, items: [] })}
+        onConfirm={() => {
+          const nextItems = (unavailableCheckoutConfirm.items || []).filter((item) => !isUnavailable(item));
+          setUnavailableCheckoutConfirm({ open: false, items: [] });
+          if (!nextItems.length) {
+            toast.error(t('cart.unavailableOnly'));
+            return;
+          }
+          proceedToCheckout(nextItems);
+        }}
+        tone="primary"
+      />
     </div>
   );
 };

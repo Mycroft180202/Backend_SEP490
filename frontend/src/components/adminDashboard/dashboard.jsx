@@ -27,6 +27,7 @@ import CategoryManagement from './CategoryManagement';
 import AdminSettings from './AdminSettings';
 import { UserContext } from '../../context/UserContext';
 import AdminDashboardService from '../../services/modules/admin/adminDashboardService.jsx';
+import { resolvePrimaryRole } from '../../utils/roleUtils';
 
 const AdminDashboard = () => {
   const { userInfo } = useContext(UserContext);
@@ -73,6 +74,41 @@ const AdminDashboard = () => {
         AdminDashboardService.getReportNumber(),
       ]);
 
+      const artisanItems = artisansData?.items
+        ?? artisansData?.data?.items
+        ?? artisansData?.result?.items
+        ?? [];
+      const customerItems = customersData?.items
+        ?? customersData?.data?.items
+        ?? customersData?.result?.items
+        ?? [];
+
+      const countByPrimaryRole = (items, targetRole, fallback = 0) => {
+        if (!Array.isArray(items) || items.length === 0) return fallback;
+
+        return items.reduce((count, user) => {
+          const primaryRole = resolvePrimaryRole(user?.roles ?? user?.role);
+
+          // If role data isn't available, assume this endpoint's type.
+          if (!primaryRole) {
+            return count + 1;
+          }
+
+          return primaryRole === targetRole ? count + 1 : count;
+        }, 0);
+      };
+
+      const totalSellers = countByPrimaryRole(
+        artisanItems,
+        'Artisan',
+        artisansData?.totalCount || 0,
+      );
+      const totalCustomers = countByPrimaryRole(
+        customerItems,
+        'Customer',
+        customersData?.totalCount || 0,
+      );
+
       const monthlyList = Array.isArray(monthlyRevenueData) ? monthlyRevenueData : [];
       const currentMonthData = monthlyList.find((item) => item.month === month) || {};
       const previousMonth = month === 1 ? null : month - 1;
@@ -93,8 +129,8 @@ const AdminDashboard = () => {
           Number(currentMonthData?.revenue) || 0,
           Number(prevMonthData?.revenue) || 0,
         ),
-        totalSellers: artisansData?.totalCount || 0,
-        totalCustomers: customersData?.totalCount || 0,
+        totalSellers,
+        totalCustomers,
         reportCount: Number(reportNumber) || 0,
       });
 

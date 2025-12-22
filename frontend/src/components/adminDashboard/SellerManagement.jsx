@@ -5,6 +5,7 @@ import { AdminSellerService } from '../../services/modules/admin/adminSellerServ
 import SellerDetailModal from './SellerDetailModal';
 import { ArtisanApplicationService } from '../../services/modules/artisan/artisanApplicationService';
 import { UserService } from '../../services/modules/users/userService';
+import { resolvePrimaryRole } from '../../utils/roleUtils';
 
 const SellerManagement = () => {
   const [sellers, setSellers] = useState([]);
@@ -74,9 +75,31 @@ const SellerManagement = () => {
         bio: item.bio || '',
         avatarUrl: item.shopUrlImage || '',
         isActive: item.isActive,
+        primaryRole: resolvePrimaryRole(item.roles || item.role),
       }));
 
-      setSellers(transformedSellers);
+      // Enforce "primary role" filtering (Admin > Artisan > Customer).
+      // The /users/artisans endpoint may include multi-role users; we only keep primary Artisan.
+      const sellersWithPrimaryRole = await Promise.all(
+        transformedSellers.map(async (seller) => {
+          // If API already provided roles, use them.
+          if (seller.primaryRole) {
+            return seller;
+          }
+
+          try {
+            const details = await AdminSellerService.getUserById(seller.id);
+            return {
+              ...seller,
+              primaryRole: resolvePrimaryRole(details?.roles || details?.role),
+            };
+          } catch (error) {
+            return seller;
+          }
+        })
+      );
+
+      setSellers(sellersWithPrimaryRole.filter((seller) => seller.primaryRole === 'Artisan'));
       setTotalCount(response.totalCount);
       setTotalPages(response.totalPages);
     } catch (error) {

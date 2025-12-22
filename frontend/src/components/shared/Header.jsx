@@ -408,6 +408,14 @@ const Header = () => {
                   )}
                   {isArtisan && (
                     <Link
+                      to="/artisan-shop"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      {t('header.myShop')}
+                    </Link>
+                  )}
+                  {isArtisan && (
+                    <Link
                       to="/artisan-dashboard"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >

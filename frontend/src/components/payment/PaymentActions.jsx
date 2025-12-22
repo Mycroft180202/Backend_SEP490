@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaHome, FaBox, FaDownload } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const PaymentActions = () => {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const PaymentActions = () => {
 
         {/* Download Invoice Button */}
         <button
-          onClick={() => alert('Tải hóa đơn...')}
+          onClick={() => toast.info('Tính năng tải hóa đơn sẽ sớm được cập nhật.')}
           className="w-full py-3 bg-white border-2 border-primary rounded-lg font-nunito text-lg font-semibold text-primary hover:bg-[#DBEFE2] transition-colors flex items-center justify-center gap-2"
         >
           <FaDownload size={20} />

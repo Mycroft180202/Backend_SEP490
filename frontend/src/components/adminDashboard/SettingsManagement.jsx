@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FaSave, FaCog, FaBell, FaShieldAlt, FaEnvelope, FaPalette } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const SettingsManagement = () => {
   const [settings, setSettings] = useState({
@@ -52,7 +53,7 @@ const SettingsManagement = () => {
   };
 
   const handleSave = () => {
-    alert('Cài đặt đã được lưu thành công!');
+    toast.success('Cài đặt đã được lưu thành công!');
   };
 
   const tabs = [

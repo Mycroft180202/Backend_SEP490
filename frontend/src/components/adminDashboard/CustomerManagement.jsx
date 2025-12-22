@@ -16,6 +16,7 @@ import {
 import { toast } from 'react-toastify';
 import Pagination from '../shared/Pagination';
 import { UserService } from '../../services/modules/users/userService';
+import { formatPrimaryRole, resolvePrimaryRole } from '../../utils/roleUtils';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20];
 const DEFAULT_PAGE_SIZE = 10;
@@ -41,31 +42,13 @@ const normalizeDigits = (value) => {
   return value.toString().replace(/\D/g, '');
 };
 
-const formatRoles = (roles) => {
-  if (Array.isArray(roles)) {
-    const names = roles
-      .map((r) => {
-        if (typeof r === 'string') return r;
-        if (r?.name) return r.name;
-        if (r?.description) return r.description;
-        return '';
-      })
-      .filter(Boolean);
-    return names.length ? names.join(', ') : 'N/A';
-  }
-  if (roles && typeof roles === 'object') {
-    return roles.name || roles.description || 'N/A';
-  }
-  if (typeof roles === 'string') return roles;
-  return 'N/A';
-};
+// Role helpers are centralized in ../../utils/roleUtils
 
 const CustomerManagement = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1 });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -106,11 +89,6 @@ const CustomerManagement = () => {
       }
 
       setAllUsers(aggregated);
-      setMeta({
-        totalCount,
-        totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
-        pageSize,
-      });
     } catch (error) {
       console.error('Load users error:', error);
       toast.error(
@@ -121,11 +99,18 @@ const CustomerManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageSize]);
+  }, []);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  const customerUsers = useMemo(() => {
+    return allUsers.filter((user) => {
+      const roles = user?.roles ?? user?.role;
+      return resolvePrimaryRole(roles) === 'Customer';
+    });
+  }, [allUsers]);
 
   const applySearch = useCallback((value) => {
     const normalized = value.trim();
@@ -155,7 +140,7 @@ const CustomerManagement = () => {
     const normalizedKeyword = normalizeText(searchTerm);
     const digitKeyword = normalizeDigits(searchTerm);
 
-    return allUsers.filter((user) => {
+    return customerUsers.filter((user) => {
       const name = normalizeText(user.displayName || user.fullName || user.username || '');
       const email = normalizeText(user.email || '');
       const phoneDigits = normalizeDigits(user.phoneNumber || '');
@@ -179,7 +164,7 @@ const CustomerManagement = () => {
 
       return isSearchMatched && matchStatus;
     });
-  }, [allUsers, searchTerm, statusFilter]);
+  }, [customerUsers, searchTerm, statusFilter]);
 
   const pagedUsers = useMemo(() => {
     const start = (pageIndex - 1) * pageSize;
@@ -202,10 +187,10 @@ const CustomerManagement = () => {
   }, [filteredTotalPages]);
 
   const stats = useMemo(() => ({
-    total: meta.totalCount || allUsers.length,
-    active: allUsers.filter((u) => u.isActive).length,
-    inactive: allUsers.filter((u) => !u.isActive).length,
-  }), [allUsers, meta.totalCount]);
+    total: customerUsers.length,
+    active: customerUsers.filter((u) => u.isActive).length,
+    inactive: customerUsers.filter((u) => !u.isActive).length,
+  }), [customerUsers]);
 
   const toggleActive = async (user) => {
     if (!(user?.userID)) return;
@@ -231,10 +216,19 @@ const CustomerManagement = () => {
     }
 
     // Show what we already have first
+    if (resolvePrimaryRole(user.roles || user.role) !== 'Customer') {
+      toast.info('Người dùng này không thuộc vai trò Khách hàng.');
+      return;
+    }
     setSelectedUser(user);
 
     try {
       const data = await UserService.getById(user.userID || user.id);
+      if (resolvePrimaryRole(data?.roles || data?.role) !== 'Customer') {
+        toast.info('Người dùng này không thuộc vai trò Khách hàng.');
+        setSelectedUser(null);
+        return;
+      }
       setSelectedUser(data);
     } catch (error) {
       console.error('View user error:', error);
@@ -494,7 +488,7 @@ const CustomerManagement = () => {
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">Vai trò</p>
-                            <p className="font-semibold text-gray-800">{formatRoles(selectedUser.roles || selectedUser.role)}</p>
+                            <p className="font-semibold text-gray-800">{formatPrimaryRole(selectedUser.roles || selectedUser.role)}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">

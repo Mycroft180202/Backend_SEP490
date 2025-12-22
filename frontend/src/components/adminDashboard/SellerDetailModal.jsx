@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaTimes, FaSpinner, FaLock, FaUnlock } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { AdminSellerService } from '../../services/modules/admin/adminSellerService';
+import { resolvePrimaryRole } from '../../utils/roleUtils';
 
 const SellerDetailModal = ({ isOpen, seller, onClose, onStatusChange }) => {
   const [sellerDetails, setSellerDetails] = useState(null);
@@ -57,6 +58,8 @@ const SellerDetailModal = ({ isOpen, seller, onClose, onStatusChange }) => {
   };
 
   if (!isOpen || !seller) return null;
+
+  const primaryRole = resolvePrimaryRole(sellerDetails?.roles || sellerDetails?.role);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -178,18 +181,13 @@ const SellerDetailModal = ({ isOpen, seller, onClose, onStatusChange }) => {
               </div>
 
               {/* Roles */}
-              {sellerDetails.roles && sellerDetails.roles.length > 0 && (
+              {primaryRole && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                     Vai trò
                   </label>
-                  <div className="space-y-2">
-                    {sellerDetails.roles.map((role, index) => (
-                      <div key={index} className="bg-gray-50 p-2 rounded border border-gray-200">
-                        <p className="text-sm font-semibold">{role.name}</p>
-                        <p className="text-xs text-gray-500">{role.description}</p>
-                      </div>
-                    ))}
+                  <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                    <p className="text-sm font-semibold">{primaryRole}</p>
                   </div>
                 </div>
               )}

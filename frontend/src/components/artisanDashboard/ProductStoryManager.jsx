@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FaPlus, FaRegImage, FaPen, FaTrash, FaTimes, FaSpinner } from 'react-icons/fa';
 import StorytellingService from '../../services/modules/products/storytellingService';
 import { toast } from 'react-toastify';
+import ConfirmModal from '../shared/ConfirmModal';
 
 const storyTypeOptions = [
   { value: 'ProductStory', label: 'Câu chuyện sản phẩm' },
@@ -9,8 +10,8 @@ const storyTypeOptions = [
   { value: 'ArtisanBiography', label: 'Câu chuyện Nghệ nhân' },
 ];
 
-const buildEmptyForm = () => ({
-  storyType: 'ProductStory',
+const buildEmptyForm = (defaultStoryType = 'ProductStory') => ({
+  storyType: defaultStoryType,
   title: '',
   content: '',
   image: null,
@@ -20,11 +21,25 @@ const buildEmptyForm = () => ({
 const ProductStoryManager = ({ product, onClose }) => {
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [formState, setFormState] = useState(buildEmptyForm);
+  const [formState, setFormState] = useState(buildEmptyForm());
   const [editingStory, setEditingStory] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, story: null, loading: false });
 
   const productId = product?.id;
+
+  const existingStoryTypes = useMemo(() => {
+    return new Set((stories || []).map((story) => story?.storyType).filter(Boolean));
+  }, [stories]);
+
+  const availableStoryTypeOptions = useMemo(() => {
+    if (editingStory) return storyTypeOptions;
+    return storyTypeOptions.filter((opt) => !existingStoryTypes.has(opt.value));
+  }, [editingStory, existingStoryTypes]);
+
+  const isAllStoryTypesCreated = useMemo(() => {
+    return storyTypeOptions.every((opt) => existingStoryTypes.has(opt.value));
+  }, [existingStoryTypes]);
 
   const modalTitle = useMemo(() => {
     if (editingStory) return 'Cập nhật câu chuyện';
@@ -51,7 +66,8 @@ const ProductStoryManager = ({ product, onClose }) => {
 
   useEffect(() => {
     if (!editingStory) {
-      setFormState(buildEmptyForm());
+      const nextDefaultType = availableStoryTypeOptions[0]?.value || storyTypeOptions[0].value;
+      setFormState(buildEmptyForm(nextDefaultType));
       return;
     }
     setFormState({
@@ -61,7 +77,14 @@ const ProductStoryManager = ({ product, onClose }) => {
       image: null,
       preview: editingStory.image || '',
     });
-  }, [editingStory]);
+  }, [availableStoryTypeOptions, editingStory]);
+
+  useEffect(() => {
+    if (editingStory) return;
+    if (!availableStoryTypeOptions.length) return;
+    if (availableStoryTypeOptions.some((opt) => opt.value === formState.storyType)) return;
+    setFormState((prev) => ({ ...prev, storyType: availableStoryTypeOptions[0].value }));
+  }, [availableStoryTypeOptions, editingStory, formState.storyType]);
 
   useEffect(() => {
     if (!formState.preview) return undefined;
@@ -86,7 +109,8 @@ const ProductStoryManager = ({ product, onClose }) => {
   };
 
   const resetForm = () => {
-    setFormState(buildEmptyForm());
+    const nextDefaultType = availableStoryTypeOptions[0]?.value || storyTypeOptions[0].value;
+    setFormState(buildEmptyForm(nextDefaultType));
     setEditingStory(null);
   };
 
@@ -143,18 +167,31 @@ const ProductStoryManager = ({ product, onClose }) => {
 
   const handleDelete = async (story) => {
     if (!story?.id) return;
-    if (!window.confirm('Bạn muốn xoá câu chuyện này?')) return;
+    setDeleteConfirm({ open: true, story, loading: false });
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteConfirm.loading) return;
+    setDeleteConfirm({ open: false, story: null, loading: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.story?.id) return;
+    if (deleteConfirm.loading) return;
 
     try {
-      await StorytellingService.deleteStory(story.id);
+      setDeleteConfirm((prev) => ({ ...prev, loading: true }));
+      await StorytellingService.deleteStory(deleteConfirm.story.id);
       toast.success('Đã xoá câu chuyện.');
       await refreshStories();
-      if (editingStory?.id === story.id) {
+      if (editingStory?.id === deleteConfirm.story.id) {
         resetForm();
       }
     } catch (err) {
       console.error('Delete storytelling error:', err);
       toast.error(err?.response?.data?.message || 'Không thể xoá câu chuyện.');
+    } finally {
+      setDeleteConfirm({ open: false, story: null, loading: false });
     }
   };
 
@@ -248,88 +285,113 @@ const ProductStoryManager = ({ product, onClose }) => {
 
           <div className="p-6">
             <h4 className="mb-4 text-base font-semibold text-gray-800">{modalTitle}</h4>
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Loại câu chuyện</label>
-                <select
-                  value={formState.storyType}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, storyType: event.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  disabled={submitting}
-                >
-                  {storyTypeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+            {!editingStory && isAllStoryTypesCreated ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">
+                Bạn đã tạo đủ 3 loại câu chuyện. Hãy chỉnh sửa các câu chuyện hiện có ở bên trái.
               </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Tiêu đề</label>
-                <input
-                  type="text"
-                  value={formState.title}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  maxLength={150}
-                  disabled={submitting}
-                  placeholder="Nhập tiêu đề hấp dẫn"
-                />
-                <p className="mt-1 text-xs text-gray-400">{formState.title.length}/150 ký tự</p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Nội dung</label>
-                <textarea
-                  value={formState.content}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
-                  className="h-32 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Tóm tắt câu chuyện, có thể dán link nội dung chi tiết từ CKEditor"
-                  disabled={submitting}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Hình ảnh minh hoạ</label>
-                <div className="flex items-center gap-3">
-                  <label className={`flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:border-primary hover:text-primary ${submitting ? 'pointer-events-none opacity-60' : ''}`}>
-                    <FaRegImage /> Chọn ảnh
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileChange}
-                      disabled={submitting}
-                    />
-                  </label>
-                  {formState.preview && (
-                    <img src={formState.preview} alt="preview" className="h-14 w-14 rounded-lg border border-gray-200 object-cover" />
+            ) : (
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Loại câu chuyện</label>
+                  <select
+                    value={formState.storyType}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, storyType: event.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={submitting || Boolean(editingStory) || (!editingStory && availableStoryTypeOptions.length <= 1)}
+                  >
+                    {availableStoryTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  {!editingStory && availableStoryTypeOptions.length === 0 && (
+                    <p className="mt-2 text-xs text-gray-500">Đã có đủ loại câu chuyện, không thể thêm mới.</p>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-gray-400">Hỗ trợ JPG, PNG, WebP. Dung lượng tối đa 5MB.</p>
-              </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  disabled={submitting}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Làm mới
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {submitting ? <FaSpinner className="animate-spin" /> : editingStory ? <FaPen /> : <FaPlus />}
-                  {editingStory ? 'Lưu thay đổi' : 'Thêm mới'}
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Tiêu đề</label>
+                  <input
+                    type="text"
+                    value={formState.title}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    maxLength={150}
+                    disabled={submitting}
+                    placeholder="Nhập tiêu đề hấp dẫn"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">{formState.title.length}/150 ký tự</p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Nội dung</label>
+                  <textarea
+                    value={formState.content}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
+                    className="h-32 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Tóm tắt câu chuyện, có thể dán link nội dung chi tiết từ CKEditor"
+                    disabled={submitting}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Hình ảnh minh hoạ</label>
+                  <div className="flex items-center gap-3">
+                    <label className={`flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:border-primary hover:text-primary ${submitting ? 'pointer-events-none opacity-60' : ''}`}>
+                      <FaRegImage /> Chọn ảnh
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                        disabled={submitting}
+                      />
+                    </label>
+                    {formState.preview && (
+                      <img src={formState.preview} alt="preview" className="h-14 w-14 rounded-lg border border-gray-200 object-cover" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">Hỗ trợ JPG, PNG, WebP. Dung lượng tối đa 5MB.</p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    disabled={submitting}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Làm mới
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {submitting ? <FaSpinner className="animate-spin" /> : editingStory ? <FaPen /> : <FaPlus />}
+                    {editingStory ? 'Lưu thay đổi' : 'Thêm mới'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        title="Xác nhận xoá câu chuyện"
+        description={(
+          <span>
+            Bạn có chắc chắn muốn xoá câu chuyện <strong>{deleteConfirm.story?.title || ''}</strong> không?
+          </span>
+        )}
+        confirmText="Xoá"
+        cancelText="Hủy"
+        confirming={deleteConfirm.loading}
+        onCancel={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        tone="danger"
+      />
     </div>
   );
 };

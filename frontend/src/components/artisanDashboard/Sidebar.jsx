@@ -5,6 +5,7 @@ import {
   FaBars,
   FaTimes,
   FaArrowLeft,
+  FaStore,
 } from 'react-icons/fa';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuItems }) => {
@@ -41,6 +42,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
         >
           <FaArrowLeft className="text-xl flex-shrink-0" />
           {sidebarOpen && <span className="font-nunito">Về trang chủ</span>}
+        </button>
+
+        <button
+          onClick={() => navigate('/artisan-shop')}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-200 hover:bg-red-800/50"
+        >
+          <FaStore className="text-xl flex-shrink-0" />
+          {sidebarOpen && <span className="font-nunito">Xem cửa hàng của tôi</span>}
         </button>
 
         {menuItems.map((item) => (
