@@ -1,0 +1,235 @@
+﻿using System.Collections.Generic;
+using System.Linq;
+using Backend_SEP490.Constants;
+using Backend_SEP490.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Backend_SEP490.Repositories.impl
+{
+    public class OrderRepositoriesImpl : GenericRepositoryImpl<Order>, IOrderRepositories
+    {
+        public OrderRepositoriesImpl(AppDbContext context) : base(context)
+        {
+        }
+
+        public async Task<bool> CreateOrderAsync(Order order)
+        {
+            try
+            {
+                _context.Orders.Add(order);
+                _context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public async Task<List<Order>> GetRecentOrdersForCustomerAsync(string customerId, DateTime sinceUtc, int limit = 5)
+        {
+            if (string.IsNullOrWhiteSpace(customerId))
+            {
+                return new List<Order>();
+            }
+
+            if (limit <= 0)
+            {
+                limit = 5;
+            }
+
+            var normalizedCustomerId = customerId.Trim();
+            return await _context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .Where(o =>
+                    o.CustomerId == normalizedCustomerId &&
+                    o.CreateAt >= sinceUtc &&
+                    o.Status != OrderStatuses.Cancelled &&
+                    o.Status != OrderStatuses.Completed)
+                .OrderByDescending(o => o.CreateAt)
+                .Take(limit)
+                .ToListAsync();
+        }
+
+        public async Task<Order> GetAllOrderByIdAsync(string orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .FirstOrDefaultAsync(o => o.Id.Equals(orderId));
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderByUserIdAsync(string userId)
+        {
+            var orders = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .Where(o => o.CustomerId.Equals(userId))
+                .ToListAsync();
+            return orders;
+        }
+
+        public async Task<List<Order>> GetPendingOrdersBeforeAsync(DateTime thresholdUtc)
+        {
+            return await _context.Orders
+                .Include(o => o.Payments)
+                .Where(o =>
+                    o.Status == OrderStatuses.WaitingForPickup &&
+                    o.CreateAt <= thresholdUtc)
+                .ToListAsync();
+        }
+
+        public async Task<List<Order>> GetUnconfirmedOrdersBeforeAsync(DateTime thresholdUtc)
+        {
+            return await _context.Orders
+                .Include(o => o.Shipments)
+                .Include(o => o.OrderItems)
+                .Where(o =>
+                    o.ArtisanConfirmedAt == null &&
+                    o.CreateAt <= thresholdUtc &&
+                    o.Status != OrderStatuses.Cancelled &&
+                    o.Status != OrderStatuses.Completed &&
+                    o.Status != OrderStatuses.Shipping)
+                .ToListAsync();
+        }
+
+        public void RemoveRange(IEnumerable<Order> orders)
+        {
+            _context.Orders.RemoveRange(orders);
+        }
+
+        public async Task<(IEnumerable<Order> Items, int TotalCount)> GetPagedOrdersAsync(int pageIndex, int pageSize, string? paymentStatus)
+        {
+            if (pageIndex < 1)
+            {
+                pageIndex = 1;
+            }
+
+            if (pageSize < 1)
+            {
+                pageSize = 10;
+            }
+
+            var query = _context.Orders
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(paymentStatus))
+            {
+                var normalized = paymentStatus.Trim().ToLowerInvariant();
+                if (normalized == "paid")
+                {
+                    query = query.Where(o => o.Payments.Any(p => p.PaymentStatus != null && p.PaymentStatus.ToLower() == "paid"));
+                }
+                else if (normalized == "unpaid")
+                {
+                    query = query.Where(o => !o.Payments.Any(p => p.PaymentStatus != null && p.PaymentStatus.ToLower() == "paid"));
+                }
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var orders = await query
+                .OrderByDescending(o => o.CreateAt)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .AsSplitQuery()
+                .ToListAsync();
+
+            return (orders, totalCount);
+        }
+
+        public async Task<IEnumerable<Order>> GetNewestOrderAsync()
+        {
+            var order = await _context.Orders.OrderByDescending( o=> o.CreateAt).Take(10)
+                 .ToListAsync();
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderAsync()
+        {
+            var order = await _context.Orders.Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                .ThenInclude(p => p.ShippingProfile)
+                .Include(o => o.Customer)
+                .ToListAsync();
+            return order;
+        }
+
+        public async Task<Order> GetAllOrderByNumberAsync(string orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .FirstOrDefaultAsync(o => o.OrderNumber.Equals(orderId));
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderByArtisanIdAsync(string userId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .ThenInclude(o => o.Product).ThenInclude(o => o.CategoryNav)
+                .Where(o => o.OrderItems.Any(p => p.Product.ArtisanId.Equals(userId))).ToListAsync();
+            return order;
+        }
+
+        public async Task<IEnumerable<Order>> GetAllOrderWithProductCategoryAsync()
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .ThenInclude(o => o.Product).ThenInclude(o => o.CategoryNav)
+                .ToListAsync();
+            return order;
+        }
+
+        public async Task<bool> HasUserPurchasedProductAsync(string userId, string productId)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(productId))
+            {
+                return false;
+            }
+
+            var normalizedProductId = productId.Trim();
+            var normalizedUserId = userId.Trim();
+
+            return await _context.Orders
+                .Include(o => o.OrderItems)
+                .Where(o =>
+                    o.CustomerId == normalizedUserId &&
+                    (o.Status == "Paid" || o.Status == "Completed"))
+                .AnyAsync(o => o.OrderItems.Any(oi => oi.ProductID == normalizedProductId));
+        }
+
+        public async Task<decimal> GetTotalPaidOrderAmountAsync()
+        {
+            return await _context.Orders
+                .Where(o => o.Status == "Paid")
+                .Select(o => (decimal?)o.TotalAmount)
+                .SumAsync() ?? 0m;
+        }
+
+        public async Task<bool> HasUserUsedVoucherSourceAsync(string userId, string source)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(source))
+            {
+                return false;
+            }
+
+            var normalizedUserId = userId.Trim();
+            var normalizedSource = source.Trim();
+
+            return await (from order in _context.Orders
+                          join voucher in _context.Vouchers
+                              on order.VoucherId equals voucher.VoucherId
+                          where order.CustomerId == normalizedUserId
+                                && voucher.Source != null
+                                && voucher.Source == normalizedSource
+                          select order.Id).AnyAsync();
+        }
+    }
+}

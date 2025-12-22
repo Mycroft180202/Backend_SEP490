@@ -1,0 +1,369 @@
+﻿using Backend_SEP490.Config;
+using Backend_SEP490.Hubs;
+using Backend_SEP490.Models;
+using Backend_SEP490.Repositories;
+using Backend_SEP490.Repositories.impl;
+using Backend_SEP490.Services;
+using Backend_SEP490.Services.impl;
+using Backend_SEP490.Mapper;
+using Backend_SEP490.Services.Background;
+using Microsoft.EntityFrameworkCore;
+using AutoMapper;
+using CloudinaryDotNet;
+using DotNetEnv;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
+using System.IO;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ----------------------
+// Load environment variables t? file .env (n?u có)
+// ----------------------
+var envFilePath = Path.Combine(builder.Environment.ContentRootPath, ".env");
+if (File.Exists(envFilePath))
+{
+    Env.Load(envFilePath);
+}
+
+string GetEnvOrThrow(string key) =>
+    Environment.GetEnvironmentVariable(key) ??
+    throw new Exception("{key} is not configured. Please set it via environment variables ho?c file .env.");
+
+string? GetEnvOrNull(string key) => Environment.GetEnvironmentVariable(key);
+
+int GetEnvInt(string key, int defaultValue = 0)
+{
+    var rawValue = Environment.GetEnvironmentVariable(key);
+    return int.TryParse(rawValue, out var parsed) ? parsed : defaultValue;
+}
+
+// Cloudinary
+var cloudName = GetEnvOrThrow("CLOUDINARY_CLOUD_NAME");
+var cloudApiKey = GetEnvOrThrow("CLOUDINARY_API_KEY");
+var cloudApiSecret = GetEnvOrThrow("CLOUDINARY_API_SECRET");
+var cloudinary = new Cloudinary(new Account(cloudName, cloudApiKey, cloudApiSecret))
+{
+    Api = { Secure = true }
+};
+builder.Services.AddSingleton(cloudinary);
+
+// OpenAI
+var openAiApiKey = GetEnvOrThrow("OPENAI_API_KEY");
+
+// JWT
+var jwtKey = GetEnvOrThrow("JWT_KEY");
+var jwtIssuer = GetEnvOrThrow("JWT_ISSUER");
+var jwtAudience = GetEnvOrThrow("JWT_AUDIENCE");
+var jwtExpireMinutes = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRE_MINUTES") ?? "15");
+var jwtRefreshTokenExpireDays = int.Parse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRE_DAYS") ?? "7");
+
+// Email
+var emailHost = GetEnvOrThrow("EMAIL_HOST");
+var emailPort = int.Parse(Environment.GetEnvironmentVariable("EMAIL_PORT") ?? "587");
+var emailUsername = GetEnvOrThrow("EMAIL_USERNAME");
+var emailPassword = GetEnvOrThrow("EMAIL_PASSWORD");
+
+var ghnSettings = new GhnSettings
+{
+    Token = Environment.GetEnvironmentVariable("GHN_TEST_TOKEN") ?? string.Empty,
+    ShopId = GetEnvInt("GHN_TEST_SHOP_ID"),
+    BaseUrl = Environment.GetEnvironmentVariable("GHN_TEST_BASE_URL") ?? "https://dev-online-gateway.ghn.vn",
+    FromName = Environment.GetEnvironmentVariable("GHN_TEST_FROM_NAME") ?? "Test Warehouse",
+    FromPhone = Environment.GetEnvironmentVariable("GHN_TEST_FROM_PHONE") ?? "0000000000",
+    FromAddress = Environment.GetEnvironmentVariable("GHN_TEST_FROM_ADDRESS") ?? "GHN Test Address",
+    FromDistrictId = GetEnvInt("GHN_TEST_FROM_DISTRICT_ID"),
+    FromWardCode = Environment.GetEnvironmentVariable("GHN_TEST_FROM_WARD_CODE") ?? string.Empty,
+    FallbackReceiverPhone = Environment.GetEnvironmentVariable("GHN_TEST_FALLBACK_PHONE"),
+    DefaultToDistrictId = GetEnvInt("GHN_TEST_TO_DISTRICT_ID"),
+    DefaultToWardCode = Environment.GetEnvironmentVariable("GHN_TEST_TO_WARD_CODE") ?? string.Empty,
+    PaymentTypeId = GetEnvInt("GHN_TEST_PAYMENT_TYPE_ID", 2),
+    ServiceId = GetEnvInt("GHN_TEST_SERVICE_ID") is var configuredService && configuredService > 0 ? configuredService : null,
+    ServiceTypeId = GetEnvInt("GHN_TEST_SERVICE_TYPE_ID", 2),
+    RequiredNote = Environment.GetEnvironmentVariable("GHN_TEST_REQUIRED_NOTE") ?? "KHONGCHOXEMHANG",
+    DefaultItemWeight = GetEnvInt("GHN_TEST_DEFAULT_ITEM_WEIGHT", 500),
+    DefaultParcelLength = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_LENGTH", 20),
+    DefaultParcelWidth = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_WIDTH", 20),
+    DefaultParcelHeight = GetEnvInt("GHN_TEST_DEFAULT_PARCEL_HEIGHT", 10)
+};
+
+var vnpaySettings = new VnpaySettings
+{
+    TmnCode = Environment.GetEnvironmentVariable("VNPAY_TMN_CODE") ?? string.Empty,
+    HashSecret = Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET") ?? string.Empty,
+    PaymentUrl = Environment.GetEnvironmentVariable("VNPAY_PAYMENT_URL") ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    ReturnUrl = Environment.GetEnvironmentVariable("VNPAY_RETURN_URL") ?? "https://localhost:5001/api/payment/vnpay/callback",
+    QueryDrUrl = Environment.GetEnvironmentVariable("VNPAY_QUERYDR_URL") ?? string.Empty,
+    Version = Environment.GetEnvironmentVariable("VNPAY_VERSION") ?? "2.1.0",
+    Locale = Environment.GetEnvironmentVariable("VNPAY_LOCALE") ?? "vn",
+    CurrencyCode = Environment.GetEnvironmentVariable("VNPAY_CURRENCY_CODE") ?? "VND",
+    Command = Environment.GetEnvironmentVariable("VNPAY_COMMAND") ?? "pay",
+    DefaultBankCode = Environment.GetEnvironmentVariable("VNPAY_DEFAULT_BANK_CODE") ?? "VNPAYQR",
+    ExpireMinutes = GetEnvInt("VNPAY_EXPIRE_MINUTES", 15),
+    FrontendReturnUrl = Environment.GetEnvironmentVariable("VNPAY_FRONTEND_URL")
+};
+var Cors__AllowedOrigins__0 = Environment.GetEnvironmentVariable("Cors__AllowedOrigins__0");
+// ----------------------
+// DbContext
+// ----------------------
+var connectionString = GetEnvOrNull("ConnectionStrings__DefaultConnection")
+                     ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+var dbPassword = GetEnvOrNull("DB_PASSWORD");
+if (!string.IsNullOrWhiteSpace(connectionString) &&
+    connectionString.Contains("{DB_PASSWORD}", StringComparison.OrdinalIgnoreCase))
+{
+    if (string.IsNullOrWhiteSpace(dbPassword))
+    {
+        throw new Exception("DB_PASSWORD is required when connection string contains {DB_PASSWORD}");
+    }
+    connectionString = connectionString.Replace("{DB_PASSWORD}", dbPassword);
+}
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new Exception("ConnectionStrings:DefaultConnection is not configured.");
+}
+
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+
+// ----------------------
+// AutoMapper
+// ----------------------
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
+// ----------------------
+// Repositories
+// ----------------------
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IProductRepositories, ProductRepositoriesImpl>();
+builder.Services.AddScoped<IUserRepositories, UserRepositoriesImpl>();
+builder.Services.AddScoped<IFeedbackRepositories, FeedbackRepositoriesImpl>();
+builder.Services.AddScoped<IProductImagesRepositories, ProductImagesRepositoriesImpl>();
+builder.Services.AddScoped<IOrderRepositories, OrderRepositoriesImpl>();
+builder.Services.AddScoped<IBlogRepositories, BlogRepositoriesImpl>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryImpl>();
+builder.Services.AddScoped<ICategoryRepositories, CategoryRepositoriesImpl>();
+builder.Services.AddScoped<IRoleRepository, RoleRepositoryImpl>();
+builder.Services.AddScoped<IUserRoleRepository, UserRoleRepositoryImpl>();
+builder.Services.AddScoped<IAddressRepositories, AddressRepositoriesImpl>();
+builder.Services.AddScoped<IUserOtpRepositories, UserOtpRepositoriesImpl>();
+builder.Services.AddScoped<ICartItemRepositories, CartItemRepositoriesImpl>();
+builder.Services.AddScoped<ICartRepositories, CartRepositoriesImpl>();
+builder.Services.AddScoped<IWishListItemRepositories, WishListItemRepositoriesImpl>();
+builder.Services.AddScoped<IProductCollectionRepositories, ProductCollectionRepositoriesImpl>();
+builder.Services.AddScoped<IVoucherRepositories, VoucherRipositoriesImpl>();
+builder.Services.AddScoped<IOrderDetailRepositories, OrderDetailRepositoriesImpl>();
+builder.Services.AddScoped<IShipmentRepositories, ShipmentRepositoriesImpl>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepositoryImpl>();
+builder.Services.AddScoped<IReportRepository, ReportRepositoryImpl>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepositoryImpl>();
+builder.Services.AddScoped<IProductShippingProfileRepository, ProductShippingProfileRepository>();
+builder.Services.AddScoped<ISellerShippingProfileRepository, SellerShippingProfileRepository>();
+builder.Services.AddScoped<IShipmentHistoryRepository, ShipmentHistoryRepository>();
+builder.Services.AddScoped<IArtisanApplicationRepository, ArtisanApplicationRepository>();
+builder.Services.AddScoped<IStoryTellingRepositories, StoryTellingRepositoriesImpl>();
+builder.Services.AddScoped<ISellerReputationRepository, SellerReputationRepository>();
+
+// ----------------------
+// Services
+// ----------------------
+builder.Services.AddScoped<IProductServices, ProductServicesImpl>();
+builder.Services.AddScoped<IUserServices, UserServicesImpl>();
+builder.Services.AddScoped<IFeedbackServices, FeedbackServicesImpl>();
+builder.Services.AddScoped<IProductImagesServices, ProductImagesServicesImpl>();
+builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
+builder.Services.AddScoped<IBlogPostService, BlogPostServiceImpl>();
+builder.Services.AddScoped<ICategoryServices, CategoryServicesImpl>();
+builder.Services.AddScoped<ICategoryServices, CategoryServicesImpl>();
+builder.Services.AddScoped<IAddressService, AddressServiceImpl>();
+builder.Services.AddScoped<IEmailService,EmailServiceImpl>();
+builder.Services.AddScoped<ICartService,CartServiceImpl>();
+builder.Services.AddScoped<IWishListItemService,WishListItemServiceImpl>();
+builder.Services.AddScoped<IVoucherService,VoucherServiceImpl>();
+builder.Services.AddScoped<INotificationService,NotificationServicesImpl>();
+builder.Services.AddScoped<IReportService, ReportServiceImpl>();
+builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
+builder.Services.AddScoped<IArtisanApplicationService, ArtisanApplicationService>();
+builder.Services.AddScoped<IStoryTellingService, StoryTellingServiceImpl>();
+builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<ISellerReputationService, SellerReputationService>();
+builder.Services.AddScoped<ICommerceRealtimeService, CommerceRealtimeService>();
+builder.Services.AddSingleton<IOptions<GhnSettings>>(_ => Options.Create(ghnSettings));
+builder.Services.AddSingleton<IOptions<VnpaySettings>>(_ => Options.Create(vnpaySettings));
+builder.Services.AddHttpClient<IGhnShippingService, GhnShippingService>((sp, httpClient) =>
+{
+    var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        httpClient.BaseAddress = new Uri(options.BaseUrl);
+    }
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient<IGhnMasterDataService, GhnMasterDataService>((sp, httpClient) =>
+{
+    var options = sp.GetRequiredService<IOptions<GhnSettings>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        httpClient.BaseAddress = new Uri(options.BaseUrl);
+    }
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<ISellerShippingProfileService, SellerShippingProfileService>();
+builder.Services.AddScoped<IShipmentRealtimeService, ShipmentRealtimeService>();
+
+// ----------------------
+// -É-âng k++ AutoMapper (qu+¬t to+án bß+Ö assemblies -æß+â t+¼m Profile)
+// ----------------------
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
+builder.Services.AddScoped<IProductCollectionServices, ProductCollectionServicesImpl>();
+builder.Services.AddHostedService<NotificationCleanupService>();
+builder.Services.AddHostedService<OrderCleanupService>();
+builder.Services.AddHostedService<VoucherAutomationHostedService>();
+
+// IEmbeddingService (inject OpenAI API Key)
+builder.Services.AddScoped<IEmbeddingService>(sp =>
+{
+    var mapper = sp.GetRequiredService<IMapper>();
+    var unitOfWork = sp.GetRequiredService<IUnitOfWork>();
+    return new EmbeddingServiceImpl(mapper, unitOfWork, openAiApiKey);
+});
+
+// ----------------------
+// Controllers
+// ----------------------
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
+
+// ----------------------
+// Swagger + JWT Auth
+// ----------------------
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Backend_SEP490", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
+});
+
+// ----------------------
+// JWT Authentication
+// ----------------------
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
+});
+
+// ----------------------
+// Config Cors
+// ----------------------
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins == null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = new[] { "http://192.168.1.183:3000",
+        "http://localhost:3000",
+        "https://hoalachandicraf-c2ekh6d9atg7dzcu.eastasia-01.azurewebsites.net" };
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+});
+
+
+builder.Services.AddAuthorization();
+
+// ----------------------
+// Build & run app
+// ----------------------
+var app = builder.Build();
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
+
+app.Run();
+public partial class Program { }
+
+
+
+

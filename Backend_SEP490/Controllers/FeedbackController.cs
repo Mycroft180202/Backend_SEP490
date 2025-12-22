@@ -1,0 +1,85 @@
+using Backend_SEP490.Data;
+using Backend_SEP490.DTOs.Request;
+using Backend_SEP490.Extensions;
+using Backend_SEP490.Models;
+using Backend_SEP490.Services.impl;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Backend_SEP490.Controllers;
+
+[Microsoft.AspNetCore.Components.Route("api/[controller]")]
+[ApiController]
+[Authorize]
+public class FeedbackController : ControllerBase
+{
+    private readonly IFeedbackServices _feedbackRepository;
+
+    public FeedbackController(IFeedbackServices feedbackRepository)
+    {
+        _feedbackRepository = feedbackRepository;
+    }
+
+    [AllowAnonymous]
+    [HttpGet("feedbacks/{productId}")]
+    public async Task<ActionResult<PagedResult<ResponseDTOFeedback>>> GetFeedbacks(
+        string productId, int pageIndex = 1, int pageSize = 5)
+    {
+        var feedbacks = await _feedbackRepository.GetFeedbacksByProductIdAsync(productId, pageIndex, pageSize);
+        return Ok(feedbacks);
+    }
+
+    [Authorize]
+    [HttpDelete("feedbacks")]
+    public async Task<ActionResult> DeleteFeedback(string feedbackid, string IdduserId)
+    {
+        var userId = User.GetUserId();
+
+        if (!string.IsNullOrWhiteSpace(userId) && userId == IdduserId)
+        {
+            await _feedbackRepository.DeleteFeedbacksByIdAsync(feedbackid);
+            return Ok("Delete successfully");
+        }
+
+        return BadRequest("You cannot delete this feedback");
+    }
+
+
+    [Authorize]
+    [HttpPut("feedbacks")]
+    public async Task<ActionResult> UpdateFeedback(RequestDTOFeedback feedback, string productid, string userid, string feedbackid)
+    {
+        var currentUserId = User.GetUserId();
+        if (!string.IsNullOrWhiteSpace(currentUserId) && currentUserId == userid)
+        {
+            await _feedbackRepository.UpdateFeedbackByIdAsynnc(feedback, productid, feedbackid);
+            return Ok("Update successfully");
+        }
+
+        return BadRequest("You cannot Update this feedback");
+    }
+    [Authorize]
+    [HttpPost("feedbacks")]
+    public async Task<ActionResult> AddFeedback(RequestDTOFeedback feedback, string productid, string userid)
+    {
+        var currentUserId = User.GetUserId();
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        if (!string.IsNullOrWhiteSpace(userid) &&
+            !string.Equals(currentUserId, userid, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("You cannot create feedback for another user.");
+        }
+
+        var created = await _feedbackRepository.CreateFeedback(feedback, productid, currentUserId);
+        if (!created)
+        {
+            return BadRequest("Bạn chỉ có thể đánh giá sau khi mua sản phẩm thành công.");
+        }
+
+        return Ok("Create successfully");
+    }
+}
