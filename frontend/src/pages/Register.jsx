@@ -330,7 +330,10 @@ const Register = () => {
 
       const duplicateMessage = t('auth.register.toasts.duplicate');
       const defaultRegisterError = t('auth.register.toasts.registerError');
-      const backendMessage = error.response?.data?.message || '';
+      const backendData = error.response?.data;
+      const backendMessage = typeof backendData === 'string'
+        ? backendData
+        : (backendData?.message || backendData?.title || '');
 
       if (backendMessage.includes('Username or email already exists!')) {
         toast.error(duplicateMessage, {
