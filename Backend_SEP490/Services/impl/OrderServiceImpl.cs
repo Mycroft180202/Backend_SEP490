@@ -2510,25 +2510,29 @@ public class OrderServiceImpl : GenericServices, IOrderService
     {
         var orders = await _context.Order.GetAllOrderByArtisanIdAsync(userId);
 
-        var todayStart = DateTime.UtcNow.Date;
-        var todayEnd = todayStart.AddDays(1);
+        var nowVn = DateTime.UtcNow.AddHours(7);
+        var todayStartUtc = nowVn.Date.AddHours(-7);
+        var todayEndUtc = todayStartUtc.AddDays(1);
 
         var ordersToday = orders
-          .Where(o => o.CreateAt >= todayStart && o.CreateAt < todayEnd && !o.Status.Equals("Cancelled"))
-          .ToList();
+            .Where(o => o.CreateAt >= todayStartUtc && o.CreateAt < todayEndUtc
+                && !string.Equals(o.Status, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(o.Status, "Canceled", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         var ordersNeedActionToday = orders
-         .Where(o => o.Status.Equals("WaitingForPickup"))
-         .ToList();
+            .Where(o => string.Equals(o.Status, "WaitingForPickup", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        var revenue = ordersToday.Sum(o => (o.TotalAmount + o.DiscountAmount) - o.ShippingFee);
-        var result = new ResponseDTOTodayRevenue
+        var revenue = ordersToday.Sum(o => o.TotalAmount + o.DiscountAmount - o.ShippingFee);
+
+        return new ResponseDTOTodayRevenue
         {
             Revenue = revenue,
-            OrderNumber = ordersNeedActionToday.Count()
+            OrderNumber = ordersNeedActionToday.Count
         };
-        return result;
     }
+
 
     public async Task<PagedResult<ResponseDTOOrder>> GetAllOrderByArtisanIdAsync(string userId, int pageIndex, int pageSize)
     {
