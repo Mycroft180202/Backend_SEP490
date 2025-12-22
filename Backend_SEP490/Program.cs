@@ -18,8 +18,17 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using System.IO;
+using Npgsql;
+using NpgsqlTypes;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Render (and most PaaS) provides a dynamic port via PORT.
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 // ----------------------
 // Load environment variables t? file .env (n?u có)
@@ -40,6 +49,54 @@ int GetEnvInt(string key, int defaultValue = 0)
 {
     var rawValue = Environment.GetEnvironmentVariable(key);
     return int.TryParse(rawValue, out var parsed) ? parsed : defaultValue;
+}
+
+static string? TryBuildNpgsqlConnectionStringFromDatabaseUrl(string? databaseUrl)
+{
+    if (string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        return null;
+    }
+
+    try
+    {
+        var normalized = databaseUrl.Trim();
+        if (normalized.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = "postgresql://" + normalized.Substring("postgres://".Length);
+        }
+
+        var uri = new Uri(normalized);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+        var database = uri.AbsolutePath.Trim('/');
+
+        if (string.IsNullOrWhiteSpace(uri.Host) || string.IsNullOrWhiteSpace(database))
+        {
+            return null;
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Database = database,
+            Username = username,
+            Password = password,
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true,
+            Pooling = true,
+            MaxPoolSize = 20,
+            Timeout = 15,
+        };
+
+        return builder.ConnectionString;
+    }
+    catch
+    {
+        return null;
+    }
 }
 
 // Cloudinary
@@ -112,6 +169,12 @@ var Cors__AllowedOrigins__0 = Environment.GetEnvironmentVariable("Cors__AllowedO
 // ----------------------
 var connectionString = GetEnvOrNull("ConnectionStrings__DefaultConnection")
                      ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    // Render Postgres provides DATABASE_URL in postgres://user:pass@host:port/db form.
+    connectionString = TryBuildNpgsqlConnectionStringFromDatabaseUrl(GetEnvOrNull("DATABASE_URL"));
+}
 
 var dbPassword = GetEnvOrNull("DB_PASSWORD");
 if (!string.IsNullOrWhiteSpace(connectionString) &&
@@ -360,6 +423,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+
+if (string.Equals(Environment.GetEnvironmentVariable("RUN_MIGRATIONS"), "true", StringComparison.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 app.Run();
 public partial class Program { }
