@@ -315,12 +315,6 @@ builder.Services.AddAuthentication(options =>
 // Config Cors
 // ----------------------
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-var corsOriginsEnv = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
-if (!string.IsNullOrWhiteSpace(corsOriginsEnv))
-{
-    allowedOrigins = corsOriginsEnv
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-}
 if (allowedOrigins == null || allowedOrigins.Length == 0)
 {
     allowedOrigins = new[] { "http://192.168.1.183:3000",
