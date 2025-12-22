@@ -157,6 +157,10 @@ const canConfirmByArtisan = (order) => {
   }
   const paymentKey = normalizePaymentKey(order?.paymentType ?? order?.paymentMethod);
   if (statusKey === 'WAITING_FOR_PICKUP') {
+    // Với VNPAY: chỉ được xác nhận sau khi đã thanh toán (status = PAID).
+    if (paymentKey === 'VNPAY') {
+      return false;
+    }
     return !isArtisanConfirmed(order);
   }
   if (paymentKey === 'VNPAY' && statusKey === 'PAID') {

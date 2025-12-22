@@ -348,6 +348,7 @@ function OrderCard({ order, onRefresh }) {
         label: name,
         selected: Boolean(productId),
         reviewed: false,
+        submitError: null,
         rating: 5,
         comment: '',
       };
@@ -635,6 +636,10 @@ function OrderCard({ order, onRefresh }) {
     }
     setFeedbackSubmitting(true);
     try {
+      setFeedbackItems((prev) => prev.map((item) => (
+        item.selected ? { ...item, submitError: null } : item
+      )));
+
       const reviewChecks = await Promise.all(
         selectedItems.map(async (item) => [item, await checkProductReviewed(item.productId, userId)]),
       );
@@ -654,15 +659,66 @@ function OrderCard({ order, onRefresh }) {
       if (feedbackSubmitMode === 'confirm') {
         await confirmOrderReceived(feedbackModalOrder.orderNumber, { refresh: false });
       }
-      await Promise.all(eligibleItems.map((item) => ProductService.submitFeedback(item.productId, userId, {
-        rating: Number(item.rating) || 5,
-        comment: item.comment?.trim() || ' ',
-      })));
-      toast.success('Cảm ơn bạn đã gửi đánh giá.');
-      eligibleItems.forEach((item) => {
+
+      const successes = [];
+      const failures = [];
+      for (const item of eligibleItems) {
+        try {
+          await ProductService.submitFeedback(item.productId, userId, {
+            rating: Number(item.rating) || 5,
+            comment: item.comment?.trim() || ' ',
+          });
+          successes.push(item);
+        } catch (error) {
+          failures.push({ item, error });
+        }
+      }
+
+      successes.forEach((item) => {
         const cacheKey = `${String(userId).toLowerCase()}::${String(item.productId)}`;
         feedbackReviewedCache.current.set(cacheKey, true);
       });
+
+      setFeedbackItems((prev) => prev.map((item) => {
+        const success = successes.some((s) => String(s.productId) === String(item.productId));
+        if (success) {
+          return {
+            ...item,
+            reviewed: true,
+            selected: false,
+            submitError: null,
+          };
+        }
+        const failed = failures.find((f) => String(f.item.productId) === String(item.productId));
+        if (failed) {
+          const message =
+            failed.error?.response?.data?.message
+            || failed.error?.response?.data?.title
+            || failed.error?.message
+            || 'Không thể gửi đánh giá.';
+          return {
+            ...item,
+            submitError: message,
+          };
+        }
+        return item;
+      }));
+
+      if (failures.length > 0) {
+        toast.error(
+          `Không thể gửi đánh giá cho ${failures.length} sản phẩm. Vui lòng thử lại.`,
+          { toastId: 'feedback-submit-failed' },
+        );
+        if (successes.length > 0) {
+          toast.success(`Đã gửi đánh giá cho ${successes.length} sản phẩm.`);
+          if (onRefresh) {
+            onRefresh();
+          }
+        }
+        return;
+      }
+
+      toast.success('Cảm ơn bạn đã gửi đánh giá.');
       if (onRefresh) {
         onRefresh();
       } else {
@@ -1176,6 +1232,11 @@ function OrderCard({ order, onRefresh }) {
                     className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none disabled:bg-gray-100 disabled:text-gray-500"
                     rows={3}
                   />
+                  {item.submitError && (
+                    <p className="mt-2 text-xs text-red-600">
+                      {item.submitError}
+                    </p>
+                  )}
                 </div>
               ))}
                 </div>

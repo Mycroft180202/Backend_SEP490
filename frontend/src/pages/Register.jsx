@@ -7,6 +7,7 @@ import { FaEnvelope, FaUser, FaPhoneAlt, FaIdCard, FaBirthdayCake, FaLock } from
 import { AuthService } from '../services/modules/auth/authService';
 import { toast } from 'react-toastify';
 import { LanguageContext } from '../context/LanguageContext';
+import { validateStrongPassword } from '../utils/passwordValidation';
 
 const DatePartSelect = ({
   options,
@@ -207,8 +208,9 @@ const Register = () => {
     if (!usernameTrim || usernameTrim.length < 3 || usernameTrim.length > 30) {
       errors.push(t('auth.register.errors.usernameLength'));
     }
-    if (!password || password.length < 6) {
-      errors.push(t('auth.register.errors.passwordLength'));
+    const strongPassword = validateStrongPassword(password, { minLength: 8 });
+    if (!strongPassword.isValid) {
+      errors.push('Mật khẩu phải có tối thiểu 8 ký tự, ít nhất 1 chữ viết hoa và 1 ký tự đặc biệt.');
     }
     if (password !== confirmPassword) {
       errors.push(t('auth.register.errors.passwordMismatch'));
