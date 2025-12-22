@@ -132,12 +132,13 @@ namespace Backend_SEP490.Repositories.impl
             var totalCount = await query.CountAsync();
 
             var orders = await query
-                        .OrderByDescending(o => o.CreateAt)
-                        .Skip((pageIndex - 1) * pageSize)
-                        .Take(pageSize)
-                        .Include(o => o.OrderItems)
-                        .Include(o => o.Shipments)
-                        .ToListAsync();
+                .OrderByDescending(o => o.CreateAt)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .Include(o => o.OrderItems)
+                .Include(o => o.Shipments)
+                .AsSplitQuery()
+                .ToListAsync();
 
             return (orders, totalCount);
         }
