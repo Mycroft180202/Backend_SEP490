@@ -326,7 +326,7 @@ if (allowedOrigins == null || allowedOrigins.Length == 0)
     allowedOrigins = new[] { "http://192.168.1.183:3000",
         "https://holahandicraft.vercel.app",
         "http://localhost:3000",
-        "https://hoalachandicraf-c2ekh6d9atg7dzcu.eastasia-01.azurewebsites.net"
+        "https://holachandicraf-c2ekh6d9atg7dzcu.eastasia-01.azurewebsites.net"
     };
 }
 

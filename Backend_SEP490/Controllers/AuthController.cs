@@ -56,9 +56,16 @@ public class AuthController: ControllerBase
             return BadRequest(ModelState);
         else
         {
-            var result = await _userServices.RegisterAsync(dto);
-            if (!result) return BadRequest("Username or email already exists!");
-            return Ok("OTP sent to email");
+            try
+            {
+                var result = await _userServices.RegisterAsync(dto);
+                if (!result) return BadRequest("Username or email already exists!");
+                return Ok("OTP sent to email");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(503, $"Không thể gửi OTP qua email. Vui lòng thử lại sau. ({ex.Message})");
+            }
         }
     }
     [AllowAnonymous]
@@ -79,10 +86,17 @@ public class AuthController: ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] string email)
     {
-        var result = await _userServices.ForgotPasswordAsync(email);
-        if (!result) return BadRequest("Email không tồn tại trong hệ thống.");
+        try
+        {
+            var result = await _userServices.ForgotPasswordAsync(email);
+            if (!result) return BadRequest("Email không tồn tại trong hệ thống.");
 
-        return Ok("OTP đã được gửi tới email của bạn.");
+            return Ok("OTP đã được gửi tới email của bạn.");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(503, $"Không thể gửi OTP qua email. Vui lòng thử lại sau. ({ex.Message})");
+        }
     }
     [AllowAnonymous]
     [HttpPost("reset-password")]
