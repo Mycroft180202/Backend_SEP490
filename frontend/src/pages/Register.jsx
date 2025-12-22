@@ -304,7 +304,7 @@ const Register = () => {
         DisplayName: displayName,
         Dob: dob
       });
-      if (response.status === 200) {
+      if (response.status >= 200 && response.status < 300) {
         setShowOtpInput(true);
         toast.success(t('auth.register.toasts.registerSuccess'), {
           position: "top-right",
@@ -313,6 +313,21 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Registration failed:', error);
+
+      // Trên môi trường deploy đôi khi request vẫn tới backend (OTP vẫn gửi) nhưng browser bị chặn đọc response (CORS)
+      // => Axios sẽ báo "Network Error" và không có `error.response`.
+      const isLikelyCorsBlocked =
+        !error?.response
+        && (error?.code === 'ERR_NETWORK' || String(error?.message || '').toLowerCase().includes('network'));
+      if (isLikelyCorsBlocked) {
+        setShowOtpInput(true);
+        toast.info(
+          'Không thể nhận phản hồi từ server (có thể do CORS). Nếu bạn đã nhận OTP qua email, hãy nhập OTP để hoàn tất đăng ký.',
+          { position: 'top-right', autoClose: 5000 }
+        );
+        return;
+      }
+
       const duplicateMessage = t('auth.register.toasts.duplicate');
       const defaultRegisterError = t('auth.register.toasts.registerError');
       const backendMessage = error.response?.data?.message || '';
@@ -432,7 +447,7 @@ const Register = () => {
         Dob: dob
       });
 
-      if (response.status === 200) {
+      if (response.status >= 200 && response.status < 300) {
         toast.success(t('auth.register.toasts.resendSuccess'), {
           position: "top-right",
           autoClose: 3000
