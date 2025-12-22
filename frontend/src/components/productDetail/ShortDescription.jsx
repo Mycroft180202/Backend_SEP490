@@ -22,7 +22,7 @@ import { UserContext } from '../../context/UserContext';
 import { CartService } from '../../services/modules/cart/cartService';
 import { WishlistService } from '../../services/modules/wishlist/wishlistService';
 import { ReportService } from '../../services/modules/report/reportService';
-import { isOwnedByCurrentArtisan } from '../../utils/productOwnership';
+import { isOwnedByCurrentArtisan, resolveProductArtisanId } from '../../utils/productOwnership';
 
 const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo }) => {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -281,9 +281,30 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
     }
   };
 
+  const handleOpenReportModal = () => {
+    if (!ensureAuthenticated()) return;
+
+    const currentUserId = userInfo?.userID || userInfo?.userId || userInfo?.id || null;
+    const ownerId = resolveProductArtisanId(product);
+    if (currentUserId && ownerId && String(currentUserId) === String(ownerId)) {
+      toast.info('Bạn không thể báo cáo sản phẩm của shop mình.');
+      return;
+    }
+
+    setReportModalOpen(true);
+  };
+
   const handleSubmitReport = async () => {
     if (!product?.id) return;
     if (!ensureAuthenticated()) return;
+
+    const currentUserId = userInfo?.userID || userInfo?.userId || userInfo?.id || null;
+    const ownerId = resolveProductArtisanId(product);
+    if (currentUserId && ownerId && String(currentUserId) === String(ownerId)) {
+      toast.info('Bạn không thể báo cáo sản phẩm của shop mình.');
+      return;
+    }
+
     if (!reportReasonKey) {
       toast.warn('Vui lòng chọn lý do báo cáo');
       return;
@@ -443,7 +464,7 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
                 </button>
                 <button
                   type="button"
-                  onClick={() => setReportModalOpen(true)}
+                  onClick={handleOpenReportModal}
                   className="p-3 bg-white rounded-full border border-[#D4A574]/50 shadow hover:bg-[#D4A574]/20 transition-all duration-300"
                   title="Báo cáo sản phẩm"
                 >
