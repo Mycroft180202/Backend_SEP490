@@ -324,15 +324,60 @@ if (!string.IsNullOrWhiteSpace(corsOriginsEnv))
 if (allowedOrigins == null || allowedOrigins.Length == 0)
 {
     allowedOrigins = new[] { "http://192.168.1.183:3000",
+        "https://holahandicraft.vercel.app",
         "http://localhost:3000",
-        "https://hoalachandicraf-c2ekh6d9atg7dzcu.eastasia-01.azurewebsites.net" };
+        "https://hoalachandicraf-c2ekh6d9atg7dzcu.eastasia-01.azurewebsites.net"
+    };
+}
+
+var corsExactOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+var corsWildcardHostSuffixes = new List<string>();
+foreach (var origin in allowedOrigins)
+{
+    var trimmed = origin?.Trim();
+    if (string.IsNullOrWhiteSpace(trimmed)) continue;
+
+    // Support wildcard host suffixes like "*.vercel.app"
+    if (trimmed.StartsWith("*.", StringComparison.Ordinal))
+    {
+        corsWildcardHostSuffixes.Add(trimmed.Substring(1)); // ".vercel.app"
+        continue;
+    }
+
+    // Support host-suffix entries like ".vercel.app"
+    if (trimmed.StartsWith(".", StringComparison.Ordinal))
+    {
+        corsWildcardHostSuffixes.Add(trimmed);
+        continue;
+    }
+
+    corsExactOrigins.Add(trimmed);
+}
+
+bool IsAllowedCorsOrigin(string origin)
+{
+    if (string.IsNullOrWhiteSpace(origin)) return false;
+    if (corsExactOrigins.Contains(origin)) return true;
+
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+    if (string.IsNullOrWhiteSpace(uri.Host)) return false;
+
+    foreach (var suffix in corsWildcardHostSuffixes)
+    {
+        if (uri.Host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins(allowedOrigins)
+            .SetIsOriginAllowed(IsAllowedCorsOrigin)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
