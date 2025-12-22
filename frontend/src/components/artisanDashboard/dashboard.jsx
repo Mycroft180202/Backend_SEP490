@@ -97,6 +97,10 @@ const ArtisanDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const realtimeRefreshTimeoutRef = useRef(null);
+  const overviewRefreshInFlightRef = useRef(false);
+  const overviewRefreshPendingRef = useRef(false);
+  const lastOverviewRefreshAtRef = useRef(0);
+  const profileCacheRef = useRef(new Map());
   const now = new Date();
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
@@ -139,19 +143,28 @@ const ArtisanDashboard = () => {
       return orders;
     }
 
-    const profileEntries = await Promise.all(
-      uniqueCustomerIds.map(async (customerId) => {
-        try {
-          const profile = await UserService.getById(customerId);
-          return [customerId, profile];
-        } catch (error) {
-          console.warn('Không thể lấy thông tin khách hàng:', customerId, error);
-          return [customerId, null];
-        }
-      }),
-    );
+    const cache = profileCacheRef.current instanceof Map ? profileCacheRef.current : new Map();
+    profileCacheRef.current = cache;
 
-    const profileMap = new Map(profileEntries);
+    const missingIds = uniqueCustomerIds.filter((id) => !cache.has(id));
+    if (missingIds.length > 0) {
+      const profileEntries = await Promise.all(
+        missingIds.map(async (customerId) => {
+          try {
+            const profile = await UserService.getById(customerId);
+            return [customerId, profile];
+          } catch (error) {
+            console.warn('Không thể lấy thông tin khách hàng:', customerId, error);
+            return [customerId, null];
+          }
+        }),
+      );
+      profileEntries.forEach(([id, profile]) => {
+        cache.set(id, profile);
+      });
+    }
+
+    const profileMap = cache;
 
     return orders.map((order) => {
       const customerId = order.customerId || order.customerID;
@@ -243,12 +256,11 @@ const ArtisanDashboard = () => {
       const targetYear = selectedYear || currentYear;
       const targetMonth = selectedMonth || currentMonth;
 
-      const [todaySummaryRes, monthlyRes, stockRes, latestOrdersRes] = await Promise.all([
-        ArtisanDashboardService.getTodaySummary(),
-        ArtisanDashboardService.getMonthlyRevenue(targetYear),
-        ArtisanDashboardService.getOutOfStockProducts(),
-        ArtisanDashboardService.getLatestOrders(),
-      ]);
+      // Fetch sequentially to avoid spiking backend DB connections.
+      const todaySummaryRes = await ArtisanDashboardService.getTodaySummary();
+      const monthlyRes = await ArtisanDashboardService.getMonthlyRevenue(targetYear);
+      const stockRes = await ArtisanDashboardService.getOutOfStockProducts();
+      const latestOrdersRes = await ArtisanDashboardService.getLatestOrders();
 
       const normalizeMonthly = (source) => {
         const list = Array.isArray(source?.items)
@@ -482,10 +494,17 @@ const ArtisanDashboard = () => {
         ? numericMonth
         : fallbackMonth;
 
-      const [revenueResponse, soldResponse] = await Promise.all([
-        ArtisanDashboardService.getTopProducts({ metric: 'revenue', year: targetYear, month: targetMonth }),
-        ArtisanDashboardService.getTopProducts({ metric: 'totalSold', year: targetYear, month: targetMonth }),
-      ]);
+      // Fetch sequentially to avoid spiking backend DB connections.
+      const revenueResponse = await ArtisanDashboardService.getTopProducts({
+        metric: 'revenue',
+        year: targetYear,
+        month: targetMonth,
+      });
+      const soldResponse = await ArtisanDashboardService.getTopProducts({
+        metric: 'totalSold',
+        year: targetYear,
+        month: targetMonth,
+      });
 
       const normalizeTopProducts = (response) => {
         const list = Array.isArray(response?.items)
@@ -629,17 +648,46 @@ const ArtisanDashboard = () => {
     }
   }, [userInfo, distributionYear, distributionMonth]);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+  const refreshOverview = useCallback(async () => {
+    if (activeTab !== 'overview') {
+      return;
+    }
+
+    if (overviewRefreshInFlightRef.current) {
+      overviewRefreshPendingRef.current = true;
+      return;
+    }
+
+    const now = Date.now();
+    // Hard throttle: avoid hammering backend when realtime events arrive frequently.
+    if (now - lastOverviewRefreshAtRef.current < 5000) {
+      overviewRefreshPendingRef.current = true;
+      return;
+    }
+
+    overviewRefreshInFlightRef.current = true;
+    lastOverviewRefreshAtRef.current = now;
+
+    try {
+      // Run sequentially to keep backend DB connections stable.
+      await loadDashboardData();
+      await loadTopProducts();
+      await loadRevenueDistribution();
+    } finally {
+      overviewRefreshInFlightRef.current = false;
+      if (overviewRefreshPendingRef.current) {
+        overviewRefreshPendingRef.current = false;
+        // Schedule a single follow-up refresh after a small delay.
+        setTimeout(() => {
+          refreshOverview();
+        }, 800);
+      }
+    }
+  }, [activeTab, loadDashboardData, loadRevenueDistribution, loadTopProducts]);
 
   useEffect(() => {
-    loadTopProducts();
-  }, [loadTopProducts]);
-
-  useEffect(() => {
-    loadRevenueDistribution();
-  }, [loadRevenueDistribution]);
+    refreshOverview();
+  }, [refreshOverview]);
 
   const scheduleOverviewRefresh = useCallback(() => {
     if (activeTab !== 'overview') {
@@ -649,25 +697,19 @@ const ArtisanDashboard = () => {
       clearTimeout(realtimeRefreshTimeoutRef.current);
     }
     realtimeRefreshTimeoutRef.current = setTimeout(() => {
-      loadDashboardData();
-      loadTopProducts();
-      loadRevenueDistribution();
-    }, 500);
-  }, [activeTab, loadDashboardData, loadRevenueDistribution, loadTopProducts]);
+      refreshOverview();
+    }, 800);
+  }, [activeTab, refreshOverview]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
     const handler = () => scheduleOverviewRefresh();
-    window.addEventListener('realtime:notificationReceived', handler);
-    window.addEventListener('realtime:productStockUpdated', handler);
     window.addEventListener('realtime:orderUpdated', handler);
     window.addEventListener('realtime:paymentUpdated', handler);
     window.addEventListener('realtime:shipmentStatusUpdated', handler);
 
     return () => {
-      window.removeEventListener('realtime:notificationReceived', handler);
-      window.removeEventListener('realtime:productStockUpdated', handler);
       window.removeEventListener('realtime:orderUpdated', handler);
       window.removeEventListener('realtime:paymentUpdated', handler);
       window.removeEventListener('realtime:shipmentStatusUpdated', handler);
