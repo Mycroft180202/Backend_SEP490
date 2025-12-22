@@ -24,6 +24,7 @@ import { GHNLocationService } from '../services/modules/shipping/ghnLocationServ
 import { VoucherService } from '../services/modules/voucher/voucherService';
 import { ShopService } from '../services/modules/shop/shopService';
 import { LanguageContext } from '../context/LanguageContext';
+import { UserContext } from '../context/UserContext';
 import { NavigationKeys } from '../context/NavigationContext';
 import useNavigationNode from '../hooks/useNavigationNode';
 import { resolveProductArtisanId } from '../utils/productOwnership';
@@ -157,8 +158,11 @@ const isUnavailable = (item) => {
 
 const CheckOut = () => {
   const { t } = useContext(LanguageContext);
+  const { userInfo } = useContext(UserContext);
   const navigate = useNavigate();
   const location = useLocation();
+  const roleList = Array.isArray(userInfo?.roles) ? userInfo.roles : [];
+  const isAdmin = roleList.some((role) => (typeof role === 'string' ? role : role?.name) === 'Admin');
 
   const [cartItems, setCartItems] = useState([]);
   const [cartSummary, setCartSummary] = useState({
@@ -732,6 +736,21 @@ const CheckOut = () => {
       };
     }
 
+    if (isAdmin) {
+      toast.error('Admin không được phép mua hàng.', { toastId: 'admin-purchase-blocked' });
+      setCartItems([]);
+      setCartSummary({ subtotal: 0, shipping: 0, total: 0 });
+      setVoucherData({ shared: [], personal: [] });
+      setSelectedVoucherCode('');
+      navigate('/', { replace: true });
+      return () => {
+        if (redirectTimeoutRef.current) {
+          clearTimeout(redirectTimeoutRef.current);
+          redirectTimeoutRef.current = null;
+        }
+      };
+    }
+
     fetchCart();
     fetchAddresses();
     fetchVouchers();
@@ -742,7 +761,7 @@ const CheckOut = () => {
         redirectTimeoutRef.current = null;
       }
     };
-  }, [fetchAddresses, fetchCart, fetchVouchers, navigate, t, token]);
+  }, [fetchAddresses, fetchCart, fetchVouchers, isAdmin, navigate, t, token]);
 
   const allVouchers = useMemo(
     () => [...(voucherData.personal || []), ...(voucherData.shared || [])],
@@ -890,6 +909,10 @@ const CheckOut = () => {
   ]);
 
   const handlePlaceOrder = async () => {
+    if (isAdmin) {
+      toast.error('Admin không được phép mua hàng.', { toastId: 'admin-purchase-blocked' });
+      return;
+    }
     const validCartItems = cartItems.filter((item) => !isUnavailable(item));
     if (!validCartItems.length) {
       toast.info(t('messages.cartEmpty'));

@@ -31,6 +31,8 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
   const [isFavorite, setIsFavorite] = useState(false);
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
+  const roleList = Array.isArray(userInfo?.roles) ? userInfo.roles : [];
+  const isAdmin = roleList.some((role) => (typeof role === 'string' ? role : role?.name) === 'Admin');
   const navigate = useNavigate();
   const [wishItemId, setWishItemId] = useState(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -186,6 +188,10 @@ const ShortDescription = ({ product, selectedImageIndex, onSelectImage, shopInfo
   };
 
   const handleAddToCart = async (redirect = false) => {
+    if (isAdmin) {
+      toast.error('Admin không được phép mua hàng.', { toastId: 'admin-purchase-blocked' });
+      return;
+    }
     if (isOwnedByCurrentArtisan(product, userInfo)) {
       toast.info(resolveMessage('messages.cannotBuyOwnProduct', 'Bạn không thể mua sản phẩm của chính mình.'));
       return;

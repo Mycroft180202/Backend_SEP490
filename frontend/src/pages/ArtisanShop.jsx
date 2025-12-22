@@ -76,6 +76,8 @@ const resolveProductCategoryId = (product) => {
 const ArtisanShop = () => {
   const { t } = useContext(LanguageContext);
   const { userInfo } = useContext(UserContext);
+  const roleList = Array.isArray(userInfo?.roles) ? userInfo.roles : [];
+  const isAdmin = roleList.some((role) => (typeof role === 'string' ? role : role?.name) === 'Admin');
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -140,6 +142,10 @@ const ArtisanShop = () => {
   };
 
   const handleAddToCart = async (productOrId, price, quantity = 1, redirect = false) => {
+    if (isAdmin) {
+      toast.error('Admin không được phép mua hàng.', { toastId: 'admin-purchase-blocked' });
+      return;
+    }
     const productId = resolveProductId(productOrId);
     if (!productId) {
       toast.error(resolveMessage('messages.productUnavailable', 'Sản phẩm không khả dụng.'));
@@ -187,6 +193,10 @@ const ArtisanShop = () => {
   };
 
   const handleBuyNow = async (productOrId, price) => {
+    if (isAdmin) {
+      toast.error('Admin không được phép mua hàng.', { toastId: 'admin-purchase-blocked' });
+      return;
+    }
     await handleAddToCart(productOrId, price, 1, true);
   };
 

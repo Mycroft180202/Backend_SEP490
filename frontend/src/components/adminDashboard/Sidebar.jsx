@@ -1,11 +1,16 @@
 import React from 'react';
 import {
+  FaHome,
   FaSignOutAlt,
   FaBars,
   FaTimes
 } from 'react-icons/fa';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuItems }) => {
+  const handleGoHome = () => {
+    window.location.href = '/';
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     window.location.href = '/login';
@@ -51,6 +56,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, menuIte
 
       {/* Logout */}
       <div className="p-4 border-t border-red-400/50">
+        <button 
+          onClick={handleGoHome}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/90 hover:bg-red-600/40 transition-colors mb-2"
+        >
+          <FaHome className="text-xl flex-shrink-0" />
+          {sidebarOpen && <span className="font-nunito">Trang chủ</span>}
+        </button>
         <button 
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/90 hover:bg-red-600/40 transition-colors"

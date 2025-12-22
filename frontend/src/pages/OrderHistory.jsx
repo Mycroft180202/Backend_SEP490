@@ -41,13 +41,11 @@ const OrderHistory = () => {
     return items;
   }, [t, orderHistoryNode, profileNode]);
 
-  const [rawOrders, setRawOrders] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -58,39 +56,43 @@ const OrderHistory = () => {
     end: { day: '', month: '', year: '' },
   });
 
-  const fetchOrders = useCallback(async (pageIndex = 1) => {
-    const statusMap = {
-      all: null,
-      WaitingForPickup: 'WaitingForPickup',
-      Shipping: 'Shipping',
-      Completed: 'Completed',
-      Cancelled: 'Cancelled',
-      Paid: 'Paid',
-    };
-    
+  const statusMap = useMemo(() => ({
+    all: null,
+    WaitingForPickup: 'WaitingForPickup',
+    Shipping: 'Shipping',
+    Completed: 'Completed',
+    Cancelled: 'Cancelled',
+    Paid: 'Paid',
+  }), []);
+
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await OrderService.getMyOrders(pageIndex, pageSize);
-      
-      // Filter orders by selected status if needed
-      let filteredItems = response.items || [];
-      if (selectedStatus !== 'all' && statusMap[selectedStatus]) {
-        filteredItems = filteredItems.filter(order => order.status === statusMap[selectedStatus]);
+
+      const aggregated = [];
+      let pageIndex = 1;
+      let totalPages = 1;
+
+      while (pageIndex <= totalPages) {
+        // Use a larger pageSize to reduce roundtrips when building counts/tabs.
+        const response = await OrderService.getMyOrders(pageIndex, 50);
+        const items = response?.items || [];
+        aggregated.push(...items);
+        totalPages = Number(response?.totalPages) || 1;
+        pageIndex += 1;
       }
 
-      setRawOrders(filteredItems);
-      setTotalPages(response.totalPages || 1);
-      setCurrentPage(pageIndex);
+      setAllOrders(aggregated);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error(t('orderHistory.list.toast.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus, pageSize, t]);
+  }, [t]);
 
   useEffect(() => {
-    fetchOrders(1);
+    fetchOrders();
   }, [fetchOrders]);
 
   useEffect(() => {
@@ -100,7 +102,7 @@ const OrderHistory = () => {
     const scheduleRefresh = () => {
       if (refreshTimeout) clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
-        fetchOrders(currentPage);
+        fetchOrders();
       }, 400);
     };
 
@@ -118,7 +120,7 @@ const OrderHistory = () => {
       window.removeEventListener('realtime:paymentUpdated', handleRealtimePaymentUpdate);
       window.removeEventListener('realtime:shipmentStatusUpdated', handleRealtimeShipmentUpdate);
     };
-  }, [currentPage, fetchOrders]);
+  }, [fetchOrders]);
 
   const applyFilters = useCallback((items) => {
     if (!Array.isArray(items)) return [];
@@ -142,9 +144,60 @@ const OrderHistory = () => {
     });
   }, [filters]);
 
+  const filteredAllOrders = useMemo(() => applyFilters(allOrders), [allOrders, applyFilters]);
+
+  const statusFilteredOrders = useMemo(() => {
+    if (selectedStatus === 'all') return filteredAllOrders;
+    const status = statusMap[selectedStatus];
+    if (!status) return filteredAllOrders;
+    return filteredAllOrders.filter((order) => order?.status === status);
+  }, [filteredAllOrders, selectedStatus, statusMap]);
+
+  const totalPages = useMemo(() => (
+    Math.max(1, Math.ceil(statusFilteredOrders.length / pageSize))
+  ), [pageSize, statusFilteredOrders.length]);
+
   useEffect(() => {
-    setOrders(applyFilters(rawOrders));
-  }, [rawOrders, applyFilters]);
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const orders = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return statusFilteredOrders.slice(start, start + pageSize);
+  }, [currentPage, pageSize, statusFilteredOrders]);
+
+  const statusKeyByValue = useMemo(() => {
+    const map = {};
+    Object.keys(statusMap).forEach((key) => {
+      const value = statusMap[key];
+      if (!value) return;
+      map[value] = key;
+    });
+    return map;
+  }, [statusMap]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {
+      all: filteredAllOrders.length,
+      WaitingForPickup: 0,
+      Shipping: 0,
+      Completed: 0,
+      Cancelled: 0,
+      Paid: 0,
+    };
+
+    filteredAllOrders.forEach((order) => {
+      const status = order?.status;
+      const key = statusKeyByValue[status];
+      if (key) {
+        counts[key] += 1;
+      }
+    });
+
+    return counts;
+  }, [filteredAllOrders, statusKeyByValue]);
 
   const handleStatusChange = (status) => {
     setSelectedStatus(status);
@@ -153,13 +206,13 @@ const OrderHistory = () => {
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      fetchOrders(currentPage + 1);
+      setCurrentPage((prev) => prev + 1);
     }
   };
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
-      fetchOrders(currentPage - 1);
+      setCurrentPage((prev) => prev - 1);
     }
   };
 
@@ -216,14 +269,14 @@ const OrderHistory = () => {
   ), [orders]);
 
   const handleRefreshOrders = useCallback(() => {
-    fetchOrders(currentPage);
-  }, [fetchOrders, currentPage]);
+    fetchOrders();
+  }, [fetchOrders]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <Breadcrumb items={breadcrumbs} />
-      <SortBar onStatusChange={handleStatusChange} />
+      <SortBar onStatusChange={handleStatusChange} counts={statusCounts} />
       <div className="max-w-[1440px] mx-auto px-4 md:px-10 mt-6 flex flex-col gap-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {selectedStatus === 'all' && (
@@ -235,7 +288,7 @@ const OrderHistory = () => {
           )}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col gap-1">
             <p className="text-sm text-gray-500 font-nunito">{t('orderHistory.page.stats.ordersShownTitle')}</p>
-            <p className="text-3xl font-alata text-gray-900">{orders.length}</p>
+            <p className="text-3xl font-alata text-gray-900">{statusFilteredOrders.length}</p>
             <p className="text-xs text-gray-400">{t('orderHistory.page.stats.ordersShownCaption')}</p>
           </div>
         </div>

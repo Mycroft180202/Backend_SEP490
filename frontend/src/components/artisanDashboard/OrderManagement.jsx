@@ -894,7 +894,7 @@ const OrderManagement = () => {
           </div>
         </div>
         {confirmOrderNumber && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
               <h3 className="text-lg font-semibold text-gray-800">Xác nhận đơn hàng</h3>
               <p className="mt-2 text-sm text-gray-600">
@@ -927,7 +927,7 @@ const OrderManagement = () => {
           </div>
         )}
         {shippingOrderNumber && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
               <h3 className="text-lg font-semibold text-gray-800">Chuyển sang bên giao hàng</h3>
               <p className="mt-2 text-sm text-gray-600">

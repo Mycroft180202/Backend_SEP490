@@ -59,7 +59,15 @@ const normalizeCartItems = (data) => {
   }
 
   return sourceItems.map((item, index) => {
-    const product = item?.product || {};
+    const productWrapper = item?.product || {};
+    const product = (
+      productWrapper
+      && typeof productWrapper === 'object'
+      && productWrapper.product
+      && typeof productWrapper.product === 'object'
+        ? productWrapper.product
+        : productWrapper
+    );
     
     // Ưu tiên lấy imageUrl từ product trước, sau đó mới là images array
     let imageUrl = product?.imageUrl || item?.imageUrl;
@@ -81,10 +89,21 @@ const normalizeCartItems = (data) => {
       || item?.productId
       || `cart-item-${index}`;
 
+    const artisanId =
+      product?.artisanId
+      ?? product?.artisanID
+      ?? product?.artisan_id
+      ?? product?.ownerId
+      ?? product?.ownerID
+      ?? product?.artisan?.userId
+      ?? product?.artisan?.userID
+      ?? null;
+
     return {
       id: normalizedId,
       cartItemId: normalizedId,
       productId: item?.productId || product?.id || product?.productId,
+      artisanId,
       name: product?.name || item?.productName || item?.name || 'Product',
       image: imageUrl,
       imageUrl: imageUrl, // Thêm cả imageUrl để đồng bộ

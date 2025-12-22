@@ -14,12 +14,16 @@ import CartBanner from '../components/cart/CartBanner';
 import ProductList from '../components/cart/ProductList';
 import { CartService } from '../services/modules/cart/cartService';
 import { LanguageContext } from '../context/LanguageContext';
+import { UserContext } from '../context/UserContext';
 import { NavigationKeys } from '../context/NavigationContext';
 import useNavigationNode from '../hooks/useNavigationNode';
 
 const Cart = () => {
   const { t } = useContext(LanguageContext);
+  const { userInfo } = useContext(UserContext);
   const navigate = useNavigate();
+  const roleList = Array.isArray(userInfo?.roles) ? userInfo.roles : [];
+  const isAdmin = roleList.some((role) => (typeof role === 'string' ? role : role?.name) === 'Admin');
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +125,22 @@ const Cart = () => {
       };
     }
 
+    if (isAdmin) {
+      if (!toastShownRef.current) {
+        toast.error('Admin không được phép mua hàng.', { toastId: 'admin-purchase-blocked' });
+        toastShownRef.current = true;
+      }
+      setItems([]);
+      setSummary({ subtotal: 0, shipping: 0, total: 0 });
+      setLoading(false);
+      navigate('/', { replace: true });
+      return () => {
+        if (redirectTimeoutRef.current) {
+          clearTimeout(redirectTimeoutRef.current);
+        }
+      };
+    }
+
     fetchCart();
 
     return () => {
@@ -128,10 +148,10 @@ const Cart = () => {
         clearTimeout(redirectTimeoutRef.current);
       }
     };
-  }, [fetchCart, navigate, t, token]);
+  }, [fetchCart, isAdmin, navigate, t, token]);
 
   useEffect(() => {
-    if (!token) return () => {};
+    if (!token || isAdmin) return () => {};
     if (typeof window === 'undefined') return () => {};
 
     const handleCartUpdated = () => {
@@ -142,10 +162,10 @@ const Cart = () => {
     return () => {
       window.removeEventListener('cart:updated', handleCartUpdated);
     };
-  }, [fetchCart, token]);
+  }, [fetchCart, isAdmin, token]);
 
   useEffect(() => {
-    if (!token) return () => {};
+    if (!token || isAdmin) return () => {};
     if (typeof window === 'undefined') return () => {};
 
     const handleStockUpdated = (event) => {
@@ -191,7 +211,7 @@ const Cart = () => {
     return () => {
       window.removeEventListener('realtime:productStockUpdated', handleStockUpdated);
     };
-  }, [token]);
+  }, [isAdmin, token]);
 
   const handleQuantityChange = async (cartItemId, quantity, options = {}) => {
     const targetItem = items.find(

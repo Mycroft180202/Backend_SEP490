@@ -3,7 +3,7 @@ import { LanguageContext } from '../../context/LanguageContext';
 
 const STATUS_KEYS = ['all', 'WaitingForPickup', 'Shipping', 'Completed', 'Cancelled', 'Paid'];
 
-export default function SortBar({ onStatusChange }) {
+export default function SortBar({ onStatusChange, counts = {} }) {
 	const { t } = useContext(LanguageContext);
 	const [selected, setSelected] = useState(0);
 
@@ -11,8 +11,9 @@ export default function SortBar({ onStatusChange }) {
 		() => STATUS_KEYS.map((key) => ({
 			key,
 			label: t(`orderHistory.statuses.${key}`),
+			count: Number.isFinite(Number(counts?.[key])) ? Number(counts[key]) : 0,
 		})),
-		[t],
+		[counts, t],
 	);
 
 	const handleClick = (idx, key) => {
@@ -34,7 +35,7 @@ export default function SortBar({ onStatusChange }) {
 								: "text-gray-500 border-transparent hover:text-gray-700"
 						}`}
 					>
-						{status.label}
+						{status.label} ({status.count})
 					</button>
 				))}
 			</div>

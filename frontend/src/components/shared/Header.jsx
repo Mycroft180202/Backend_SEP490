@@ -243,10 +243,7 @@ const Header = () => {
   }, [t]);
 
   const navItems = useMemo(() => {
-    if (isAdmin) {
-      return [{ path: '/admin', label: 'Admin' }];
-    }
-    return [
+    const baseItems = [
       { path: '/', label: resolveLabel('nav.home', 'Trang chủ') },
       { path: '/about', label: resolveLabel('nav.about', 'Giới thiệu') },
       { path: '/shop', label: resolveLabel('nav.shop', 'Cửa hàng') },
@@ -254,6 +251,10 @@ const Header = () => {
       { path: '/contact', label: resolveLabel('nav.contact', 'Liên hệ') },
       { path: '/policy', label: resolveLabel('nav.policy', 'Chính sách') },
     ];
+    if (isAdmin) {
+      return [{ path: '/admin', label: 'Admin' }, ...baseItems];
+    }
+    return baseItems;
   }, [isAdmin, resolveLabel]);
 
   const profileEntryNode = useMemo(() => {
@@ -380,19 +381,23 @@ const Header = () => {
                     marginTop: '-8px'
                   }}
                 >
-                  <Link
-                    to="/profile"
-                    state={profileEntryNode ? { fromProfileOrigin: profileEntryNode } : undefined}
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {t('header.profile')}
-                  </Link>
-                  <Link
-                    to="/order-history"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {t('header.orders')}
-                  </Link>
+                  {!isAdmin && (
+                    <Link
+                      to="/profile"
+                      state={profileEntryNode ? { fromProfileOrigin: profileEntryNode } : undefined}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      {t('header.profile')}
+                    </Link>
+                  )}
+                  {!isAdmin && (
+                    <Link
+                      to="/order-history"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      {t('header.orders')}
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
