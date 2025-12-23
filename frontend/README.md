@@ -8,7 +8,7 @@ The frontend can be containerized with the provided `Dockerfile`. Build the prod
 
 ```bash
 docker build -t g90-frontend 
-  --build-arg REACT_APP_API_BASE_URL=https://hoalachandicraft-fmbmfmfcehdyeqgz.eastasia-01.azurewebsites.net
+  --build-arg REACT_APP_API_BASE_URL=https://hoalacbackend-dvaxe3gvdcbpc9b7.southeastasia-01.azurewebsites.net
   --build-arg REACT_APP_API_TIMEOUT=30000 
   .
 ```

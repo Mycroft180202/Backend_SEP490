@@ -8,7 +8,7 @@ RUN npm ci
 
 COPY . .
 
-ARG REACT_APP_API_BASE_URL="https://hoalachandicraft-fmbmfmfcehdyeqgz.eastasia-01.azurewebsites.net/"
+ARG REACT_APP_API_BASE_URL="https://hoalacbackend-dvaxe3gvdcbpc9b7.southeastasia-01.azurewebsites.net/"
 ARG REACT_APP_API_TIMEOUT="30000"
 
 ENV REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
