@@ -651,6 +651,14 @@ const OverviewSection = ({
                 {formatNumber(lowCount)} sắp hết • {formatNumber(outCount)} đã
                 hết
               </p>
+              <button
+                type="button"
+                onClick={() => onNavigateToProducts?.()}
+                className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#8B4513] hover:text-[#A25C2B] focus:outline-none"
+              >
+                Quản lý
+                <span aria-hidden>→</span>
+              </button>
             </div>
             <div className="rounded-full bg-yellow-100 p-4 text-yellow-600">
               <FaBoxOpen className="text-2xl" />
@@ -1027,55 +1035,6 @@ const OverviewSection = ({
               </>
             )}
           </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
-        <div className="rounded-xl bg-white p-6 shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">
-                Tình trạng tồn kho
-              </h2>
-              <p className="text-xs text-gray-500">
-                Số lượng sản phẩm theo cảnh báo
-              </p>
-            </div>
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-              {formatNumber(stockTotal)} mục
-            </span>
-          </div>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1 rounded-lg border border-yellow-100 bg-yellow-50 px-4 py-4">
-              <span className="text-xs font-semibold uppercase text-yellow-700">
-                Sản phẩm sắp hết hàng
-              </span>
-              <span className="text-3xl font-bold text-gray-800">
-                {formatNumber(lowCount)}
-              </span>
-              <span className="text-xs text-gray-500">
-                Cần nhập thêm để tránh đứt hàng.
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 rounded-lg border border-red-100 bg-red-50 px-4 py-4">
-              <span className="text-xs font-semibold uppercase text-red-700">
-                Sản phẩm đã hết hàng
-              </span>
-              <span className="text-3xl font-bold text-gray-800">
-                {formatNumber(outCount)}
-              </span>
-              <span className="text-xs text-gray-500">
-                Nên khôi phục tồn kho sớm.
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigateToProducts?.()}
-            className="mt-6 inline-flex items-center justify-center rounded-full border border-primary px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
-          >
-            Quản lý
-          </button>
         </div>
       </div>
 

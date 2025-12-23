@@ -257,8 +257,8 @@ const ProductCard = ({
                 {t('productCard.stock', { stock: stock || 0 })}
               </span>
             )}
-            <span className="text-primary font-semibold group-hover:text-accent">
-              {`${t('productCard.viewDetail')} ->`}
+            <span className="text-primary font-semibold group-hover:text-accent whitespace-nowrap flex-shrink-0">
+              {t('productCard.viewDetail')}
             </span>
           </div>
         </div>

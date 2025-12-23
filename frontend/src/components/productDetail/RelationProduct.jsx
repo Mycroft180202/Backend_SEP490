@@ -23,7 +23,6 @@ const RelationProduct = ({ categoryId, currentProductId }) => {
           pageIndex: 1,
         });
         
-        // Lọc bỏ sản phẩm hiện tại
         const filtered = (response.items || []).filter(p => p.id !== currentProductId);
         setRelatedProducts(filtered);
         setLoading(false);
@@ -96,7 +95,6 @@ const RelationProduct = ({ categoryId, currentProductId }) => {
               title={product.name}
               price={product.price}
               rating={product.rating || 0}
-              shopName={product.displayName}
               stock={product.stock}
               onClick={() => handleProductClick(product.id)}
             />

@@ -558,7 +558,7 @@ function ArtisanRegistrationForm({ isOpen, onClose, onSuccess, defaultEmail = ""
             {/* Years of Experience */}
             <div>
               <label className="block text-sm font-nunito font-semibold text-gray-700 mb-1">
-                Năm kinh nghiệm
+                Năm kinh nghiệm <span className="text-red-500">*</span>
               </label>
               <select
                 name="yearsOfExperience"
