@@ -7,6 +7,15 @@ import { GHNLocationService } from '../../services/modules/shipping/ghnLocationS
 import { UserService } from '../../services/modules/users/userService';
 import { normalizeVietnamPhone, sanitizeVietnamPhoneInput } from '../../utils/vietnamPhone';
 
+// Filter test provinces
+const HIDDEN_PROVINCE_IDS = new Set([2002, 298, 290, 286]);
+const HIDDEN_PROVINCE_NAMES = new Set([
+  'hà nội 02',
+  'test - alert - tỉnh - 001',
+  'ngoc test',
+  'test',
+]);
+
 const DEFAULT_FORM = Object.freeze({
   name: '',
   phone: '',
@@ -63,7 +72,15 @@ export default function AddressManageModal({
         setLoadingProvinces(true);
         const data = await GHNLocationService.getProvinces();
         if (!active) return;
-        setProvinces(Array.isArray(data) ? data : []);
+        
+        // Filter out test provinces
+        const filtered = (Array.isArray(data) ? data : []).filter((p) => {
+          if (HIDDEN_PROVINCE_IDS.has(p.ProvinceID)) return false;
+          const name = (p.ProvinceName || '').toLowerCase().trim();
+          return !HIDDEN_PROVINCE_NAMES.has(name);
+        });
+        
+        setProvinces(filtered);
       } catch (error) {
         console.error('Load provinces error:', error);
         toast.error(translate('profile.address.form.provinceLoadError', 'Không thể tải danh sách tỉnh/thành phố.'));
