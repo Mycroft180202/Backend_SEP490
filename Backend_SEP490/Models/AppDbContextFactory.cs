@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Backend_SEP490.Models;
 
 public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
-{
     
+{
     public AppDbContext CreateDbContext(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
