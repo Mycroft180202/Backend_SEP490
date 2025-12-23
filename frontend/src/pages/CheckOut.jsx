@@ -1363,6 +1363,33 @@ const CheckOut = () => {
   const hasCartItems = cartItems.length > 0;
   const orderDisabled = !selectedAddress || !hasCartItems;
 
+  const payableTotal = useMemo(() => {
+    const subtotalValue = Number(cartSummary.subtotal) || 0;
+    const shippingValue = Number(cartSummary.shipping) || 0;
+    const discountValue = Number(voucherDiscount) || 0;
+    return Math.max(subtotalValue + shippingValue - discountValue, 0);
+  }, [cartSummary.shipping, cartSummary.subtotal, voucherDiscount]);
+
+  const isZeroTotal = useMemo(() => (
+    hasCartItems
+    && !loadingCart
+    && !loadingAddresses
+    && !shippingLoading
+    && payableTotal === 0
+  ), [hasCartItems, loadingAddresses, loadingCart, payableTotal, shippingLoading]);
+
+  useEffect(() => {
+    if (!isZeroTotal) return;
+    if (selectedPaymentMethod !== 'cod') {
+      setSelectedPaymentMethod('cod');
+    }
+  }, [isZeroTotal, selectedPaymentMethod]);
+
+  const disableVnpay = hasMultipleShops || isZeroTotal;
+  const vnpayDisableMessage = isZeroTotal
+    ? 'Vì đơn hàng của bạn là 0 VND nên phương thức thanh toán mặc định là COD'
+    : (hasMultipleShops ? vnpayMultiShopMessage : '');
+
   const handlePlaceOrderClick = () => {
     if (placingOrder || orderDisabled) {
       return;
@@ -1370,6 +1397,10 @@ const CheckOut = () => {
     if (!termsAccepted) {
       setTermsModalOpen(true);
       return;
+    }
+
+    if (isZeroTotal && selectedPaymentMethod === 'vnpay') {
+      setSelectedPaymentMethod('cod');
     }
     handlePlaceOrder();
   };
@@ -1427,8 +1458,8 @@ const CheckOut = () => {
                 <PaymentMethod
                   selectedMethod={selectedPaymentMethod}
                   onChange={setSelectedPaymentMethod}
-                  disableVnpay={hasMultipleShops}
-                  vnpayDisableMessage={hasMultipleShops ? vnpayMultiShopMessage : ''}
+                  disableVnpay={disableVnpay}
+                  vnpayDisableMessage={vnpayDisableMessage}
                 />
               </div>
 
