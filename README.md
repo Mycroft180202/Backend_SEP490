@@ -129,3 +129,19 @@ Includes migrations:
 5. **Lưu trữ Data Protection keys**: mount volume hoặc cấu hình Azure Blob/Key Vault/Redis cho `/home/app/.aspnet/DataProtection-Keys` nhằm tránh mất key khi container restart (nếu không cookie auth/refresh token sẽ invalid).
 6. **Kiểm thử tích hợp**: xác thực email SMTP, Cloudinary, OpenAI, GHN, VNPay callback (`VNPAY_RETURN_URL`) và SignalR `/hubs/notifications`; đảm bảo outbound network rules cho phép kết nối tới các dịch vụ này.
 
+## 13. Automated System Tests
+
+A dedicated `Backend_SEP490.SystemTests` project spins up the API in-memory, seeds the sandbox credentials you provided (Admin `Nhat180202@@`, Customer `Customer@123`, Artisans `Artisan@123`) and drives the main flows end to end:
+
+- Admin: create → update → delete voucher so promotional logic is always verified.
+- Artisan: create → update → delete product with fake Cloudinary/embedding services (no external calls).
+- Customer: create/update/delete shipping address plus add/update/delete cart items based on temporary products.
+
+Run the suite from the backend root:
+
+```bash
+cd Backend_SEP490
+ dotnet test Backend_SEP490.SystemTests/Backend_SEP490.SystemTests.csproj
+```
+
+Every resource created during the tests is either soft-deleted or removed at the end of the scenario to avoid polluting persisted data.

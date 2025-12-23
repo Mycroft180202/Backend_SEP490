@@ -129,7 +129,14 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new Exception("ConnectionStrings:DefaultConnection is not configured.");
 }
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase("SystemTestsDb"));
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+}
 
 // ----------------------
 // AutoMapper

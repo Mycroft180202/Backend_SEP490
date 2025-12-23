@@ -27,6 +27,7 @@
     <PackageReference Include="OpenAI" Version="2.0.0" />
     <PackageReference Include="QRCoder" Version="1.4.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
   </ItemGroup>
 
   <ItemGroup>
