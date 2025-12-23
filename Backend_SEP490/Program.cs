@@ -113,23 +113,17 @@ var Cors__AllowedOrigins__0 = Environment.GetEnvironmentVariable("Cors__AllowedO
 var connectionString = GetEnvOrNull("ConnectionStrings__DefaultConnection")
                      ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
-var dbPassword = GetEnvOrNull("DB_PASSWORD");
-if (!string.IsNullOrWhiteSpace(connectionString) &&
-    connectionString.Contains("{DB_PASSWORD}", StringComparison.OrdinalIgnoreCase))
-{
-    if (string.IsNullOrWhiteSpace(dbPassword))
-    {
-        throw new Exception("DB_PASSWORD is required when connection string contains {DB_PASSWORD}");
-    }
-    connectionString = connectionString.Replace("{DB_PASSWORD}", dbPassword);
-}
+var connStr =
+$@"Host={Environment.GetEnvironmentVariable("DB_HOST")};
+   Port={Environment.GetEnvironmentVariable("DB_PORT")};
+   Database={Environment.GetEnvironmentVariable("DB_NAME")};
+   Username={Environment.GetEnvironmentVariable("DB_USER")};
+   Password={Environment.GetEnvironmentVariable("DB_PASSWORD")};
+   SSL Mode=Require;
+   Trust Server Certificate=true;";
 
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new Exception("ConnectionStrings:DefaultConnection is not configured.");
-}
-
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseNpgsql(connStr));
 
 // ----------------------
 // AutoMapper

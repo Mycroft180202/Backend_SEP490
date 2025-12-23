@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_SEP490.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251212163438_AddSellerReputationAndOrderConfirmation")]
-    partial class AddSellerReputationAndOrderConfirmation
+    [Migration("20251223065513_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
