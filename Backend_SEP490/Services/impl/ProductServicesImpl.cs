@@ -206,7 +206,7 @@ public class ProductServicesImpl: GenericServices, IProductServices
         newProduct.QuantitySale = 0;
         var textToEmbed = $"{newProduct.Name} {newProduct.ShortDescription} {newProduct.LongDescription}".Trim();
 
-// Batch embedding
+
         var embeddingsDict = await _embeddingService.GenerateEmbeddingBatchAsync(new[] { textToEmbed });
 
         if (!embeddingsDict.TryGetValue(textToEmbed, out var embedding))
@@ -216,14 +216,14 @@ public class ProductServicesImpl: GenericServices, IProductServices
                 throw new Exception("Failed to generate embedding for product text.");
         }
 
-// Chuy?n embedding array thành JsonDocument
+
         var embeddingJsonString = JsonSerializer.Serialize(embedding);
         newProduct.EmbeddingJson = JsonDocument.Parse(embeddingJsonString);
 
-        // Thêm s?n ph?m
+
         await _context.Products.AddProductAsync(newProduct);
 
-        // Upload hình ?nh
+
         if (productDto.Images != null && productDto.Images.Any())
         {
             int position = 0;
