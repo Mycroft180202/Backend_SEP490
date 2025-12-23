@@ -31,7 +31,7 @@ public class NotificationHub : Hub<INotificationClient>
         await base.OnDisconnectedAsync(exception);
     }
 
-    internal static string GetUserGroup(string userId) => $"notifications:{userId}";
+    public static string GetUserGroup(string userId) => $"notifications:{userId}";
 
     private string? GetUserId() => Context.User.GetUserId();
 }

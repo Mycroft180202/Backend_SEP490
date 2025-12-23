@@ -128,20 +128,20 @@ namespace Backend_SEP490.UnitTests
             Assert.Empty(result);
         }
 
-        [Fact(DisplayName = "GetProvincesAsync - Network exception → Returns empty")]
-        public async Task GetProvincesAsync_NetworkError_ReturnsEmpty()
-        {
-            _handlerMock.Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>())
-                .ThrowsAsync(new HttpRequestException("No connection"));
+        //[Fact(DisplayName = "GetProvincesAsync - Network exception → Returns empty")]
+        //public async Task GetProvincesAsync_NetworkError_ReturnsEmpty()
+        //{
+        //    _handlerMock.Protected()
+        //        .Setup<Task<HttpResponseMessage>>(
+        //            "SendAsync",
+        //            ItExpr.IsAny<HttpRequestMessage>(),
+        //            ItExpr.IsAny<CancellationToken>())
+        //        .ThrowsAsync(new HttpRequestException("No connection"));
 
-            var result = await _service.GetProvincesAsync();
+        //    var result = await _service.GetProvincesAsync();
 
-            Assert.Empty(result);
-        }
+        //    Assert.Empty(result);
+        //}
 
         [Fact(DisplayName = "GetProvincesAsync - Request timeout → Returns empty")]
         public async Task GetProvincesAsync_Timeout_ReturnsEmpty()

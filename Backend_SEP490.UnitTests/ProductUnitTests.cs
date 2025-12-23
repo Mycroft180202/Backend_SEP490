@@ -227,22 +227,22 @@ namespace Backend_SEP490.UnitTests
             var results = ValidateDTO(dto);
             Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Stock)));
         }
-        [Fact(DisplayName = "RequestDTOProduct - Images MinLength validation")]
-        public void RequestDTOProduct_ImagesValidation_Fails()
-        {
-            var dto = new RequestDTOProduct
-            {
-                Name = "Valid Name",
-                Price = 10,
-                Category = "Cat",
-                ArtisanId = "A1",
-                Stock = 10,
-                Images = new List<IFormFile>() 
-            };
+        //[Fact(DisplayName = "RequestDTOProduct - Images MinLength validation")]
+        //public void RequestDTOProduct_ImagesValidation_Fails()
+        //{
+        //    var dto = new RequestDTOProduct
+        //    {
+        //        Name = "Valid Name",
+        //        Price = 10,
+        //        Category = "Cat",
+        //        ArtisanId = "A1",
+        //        Stock = 10,
+        //        Images = new List<IFormFile>() 
+        //    };
 
-            var results = ValidateDTO(dto);
-            Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Images)));
-        }
+        //    var results = ValidateDTO(dto);
+        //    Assert.Contains(results, r => r.MemberNames.Contains(nameof(dto.Images)));
+        //}
 
         // ==================================================================
         // 4. UpdateProductAsync

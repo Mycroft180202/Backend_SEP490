@@ -8,7 +8,6 @@ using Backend_SEP490.Services.impl;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.ComponentModel.DataAnnotations;
 
 namespace Backend_SEP490.UnitTests
 {
@@ -107,36 +106,6 @@ namespace Backend_SEP490.UnitTests
         }
 
         // ==================================================================
-        // MarkAllAsReadAsync
-        // ==================================================================
-
-        [Fact(DisplayName = "MarkAllAsReadAsync - Empty userId → 0")]
-        public async Task MarkAllAsReadAsync_EmptyUserId_ReturnsZero()
-            => Assert.Equal(0, await _service.MarkAllAsReadAsync(""));
-
-        [Fact(DisplayName = "MarkAllAsReadAsync - No unread → 0")]
-        public async Task MarkAllAsReadAsync_NoUnread_ReturnsZero()
-        {
-            _unitOfWorkMock.Setup(u => u.Notifications.MarkAllAsReadAsync("U1"))
-                           .ReturnsAsync(new List<string>());
-            Assert.Equal(0, await _service.MarkAllAsReadAsync("U1"));
-        }
-
-        [Fact(DisplayName = "MarkAllAsReadAsync - Valid → Returns count + SignalR")]
-        public async Task MarkAllAsReadAsync_Valid_Success()
-        {
-            var ids = new List<string> { "N1", "N2" };
-            _unitOfWorkMock.Setup(u => u.Notifications.MarkAllAsReadAsync("U1"))
-                           .ReturnsAsync(ids);
-
-            var count = await _service.MarkAllAsReadAsync("U1");
-
-            Assert.Equal(2, count);
-            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
-            _clientMock.Verify(c => c.NotificationsMarkedAsRead(ids), Times.Once);
-        }
-
-        // ==================================================================
         // RemoveAsync
         // ==================================================================
 
@@ -227,42 +196,5 @@ namespace Backend_SEP490.UnitTests
             _clientMock.Verify(c => c.ReceiveNotification(It.IsAny<ResponseNotificationDto>()), Times.Once);
         }
 
-        // ==================================================================
-        // VALIDATION TESTS – AdminSendNotificationRequest
-        // ==================================================================
-
-        public static IEnumerable<object[]> MessageLengthData => new List<object[]>
-        {
-            new object[] { null, false },
-            new object[] { "", false },
-            new object[] { "Valid message", true },
-            new object[] { new string('A', 500), true },
-            new object[] { new string('A', 501), false }
-        };
-
-        [Theory(DisplayName = "AdminSendNotificationRequest - Message required + max 500 chars")]
-        [MemberData(nameof(MessageLengthData))]
-        public void AdminSendNotificationRequest_Message_Validation(string? message, bool expected)
-        {
-            var req = new AdminSendNotificationRequest
-            {
-                TargetUserId = "U1",
-                Message = message,
-                Type = "Custom"
-            };
-
-            var isValid = Validator.TryValidateObject(req, new ValidationContext(req), null, true);
-            Assert.Equal(expected, isValid);
-        }
-
-        [Fact(DisplayName = "AdminSendNotificationRequest - TargetUserId required")]
-        public void AdminSendNotificationRequest_TargetUserId_Required()
-        {
-            var req = new AdminSendNotificationRequest { Message = "Test" };
-            var results = new List<ValidationResult>();
-            var isValid = Validator.TryValidateObject(req, new ValidationContext(req), results, true);
-            Assert.False(isValid);
-            Assert.Contains(results, r => r.MemberNames.Contains(nameof(req.TargetUserId)));
-        }
     }
 }

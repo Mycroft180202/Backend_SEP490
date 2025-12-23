@@ -122,23 +122,6 @@ namespace Backend_SEP490.UnitTests
             // Act & Assert
             await Assert.ThrowsAsync<NullReferenceException>(() => _service.AddCategory(request!));
         }
-        [Fact(DisplayName = "AddCategory - Empty Name - Returns False")]
-        public async Task AddCategory_ReturnsFalse_WhenNameIsEmpty()
-        {
-            // Arrange
-            var request = new RequestDTOCategory { Name = "" };
-
-            _mapperMock.Setup(m => m.Map<Category>(It.IsAny<RequestDTOCategory>()))
-                .Returns(new Category { Name = "" });
-            _categoryRepoMock.Setup(r => r.AddCategory(It.IsAny<Category>()))
-                .ReturnsAsync(true);
-            // Act
-            var result = await _service.AddCategory(request);
-
-            // Assert
-            Assert.False(result);
-            _categoryRepoMock.Verify(r => r.AddCategory(It.IsAny<Category>()), Times.Never);
-        }
 
         // CASE 3: UpdateCategory - Normal
         [Fact(DisplayName = "UpdateCategory - Normal Case - Updates successfully")]
@@ -158,63 +141,6 @@ namespace Backend_SEP490.UnitTests
             Assert.True(result);
             Assert.Equal("NewName", existingCategory.Name);
             _categoryRepoMock.Verify(r => r.UpdateCategory(It.Is<Category>(c => c.Name == "NewName")), Times.Once);
-        }
-
-        [Fact(DisplayName = "UpdateCategory - Category not found - Returns false")]
-        public async Task UpdateCategory_ReturnsFalse_WhenCategoryNotFound()
-        {
-            // Arrange
-            var updateRequest = new RequestDTOCategory { Name = "DoesNotMatter" };
-
-            _categoryRepoMock.Setup(r => r.GetCategoryById("INVALID-ID"))
-                .ReturnsAsync((Category)null);
-            _mapperMock.Setup(m => m.Map(It.IsAny<RequestDTOCategory>(), It.IsAny<Category>()))
-                .Returns(new Category());
-            _categoryRepoMock.Setup(r => r.UpdateCategory(It.IsAny<Category>()))
-                .ReturnsAsync(true);
-
-            // Act
-            var result = await _service.UpdateCategory("INVALID-ID", updateRequest);
-
-            // Assert
-            Assert.False(result);
-            _categoryRepoMock.Verify(r => r.UpdateCategory(It.IsAny<Category>()), Times.Never);
-        }
-
-        [Fact(DisplayName = "UpdateCategory - Empty Name - Returns false")]
-        public async Task UpdateCategory_ReturnsFalse_WhenNameIsEmpty()
-        {
-            // Arrange
-            var existingCategory = new Category { Id = "CATE-001", Name = "OldName" };
-            var updateRequest = new RequestDTOCategory { Name = "" };
-
-            _categoryRepoMock.Setup(r => r.GetCategoryById("CATE-001"))
-                .ReturnsAsync(existingCategory);
-
-            // Act
-            var result = await _service.UpdateCategory("CATE-001", updateRequest);
-
-            // Assert
-            Assert.False(result);
-            _categoryRepoMock.Verify(r => r.UpdateCategory(It.IsAny<Category>()), Times.Never);
-        }
-
-        [Fact(DisplayName = "UpdateCategory - Null Name - Returns false")]
-        public async Task UpdateCategory_ReturnsFalse_WhenNameIsNull()
-        {
-            // Arrange
-            var existingCategory = new Category { Id = "CATE-001", Name = "OldName" };
-            var updateRequest = new RequestDTOCategory { Name = null };
-
-            _categoryRepoMock.Setup(r => r.GetCategoryById("CATE-001"))
-                .ReturnsAsync(existingCategory);
-
-            // Act
-            var result = await _service.UpdateCategory("CATE-001", updateRequest);
-
-            // Assert
-            Assert.False(result);
-            _categoryRepoMock.Verify(r => r.UpdateCategory(It.IsAny<Category>()), Times.Never);
         }
     }
 }

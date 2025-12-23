@@ -5,9 +5,7 @@ using Backend_SEP490.Models;
 using Backend_SEP490.Repositories;
 using Backend_SEP490.Services.impl;
 using CloudinaryDotNet;
-using Microsoft.AspNetCore.Http;
 using Moq;
-using System.IO;
 
 namespace Backend_SEP490.UnitTests
 {

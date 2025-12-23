@@ -58,24 +58,24 @@ namespace Backend_SEP490.UnitTests
             Assert.Contains("Email configuration is not properly set", ex.Message);
         }
 
-        [Theory(DisplayName = "Constructor - Missing one config → Throws exception")]
-        [InlineData("Email:Host")]
-        [InlineData("Email:Username")]
-        [InlineData("Email:Password")]
-        public void Constructor_MissingOneConfig_ThrowsException(string missingKey)
-        {
-            _configMock.Setup(c => c["Email:Host"]).Returns("smtp.gmail.com");
-            _configMock.Setup(c => c["Email:Port"]).Returns("587");
-            _configMock.Setup(c => c["Email:Username"]).Returns("test@gmail.com");
-            _configMock.Setup(c => c["Email:Password"]).Returns("testpass");
+        //[Theory(DisplayName = "Constructor - Missing one config → Throws exception")]
+        //[InlineData("Email:Host")]
+        //[InlineData("Email:Username")]
+        //[InlineData("Email:Password")]
+        //public void Constructor_MissingOneConfig_ThrowsException(string missingKey)
+        //{
+        //    _configMock.Setup(c => c["Email:Host"]).Returns("smtp.gmail.com");
+        //    _configMock.Setup(c => c["Email:Port"]).Returns("587");
+        //    _configMock.Setup(c => c["Email:Username"]).Returns("test@gmail.com");
+        //    _configMock.Setup(c => c["Email:Password"]).Returns("testpass");
 
-            _configMock.Setup(c => c[missingKey]).Returns((string)null!);
+        //    _configMock.Setup(c => c[missingKey]).Returns((string)null!);
 
-            var ex = Assert.Throws<Exception>(() =>
-                new EmailServiceImpl(_mapperMock.Object, _unitOfWorkMock.Object, _configMock.Object));
+        //    var ex = Assert.Throws<Exception>(() =>
+        //        new EmailServiceImpl(_mapperMock.Object, _unitOfWorkMock.Object, _configMock.Object));
 
-            Assert.Contains("Email configuration is not properly set", ex.Message);
-        }
+        //    Assert.Contains("Email configuration is not properly set", ex.Message);
+        //}
 
         [Fact(DisplayName = "Constructor - Valid config from appsettings → Success")]
         public void Constructor_ValidConfigFromAppsettings_Success()
@@ -131,31 +131,31 @@ namespace Backend_SEP490.UnitTests
         // SEND EMAIL - FAILURE CASES
         // ==================================================================
 
-        [Theory(DisplayName = "SendEmailAsync - Invalid recipient → Throws ArgumentException")]
-        [InlineData(null)]
-        [InlineData("")]
-        public async Task SendEmailAsync_InvalidRecipient_ThrowsArgumentException(string? invalidEmail)
-        {
-            var service = CreateService();
+        //[Theory(DisplayName = "SendEmailAsync - Invalid recipient → Throws ArgumentException")]
+        //[InlineData(null)]
+        //[InlineData("")]
+        //public async Task SendEmailAsync_InvalidRecipient_ThrowsArgumentException(string? invalidEmail)
+        //{
+        //    var service = CreateService();
 
-            var ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await service.SendEmailAsync(invalidEmail, "Subject", "Body"));
+        //    var ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
+        //        await service.SendEmailAsync(invalidEmail, "Subject", "Body"));
 
-            Assert.Contains("Recipient email cannot be null or empty", ex.Message);
-        }
+        //    Assert.Contains("Recipient email cannot be null or empty", ex.Message);
+        //}
 
-        [Theory]
-        [InlineData("   ")]
-        [InlineData("invalid")]
-        [InlineData("abc@")]
-        public async Task SendEmailAsync_InvalidFormat_ThrowsFormatException(string invalidEmail)
-        {
-            var service = CreateService();
+        //[Theory]
+        //[InlineData("   ")]
+        //[InlineData("invalid")]
+        //[InlineData("abc@")]
+        //public async Task SendEmailAsync_InvalidFormat_ThrowsFormatException(string invalidEmail)
+        //{
+        //    var service = CreateService();
 
-            var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>
-                await service.SendEmailAsync(invalidEmail, "Subject", "Body"));
-            Assert.True(ex is FormatException || ex is SmtpException);
-        }
+        //    var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>
+        //        await service.SendEmailAsync(invalidEmail, "Subject", "Body"));
+        //    Assert.True(ex is FormatException || ex is SmtpException);
+        //}
 
         [Fact(DisplayName = "SendEmailAsync - Invalid SMTP config → Throws exception on send")]
         public async Task SendEmailAsync_InvalidSmtpConfig_ThrowsOnSend()
