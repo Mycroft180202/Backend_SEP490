@@ -69,7 +69,7 @@ public class PaymentServiceImpl : GenericServices, IPaymentService
             return null;
         }
 
-        if (order.TotalAmount <= 0)
+        if (order.TotalAmount < 0)
         {
             _logger.LogWarning("Order {OrderId} has invalid total amount {Total}.", order.Id, order.TotalAmount);
             return null;

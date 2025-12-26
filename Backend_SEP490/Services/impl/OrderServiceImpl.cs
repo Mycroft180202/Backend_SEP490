@@ -257,7 +257,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
                 return CreateOrderResult.Failure(voucherError ?? "Unable to apply voucher.");
             }
 
-            var totalAmount = Math.Max(0m, subtotal - discountAmount + shippingFee);
+            var totalAmount = Math.Max(0m, subtotal+ shippingFee - discountAmount );
             var resolvedShippingServiceId = resolvedServiceId ?? -1;
 
             var orderId = $"Order-{userId}-{Guid.NewGuid():N}";
@@ -791,7 +791,7 @@ public class OrderServiceImpl : GenericServices, IOrderService
             discount = Math.Max(voucher.DiscountValue, 0m);
         }
 
-        discount = Math.Min(discount, orderAmount);
+        //discount = Math.Min(discount, orderAmount);
 
         if (voucher.UsageLimit.HasValue)
         {
@@ -1640,6 +1640,8 @@ public class OrderServiceImpl : GenericServices, IOrderService
         }
 
         var orders = await _context.Order.GetAllOrderByUserIdAsync(userId);
+        
+       
         var filteredOrders = orders.AsEnumerable();
 
         if (requestFilter != null)
