@@ -91,5 +91,6 @@ export const API_ENDPOINTS = {
 
   PAYMENTS: {
     VNPAY_BATCH: '/api/Payment/vnpay/batch',
+    VNPAY_RESULT: '/api/Payment/vnpay/result',
   },
 };
